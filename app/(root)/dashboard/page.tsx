@@ -3,6 +3,7 @@ import CreditCard from "@/src/components/creditCard/creditCard";
 import TransactionsView from "@/src/components/transactions/TransactionsView";
 import BlendyButton from "@/src/components/modal/blendy";
 import TransactionForm from "@/src/components/transactions/TransactionForm";
+import { Categories } from "@/src/components/categories/categories";
 
 
 export default function Dashboard() {
@@ -45,13 +46,15 @@ export default function Dashboard() {
               modalTitle="Nueva Transacción"
               modalContent={
                 <div>
-                  <TransactionForm 
+
+                  <Categories />
+                  {/* <TransactionForm 
                     onSuccess={() => {
                       // Aquí puedes agregar lógica para refrescar las transacciones
                       // Por ejemplo, disparar un evento o actualizar estado
                       window.location.reload(); // Solución temporal - podrías mejorar esto
                     }}
-                  />
+                  /> */}
                 </div>
               }
             />

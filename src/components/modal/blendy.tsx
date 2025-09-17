@@ -164,7 +164,7 @@ export function Modal({ onClose, title = "Modal", content }: ModalProps) {
   return (
     <div className="modal z-50" style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
       <div>
-        <div className="modal__header">
+        <div className="modal__header border-b border-zinc-700">
           <h2 className="text-zinc-400">{title}</h2>
           <button 
             className={`modal__close ${isOpening ? 'opening' : ''}`}

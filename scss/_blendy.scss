@@ -83,7 +83,7 @@
   height: fit-content;
   max-height: 80vh;
   border-radius: 10px;
-  padding: 20px 20px;
+  // padding: 20px 20px;
   /* Asegurar que Blendy pueda animar correctamente */
   will-change: transform, opacity;
 }
@@ -91,7 +91,7 @@
 .modal__header {
   display: flex;
   justify-content: space-between;
-  padding: 0 10px;
+  padding: 10px 20px;
 }
 
 .modal__title {
@@ -180,7 +180,7 @@
   font-size: 20px;
   text-align: center;
   text-wrap: pretty;
-  padding: 30px 0 20px;
+  padding: 20px;
 }
 
 @media (max-width: 800px) {
