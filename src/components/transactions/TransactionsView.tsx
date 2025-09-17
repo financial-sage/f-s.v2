@@ -5,25 +5,58 @@ import styles from '@/scss/modules/transactionsView.module.scss';
 import { useTransactionContext } from '@/src/contexts/TransactionContext';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
 import { formatDate, getTransactionIcon, formatStatus } from '@/src/utils/transactions';
-import { Transaction } from '@/src/lib/supabase/transactions';
+import { TransactionWithCategory } from '@/src/lib/supabase/transactions';
+import { CategoryIcon } from '../categories/CategoryIcons';
 
 interface TransactionItemProps {
-    transaction: Transaction;
+    transaction: TransactionWithCategory;
 }
 
 function TransactionItem({ transaction }: TransactionItemProps) {
     const { formatAmountWithType } = useCurrency();
+    
+    // Obtener información de la categoría o usar valores por defecto
+    const getIconAndColor = () => {
+        if (transaction.category) {
+            return {
+                icon: transaction.category.icon || 'plus',
+                color: transaction.category.color
+            };
+        } else {
+            // Iconos por defecto según el tipo de transacción
+            return {
+                icon: transaction.type === 'income' ? 'trending-up' : 'banknote',
+                color: transaction.type === 'income' ? '#22c55e' : '#ef4444' // verde para ingresos, rojo para gastos
+            };
+        }
+    };
+    
+    const { icon, color } = getIconAndColor();
     
     return (
         <div className={styles.transaction}>
             <div className={styles.content}>
                 <div className={styles.transactionInfo}>
                     <div className={styles.icon}>
-                        <i className={getTransactionIcon(transaction.type, transaction.description)}></i>
+                        <CategoryIcon 
+                            iconName={icon} 
+                            color={color} 
+                            size={20} 
+                        />
                     </div>
                     <div className={styles.transactionDetails}>
                         <div className={styles.transactionTitle}>
                             {transaction.description || `${transaction.type === 'income' ? 'Ingreso' : 'Gasto'} sin descripción`}
+                            {transaction.category && (
+                                <span style={{ 
+                                    marginLeft: '8px', 
+                                    fontSize: '0.8em', 
+                                    color: '#a1a1aa',
+                                    fontWeight: 'normal'
+                                }}>
+                                    · {transaction.category.name}
+                                </span>
+                            )}
                         </div>
                         <div className={styles.transactionMeta}>
                             <span className={styles.transactionDate}>
@@ -158,7 +191,7 @@ export default function TransactionsView() {
             }}
         >
             <div className={styles.timeline}>
-                {transactions.map((transaction: Transaction) => (
+                {transactions.map((transaction: TransactionWithCategory) => (
                     <TransactionItem 
                         key={transaction.id} 
                         transaction={transaction} 

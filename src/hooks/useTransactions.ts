@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Transaction, getUserTransactions } from '@/src/lib/supabase/transactions';
+import { Transaction, TransactionWithCategory, getUserTransactionsWithCategories } from '@/src/lib/supabase/transactions';
 
 interface UseTransactionsResult {
-  transactions: Transaction[];
+  transactions: TransactionWithCategory[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -14,7 +14,7 @@ interface UseTransactionsResult {
 }
 
 export function useTransactions(userId: string | null): UseTransactionsResult {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +29,7 @@ export function useTransactions(userId: string | null): UseTransactionsResult {
       setLoading(true);
       setError(null);
       
-      const result = await getUserTransactions(userId);
+      const result = await getUserTransactionsWithCategories(userId);
       
       if (result.error) {
         setError(result.error.message);

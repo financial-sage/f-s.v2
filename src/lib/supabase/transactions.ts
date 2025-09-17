@@ -14,6 +14,15 @@ export interface Transaction {
   external_id: string | null;
 }
 
+export interface TransactionWithCategory extends Transaction {
+  category?: {
+    id: string;
+    name: string;
+    color: string;
+    icon: string | null;
+  } | null;
+}
+
 export interface NewTransaction {
   amount: number;
   description?: string;
@@ -26,7 +35,7 @@ export interface NewTransaction {
 }
 
 export interface TransactionResult {
-  data?: Transaction | Transaction[];
+  data?: Transaction | Transaction[] | TransactionWithCategory | TransactionWithCategory[];
   error?: Error | { message: string } | null;
 }
 
@@ -45,6 +54,27 @@ export async function getUserTransactions(userId: string): Promise<TransactionRe
     return { data: data as Transaction[] };
   } catch (error: any) {
     return { error: { message: error.message || 'Error al obtener las transacciones' } };
+  }
+}
+
+/**
+ * Obtiene todas las transacciones del usuario con información de categorías
+ */
+export async function getUserTransactionsWithCategories(userId: string): Promise<TransactionResult> {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select(`
+        *,
+        category:categories(id, name, color, icon)
+      `)
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (error) throw error;
+    return { data: data as TransactionWithCategory[] };
+  } catch (error: any) {
+    return { error: { message: error.message || 'Error al obtener las transacciones con categorías' } };
   }
 }
 
@@ -121,5 +151,34 @@ export async function deleteTransaction(
     return {};
   } catch (error: any) {
     return { error: { message: error.message || 'Error al eliminar la transacción' } };
+  }
+}
+
+/**
+ * Obtiene el gasto total por categoría para el usuario
+ */
+export async function getCategoryExpenses(userId: string): Promise<{ data?: Record<string, number>; error?: { message: string } }> {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('category_id, amount')
+      .eq('user_id', userId)
+      .eq('type', 'expense')
+      .eq('status', 'completed');
+
+    if (error) throw error;
+
+    // Agrupa por categoría y suma los gastos
+    const categoryExpenses: Record<string, number> = {};
+    data?.forEach((transaction) => {
+      if (transaction.category_id) {
+        categoryExpenses[transaction.category_id] = 
+          (categoryExpenses[transaction.category_id] || 0) + Math.abs(transaction.amount);
+      }
+    });
+
+    return { data: categoryExpenses };
+  } catch (error: any) {
+    return { error: { message: error.message || 'Error al obtener gastos por categoría' } };
   }
 }

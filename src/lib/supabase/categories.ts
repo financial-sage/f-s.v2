@@ -9,6 +9,7 @@ export interface Category {
   budget_limit: number | null;
   is_default: boolean;
   icon?: string; 
+  type: 'income' | 'expense';
 }
 
 export interface NewCategory {
@@ -16,6 +17,7 @@ export interface NewCategory {
   color: string;
   budget_limit?: number;
   icon?: string;
+  type: 'income' | 'expense';
 }
 
 export interface CategoryResult {
@@ -56,6 +58,7 @@ export async function createCategory(userId: string, category: NewCategory): Pro
           budget_limit: category.budget_limit || null,
           is_default: false, // Las categorías creadas por usuarios nunca son por defecto
           icon: category.icon || null,
+          type: category.type,
         },
       ])
       .select()
@@ -96,6 +99,7 @@ export async function updateCategory(
         color: updates.color,
         budget_limit: updates.budget_limit,
         icon: updates.icon,
+        type: updates.type,
       })
       .eq('id', categoryId)
       .eq('user_id', userId)

@@ -2,11 +2,11 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useTransactions } from '@/src/hooks/useTransactions';
-import { Transaction } from '@/src/lib/supabase/transactions';
+import { Transaction, TransactionWithCategory } from '@/src/lib/supabase/transactions';
 import { useSession } from '@/src/hooks/useSession';
 
 interface TransactionContextType {
-  transactions: Transaction[];
+  transactions: TransactionWithCategory[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;

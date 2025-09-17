@@ -26,7 +26,8 @@ export function CategoryForm({ onCategoryCreated, onClose }: CategoryFormProps) 
         name: '',
         color: PREDEFINED_COLORS[0],
         icon: 'plus',
-        budget_limit: undefined
+        budget_limit: undefined,
+        type: 'expense',
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
