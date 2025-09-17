@@ -9,12 +9,23 @@ import { Plus } from "lucide-react";
 
 type TabType = 'expenses' | 'income';
 
-export function Categories() {
+interface CategoriesProps {
+    onCategoriesUpdate?: () => void;
+    onCategorySelect?: (categoryId: string) => void;
+    selectedCategoryId?: string;
+    activeTab?: TabType;
+    onTabChange?: (tab: TabType) => void;
+}
+
+export function Categories({ onCategoriesUpdate, onCategorySelect, selectedCategoryId, activeTab: externalActiveTab, onTabChange }: CategoriesProps) {
     const [categories, setCategories] = useState<Category[]>([]);
     const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const [activeTab, setActiveTab] = useState<TabType>('expenses');
+    const [internalActiveTab, setInternalActiveTab] = useState<TabType>('expenses');
+
+    // Usar activeTab externo si se proporciona, sino usar el interno
+    const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
 
     const loadCategories = async () => {
         try {
@@ -49,6 +60,10 @@ export function Categories() {
         setCategories(prev => [...prev, category]);
         // Recargar gastos cuando se agrega una nueva categoría
         loadCategories();
+        // Notificar al componente padre si existe
+        if (onCategoriesUpdate) {
+            onCategoriesUpdate();
+        }
     };
 
     // Filtrar categorías según el tab activo
@@ -62,6 +77,14 @@ export function Categories() {
 
     const handleAddCategory = () => {
         setShowForm(true);
+    };
+
+    const handleTabChange = (tab: TabType) => {
+        if (externalActiveTab !== undefined && onTabChange) {
+            onTabChange(tab);
+        } else {
+            setInternalActiveTab(tab);
+        }
     };
 
     if (isLoadingCategories) {
@@ -83,7 +106,7 @@ export function Categories() {
                             ? 'text-white border-b-2 border-blue-500'
                             : 'text-zinc-400 hover:text-zinc-200'
                     }`}
-                    onClick={() => setActiveTab('expenses')}
+                    onClick={() => handleTabChange('expenses')}
                 >
                     Gastos
                 </button>
@@ -93,7 +116,7 @@ export function Categories() {
                             ? 'text-white border-b-2 border-green-500'
                             : 'text-zinc-400 hover:text-zinc-200'
                     }`}
-                    onClick={() => setActiveTab('income')}
+                    onClick={() => handleTabChange('income')}
                 >
                     Ingresos
                 </button>
@@ -120,12 +143,25 @@ export function Categories() {
                     return (
                         <div
                             key={category.id}
-                            className="text-center p-2 rounded-md border-zinc-700 cursor-pointer hover:border-zinc-600 transition"
+                            className={`text-center p-2 rounded-md cursor-pointer transition min-h-[120px] flex items-center justify-center ${
+                                selectedCategoryId === category.id
+                                    ? 'border-blue-500 border-1 bg-blue-500/10'
+                                    : 'border-zinc-700 hover:border-zinc-600'
+                            }`}
                             title={`${category.name}${formattedBudget ? ` - Presupuesto: ${formattedBudget}` : ''}`}
+                            onClick={() => onCategorySelect && onCategorySelect(category.id)}
                         >
-                            <div className="flex flex-col items-center gap-1">
-                                <small className="text-zinc-400 text-muted">{category.name}</small>
-                                <small className="text-zinc-400 text-muted">{formattedExpense}</small>
+                            <div className="flex flex-col items-center gap-1 w-full">
+                                <small className="text-zinc-400 text-muted text-center break-words leading-tight max-w-full text-xs px-1" 
+                                       style={{ 
+                                           wordWrap: 'break-word', 
+                                           overflowWrap: 'break-word',
+                                           hyphens: 'auto',
+                                           lineHeight: '1.2'
+                                       }}>
+                                    {category.name}
+                                </small>
+                                <small className="text-zinc-400 text-xs text-muted">{formattedExpense}</small>
                                 
                                 <CategoryProgressCircle
                                     categoryId={category.id}
@@ -135,7 +171,7 @@ export function Categories() {
                                     currentExpense={currentExpense}
                                 />
                                 
-                                <small className="text-zinc-400 text-muted">
+                                <small className="text-zinc-400 text-muted text-xs">
                                     {formattedBudget || 'Sin límite'}
                                 </small>
                             </div>

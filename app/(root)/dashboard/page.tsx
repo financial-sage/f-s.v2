@@ -4,9 +4,46 @@ import TransactionsView from "@/src/components/transactions/TransactionsView";
 import BlendyButton from "@/src/components/modal/blendy";
 import TransactionForm from "@/src/components/transactions/TransactionForm";
 import { Categories } from "@/src/components/categories/categories";
+import { useState, useEffect } from "react";
+import { getUserCategories, type Category } from "@/src/lib/supabase/categories";
+import { supabase } from "@/src/lib/supabase/client";
 
 
 export default function Dashboard() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [activeTab, setActiveTab] = useState<'expenses' | 'income'>('expenses');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+
+  const loadCategories = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const result = await getUserCategories(session.user.id);
+      if (result.data && Array.isArray(result.data)) {
+        setCategories(result.data);
+      }
+    } catch (error) {
+      console.error('Error al cargar categorías:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const handleCategoriesUpdate = () => {
+    loadCategories();
+  };
+
+  const handleTabChange = (tab: 'expenses' | 'income') => {
+    setActiveTab(tab);
+    setSelectedCategoryId(''); // Limpiar selección al cambiar de tab
+  };
+
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+  };
 
   
   return (
@@ -46,9 +83,17 @@ export default function Dashboard() {
               modalTitle="Nueva Transacción"
               modalContent={
                 <div>
-
-                  <Categories />
+                  <Categories 
+                    onCategoriesUpdate={handleCategoriesUpdate}
+                    onCategorySelect={handleCategorySelect}
+                    selectedCategoryId={selectedCategoryId}
+                    activeTab={activeTab}
+                    onTabChange={handleTabChange}
+                  />
                   <TransactionForm 
+                    categories={categories}
+                    transactionType={activeTab === 'expenses' ? 'expense' : 'income'}
+                    selectedCategoryId={selectedCategoryId}
                     onSuccess={() => {
                       // Aquí puedes agregar lógica para refrescar las transacciones
                       // Por ejemplo, disparar un evento o actualizar estado
