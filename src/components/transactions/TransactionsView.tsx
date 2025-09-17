@@ -37,11 +37,11 @@ function TransactionItem({ transaction }: TransactionItemProps) {
         <div className={styles.transaction}>
             <div className={styles.content}>
                 <div className={styles.transactionInfo}>
-                    <div className={styles.icon}>
+                    <div className={`${styles.icon} ${styles.transactionIcon}`} style={{ backgroundColor: color + '30', width: '40px', height: '40px' }}>
                         <CategoryIcon 
                             iconName={icon} 
                             color={color} 
-                            size={20} 
+                            size={22} 
                         />
                     </div>
                     <div className={styles.transactionDetails}>

@@ -7,11 +7,14 @@ import { CategoryForm } from './CategoryForm';
 import { CategoryProgressCircle } from './CategoryProgressCircle';
 import { Plus } from "lucide-react";
 
+type TabType = 'expenses' | 'income';
+
 export function Categories() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [activeTab, setActiveTab] = useState<TabType>('expenses');
 
     const loadCategories = async () => {
         try {
@@ -48,6 +51,19 @@ export function Categories() {
         loadCategories();
     };
 
+    // Filtrar categorías según el tab activo
+    const filteredCategories = categories.filter(category => {
+        if (activeTab === 'expenses') {
+            return category.type === 'expense';
+        } else {
+            return category.type === 'income';
+        }
+    });
+
+    const handleAddCategory = () => {
+        setShowForm(true);
+    };
+
     if (isLoadingCategories) {
         return (
             <div className="categories">
@@ -59,13 +75,33 @@ export function Categories() {
 
     return (
         <div className="categories">
-            <h2>Categorías</h2>
+            {/* Tabs */}
+            <div className="flex mb-6 border-b border-zinc-700">
+                <button
+                    className={`px-4 py-2 font-medium text-sm transition-colors ${
+                        activeTab === 'expenses'
+                            ? 'text-white border-b-2 border-blue-500'
+                            : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                    onClick={() => setActiveTab('expenses')}
+                >
+                    Gastos
+                </button>
+                <button
+                    className={`px-4 py-2 font-medium text-sm transition-colors ${
+                        activeTab === 'income'
+                            ? 'text-white border-b-2 border-green-500'
+                            : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                    onClick={() => setActiveTab('income')}
+                >
+                    Ingresos
+                </button>
+            </div>
 
             <div className="grid grid-cols-6 gap-3">
-
-
-                {/* Categorías existentes */}
-                {categories.map((category) => {
+                {/* Categorías filtradas según el tab activo */}
+                {filteredCategories.map((category) => {
                     const currentExpense = categoryExpenses[category.id] || 0;
                     const formattedExpense = currentExpense.toLocaleString('es-ES', {
                         style: 'currency',
@@ -110,8 +146,8 @@ export function Categories() {
                 {/* Botón para agregar nueva categoría */}
                 <div
                     className="text-center border p-2 rounded-md border-zinc-700 cursor-pointer hover:border-zinc-600 transition"
-                    title="Agregar categoría"
-                    onClick={() => setShowForm(true)}
+                    title={`Agregar categoría de ${activeTab === 'expenses' ? 'gastos' : 'ingresos'}`}
+                    onClick={handleAddCategory}
                 >
                     <div className="flex flex-col items-center gap-1">
                         <small className="text-zinc-400 text-muted">Nueva</small>
@@ -127,6 +163,7 @@ export function Categories() {
             {/* Formulario modal para nueva categoría */}
             {showForm && (
                 <CategoryForm
+                    categoryType={activeTab === 'expenses' ? 'expense' : 'income'}
                     onCategoryCreated={handleNewCategory}
                     onClose={() => setShowForm(false)}
                 />

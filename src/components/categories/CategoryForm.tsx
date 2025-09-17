@@ -6,6 +6,7 @@ import { supabase } from '@/src/lib/supabase/client';
 interface CategoryFormProps {
     onCategoryCreated: (category: any) => void;
     onClose: () => void;
+    categoryType: 'expense' | 'income';
 }
 
 const PREDEFINED_COLORS = [
@@ -21,13 +22,13 @@ const PREDEFINED_COLORS = [
     '#78716c', // stone-500
 ];
 
-export function CategoryForm({ onCategoryCreated, onClose }: CategoryFormProps) {
+export function CategoryForm({ onCategoryCreated, onClose, categoryType }: CategoryFormProps) {
     const [formData, setFormData] = useState<NewCategory>({
         name: '',
         color: PREDEFINED_COLORS[0],
         icon: 'plus',
         budget_limit: undefined,
-        type: 'expense',
+        type: categoryType,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -66,7 +67,9 @@ export function CategoryForm({ onCategoryCreated, onClose }: CategoryFormProps) 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 w-full max-w-md mx-4">
-                <h3 className="text-xl font-semibold text-white mb-4">Nueva Categoría</h3>
+                <h3 className="text-xl font-semibold text-white mb-4">
+                    Nueva Categoría de {categoryType === 'expense' ? 'Gastos' : 'Ingresos'}
+                </h3>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Nombre */}

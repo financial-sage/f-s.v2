@@ -48,13 +48,13 @@ export default function Dashboard() {
                 <div>
 
                   <Categories />
-                  {/* <TransactionForm 
+                  <TransactionForm 
                     onSuccess={() => {
                       // Aquí puedes agregar lógica para refrescar las transacciones
                       // Por ejemplo, disparar un evento o actualizar estado
                       window.location.reload(); // Solución temporal - podrías mejorar esto
                     }}
-                  /> */}
+                  />
                 </div>
               }
             />
