@@ -181,14 +181,14 @@ export function Categories({ onCategoriesUpdate, onCategorySelect, selectedCateg
 
                 {/* Botón para agregar nueva categoría */}
                 <div
-                    className="text-center border p-2 rounded-md border-zinc-700 cursor-pointer hover:border-zinc-600 transition"
+                    className="text-center p-2 rounded-md border-zinc-700 cursor-pointer hover:border-zinc-600 transition"
                     title={`Agregar categoría de ${activeTab === 'expenses' ? 'gastos' : 'ingresos'}`}
-                    onClick={handleAddCategory}
+                    onClick={handleAddCategory} 
                 >
                     <div className="flex flex-col items-center gap-1">
-                        <small className="text-zinc-400 text-muted">Nueva</small>
                         <small className="text-zinc-400 text-muted">&nbsp;</small>
-                        <div className="rounded-full bg-zinc-800 w-13 h-13 border border-zinc-700 flex items-center justify-center cursor-pointer hover:bg-zinc-500 transition">
+                        <small className="text-zinc-400 text-muted text-xs">Nueva</small>
+                        <div style={{ width: '30px', height: '30px' }} className="rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:bg-zinc-500 transition">
                             <Plus strokeWidth={1} size={30} className="text-zinc-200" />
                         </div>
                         <small className="text-zinc-400 text-muted">&nbsp;</small>

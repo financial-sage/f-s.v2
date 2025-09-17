@@ -21,7 +21,7 @@ $input-text-active: #BFD2FF;
   width: 100%;
   margin: 15px auto;
   border-radius: 2px;
-  padding: 3px 6px 2px 6px;
+  padding: 0px 6px 0px 6px;
   ;
   background: $input-background;
 
@@ -32,7 +32,7 @@ $input-text-active: #BFD2FF;
     right: 0px;
     bottom: 0px;
     z-index: 999;
-    height: 2px;
+    height: 1px;
     border-bottom-left-radius: 2px;
     border-bottom-right-radius: 2px;
     background-position: 0% 0%;

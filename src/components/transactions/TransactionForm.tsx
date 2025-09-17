@@ -112,17 +112,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
         {/* Mostrar información de la categoría seleccionada */}
         {selectedCategoryId && (
-          <div >
-            <strong>Categoría seleccionada:</strong> {
+          <div className='text-zinc-400'>
+            <small>Categoría seleccionada:&nbsp;</small>
+            {
               filteredCategories.find(cat => cat.id === selectedCategoryId)?.name || 'Categoría no encontrada'
             }
           </div>
         )}
 
         {!selectedCategoryId && filteredCategories.length > 0 && (
-          <div >
+          <small className='text-zinc-400'>
             Selecciona una categoría de {transactionType === 'expense' ? 'gastos' : 'ingresos'} arriba para continuar
-          </div>
+          </small>
         )}
 
         <Input
@@ -150,14 +151,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           required
           defaultValue={new Date().toISOString().slice(0, 16)}
         />
+        <div className='flex gap-2 items-center content-end justify-end'>
+          <Button
+            type="submit"
+            variant='success'
+            size='sm'
+            isLoading={isLoading}
+            disabled={filteredCategories.length === 0 || !selectedCategoryId}
+          >
+            Guardar Transacción
+          </Button>
 
-        <Button
-          type="submit"
-          isLoading={isLoading}
-          disabled={filteredCategories.length === 0 || !selectedCategoryId}
-        >
-          Guardar Transacción
-        </Button>
+        </div>
       </form>
     </>
   );
