@@ -1,0 +1,270 @@
+// Estilos especiales para botones que usan Blendy
+.blendy-button {
+  // Posición base fija para evitar saltos
+  position: relative !important;
+  
+  // Desactivar todas las transformaciones que interfieren con Blendy
+  &:hover,
+  &:active,
+  &:focus {
+    transform: none !important;
+    // Mantener otros efectos visuales pero sin transform
+    transition: box-shadow 0.2s ease, background-color 0.2s ease !important;
+  }
+  
+  // Deshabilitar animaciones que puedan interferir
+  &::before,
+  &::after {
+    transition: background-color 0.2s ease, width 0.2s ease !important;
+    // No permitir transformaciones en pseudo-elementos
+    transform: none !important;
+  }
+}
+
+// Deshabilitar completamente los efectos durante la animación de Blendy
+.blendy-animating {
+  // Forzar estado neutro durante animaciones
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+  position: relative !important; // Mantener posición estable
+  
+  &:hover,
+  &:active,
+  &:focus {
+    transform: none !important;
+    box-shadow: inherit !important;
+    background: inherit !important;
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  // Deshabilitar completamente pseudo-elementos durante animación
+  &::before,
+  &::after {
+    display: none !important;
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+// Clase específica para el cierre (máxima estabilidad)
+.blendy-closing {
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  
+  &:hover,
+  &:active,
+  &:focus,
+  &::before,
+  &::after {
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+  width: calc(100% - 20px);
+  max-width: 600px;
+  height: fit-content;
+  max-height: 80vh;
+  border-radius: 10px;
+  padding: 20px 20px;
+  /* Asegurar que Blendy pueda animar correctamente */
+  will-change: transform, opacity;
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.modal__title {
+  margin: 0;
+  color: #030712;
+}
+
+.modal__close {
+  background-color: transparent;
+  width: 24px;
+  height: 24px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+  
+  // Contenedor para las líneas de la X
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 2px;
+    background-color: #6b7280;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 1px;
+  }
+  
+  // Primera línea de la X (se rota para formar la X)
+  &::before {
+    transform: rotate(45deg);
+  }
+  
+  // Segunda línea de la X (se rota en dirección opuesta)
+  &::after {
+    transform: rotate(-45deg);
+  }
+  
+  // Animación de apertura - las líneas aparecen girando
+  &.opening {
+    &::before {
+      animation: openLine1 0.6s ease-out;
+    }
+    
+    &::after {
+      animation: openLine2 0.6s ease-out;
+    }
+  }
+  
+  // Animación de cierre - las líneas se contraen
+  &.closing {
+    &::before {
+      animation: closeLine1 0.3s ease-in;
+    }
+    
+    &::after {
+      animation: closeLine2 0.3s ease-in;
+    }
+  }
+  
+  // Efectos hover
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    
+    &::before,
+    &::after {
+      background-color: #ebc1c1;
+      width: 18px;
+    }
+  }
+  
+  // Efectos al hacer click
+  &:active {
+    background-color: rgba(239, 68, 68, 0.2);
+    transform: scale(0.95);
+  }
+}
+
+.modal__content {
+  color: #4b5563;
+  font-size: 20px;
+  text-align: center;
+  text-wrap: pretty;
+  padding: 30px 0 20px;
+}
+
+@media (max-width: 800px) {
+  .modal__header {
+    padding: 0;
+  }
+  .modal__content {
+    padding: 10px 0 0;
+  }
+}
+
+// Animaciones para la X del botón cerrar
+@keyframes openLine1 {
+  0% {
+    transform: rotate(0deg) scale(0) translateY(-8px);
+    opacity: 0;
+  }
+  30% {
+    transform: rotate(15deg) scale(0.5) translateY(-4px);
+    opacity: 0.3;
+  }
+  60% {
+    transform: rotate(35deg) scale(0.8) translateY(-1px);
+    opacity: 0.7;
+  }
+  85% {
+    transform: rotate(50deg) scale(1.1) translateY(0);
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(45deg) scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes openLine2 {
+  0% {
+    transform: rotate(0deg) scale(0) translateY(8px);
+    opacity: 0;
+  }
+  30% {
+    transform: rotate(-15deg) scale(0.5) translateY(4px);
+    opacity: 0.3;
+  }
+  60% {
+    transform: rotate(-35deg) scale(0.8) translateY(1px);
+    opacity: 0.7;
+  }
+  85% {
+    transform: rotate(-50deg) scale(1.1) translateY(0);
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(-45deg) scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes closeLine1 {
+  0% {
+    transform: rotate(45deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(30deg) scale(0.7);
+    opacity: 0.7;
+  }
+  100% {
+    transform: rotate(0deg) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes closeLine2 {
+  0% {
+    transform: rotate(-45deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(-30deg) scale(0.7);
+    opacity: 0.7;
+  }
+  100% {
+    transform: rotate(0deg) scale(0);
+    opacity: 0;
+  }
+}

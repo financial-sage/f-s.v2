@@ -1,0 +1,10 @@
+@layer theme {
+    :root {
+        --background-gradient: linear-gradient(135deg, #0a1327 0%, #291944 50%, #0f172a 90%);
+    }
+
+    .bg-purple-gradient {
+        background-color: white;
+    }
+}
+

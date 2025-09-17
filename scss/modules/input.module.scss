@@ -1,0 +1,115 @@
+// Variables
+$input-background: rgba(57, 63, 84, 0.8);
+$input-text-inactive: #7881A1;
+$input-text-active: #BFD2FF;
+
+
+@keyframes gradient {
+  0% {
+    background-position: 0 0
+  }
+
+  100% {
+    background-position: 100% 0
+  }
+}
+
+.webflowStyleInput {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  margin: 15px auto;
+  border-radius: 2px;
+  padding: 3px 6px 2px 6px;
+  ;
+  background: $input-background;
+
+  &:after {
+    content: "";
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    z-index: 999;
+    height: 2px;
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 2px;
+    background-position: 0% 0%;
+    background: linear-gradient(to right, #B294FF, #57E6E6, #FEFFB8, #57E6E6, #B294FF, #57E6E6);
+    background-size: 500% auto;
+    animation: gradient 3s linear infinite;
+  }
+  
+
+  select {
+    border-style: none;
+    background: #323647;
+    outline: none;
+    padding: 5px 0px;
+    flex-grow: 1;
+    color: $input-text-active;
+    font-size: 1.2rem;
+    font-weight: 300;
+    line-height: 2.4rem;
+    vertical-align: middle;
+
+    &::-webkit-input-placeholder {
+      color: $input-text-inactive;
+    }
+
+    option {
+      margin: 12px 15px;
+      font-size: 18px;
+      background-color: #323647;
+      color: #fff;
+    }
+
+    option:hover {
+      background-color: #6a11cb !important;
+      color: white;
+    }
+
+    option:checked {
+      background-color: #6a11cb;
+      color: white;
+    }
+  }
+
+  input {
+    border-style: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: textfield;
+    background: transparent;
+    outline: none;
+    flex-grow: 1;
+    color: $input-text-active;
+    font-size: 1.2rem;
+    font-weight: 300;
+    line-height: 2.4rem;
+    vertical-align: middle;
+
+    &::-webkit-input-placeholder {
+      color: $input-text-inactive;
+    }
+  }
+
+
+
+  button {
+    padding: 0;
+    background: none;
+    border: none;
+    outline: none;
+    color: $input-text-inactive;
+    font-size: 2.4rem;
+    line-height: 2.4rem;
+    vertical-align: middle;
+    transition: color .25s;
+
+    &:hover {
+      color: $input-text-active;
+    }
+  }
+}

@@ -1,0 +1,293 @@
+// Contenedor principal con scroll
+.scrollContainer {
+    max-height: 300px; // Altura máxima para mostrar aproximadamente 5 transacciones
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px; // Espacio para la scrollbar
+    position: relative;
+
+    // Gradiente sutil en la parte inferior para indicar que hay más contenido
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 8px;
+        height: 20px;
+        // background: linear-gradient(transparent, #fff);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    // Mostrar el gradiente cuando se puede hacer scroll
+    &:hover::after {
+        opacity: 0.8;
+    }
+
+    // Estilos personalizados para la scrollbar
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.5);
+        border-radius: 3px;
+
+        &:hover {
+            background: rgba(139, 92, 246, 0.7);
+        }
+    }
+
+    // Para Firefox
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.5) rgba(255, 255, 255, 0.1);
+}
+
+.timeline {
+    width: 95%;
+    position: relative;
+}
+
+/* Línea lateral del timeline - Estilo delgado */
+.timeline::after {
+    content: '';
+    position: absolute;
+    width: 1px;
+    background: #764ba2;
+    backdrop-filter: blur(2px);
+    top: -10px;
+    bottom: -10px;
+    left: 30.5px;
+    z-index: -1;
+}
+
+.transaction {
+    padding: 6px 0 0 70px;
+    position: relative;
+    width: 100%;
+    // margin-bottom: 15px;
+    perspective: 1000px;
+
+    &:last-child {
+        margin-bottom: 5px;
+    }
+}
+
+/* Contenedor de contenido con efecto glassmorphism */
+.content {
+    padding: 8px 12px;
+    background: #9b9b9b1c;
+    backdrop-filter: blur(12px);
+    border-radius: 8px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+    // border: 1px solid #602fad48;
+    transition: all 0.3s ease;
+    color: #c7c7c7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 55px;
+}
+
+.content:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    background: var(--hover-menu-bg);
+    border: 1px solid var(--border-color);
+}
+
+/* Círculo indicador - Estilo delgado y elegante */
+.transaction::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border: 2px solid #764ba2;
+    border-radius: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 26px;
+    z-index: 10;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.2);
+}
+
+.transaction:hover::after {
+    transform: translateY(-50%) scale(1.1);
+    background: #764ba2;
+    border-color: var(--theme-color);
+    box-shadow: 0 0 0 4px rgba(118, 75, 162, 0.3);
+}
+
+/* Información de la transacción */
+.transactionInfo {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.icon {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--content-bg);
+    border-radius: 50%;
+    margin-right: 12px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.content:hover .icon {
+    background: var(--hover-menu-bg);
+    transform: scale(1.05);
+}
+
+.transactionDetails {
+    display: flex;
+    flex-direction: column;
+}
+
+.transactionTitle {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 3px;
+    line-height: 1.2;
+}
+
+.transactionMeta {
+    display: flex;
+    font-size: 0.75rem;
+    opacity: 0.8;
+    font-weight: 300;
+}
+
+.transactionDate {
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.transactionDate::before {
+    content: '📅';
+    margin-right: 4px;
+    font-size: 10px;
+}
+
+.transactionMethod {
+    display: flex;
+    align-items: center;
+}
+
+.transactionMethod::before {
+    content: '💳';
+    margin-right: 4px;
+    font-size: 10px;
+}
+
+/* Monto de la transacción */
+.transactionAmount {
+    text-align: right;
+    min-width: fit-content;
+}
+
+.amount {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 3px;
+    line-height: 1.2;
+}
+
+.transactionStatus {
+    font-size: 0.7rem;
+    opacity: 0.8;
+    font-weight: 300;
+}
+
+.income {
+    color: #25d625;
+}
+
+.expense {
+    color: #ff9b9b;
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+    .scrollContainer {
+        max-height: 280px;
+        padding-right: 4px;
+    }
+
+    .timeline::after {
+        left: 20px;
+    }
+
+    .transaction {
+        padding-left: 45px;
+    }
+
+    .transaction::after {
+        left: 14px;
+        width: 10px;
+        height: 10px;
+    }
+
+    .content {
+        padding: 8px 10px;
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: 50px;
+    }
+
+    .transactionInfo {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .transactionAmount {
+        text-align: left;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .icon {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+        margin-right: 10px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .scrollContainer {
+        max-height: 250px;
+    }
+
+    .transactionMeta {
+        flex-direction: column;
+    }
+
+    .transactionDate {
+        margin-bottom: 3px;
+        margin-right: 0;
+    }
+
+    .transactionTitle {
+        font-size: 0.85rem;
+    }
+
+    .amount {
+        font-size: 0.9rem;
+    }
+}

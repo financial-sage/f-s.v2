@@ -1,0 +1,660 @@
+// Cards System - Financial Sage
+// Universal card component with glassmorphism design
+
+// Card Base Variables
+$card-border-radius: 5px;
+$card-border-radius-sm: 6px;
+$card-border-radius-lg: 20px;
+$card-padding: 1.5rem;
+$card-padding-sm: 1rem;
+$card-padding-lg: 2rem;
+
+// Card Background & Effects
+$card-bg-base: rgba(255, 255, 255, 0.05);
+$card-bg-hover: rgba(255, 255, 255, 0.08);
+$card-bg-active: rgba(255, 255, 255, 0.12);
+$card-border: 1px solid rgba(255, 255, 255, 0.1);
+$card-border-hover: 1px solid rgba(255, 255, 255, 0.15);
+
+// Card Shadows
+$card-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+$card-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+$card-shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.2);
+$card-shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.25);
+
+// =============================================================================
+// UNIVERSAL CARD COMPONENT
+// =============================================================================
+
+.card {
+    background: $card-bg-base;
+    backdrop-filter: blur(12px);
+    border: $card-border;
+    border-radius: $card-border-radius;
+    padding: $card-padding;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: $card-shadow-sm;
+    overflow: hidden;
+    position: relative;
+    color: #e5e7eb;
+
+    // Hover effects
+    &:hover {
+        background: $card-bg-hover;
+        border: $card-border-hover;
+        box-shadow: $card-shadow;
+        // transform: translateY(-2px);
+    }
+
+    // Active state
+    &:active {
+        background: $card-bg-active;
+        transform: translateY(0);
+        transition-duration: 0.1s;
+    }
+
+    // Size modifiers
+    &.sm {
+        padding: $card-padding-sm;
+        border-radius: $card-border-radius-sm;
+    }
+
+    &.lg {
+        padding: $card-padding-lg;
+        border-radius: $card-border-radius-lg;
+        box-shadow: $card-shadow;
+
+        &:hover {
+            box-shadow: $card-shadow-lg;
+            transform: translateY(-4px);
+        }
+    }
+
+    // Style modifiers
+    &.flat {
+        box-shadow: none;
+
+        &:hover {
+            box-shadow: $card-shadow-sm;
+            transform: translateY(-1px);
+        }
+    }
+
+    &.elevated {
+        box-shadow: $card-shadow-lg;
+
+        &:hover {
+            box-shadow: $card-shadow-xl;
+            transform: translateY(-6px);
+        }
+    }
+
+    &.clickable {
+        cursor: pointer;
+
+        &:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.3);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2);
+        }
+    }
+
+    &.subtle {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateX(2px);
+        }
+    }
+}
+
+
+// =============================================================================
+// CARD CONTENT ELEMENTS
+// =============================================================================
+
+// Generic card content components that work with any card
+.card {
+
+    // Card header
+    .cardHeader {
+        padding: 0.5rem 1.5rem;
+        margin: -1rem -1.5rem 1rem -1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+        .cardTitle {
+            color: #e5e7eb;
+            font-size: 1.125rem;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            font-weight: 300;
+            color: #ffffffb0;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+
+            i {
+                color: #8b5cf6;
+                font-size: 1rem;
+            }
+        }
+
+        .cardAction {
+            background: transparent;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #8b5cf6;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+
+            &:hover {
+                background: rgba(139, 92, 246, 0.1);
+                border-color: rgba(139, 92, 246, 0.5);
+                transform: translateY(-1px);
+            }
+        }
+    }
+
+    // Card footer
+    .cardFooter {
+        padding: 0.3rem 1.5rem 0.5rem 1.5rem;
+        margin: 1rem -1.5rem -1rem -1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(8px);
+
+        .cardFooterText {
+            color: #9ca3af;
+            font-size: 0.875rem;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            font-weight: 200;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+
+            &.muted {
+                color: #6b7280;
+            }
+
+            &.highlighted {
+                color: #e5e7eb;
+                font-weight: 500;
+            }
+
+            i {
+                color: #8b5cf6;
+                font-size: 0.875rem;
+            }
+        }
+
+        .cardFooterActions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+
+            .footerAction {
+                background: transparent;
+                border: none;
+                color: #9ca3af;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.75rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+
+                &:hover {
+                    color: #e5e7eb;
+                    background: rgba(255, 255, 255, 0.1);
+                }
+
+                &.primary {
+                    color: #8b5cf6;
+                    
+                    &:hover {
+                        color: #a855f7;
+                        background: rgba(139, 92, 246, 0.1);
+                    }
+                }
+
+                &.success {
+                    color: #10b981;
+                    
+                    &:hover {
+                        color: #059669;
+                        background: rgba(16, 185, 129, 0.1);
+                    }
+                }
+
+                &.danger {
+                    color: #ef4444;
+                    
+                    &:hover {
+                        color: #dc2626;
+                        background: rgba(239, 68, 68, 0.1);
+                    }
+                }
+            }
+        }
+
+        // Footer variants
+        &.minimal {
+            padding: 0.75rem 1.5rem 0.5rem 1.5rem;
+            background: transparent;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        &.highlighted {
+            background: rgba(139, 92, 246, 0.1);
+            border-top: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        &.center {
+            justify-content: center;
+            text-align: center;
+
+            .cardFooterActions {
+                justify-content: center;
+            }
+        }
+    }
+
+    // Icon container
+    .cardIcon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        background: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+        flex-shrink: 0;
+
+        &.sm {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        &.lg {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            color: white;
+        }
+    }
+
+    // Content area
+    .cardContent {
+        flex: 1;
+        min-width: 0;
+    }
+
+    // Labels and values
+    .cardLabel {
+        color: #9ca3af;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .cardValue {
+        font-size: 1.875rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        line-height: 1;
+        color: #e5e7eb;
+
+        &.sm {
+            font-size: 0.875rem;
+        }
+
+        &.lg {
+            font-size: 1.25rem;
+        }
+
+        // Value types
+        &.income {
+            color: #10b981;
+        }
+
+        &.expense {
+            color: #ef4444;
+        }
+
+        &.balance {
+            color: #8b5cf6;
+        }
+
+        &.neutral {
+            color: #e5e7eb;
+        }
+    }
+
+    .cardSubtext {
+        color: #6b7280;
+        font-size: 0.75rem;
+        font-weight: 400;
+    }
+
+    .cardTitle {
+        color: #e5e7eb;
+        font-weight: 500;
+        margin-bottom: 0.125rem;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &.lg {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+    }
+
+    .cardMeta {
+        color: #9ca3af;
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .cardDescription {
+        color: #9ca3af;
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+}
+
+// =============================================================================
+// CARD LAYOUT PATTERNS
+// =============================================================================
+
+// Common card layouts using flexbox
+.card {
+
+    // Horizontal layout (icon + content)
+    &.horizontal {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        min-height: 100px;
+
+        @media (max-width: 768px) {
+            flex-direction: column;
+            text-align: center;
+            padding: 1.25rem;
+
+            .cardIcon {
+                width: 60px;
+                height: 60px;
+            }
+        }
+    }
+
+    // Vertical layout (centered content)
+    &.vertical {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        text-align: center;
+        min-height: 120px;
+
+        @media (max-width: 480px) {
+            min-height: 100px;
+            gap: 0.5rem;
+
+            .cardIcon {
+                font-size: 1.5rem;
+            }
+        }
+    }
+
+    // Stats row layout
+    &.stats {
+        .cardStats {
+            .statRow {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.5rem;
+
+                &:last-child {
+                    margin-bottom: 0;
+                }
+
+                .statLabel {
+                    color: #9ca3af;
+                    font-size: 0.875rem;
+                }
+
+                .statValue {
+                    color: #e5e7eb;
+                    font-weight: 500;
+
+                    &.amount {
+                        font-weight: 700;
+                        font-size: 1.1rem;
+
+                        &.income {
+                            color: #10b981;
+                        }
+
+                        &.expense {
+                            color: #ef4444;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // With colored border
+    &.bordered {
+        position: relative;
+        border-left-width: 4px;
+        border-left-style: solid;
+        border-left-color: #8b5cf6;
+
+        &.success {
+            border-left-color: #10b981;
+        }
+
+        &.warning {
+            border-left-color: #f59e0b;
+        }
+
+        &.danger {
+            border-left-color: #ef4444;
+        }
+
+        &.info {
+            border-left-color: #3b82f6;
+        }
+    }
+}
+
+// =============================================================================
+// CARD COLOR VARIANTS
+// =============================================================================
+
+.card {
+
+    // Info variants with background colors
+    &.info {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+
+        .cardIcon {
+            color: #3b82f6;
+        }
+    }
+
+    &.success {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+
+        .cardIcon {
+            color: #10b981;
+        }
+    }
+
+    &.warning {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+
+        .cardIcon {
+            color: #f59e0b;
+        }
+    }
+
+    &.danger {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+
+        .cardIcon {
+            color: #ef4444;
+        }
+    }
+}
+
+// =============================================================================
+// CARD UTILITIES
+// =============================================================================
+
+// Card Groups
+.cardGroup {
+    display: flex;
+    border-radius: $card-border-radius;
+    overflow: hidden;
+
+    .card {
+        border-radius: 0;
+        border-right: none;
+
+        &:first-child {
+            border-top-left-radius: $card-border-radius;
+            border-bottom-left-radius: $card-border-radius;
+        }
+
+        &:last-child {
+            border-top-right-radius: $card-border-radius;
+            border-bottom-right-radius: $card-border-radius;
+            border-right: $card-border;
+        }
+    }
+}
+
+// Card overlays
+.cardOverlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+
+    &.show {
+        opacity: 1;
+    }
+}
+
+// =============================================================================
+// RESPONSIVE CARDS
+// =============================================================================
+
+@media (max-width: 768px) {
+    .card {
+        padding: 1rem;
+        border-radius: 12px;
+
+        &.lg {
+            padding: 1.25rem;
+        }
+
+        .cardHeader {
+            padding: 1rem 1rem 0.75rem 1rem;
+            margin: -1rem -1rem 0.75rem -1rem;
+        }
+
+        .cardFooter {
+            padding: 0.75rem 1rem 0.5rem 1rem;
+            margin: 0.75rem -1rem -1rem -1rem;
+            flex-direction: column;
+            gap: 0.5rem;
+            text-align: center;
+
+            &.center {
+                flex-direction: column;
+            }
+
+            .cardFooterActions {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .card {
+        &.horizontal {
+            flex-direction: column;
+            text-align: center;
+            padding: 1.25rem;
+
+            .cardIcon {
+                width: 50px;
+                height: 50px;
+            }
+
+            .cardValue {
+                font-size: 1.5rem;
+            }
+        }
+
+        &.vertical {
+            min-height: 100px;
+            gap: 0.5rem;
+
+            .cardIcon {
+                font-size: 1.5rem;
+            }
+        }
+    }
+}

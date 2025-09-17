@@ -1,0 +1,32 @@
+@use "tailwindcss";
+@use "./theme";
+@use "./cards";
+@use "./buttons";
+@use "./blendy";
+
+* {
+  font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
+  font-weight: 400;
+}
+
+html, body {
+  font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
+}
+
+body {
+  font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
+}
+
+strong, b {
+  font-family: 'Segoe UI Bold', 'Segoe UI', Arial, sans-serif;
+  font-weight: bold;
+}
+
+em, i {
+  font-family: 'Segoe UI Italic', 'Segoe UI', Arial, sans-serif;
+  font-style: italic;
+}
+
+// Modal Blendy styles
+
+
