@@ -53,7 +53,7 @@ export default function CreditCard() {
             <div>
                 <div className={`${styles.card} bg-white/10 dark:bg-gray-800/20 border-2 border-gray-200 dark:border-gray-600`}>
                     <div className={styles.logo}>
-                        <img src="https://raw.githubusercontent.com/dasShounak/freeUseImages/main/Visa-Logo-PNG-Image.png" alt="Logo" />
+                        {/* <img src="https://raw.githubusercontent.com/dasShounak/freeUseImages/main/Visa-Logo-PNG-Image.png" alt="Logo" /> */}
                     </div>
                     <div className={styles.number}>Saldo Actual: {formattedBalance}</div>
                     <div className={styles.chip}>

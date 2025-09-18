@@ -1,7 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { supabase } from "@/src/lib/supabase/client";
+import { AppSession, mapSupabaseSessionToApp } from "@/src/types/types";
+import { useRouter } from 'next/navigation';
+import { useUserImage } from '@/src/hooks/useUserImage';
+import CurrencySelector from '../common/CurrencySelector';
 
 // Tipos para el menú dinámico
 interface MenuItem {
@@ -43,15 +48,90 @@ const menuData: MenuSection[] = [
             { id: 'Presupuestos', title: 'Presupuestos', href: '/budget' },
             { id: 'Cuentas', title: 'Cuentas', href: '/cuentas' },
             { id: 'Categorias', title: 'Categorias', href: '/categorias' }
-           
+
         ]
     }
 ];
 
+
+
 export function Header() {
+
+    const router = useRouter();
+
+    const [openDropdown, setOpenDropdown] = useState<"profile" | "notification" | null>(null);
+    const profileRef = useRef<HTMLDivElement>(null);
+    const notificationRef = useRef<HTMLDivElement>(null);
+
+    const [session, setSession] = useState<AppSession | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { imgSrc, isLoading: imageLoading, hasError: imageError } = useUserImage(session);
+    const [notifications] = useState([
+        { id: 1, text: "Nuevo pedido recibido", time: "hace 2 min", unread: true },
+        { id: 2, text: "Usuario registrado", time: "hace 1 hora", unread: true },
+        { id: 3, text: "Backup completado", time: "hace 3 horas", unread: false },
+    ]);
+
+    // Estado para manejar elementos expandibles y menú móvil
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activeItem, setActiveItem] = useState<string>('dashboard'); // Estado para el item activo
+
+
+    useEffect(() => {
+        let mounted = true;
+
+        const fetchSession = async () => {
+            const { data } = await supabase.auth.getSession();
+            const rawSession = data?.session ?? null;
+            console.log('rawSession', rawSession);
+
+            if (!mounted) return;
+            if (!rawSession) {
+                router.push('/login');
+            } else {
+                const mapped = mapSupabaseSessionToApp(rawSession);
+                setSession(mapped);
+                console.log('✅ Session set in fetchSession');
+            }
+            setLoading(false);
+        };
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                profileRef.current && !profileRef.current.contains(event.target as Node) &&
+                notificationRef.current && !notificationRef.current.contains(event.target as Node)
+            ) {
+                setOpenDropdown(null);
+            }
+        };
+
+        const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+            const mapped = mapSupabaseSessionToApp(s ?? null);
+            if (!mapped) router.push('/login');
+            else {
+                setSession(mapped);
+                console.log('✅ Session set in onAuthStateChange');
+            }
+        });
+
+        fetchSession();
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            mounted = false;
+            document.removeEventListener("mousedown", handleClickOutside);
+            sub?.subscription?.unsubscribe?.();
+        };
+    }, [router]);
+
+    if (loading) return <div>Cargando...</div>;
+
+    const handleLogout = () => {
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+        router.push("/login");
+    };
+
     // Función para toggle de elementos expandibles
     const toggleExpanded = (itemId: string) => {
         setExpandedItems(prev => ({
@@ -76,20 +156,19 @@ export function Header() {
                 <li className="relative">
                     {/* Barra indicadora para elementos expandibles */}
                     {isActive && (
-                        <div 
+                        <div
                             className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-purple-500 to-indigo-500 opacity-100 z-10"
-                            // style={{ marginLeft: '8px' }}
+                        // style={{ marginLeft: '8px' }}
                         />
                     )}
                     <button
-                        className={`flex justify-between gap-2 py-2 pr-3 text-sm transition-all duration-200 ${paddingLeft} ${
-                            isActive 
-                                ? 'bg-zinc-900/10 text-zinc-900 dark:bg-white/3 dark:text-white shadow-sm' 
-                                : 'text-zinc-900 dark:text-white'
-                        } w-full text-left rounded-lg hover:bg-zinc-900/5 dark:hover:bg-white/3`}
+                        className={`flex justify-between gap-2 py-2 pr-3 text-sm transition-all duration-200 ${paddingLeft} ${isActive
+                            ? 'bg-zinc-900/10 text-zinc-900 dark:bg-white/3 dark:text-white shadow-sm'
+                            : 'text-zinc-900 dark:text-white'
+                            } w-full text-left rounded-lg hover:bg-zinc-900/5 dark:hover:bg-white/3`}
                         onClick={() => toggleExpanded(item.id)}
                         aria-expanded={isExpanded}
-                        style={{ borderRadius: '0 5px 5px 0'}}
+                        style={{ borderRadius: '0 5px 5px 0' }}
                     >
                         <span className="truncate">{item.title}</span>
                         <svg
@@ -103,11 +182,10 @@ export function Header() {
                     </button>
                     <ul
                         role="list"
-                        className={`ml-4 overflow-hidden transition-all duration-300 ease-in-out ${
-                            isExpanded 
-                                ? 'max-h-96 opacity-100 transform translate-y-0' 
-                                : 'max-h-0 opacity-0 transform -translate-y-2'
-                        }`}
+                        className={`ml-4 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded
+                            ? 'max-h-96 opacity-100 transform translate-y-0'
+                            : 'max-h-0 opacity-0 transform -translate-y-2'
+                            }`}
                     >
                         {item.children.map((child) => (
                             <MenuItem key={child.id} item={child} level={level + 1} isMobile={isMobile} />
@@ -121,19 +199,18 @@ export function Header() {
             <li className="relative">
                 {/* Barra indicadora para elementos simples */}
                 {isActive && (
-                    <div 
+                    <div
                         className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-purple-500 to-indigo-500 opacity-100 z-10"
-                         style={{ marginLeft: level > 0 ? '12px' : '0px' }}
+                        style={{ marginLeft: level > 0 ? '12px' : '0px' }}
                     />
                 )}
                 <Link
-                    className={`flex justify-between gap-2 py-2 pr-3 text-sm transition-all duration-200 rounded-lg ${paddingLeft} ${
-                        isActive 
-                            ? 'bg-zinc-900/10 text-zinc-900 dark:bg-white/3 dark:text-white shadow-sm ' 
-                            : level === 0 
-                                ? 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-900/5 dark:hover:bg-white/3' 
-                                : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-900/5 dark:hover:bg-white/3'
-                    }`}
+                    className={`flex justify-between gap-2 py-2 pr-3 text-sm transition-all duration-200 rounded-lg ${paddingLeft} ${isActive
+                        ? 'bg-zinc-900/10 text-zinc-900 dark:bg-white/3 dark:text-white shadow-sm '
+                        : level === 0
+                            ? 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-900/5 dark:hover:bg-white/3'
+                            : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-900/5 dark:hover:bg-white/3'
+                        }`}
                     href={item.href || '#'}
                     onClick={() => handleItemClick(item.id)}
                     style={{ borderRadius: '0 5px 5px 0', marginLeft: '4px' }}
@@ -144,54 +221,54 @@ export function Header() {
         );
     };
 
-// Componente reutilizable para la navegación
+    // Componente reutilizable para la navegación
     const NavigationMenu = ({ isMobile = false }) => {
         return (
-        <nav className={isMobile ? "" : "hidden lg:flex lg:items-center lg:mt-10 lg:block"}>
-            <ul role="list" style={{ width: '100%' }}>
-                {menuData.map((section) => {
-                    // Verificar si algún item de esta sección está activo
-                    const hasActiveItem = section.items.some(item => {
-                        if (item.children) {
-                            return item.children.some(child => child.id === activeItem);
-                        }
-                        return item.id === activeItem;
-                    });
+            <nav className={isMobile ? "" : "hidden lg:flex lg:items-center lg:mt-10 lg:block"}>
+                <ul role="list" style={{ width: '100%' }}>
+                    {menuData.map((section) => {
+                        // Verificar si algún item de esta sección está activo
+                        const hasActiveItem = section.items.some(item => {
+                            if (item.children) {
+                                return item.children.some(child => child.id === activeItem);
+                            }
+                            return item.id === activeItem;
+                        });
 
-                    return (
-                        <li key={section.id} className="relative mt-6 mb-2 md:mt-0">
-                            <h2 className="text-xs font-semibold text-zinc-900 dark:text-white">{section.title}</h2>
-                            <div className="relative mt-3 pl-2">
-                                {!isMobile && (
-                                    <>
-                                        <div className="absolute inset-y-0 left-2 w-px bg-zinc-900/10 dark:bg-white/5" style={{ transform: "none", transformOrigin: "50% 50% 0px" }}></div>
-                                    </>
-                                )}
-                                {isMobile && (
-                                    <>
-                                        <div className="absolute inset-y-0 left-2 w-px bg-zinc-900/10 dark:bg-white/5"></div>
-                                    </>
-                                )}
-                                <ul role="list" className="border-l border-transparent">
-                                    {section.items.map((item) => (
-                                        <MenuItem key={item.id} item={item} isMobile={isMobile} />
-                                    ))}
-                                </ul>
-                            </div>
-                        </li>
-                    );
-                })}
-                
-                {/* Botón de Sign in solo en móvil */}
-                <li className="sticky bottom-0 z-10 mt-6 min-[416px]:hidden">
-                    <a className="inline-flex gap-0.5 justify-center overflow-hidden text-sm font-medium transition rounded-full bg-zinc-900 py-1 px-3 text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400 w-full" href="#">
-                        Sign in
-                    </a>
-                </li>
-            </ul>
-        </nav>
-    );
-};
+                        return (
+                            <li key={section.id} className="relative mt-6 mb-2 md:mt-0">
+                                <h2 className="text-xs font-semibold text-zinc-900 dark:text-white">{section.title}</h2>
+                                <div className="relative mt-3 pl-2">
+                                    {!isMobile && (
+                                        <>
+                                            <div className="absolute inset-y-0 left-2 w-px bg-zinc-900/10 dark:bg-white/5" style={{ transform: "none", transformOrigin: "50% 50% 0px" }}></div>
+                                        </>
+                                    )}
+                                    {isMobile && (
+                                        <>
+                                            <div className="absolute inset-y-0 left-2 w-px bg-zinc-900/10 dark:bg-white/5"></div>
+                                        </>
+                                    )}
+                                    <ul role="list" className="border-l border-transparent">
+                                        {section.items.map((item) => (
+                                            <MenuItem key={item.id} item={item} isMobile={isMobile} />
+                                        ))}
+                                    </ul>
+                                </div>
+                            </li>
+                        );
+                    })}
+
+                    {/* Botón de Sign in solo en móvil */}
+                    <li className="sticky bottom-0 z-10 mt-6 min-[416px]:hidden">
+                        <a className="inline-flex gap-0.5 justify-center overflow-hidden text-sm font-medium transition rounded-full bg-zinc-900 py-1 px-3 text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400 w-full" href="#">
+                            Sign in
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        );
+    };
 
     return (
         <header className="contents lg:pointer-events-none lg:fixed lg:inset-0 lg:z-40 lg:flex">
@@ -252,8 +329,10 @@ export function Header() {
                     </div>
                     <div className="flex items-center gap-5">
                         <nav className="hidden md:block">
+                            <CurrencySelector />
                             <ul role="list" className="flex items-center gap-8">
-                                <li>
+
+                                {/* <li>
                                     <a className="text-sm/5 text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white" href="/">
                                         API
                                     </a>
@@ -267,7 +346,7 @@ export function Header() {
                                     <a className="text-sm/5 text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white" href="#">
                                         Support
                                     </a>
-                                </li>
+                                </li> */}
                             </ul>
                         </nav>
                         <div className="hidden md:block md:h-5 md:w-px md:bg-zinc-900/10 md:dark:bg-white/15"></div>
@@ -306,13 +385,44 @@ export function Header() {
                                 </svg>
                             </button>
                         </div>
-                        <div className="hidden min-[416px]:contents">
-                            <a
-                                className="inline-flex gap-0.5 justify-center overflow-hidden text-sm font-medium transition rounded-full bg-zinc-900 py-1 px-3 text-white hover:bg-zinc-700 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-1 dark:ring-inset dark:ring-emerald-400/20 dark:hover:bg-emerald-400/10 dark:hover:text-emerald-300 dark:hover:ring-emerald-300"
-                                href="#"
-                            >
-                                Sign in
-                            </a>
+                        <div className="profile-dropdown" ref={profileRef}>
+                            {imageLoading ? (
+                                <div className="profile-img-placeholder" style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#6366f1',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '12px'
+                                }}>
+                                    ...
+                                </div>
+                            ) : (
+                                <img
+                                    className="profile-img"
+                                    src={imgSrc || "https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&size=96"}
+                                    alt="Profile"
+                                    tabIndex={0}
+                                    onClick={() => setOpenDropdown(openDropdown === "profile" ? null : "profile")}
+                                    onError={(e) => {
+                                        console.log('Image error occurred, falling back to generated avatar');
+                                        const target = e.target as HTMLImageElement;
+                                        const userName = session?.user?.full_name || session?.user?.email || 'User';
+                                        target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=6366f1&color=fff&size=96`;
+                                    }}
+                                />
+                            )}
+                            {/* <div className="d-none d-xl-block ps-2">
+            <div>{session?.user?.full_name}</div>
+            <div className="mt-1 small text-secondary">{session?.user?.email}</div>
+          </div> */}
+                            <div className={`profile-menu${openDropdown === "profile" ? " show" : ""}`}>
+                                <button className="profile-menu-item">View Profile</button>
+                                <button className="profile-menu-item" onClick={handleLogout}>Cerrar sesión</button>
+                            </div>
                         </div>
                     </div>
                 </div>
