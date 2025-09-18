@@ -125,24 +125,30 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             Selecciona una categoría de {transactionType === 'expense' ? 'gastos' : 'ingresos'} arriba para continuar
           </small>
         )}
+        <div className='grid grid-cols-3 gap-2 pt-2'>
+          <Input
+            name="amount"
+            type="number"
+            label="Monto"
+            required
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+          />
 
-        <Input
-          name="amount"
-          type="number"
-          label="Monto"
-          required
-          min="0"
-          step="0.01"
-          placeholder="0.00"
-        />
+          <div className='col-span-2'>
+            <Input
+              name="description"
+              label="Descripción"
+              required
+              maxLength={100}
+              placeholder="Descripción de la transacción 2"
 
-        <Input
-          name="description"
-          label="Descripción"
-          required
-          maxLength={100}
-          placeholder="Descripción de la transacción 2"
-        />
+            />
+
+          </div>
+
+        </div>
 
         <Input
           name="date"
@@ -151,7 +157,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           required
           defaultValue={new Date().toISOString().slice(0, 16)}
         />
-        <div className='flex gap-2 items-center content-end justify-end'>
+        <div className='flex gap-2 items-center content-end justify-end pt-3'>
           <Button
             type="submit"
             variant='success'

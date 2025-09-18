@@ -12,9 +12,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helpText, className = '', ...props }, ref) => {
    
     return (
-      <div className={styles.webflowStyleInput}>
-        <input ref={ref} {...props} aria-invalid={error ? 'true' : 'false'} autoComplete='off'/>
-      </div>
+      <input 
+        ref={ref} 
+        {...props} 
+        className={`${styles.webflowStyleInput} ${className}`}
+        aria-invalid={error ? 'true' : 'false'} 
+        autoComplete='off'
+      />
     );
   }
 );

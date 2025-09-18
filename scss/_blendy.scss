@@ -183,6 +183,12 @@
   padding: 20px;
 }
 
+.modal__footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 20px;
+}
+
 @media (max-width: 800px) {
   .modal__header {
     padding: 0;

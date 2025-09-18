@@ -19,10 +19,9 @@ $input-text-active: #BFD2FF;
   display: flex;
   flex-direction: row;
   width: 100%;
-  margin: 15px auto;
+  margin: 2px auto;
   border-radius: 2px;
   padding: 0px 6px 0px 6px;
-  ;
   background: $input-background;
 
   &:after {
@@ -30,6 +29,7 @@ $input-text-active: #BFD2FF;
     position: absolute;
     left: 0px;
     right: 0px;
+    width: 100%;
     bottom: 0px;
     // z-index: 999;
     height: 1px;
@@ -89,6 +89,7 @@ $input-text-active: #BFD2FF;
     font-weight: 300;
     line-height: 2.4rem;
     vertical-align: middle;
+    width: 100%;
 
     &::-webkit-input-placeholder {
       color: $input-text-inactive;
