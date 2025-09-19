@@ -97,7 +97,7 @@ export function MonthlyTransactionChart({ monthsBack = 6, height = 400 }: Monthl
 
       {/* Gráfica */}
       <div 
-        className="w-full bg-white dark:bg-gray-800 rounded-lg p-4"
+        className="w-full rounded-lg p-4"
         style={{ height: `200px` }}
       >
         <Chart
