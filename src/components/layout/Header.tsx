@@ -59,7 +59,7 @@ const getActiveItemFromPath = (pathname: string): string => {
     if (pathname === '/dashboard') return 'dashboard';
     if (pathname === '/transactions') return 'Transacciones';
     if (pathname === '/budget') return 'Presupuestos';
-    if (pathname === '/cuentas') return 'Cuentas';
+    if (pathname === '/accounts') return 'Cuentas';
     if (pathname === '/categorias') return 'Categorias';
     
     // Ruta por defecto
