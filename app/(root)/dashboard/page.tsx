@@ -3,6 +3,7 @@ import CreditCard from "@/src/components/creditCard/creditCard";
 import TransactionsView from "@/src/components/transactions/TransactionsView";
 import BlendyButton from "@/src/components/modal/blendy";
 import TransactionForm from "@/src/components/transactions/TransactionForm";
+import TransferForm from "@/src/components/transactions/TransferForm";
 import { Categories } from "@/src/components/categories/categories";
 import { useState, useEffect } from "react";
 import { getUserCategories, type Category } from "@/src/lib/supabase/categories";
@@ -76,33 +77,48 @@ export default function Dashboard() {
             <TransactionsView />
           </div>
           <div className="cardFooter">
-            <BlendyButton 
-              buttonText="Agregar transacción" 
-              buttonVariant="primary"
-              buttonSize="sm"
-              modalTitle="Nueva Transacción"
-              modalContent={
-                <div>
-                  <Categories 
-                    onCategoriesUpdate={handleCategoriesUpdate}
-                    onCategorySelect={handleCategorySelect}
-                    selectedCategoryId={selectedCategoryId}
-                    activeTab={activeTab}
-                    onTabChange={handleTabChange}
-                  />
-                  <TransactionForm 
-                    categories={categories}
-                    transactionType={activeTab === 'expenses' ? 'expense' : 'income'}
-                    selectedCategoryId={selectedCategoryId}
+            <div className="flex gap-2">
+              <BlendyButton 
+                buttonText="Agregar transacción" 
+                buttonVariant="primary"
+                buttonSize="sm"
+                modalTitle="Nueva Transacción"
+                modalContent={
+                  <div>
+                    <Categories 
+                      onCategoriesUpdate={handleCategoriesUpdate}
+                      onCategorySelect={handleCategorySelect}
+                      selectedCategoryId={selectedCategoryId}
+                      activeTab={activeTab}
+                      onTabChange={handleTabChange}
+                    />
+                    <TransactionForm 
+                      categories={categories}
+                      transactionType={activeTab === 'expenses' ? 'expense' : 'income'}
+                      selectedCategoryId={selectedCategoryId}
+                      onSuccess={() => {
+                        // Aquí puedes agregar lógica para refrescar las transacciones
+                        // Por ejemplo, disparar un evento o actualizar estado
+                        window.location.reload(); // Solución temporal - podrías mejorar esto
+                      }}
+                    />
+                  </div>
+                }
+              />
+              <BlendyButton 
+                buttonText="Transferir" 
+                buttonVariant="secondary"
+                buttonSize="sm"
+                modalTitle="Transferir entre cuentas"
+                modalContent={
+                  <TransferForm 
                     onSuccess={() => {
-                      // Aquí puedes agregar lógica para refrescar las transacciones
-                      // Por ejemplo, disparar un evento o actualizar estado
-                      window.location.reload(); // Solución temporal - podrías mejorar esto
+                      window.location.reload(); // Refrescar para ver los cambios
                     }}
                   />
-                </div>
-              }
-            />
+                }
+              />
+            </div>
           </div>
         </div>
       </div>

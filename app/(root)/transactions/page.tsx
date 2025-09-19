@@ -83,14 +83,20 @@ export default function TransactionsPage() {
         return matchesYear && matchesMonth && matchesCategory && matchesDay;
     });
 
-    // Calcular balances
+    // Calcular balances (las transferencias no afectan el balance total)
     const totalBalance = transactions.reduce((acc, transaction) => {
+        if (transaction.type === 'transfer') {
+            return acc; // Las transferencias no cambian el balance total
+        }
         return transaction.type === 'income'
             ? acc + transaction.amount
             : acc - transaction.amount;
     }, 0);
 
     const periodBalance = filteredTransactions.reduce((acc, transaction) => {
+        if (transaction.type === 'transfer') {
+            return acc; // Las transferencias no cambian el balance del período
+        }
         return transaction.type === 'income'
             ? acc + transaction.amount
             : acc - transaction.amount;
@@ -127,12 +133,15 @@ export default function TransactionsPage() {
     };
 
     // Formatear cantidad
-    const formatAmount = (amount: number, type: 'income' | 'expense') => {
+    const formatAmount = (amount: number, type: 'income' | 'expense' | 'transfer') => {
         const formattedAmount = new Intl.NumberFormat('es-ES', {
             style: 'currency',
             currency: 'USD'
         }).format(amount);
 
+        if (type === 'transfer') {
+            return `↔${formattedAmount}`;
+        }
         return type === 'income' ? `+${formattedAmount}` : `-${formattedAmount}`;
     };
 
@@ -303,22 +312,37 @@ export default function TransactionsPage() {
                                         <div className="flex items-center justify-between pt-1">
                                             <div className="flex items-center space-x-3">
                                                 <CategoryIcon
-                                                    iconName={transaction.category?.icon || "wallet"}
-                                                    color={transaction.category?.color || "#6366f1"}
+                                                    iconName={transaction.type === 'transfer' 
+                                                        ? "arrow-left-right" 
+                                                        : (transaction.category?.icon || "wallet")
+                                                    }
+                                                    color={transaction.type === 'transfer' 
+                                                        ? "#6366f1" 
+                                                        : (transaction.category?.color || "#6366f1")
+                                                    }
                                                 />
                                                 <div className="flex flex-col">
                                                     <span className="text-gray-800 dark:text-white font-medium">
-                                                        {transaction.description || transaction.category?.name || 'Sin descripción'}
+                                                        {transaction.type === 'transfer' 
+                                                            ? `Transferencia: ${transaction.account?.name || 'Cuenta'} → ${transaction.destination_account?.name || 'Cuenta'}`
+                                                            : (transaction.description || transaction.category?.name || 'Sin descripción')
+                                                        }
                                                     </span>
                                                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                        {transaction.category?.name || 'Sin categoría'}
+                                                        {transaction.type === 'transfer' 
+                                                            ? (transaction.description || 'Transferencia entre cuentas')
+                                                            : (transaction.category?.name || 'Sin categoría')
+                                                        }
                                                     </span>
                                                 </div>
                                             </div>
                                             <div className="flex flex-col items-end">
-                                                <span className={`font-medium ${transaction.type === 'income'
-                                                    ? 'text-green-600 dark:text-green-400'
-                                                    : 'text-red-600 dark:text-red-400'
+                                                <span className={`font-medium ${
+                                                    transaction.type === 'income'
+                                                        ? 'text-green-600 dark:text-green-400'
+                                                        : transaction.type === 'transfer'
+                                                        ? 'text-blue-600 dark:text-blue-400'
+                                                        : 'text-red-600 dark:text-red-400'
                                                     }`}>
                                                     {formatAmount(transaction.amount, transaction.type)}
                                                 </span>

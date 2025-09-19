@@ -24,6 +24,12 @@ function TransactionItem({ transaction }: TransactionItemProps) {
             };
         } else {
             // Iconos por defecto según el tipo de transacción
+            if (transaction.type === 'transfer') {
+                return {
+                    icon: 'arrow-left-right',
+                    color: '#6366f1' // azul para transferencias
+                };
+            }
             return {
                 icon: transaction.type === 'income' ? 'trending-up' : 'banknote',
                 color: transaction.type === 'income' ? '#22c55e' : '#ef4444' // verde para ingresos, rojo para gastos
@@ -32,6 +38,22 @@ function TransactionItem({ transaction }: TransactionItemProps) {
     };
     
     const { icon, color } = getIconAndColor();
+    
+    // Obtener el texto de descripción apropiado para transferencias
+    const getTransactionDescription = () => {
+        if (transaction.type === 'transfer') {
+            return transaction.description || 'Transferencia entre cuentas';
+        }
+        return transaction.description || `${transaction.type === 'income' ? 'Ingreso' : 'Gasto'} sin descripción`;
+    };
+    
+    // Obtener clase CSS para el tipo de transacción
+    const getAmountClass = () => {
+        if (transaction.type === 'transfer') {
+            return styles.transfer;
+        }
+        return transaction.type === 'income' ? styles.income : styles.expense;
+    };
     
     return (
         <div className={styles.transaction}>
@@ -46,7 +68,7 @@ function TransactionItem({ transaction }: TransactionItemProps) {
                     </div>
                     <div className={styles.transactionDetails}>
                         <div className={styles.transactionTitle}>
-                            {transaction.description || `${transaction.type === 'income' ? 'Ingreso' : 'Gasto'} sin descripción`}
+                            {getTransactionDescription()}
                             {transaction.category && (
                                 <span style={{ 
                                     marginLeft: '8px', 
@@ -66,7 +88,7 @@ function TransactionItem({ transaction }: TransactionItemProps) {
                     </div>
                 </div>
                 <div className={styles.transactionAmount}>
-                    <div className={`${styles.amount} ${transaction.type === 'income' ? styles.income : styles.expense}`}>
+                    <div className={`${styles.amount} ${getAmountClass()}`}>
                         {formatAmountWithType(transaction.amount, transaction.type)}
                     </div>
                     <div className={styles.transactionStatus}>

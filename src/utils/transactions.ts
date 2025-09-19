@@ -4,26 +4,32 @@ import { Currency } from '@/src/contexts/CurrencyContext';
  * Formatea un monto para mostrar en la UI
  * @deprecated Usar useCurrency().formatAmountWithType() en su lugar
  */
-export function formatAmount(amount: number, type: 'income' | 'expense'): string {
+export function formatAmount(amount: number, type: 'income' | 'expense' | 'transfer'): string {
   const formattedAmount = new Intl.NumberFormat('es-ES', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
   }).format(amount);
 
+  if (type === 'transfer') {
+    return `↔ ${formattedAmount}`;
+  }
   return type === 'income' ? `+ ${formattedAmount}` : `- ${formattedAmount}`;
 }
 
 /**
  * Formatea un monto con una moneda específica
  */
-export function formatAmountWithCurrency(amount: number, type: 'income' | 'expense', currency: Currency): string {
+export function formatAmountWithCurrency(amount: number, type: 'income' | 'expense' | 'transfer', currency: Currency): string {
   const formattedAmount = new Intl.NumberFormat(currency.locale, {
     style: 'currency',
     currency: currency.code,
     minimumFractionDigits: 2,
   }).format(amount);
 
+  if (type === 'transfer') {
+    return `↔ ${formattedAmount}`;
+  }
   return type === 'income' ? `+ ${formattedAmount}` : `- ${formattedAmount}`;
 }
 
@@ -61,7 +67,11 @@ export function formatDateOnly(dateString: string, createdAt?: string): string {
 /**
  * Obtiene el icono apropiado basado en el tipo de transacción
  */
-export function getTransactionIcon(type: 'income' | 'expense', description?: string | null): string {
+export function getTransactionIcon(type: 'income' | 'expense' | 'transfer', description?: string | null): string {
+  if (type === 'transfer') {
+    return 'fas fa-exchange-alt';
+  }
+  
   if (type === 'income') {
     if (description?.toLowerCase().includes('nómina') || description?.toLowerCase().includes('salario')) {
       return 'fas fa-money-check';

@@ -8,8 +8,9 @@ export interface Transaction {
   description: string | null;
   category_id: string | null;
   account_id: string | null;
+  destination_account_id?: string | null; // Para transferencias
   date: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
   status: 'pending' | 'completed' | 'canceled';
   created_at: string;
   source: 'manual' | string;
@@ -30,6 +31,13 @@ export interface TransactionWithCategory extends Transaction {
     color: string;
     icon: string | null;
   } | null;
+  destination_account?: {
+    id: string;
+    name: string;
+    type: string;
+    color: string;
+    icon: string | null;
+  } | null;
 }
 
 export interface NewTransaction {
@@ -37,7 +45,8 @@ export interface NewTransaction {
   description?: string;
   category_id?: string;
   account_id?: string;
-  type: 'income' | 'expense';
+  destination_account_id?: string; // Para transferencias
+  type: 'income' | 'expense' | 'transfer';
   date?: string;
   status?: 'pending' | 'completed' | 'canceled';
   source?: string;
@@ -77,7 +86,8 @@ export async function getUserTransactionsWithCategories(userId: string): Promise
       .select(`
         *,
         category:categories(id, name, color, icon),
-        account:accounts(id, name, type, color, icon)
+        account:accounts!account_id(id, name, type, color, icon),
+        destination_account:accounts!destination_account_id(id, name, type, color, icon)
       `)
       .eq('user_id', userId)
       .order('date', { ascending: false });
@@ -94,6 +104,16 @@ export async function getUserTransactionsWithCategories(userId: string): Promise
  */
 export async function addTransaction(userId: string, tx: NewTransaction): Promise<TransactionResult> {
   try {
+    // Para transferencias, validar que existan ambas cuentas
+    if (tx.type === 'transfer') {
+      if (!tx.account_id || !tx.destination_account_id) {
+        return { error: { message: 'Las transferencias requieren cuenta de origen y destino' } };
+      }
+      if (tx.account_id === tx.destination_account_id) {
+        return { error: { message: 'No se puede transferir a la misma cuenta' } };
+      }
+    }
+
     const { data, error } = await supabase
       .from('transactions')
       .insert([
@@ -103,6 +123,7 @@ export async function addTransaction(userId: string, tx: NewTransaction): Promis
           description: tx.description || null,
           category_id: tx.category_id || null,
           account_id: tx.account_id || null,
+          destination_account_id: tx.destination_account_id || null,
           type: tx.type,
           date: tx.date || new Date().toISOString(),
           status: tx.status || 'completed',
@@ -115,10 +136,19 @@ export async function addTransaction(userId: string, tx: NewTransaction): Promis
       
     if (error) throw error;
 
-    // Actualizar el balance de la cuenta si la transacción está completada y hay una cuenta asociada
-    if (data && tx.account_id && (tx.status === 'completed' || !tx.status)) {
-      const balanceChange = tx.type === 'income' ? tx.amount : -tx.amount;
-      await adjustAccountBalance(tx.account_id, userId, balanceChange);
+    // Actualizar balances según el tipo de transacción
+    if (data && (tx.status === 'completed' || !tx.status)) {
+      if (tx.type === 'transfer') {
+        // Para transferencias, restar de la cuenta origen y sumar a la cuenta destino
+        if (tx.account_id && tx.destination_account_id) {
+          await adjustAccountBalance(tx.account_id, userId, -tx.amount); // Restar del origen
+          await adjustAccountBalance(tx.destination_account_id, userId, tx.amount); // Sumar al destino
+        }
+      } else if (tx.account_id) {
+        // Para ingresos y gastos normales
+        const balanceChange = tx.type === 'income' ? tx.amount : -tx.amount;
+        await adjustAccountBalance(tx.account_id, userId, balanceChange);
+      }
     }
 
     return { data: data as Transaction };
@@ -199,4 +229,23 @@ export async function getCategoryExpenses(userId: string): Promise<{ data?: Reco
   } catch (error: any) {
     return { error: { message: error.message || 'Error al obtener gastos por categoría' } };
   }
+}
+
+/**
+ * Crea una transferencia entre cuentas del usuario
+ */
+export async function createTransfer(
+  userId: string,
+  fromAccountId: string,
+  toAccountId: string,
+  amount: number,
+  description?: string
+): Promise<TransactionResult> {
+  return addTransaction(userId, {
+    type: 'transfer',
+    amount,
+    description: description || `Transferencia de cuenta a cuenta`,
+    account_id: fromAccountId,
+    destination_account_id: toAccountId,
+  });
 }

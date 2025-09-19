@@ -24,7 +24,7 @@ interface CurrencyContextType {
   currency: Currency;
   setCurrency: (currency: Currency) => void;
   formatAmount: (amount: number, showSymbol?: boolean) => string;
-  formatAmountWithType: (amount: number, type: 'income' | 'expense') => string;
+  formatAmountWithType: (amount: number, type: 'income' | 'expense' | 'transfer') => string;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | null>(null);
@@ -74,9 +74,12 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
     }).format(amount);
   };
 
-  // Formatear cantidad con tipo (ingreso/gasto)
-  const formatAmountWithType = (amount: number, type: 'income' | 'expense'): string => {
+  // Formatear cantidad con tipo (ingreso/gasto/transferencia)
+  const formatAmountWithType = (amount: number, type: 'income' | 'expense' | 'transfer'): string => {
     const formattedAmount = formatAmount(amount);
+    if (type === 'transfer') {
+      return `↔ ${formattedAmount}`;
+    }
     return type === 'income' ? `+ ${formattedAmount}` : `- ${formattedAmount}`;
   };
 
