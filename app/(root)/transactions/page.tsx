@@ -22,6 +22,7 @@ export default function TransactionsPage() {
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(currentMonth);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [selectedAccount, setSelectedAccount] = useState<string>('all');
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'day' | 'month' | 'calendar'>('month'); // Por defecto vista mensual
 
@@ -67,7 +68,27 @@ export default function TransactionsPage() {
         return categories;
     }, [] as Array<{ id: string, name: string, color: string, icon: string | null }>);
 
-    // Filtrar transacciones por año, mes, categoría y opcionalmente por día
+    // Obtener cuentas únicas de las transacciones
+    const availableAccounts = transactions.reduce((accounts, transaction) => {
+        // Agregar cuenta principal si existe y no está ya en la lista
+        if (transaction.account && !accounts.find(acc => acc.id === transaction.account!.id)) {
+            accounts.push({
+                id: transaction.account.id,
+                name: transaction.account.name
+            });
+        }
+        // Para transferencias, también agregar la cuenta de destino si existe
+        if (transaction.type === 'transfer' && transaction.destination_account &&
+            !accounts.find(acc => acc.id === transaction.destination_account!.id)) {
+            accounts.push({
+                id: transaction.destination_account.id,
+                name: transaction.destination_account.name
+            });
+        }
+        return accounts;
+    }, [] as Array<{ id: string, name: string }>);
+
+    // Filtrar transacciones por año, mes, categoría, cuenta y opcionalmente por día
     const filteredTransactions = transactions.filter(transaction => {
         const transactionDate = new Date(transaction.date);
         const transactionYear = transactionDate.getFullYear();
@@ -78,10 +99,15 @@ export default function TransactionsPage() {
         const matchesMonth = selectedMonth === 'all' || transactionMonth === selectedMonth;
         const matchesCategory = selectedCategory === 'all' || transaction.category?.id === selectedCategory;
 
+        // Filtrar por cuenta: incluir transacciones donde la cuenta principal o de destino coincida
+        const matchesAccount = selectedAccount === 'all' ||
+            transaction.account?.id === selectedAccount ||
+            (transaction.type === 'transfer' && transaction.destination_account?.id === selectedAccount);
+
         // Solo filtrar por día si estamos en modo día o calendario
         const matchesDay = viewMode === 'month' || transactionDay === selectedDay.toDateString();
 
-        return matchesYear && matchesMonth && matchesCategory && matchesDay;
+        return matchesYear && matchesMonth && matchesCategory && matchesAccount && matchesDay;
     });
 
     // Calcular balances (las transferencias no afectan el balance total)
@@ -113,8 +139,11 @@ export default function TransactionsPage() {
             const matchesYear = transactionYear === selectedYear;
             const matchesMonth = selectedMonth === 'all' || transactionMonth === selectedMonth;
             const matchesCategory = selectedCategory === 'all' || transaction.category?.id === selectedCategory;
+            const matchesAccount = selectedAccount === 'all' ||
+                transaction.account?.id === selectedAccount ||
+                (transaction.type === 'transfer' && transaction.destination_account?.id === selectedAccount);
 
-            return matchesYear && matchesMonth && matchesCategory;
+            return matchesYear && matchesMonth && matchesCategory && matchesAccount;
         })
         .map(transaction => new Date(transaction.date))
         .filter((date, index, array) =>
@@ -194,16 +223,11 @@ export default function TransactionsPage() {
             </div>
             <div className="flex items-center w-full justify-between border-b border-gray-300 dark:border-gray-600">
                 <div className="flex items-center justify-center ">
-                    <div className="flex items-center  backdrop-blur-sm border border-0 rounded-lg p-1">
+                    <div className="flex items-center  backdrop-blur-sm border border-0 rounded-lg p-1 pr-2 space-x-2">
                         <button
                             onClick={() => setViewMode('month')}
-                            className={`
-                                    px-3 py-1 rounded-md text-sm font-medium transition-all duration-200
-                                    ${viewMode === 'month'
-                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-white/10'
-                                }
-                                `}
+                            className='dark:bg-white/10 dark:hover:bg-white/20 rounded dark:border-gray-600 dark:text-white/80 hover:dark:text-zinc-300 transition-colors'
+                            style={{ cursor: 'pointer', padding: '7px 5px' }}
                         >
                             Todo el mes
                         </button>
@@ -248,27 +272,45 @@ export default function TransactionsPage() {
                         />
                     </div>
                 </div>
-                <div className="flex items-center justify-end space-x-4  dark:border-gray-600 pb-4">
-                    {/* Filtros categoria, de año y mes */}
-                    <Select
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        options={[
-                            { value: 'all', label: 'Todas las categorías' },
-                            ...availableCategories.map((category) => ({
-                                value: category.id,
-                                label: category.name
-                            }))
-                        ]}
-                    />
-                    <Select
-                        value={selectedYear.toString()}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        options={yearOptions.map((year) => ({
-                            value: year.toString(),
-                            label: year.toString()
-                        }))}
-                    />
+                <div className="flex items-center justify-end space-x-4  dark:border-gray-600">
+                    {/* Filtros categoria, cuenta, de año y mes */}
+                    <div className="mr-2">
+                        <Select
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                            options={[
+                                { value: 'all', label: 'Todas las categorías' },
+                                ...availableCategories.map((category) => ({
+                                    value: category.id,
+                                    label: category.name
+                                }))
+                            ]}
+                        />
+                    </div>
+                    <div className="mr-2">
+                        <Select
+                            value={selectedAccount}
+                            onChange={(e) => setSelectedAccount(e.target.value)}
+                            options={[
+                                { value: 'all', label: 'Todas las cuentas' },
+                                ...availableAccounts.map((account) => ({
+                                    value: account.id,
+                                    label: account.name
+                                }))
+                            ]}
+                        />
+                    </div>
+                    <div className="mr-2">
+                        <Select
+                            value={selectedYear.toString()}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                            options={yearOptions.map((year) => ({
+                                value: year.toString(),
+                                label: year.toString()
+                            }))}
+                        />
+                    </div>
+
                     <Select
                         value={selectedMonth === 'all' ? 'all' : selectedMonth.toString()}
                         onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
@@ -308,35 +350,34 @@ export default function TransactionsPage() {
                                         <div className="flex items-center justify-between pt-1">
                                             <div className="flex items-center space-x-3">
                                                 <CategoryIcon
-                                                    iconName={transaction.type === 'transfer' 
-                                                        ? "arrow-left-right" 
+                                                    iconName={transaction.type === 'transfer'
+                                                        ? "arrow-left-right"
                                                         : (transaction.category?.icon || "wallet")
                                                     }
-                                                    color={transaction.type === 'transfer' 
-                                                        ? "#6366f1" 
+                                                    color={transaction.type === 'transfer'
+                                                        ? "#6366f1"
                                                         : (transaction.category?.color || "#6366f1")
                                                     }
                                                 />
                                                 <div className="flex flex-col">
                                                     <span className="text-gray-800 dark:text-white font-medium">
-                                                        {transaction.type === 'transfer' 
+                                                        {transaction.type === 'transfer'
                                                             ? `Transferencia: ${transaction.account?.name || 'Cuenta'} → ${transaction.destination_account?.name || 'Cuenta'}`
                                                             : (transaction.description || transaction.category?.name || 'Sin descripción')
                                                         }
                                                     </span>
                                                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                        {transaction.type === 'transfer' 
+                                                        {transaction.type === 'transfer'
                                                             ? (transaction.description || 'Transferencia entre cuentas')
-                                                            : (transaction.category?.name || 'Sin categoría')
+                                                            : `${transaction.category?.name || 'Sin categoría'} • ${transaction.account?.name || 'Cuenta no especificada'}`
                                                         }
                                                     </span>
                                                 </div>
                                             </div>
                                             <div className="flex flex-col items-end">
-                                                <span className={`font-medium ${
-                                                    transaction.type === 'income'
-                                                        ? 'text-green-600 dark:text-green-400'
-                                                        : transaction.type === 'transfer'
+                                                <span className={`font-medium ${transaction.type === 'income'
+                                                    ? 'text-green-600 dark:text-green-400'
+                                                    : transaction.type === 'transfer'
                                                         ? 'text-blue-600 dark:text-blue-400'
                                                         : 'text-red-600 dark:text-red-400'
                                                     }`}>

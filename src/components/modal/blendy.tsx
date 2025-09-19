@@ -122,7 +122,8 @@ export default function BlendyButton({
                 document.body
             )}
             <button 
-                className={getButtonClasses()}
+                className='dark:bg-white/10 dark:hover:bg-white/20 dark:border-gray-600 border rounded dark:text-white/80 hover:dark:text-zinc-300 transition-colors'
+                style={{ cursor: 'pointer', padding: '7px 5px'}}
                 data-blendy-from="example" 
                 onClick={handleOpenModal}
             >
@@ -172,7 +173,7 @@ export function Modal({ onClose, title = "Modal", content, closeModal }: ModalPr
   };
 
   return (
-    <div className="modal z-50" style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
+    <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
       <div>
         <div className="modal__header border-b border-zinc-700">
           <h2 className="text-zinc-400">{title}</h2>
