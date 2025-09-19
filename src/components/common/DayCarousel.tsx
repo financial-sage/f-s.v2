@@ -202,7 +202,7 @@ export default function DayCarousel({ selectedDate, onDateChange, availableDates
             </button>
 
             {/* Indicadores de posición */}
-            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-1">
+            {/* <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-1">
                 {dates.map((_, index) => (
                     <div
                         key={index}
@@ -215,7 +215,7 @@ export default function DayCarousel({ selectedDate, onDateChange, availableDates
                         `}
                     />
                 ))}
-            </div>
+            </div> */}
         </div>
     );
 }

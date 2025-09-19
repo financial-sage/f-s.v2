@@ -7,6 +7,7 @@ import Calendar from "@/src/components/common/Calendar";
 import { useSession } from "@/src/hooks/useSession";
 import { useTransactions } from "@/src/hooks/useTransactions";
 import { useState } from "react";
+import BlendyButton from "@/src/components/modal/blendy";
 
 export default function TransactionsPage() {
     const { session, loading: sessionLoading } = useSession();
@@ -22,6 +23,16 @@ export default function TransactionsPage() {
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'day' | 'month' | 'calendar'>('month'); // Por defecto vista mensual
+
+    // Función para manejar la selección de fecha desde el modal
+    const handleCalendarDateChange = (date: Date, closeModal?: () => void) => {
+        setSelectedDay(date);
+        setViewMode('day'); // Cambiar a modo día para aplicar el filtro
+        // Cerrar el modal si se proporciona la función
+        if (closeModal) {
+            setTimeout(() => closeModal(), 100); // Pequeño delay para mostrar la selección
+        }
+    };
 
     // Generar opciones de años (últimos 5 años y próximos 2)
     const yearOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i);
@@ -186,10 +197,10 @@ export default function TransactionsPage() {
                         >
                             Todo el mes
                         </button>
-                        <button
+                        {/* <button
                             onClick={() => setViewMode('day')}
                             className={`
-                                    px-3 py-1 rounded-md text-sm font-medium transition-all duration-200
+                                    px-3 py-1 mr-2 rounded-md text-sm font-medium transition-all duration-200
                                     ${viewMode === 'day'
                                     ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-sm'
                                     : 'text-gray-600 dark:text-gray-300 hover:bg-white/10'
@@ -197,8 +208,8 @@ export default function TransactionsPage() {
                                 `}
                         >
                             Por día
-                        </button>
-                        <button
+                        </button> */}
+                        {/* <button
                             onClick={() => setViewMode('calendar')}
                             className={`
                                     px-3 py-1 rounded-md text-sm font-medium transition-all duration-200
@@ -209,7 +220,22 @@ export default function TransactionsPage() {
                                 `}
                         >
                             Calendario
-                        </button>
+                        </button> */}
+                        <BlendyButton
+                            buttonText="Seleccionar dia del calendario"
+                            buttonVariant="primary"
+                            buttonSize="sm"
+                            modalTitle="Ver calendario"
+                            modalContent={(closeModal) => (
+                                <Calendar
+                                    selectedDate={selectedDay}
+                                    onDateChange={(date) => handleCalendarDateChange(date, closeModal)}
+                                    transactionDates={transactionDates}
+                                    year={selectedYear}
+                                    month={selectedMonth === 'all' ? new Date().getMonth() + 1 : selectedMonth}
+                                />
+                            )}
+                        />
                     </div>
                 </div>
                 <div className="flex items-center justify-end space-x-4  dark:border-gray-600 pb-4">
@@ -254,7 +280,7 @@ export default function TransactionsPage() {
 
             <div className=" grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-4">
                 <div className=" col-span-2">
-                   
+
 
                     {/* Mostrar carrusel solo en modo día */}
                     {viewMode === 'day' && (
@@ -265,16 +291,16 @@ export default function TransactionsPage() {
                     )}
 
 
-                    <div className={`card ${viewMode === 'month' ? 'mt-0' : 'mt-4'}`}>
+                    <div className={`dark:bg-white/2 p-4 rounded-md shadow-lg overflow-y-auto ${viewMode === 'month' ? 'mt-0' : 'mt-4'}`}>
                         {filteredTransactions.length === 0 ? (
                             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                 No hay transacciones para este período
                             </div>
                         ) : (
-                            <ul className="space-y-3">
+                            <ul >
                                 {filteredTransactions.map((transaction) => (
                                     <li key={transaction.id} className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between pt-1">
                                             <div className="flex items-center space-x-3">
                                                 <CategoryIcon
                                                     iconName={transaction.category?.icon || "wallet"}

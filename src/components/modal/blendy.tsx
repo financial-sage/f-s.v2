@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 interface BlendyButtonProps {
     buttonText?: string;
     modalTitle?: string;
-    modalContent?: ReactNode;
+    modalContent?: ReactNode | ((closeModal: () => void) => ReactNode);
     buttonVariant?: 
         | 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'dark' | 'light'
         | 'outline-primary' | 'outline-secondary' | 'outline-success' | 'outline-danger' 
@@ -117,6 +117,7 @@ export default function BlendyButton({
                     onClose={handleCloseModal} 
                     title={modalTitle}
                     content={modalContent}
+                    closeModal={handleCloseModal}
                 />, 
                 document.body
             )}
@@ -134,11 +135,12 @@ export default function BlendyButton({
 interface ModalProps {
     onClose: React.MouseEventHandler<HTMLElement>;
     title?: string;
-    content?: ReactNode;
+    content?: ReactNode | ((closeModal: () => void) => ReactNode);
     isClosing?: boolean;
+    closeModal: () => void;
 }
 
-export function Modal({ onClose, title = "Modal", content }: ModalProps) {
+export function Modal({ onClose, title = "Modal", content, closeModal }: ModalProps) {
   const [isOpening, setIsOpening] = useState(true);
 
   useEffect(() => {
@@ -161,6 +163,14 @@ export function Modal({ onClose, title = "Modal", content }: ModalProps) {
     }, 200);
   };
 
+  // Renderizar contenido dinámico
+  const renderContent = () => {
+    if (typeof content === 'function') {
+      return content(closeModal);
+    }
+    return content;
+  };
+
   return (
     <div className="modal z-50" style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
       <div>
@@ -172,7 +182,7 @@ export function Modal({ onClose, title = "Modal", content }: ModalProps) {
           ></button>
         </div>
         <div className="modal__content">
-          {content}
+          {renderContent()}
         </div>
       </div>
     </div>

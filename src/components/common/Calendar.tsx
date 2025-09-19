@@ -84,7 +84,7 @@ export default function Calendar({ selectedDate, onDateChange, transactionDates 
     };
 
     return (
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-md p-4 w-full max-w-sm mx-auto">
+        <div className=" backdrop-blur-sm  border-white/10 rounded-md p-4 w-full  mx-auto">
             {/* Encabezado con mes y año */}
             <div className="flex items-center justify-center mb-2">
                 <h3 className="text-lg font-medium text-gray-800 dark:text-white" style={{ fontWeight: '300' }}>
