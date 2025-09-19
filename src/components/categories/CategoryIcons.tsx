@@ -27,6 +27,21 @@ import {
     PiggyBank,
     TrendingUp,
     ShoppingBag,
+    Landmark,
+    HandCoins,
+    Notebook,
+    Dock,
+    WalletMinimal,
+    Cake,
+    Bus,
+    BusFront,
+    Carrot,
+    ChartBar,
+    Settings2,
+    Settings,
+    BanknoteArrowDown,
+    BanknoteArrowUp,
+    BanknoteIcon,
     type LucideIcon
 } from "lucide-react";
 
@@ -65,6 +80,21 @@ export const AVAILABLE_ICONS: IconOption[] = [
     { name: 'trending-up', icon: TrendingUp, label: 'Inversiones' },
     { name: 'shopping-bag', icon: ShoppingBag, label: 'Compras Online' },
     { name: 'plus', icon: Plus, label: 'Otros' },
+    { name: 'landmark', icon: Landmark, label: 'Tarjeta' },
+    { name: 'hand-coins', icon: HandCoins, label: 'Salarios' },
+    { name: 'notebook', icon: Notebook, label: 'Oficina' },
+    { name: 'dock', icon: Dock, label: 'Viajes' },
+    { name: 'wallet-minimal', icon: WalletMinimal, label: 'Efectivo' },
+    { name: 'cake', icon: Cake, label: 'Cumpleaños' },
+    { name: 'bus', icon: Bus, label: 'Transporte' },
+    { name: 'bus-front', icon: BusFront, label: 'Transporte' },
+    { name: 'carrot', icon: Carrot, label: 'Comida' },
+    { name: 'chart-bar', icon: ChartBar, label: 'Estadísticas' },
+    { name: 'settings2', icon: Settings2, label: 'Configuración' },
+    { name: 'settings', icon: Settings, label: 'Ajustes' },
+    { name: 'banknote-arrow-down', icon: BanknoteArrowDown, label: 'Ingreso' },
+    { name: 'banknote-arrow-up', icon: BanknoteArrowUp, label: 'Gasto' },
+    { name: 'banknote-icon', icon: BanknoteIcon, label: 'Dinero' },
 ];
 
 export interface CategoryIconProps {

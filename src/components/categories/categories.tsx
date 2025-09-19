@@ -6,6 +6,7 @@ import { CategoryIcon } from './CategoryIcons';
 import { CategoryForm } from './CategoryForm';
 import { CategoryProgressCircle } from './CategoryProgressCircle';
 import { Plus } from "lucide-react";
+import BlendyCategoriesModal from '../modal/blendyCategories';
 
 type TabType = 'expenses' | 'income';
 
@@ -180,30 +181,18 @@ export function Categories({ onCategoriesUpdate, onCategorySelect, selectedCateg
                 })}
 
                 {/* Botón para agregar nueva categoría */}
-                <div
-                    className="text-center p-2 rounded-md border-zinc-700 cursor-pointer hover:border-zinc-600 transition"
-                    title={`Agregar categoría de ${activeTab === 'expenses' ? 'gastos' : 'ingresos'}`}
-                    onClick={handleAddCategory} 
-                >
-                    <div className="flex flex-col items-center gap-1">
-                        <small className="text-zinc-400 text-muted">&nbsp;</small>
-                        <small className="text-zinc-400 text-muted text-xs">Nueva</small>
-                        <div style={{ width: '30px', height: '30px' }} className="rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:bg-zinc-500 transition">
-                            <Plus strokeWidth={1} size={30} className="text-zinc-200" />
-                        </div>
-                        <small className="text-zinc-400 text-muted">&nbsp;</small>
-                    </div>
-                </div>
+
+                <BlendyCategoriesModal buttonText='plus' modalTitle={`Agregar categoría de ${activeTab === 'expenses' ? 'gastos' : 'ingresos'}`} modalContent={(closeModal) => (
+                    <CategoryForm
+                        categoryType={activeTab === 'expenses' ? 'expense' : 'income'}
+                        onCategoryCreated={handleNewCategory}
+                        onClose={closeModal}
+                    />
+                )} />
+               
             </div>
 
-            {/* Formulario modal para nueva categoría */}
-            {showForm && (
-                <CategoryForm
-                    categoryType={activeTab === 'expenses' ? 'expense' : 'income'}
-                    onCategoryCreated={handleNewCategory}
-                    onClose={() => setShowForm(false)}
-                />
-            )}
+           
         </div>
     );
 }

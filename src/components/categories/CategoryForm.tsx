@@ -21,6 +21,16 @@ const PREDEFINED_COLORS = [
     '#ec4899', // pink-500
     '#64748b', // slate-500
     '#78716c', // stone-500
+    '#dc2626', // red-600 (más oscuro que el primero)
+    '#059669', // emerald-600 (verde diferente)
+    '#0284c7', // sky-600 (azul diferente)
+    '#7c3aed', // violet-600 (púrpura diferente)
+    '#be185d', // pink-700 (rosa más oscuro)
+    '#ca8a04', // yellow-600 (amarillo más oscuro)
+    '#65a30d', // lime-600 (verde lima)
+    '#0891b2', // cyan-600 (cian más oscuro)
+    '#9333ea', // purple-600 (morado diferente)
+    '#374151', // gray-700 (gris más oscuro)
 ];
 
 export function CategoryForm({ onCategoryCreated, onClose, categoryType }: CategoryFormProps) {
@@ -66,7 +76,7 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
     };
 
     return (
-        <div className="w-full max-w-md mx-4">
+        <div className="">
             <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Nombre */}
                     <Input
@@ -83,13 +93,13 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                         <label className="block text-sm font-medium text-zinc-300 mb-2">
                             Icono
                         </label>
-                        <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto border border-zinc-700 rounded-md p-2 bg-zinc-800">
+                        <div className="grid grid-cols-10 gap-1 max-h-[200px] overflow-y-auto">
                             {AVAILABLE_ICONS.map((iconOption: IconOption) => (
                                 <button
                                     key={iconOption.name}
                                     type="button"
                                     onClick={() => setFormData(prev => ({ ...prev, icon: iconOption.name }))}
-                                    className={`p-2 rounded-md border transition-colors ${
+                                    className={`rounded-full border border-zinc-700 flex items-center justify-center cursor-pointer hover:bg-zinc-500 p-3 ${
                                         formData.icon === iconOption.name
                                             ? 'border-blue-500 bg-blue-500/20'
                                             : 'border-zinc-600 hover:border-zinc-500'
@@ -98,7 +108,7 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                                 >
                                     <CategoryIcon 
                                         iconName={iconOption.name} 
-                                        size={20} 
+                                        size={23} 
                                         color={formData.icon === iconOption.name ? '#3b82f6' : '#e4e4e7'}
                                     />
                                 </button>
@@ -111,7 +121,7 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                         <label className="block text-sm font-medium text-zinc-300 mb-2">
                             Color
                         </label>
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-10 gap-2">
                             {PREDEFINED_COLORS.map((color) => (
                                 <button
                                     key={color}
@@ -147,9 +157,9 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                     </div>
 
                     {/* Vista previa */}
-                    <div className="bg-zinc-800 p-3 rounded-md border border-zinc-700">
+                    <div className="bg-zinc-800 dark:bg-white/5 p-3 rounded-md  border-zinc-700">
                         <p className="text-sm text-zinc-400 mb-2">Vista previa:</p>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center gap-3">
                             <div 
                                 className="rounded-full w-10 h-10 border border-zinc-700 flex items-center justify-center"
                                 style={{ backgroundColor: formData.color }}
