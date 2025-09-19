@@ -4,6 +4,7 @@ import { CategoryIcon } from "@/src/components/categories/CategoryIcons";
 import TransactionsView from "@/src/components/transactions/TransactionsView";
 import DayCarousel from "@/src/components/common/DayCarousel";
 import Calendar from "@/src/components/common/Calendar";
+import { Select } from "@/src/components/common";
 import { useSession } from "@/src/hooks/useSession";
 import { useTransactions } from "@/src/hooks/useTransactions";
 import { useState } from "react";
@@ -249,41 +250,36 @@ export default function TransactionsPage() {
                 </div>
                 <div className="flex items-center justify-end space-x-4  dark:border-gray-600 pb-4">
                     {/* Filtros categoria, de año y mes */}
-                    <select
-                        className="border border-gray-300 dark:border-gray-600 dark:text-gray-400 border-0"
+                    <Select
                         value={selectedCategory}
                         onChange={(e) => setSelectedCategory(e.target.value)}
-                    >
-                        <option value="all">Todas las categorías</option>
-                        {availableCategories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.name}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        className="border border-gray-300 dark:border-gray-600 dark:text-gray-400 border-0"
-                        value={selectedYear}
+                        options={[
+                            { value: 'all', label: 'Todas las categorías' },
+                            ...availableCategories.map((category) => ({
+                                value: category.id,
+                                label: category.name
+                            }))
+                        ]}
+                    />
+                    <Select
+                        value={selectedYear.toString()}
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    >
-                        {yearOptions.map((year) => (
-                            <option key={year} value={year}>
-                                {year}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        className="border border-gray-300 dark:border-gray-600 border-0 dark:text-gray-400"
-                        value={selectedMonth}
+                        options={yearOptions.map((year) => ({
+                            value: year.toString(),
+                            label: year.toString()
+                        }))}
+                    />
+                    <Select
+                        value={selectedMonth === 'all' ? 'all' : selectedMonth.toString()}
                         onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                    >
-                        <option value="all">Todo el año</option>
-                        {monthOptions.map((month) => (
-                            <option key={month.value} value={month.value}>
-                                {month.label}
-                            </option>
-                        ))}
-                    </select>
+                        options={[
+                            { value: 'all', label: 'Todo el año' },
+                            ...monthOptions.map((month) => ({
+                                value: month.value,
+                                label: month.label
+                            }))
+                        ]}
+                    />
                 </div>
             </div>
 

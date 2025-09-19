@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AccountSelector, AccountCard } from './AccountSelector';
-import { Button, Input } from '@/src/components/common';
+import { Button, Input, Select } from '@/src/components/common';
 import { Account, NewAccount, AccountType } from '@/src/types/types';
 import { getUserAccounts, createAccount, updateAccount, deactivateAccount } from '@/src/lib/supabase/accounts';
 import { useSession } from '@/src/hooks/useSession';
@@ -142,6 +142,114 @@ export const AccountManagement: React.FC = () => {
     }
   };
 
+  // Componente de formulario para crear cuenta
+  const AccountFormContent = (closeModal: () => void) => {
+    return (
+      <div className="max-w-md w-full mx-4">
+        <form onSubmit={(e) => { handleSubmit(e); closeModal(); }} className="space-y-4">
+          <Input
+            label="Nombre de la cuenta"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+            placeholder="Ej: Cuenta Principal, Tarjeta Visa"
+          />
+
+          <Select
+            label="Tipo de cuenta"
+            value={formData.type}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value as AccountType })}
+            required
+            options={AccountTypeOptions.map((option) => ({
+              value: option.value,
+              label: `${option.icon} ${option.label}`
+            }))}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Balance inicial"
+              type="number"
+              step="0.01"
+              value={formData.balance}
+              onChange={(e) => setFormData({ ...formData, balance: Number(e.target.value) })}
+            />
+
+            <Input
+              label="Moneda"
+              value={formData.currency}
+              onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+              placeholder="USD"
+            />
+          </div>
+
+          {(formData.type === 'bank_account' || formData.type === 'credit_card' || formData.type === 'debit_card') && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Banco"
+                value={formData.bank_name || ''}
+                onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                placeholder="Nombre del banco"
+              />
+
+              <Input
+                label="Últimos 4 dígitos"
+                value={formData.last_four_digits || ''}
+                onChange={(e) => setFormData({ ...formData, last_four_digits: e.target.value })}
+                placeholder="1234"
+                maxLength={4}
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Color
+            </label>
+            <div className="flex space-x-2">
+              {AccountColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, color })}
+                  className={`w-8 h-8 rounded-full border-2 ${formData.color === color ? 'border-gray-800' : 'border-gray-300'}`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <Input
+              type="checkbox"
+              id="is_default"
+              checked={formData.is_default}
+              onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
+              className="mr-2"
+            />
+            <label htmlFor="is_default" className="text-sm">
+              Establecer como cuenta por defecto
+            </label>
+          </div>
+
+          <div className="flex space-x-3">
+            <Button type="submit" variant="primary" className="flex-1">
+              {editingAccount ? 'Actualizar' : 'Crear'} Cuenta
+            </Button>
+            <Button
+              type="button"
+              onClick={() => { resetForm(); closeModal(); }}
+              variant="secondary"
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  };
+
   if (loading) {
     return <div className="animate-pulse">Cargando cuentas...</div>;
   }
@@ -165,13 +273,13 @@ export const AccountManagement: React.FC = () => {
           />
 
         </div>
-        <Button
-          onClick={() => setShowForm(true)}
-          variant="primary"
-          size="sm"
-        >
-          + Nueva Cuenta
-        </Button>
+        <BlendyButton
+          buttonText="+ Nueva Cuenta"
+          buttonVariant="primary"
+          buttonSize="sm"
+          modalTitle={editingAccount ? 'Editar Cuenta' : 'Nueva Cuenta'}
+          modalContent={AccountFormContent}
+        />
       </div>
 
       {/* Lista de cuentas */}
@@ -210,126 +318,6 @@ export const AccountManagement: React.FC = () => {
       {accounts.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No hay cuentas configuradas. Crea tu primera cuenta para comenzar.
-        </div>
-      )}
-
-      {/* Modal/Formulario */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingAccount ? 'Editar Cuenta' : 'Nueva Cuenta'}
-            </h3>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Nombre de la cuenta"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                placeholder="Ej: Cuenta Principal, Tarjeta Visa"
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de cuenta
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as AccountType })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  {AccountTypeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.icon} {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Balance inicial"
-                  type="number"
-                  step="0.01"
-                  value={formData.balance}
-                  onChange={(e) => setFormData({ ...formData, balance: Number(e.target.value) })}
-                />
-
-                <Input
-                  label="Moneda"
-                  value={formData.currency}
-                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  placeholder="USD"
-                />
-              </div>
-
-              {(formData.type === 'bank_account' || formData.type === 'credit_card' || formData.type === 'debit_card') && (
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Banco"
-                    value={formData.bank_name || ''}
-                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                    placeholder="Nombre del banco"
-                  />
-
-                  <Input
-                    label="Últimos 4 dígitos"
-                    value={formData.last_four_digits || ''}
-                    onChange={(e) => setFormData({ ...formData, last_four_digits: e.target.value })}
-                    placeholder="1234"
-                    maxLength={4}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Color
-                </label>
-                <div className="flex space-x-2">
-                  {AccountColors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, color })}
-                      className={`w-8 h-8 rounded-full border-2 ${formData.color === color ? 'border-gray-800' : 'border-gray-300'
-                        }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="is_default"
-                  checked={formData.is_default}
-                  onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                  className="mr-2"
-                />
-                <label htmlFor="is_default" className="text-sm">
-                  Establecer como cuenta por defecto
-                </label>
-              </div>
-
-              <div className="flex space-x-3">
-                <Button type="submit" variant="primary" className="flex-1">
-                  {editingAccount ? 'Actualizar' : 'Crear'} Cuenta
-                </Button>
-                <Button
-                  type="button"
-                  onClick={resetForm}
-                  variant="secondary"
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>

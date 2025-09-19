@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Account } from '../../types/types';
 import { getUserAccounts } from '../../lib/supabase/accounts';
 import { useSession } from '../../hooks/useSession';
+import { Select } from '@/src/components/common';
 
 import style from '@/scss/modules/input.module.scss'
 
@@ -81,6 +82,15 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
         }).format(balance);
     };
 
+    // Preparar opciones para el componente Select
+    const accountOptions = [
+        { value: '', label: placeholder },
+        ...accounts.map((account) => ({
+            value: account.id,
+            label: `${AccountTypeIcons[account.type]} ${account.name}${account.bank_name ? ` - ${account.bank_name}` : ''}${account.last_four_digits ? ` ****${account.last_four_digits}` : ''} (${formatBalance(account.balance, account.currency)})${account.is_default ? ' ⭐' : ''}`
+        }))
+    ];
+
     if (loading) {
         return (
             <div className={`animate-pulse ${className}`}>
@@ -100,23 +110,12 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
     return (
        
         <div className={className}>
-            <select
+            <Select
                 value={selectedAccountId || ''}
                 onChange={(e) => onAccountSelect(e.target.value)}
                 disabled={disabled}
-                className={style.webflowStyleInput}
-            >
-                <option value="">{placeholder}</option>
-                {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                        {AccountTypeIcons[account.type]} {account.name}
-                        {account.bank_name && ` - ${account.bank_name}`}
-                        {account.last_four_digits && ` ****${account.last_four_digits}`}
-                        {' '}({formatBalance(account.balance, account.currency)})
-                        {account.is_default && ' ⭐'}
-                    </option>
-                ))}
-            </select>
+                options={accountOptions}
+            />
         </div>
     );
 };

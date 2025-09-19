@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CategoryIcon, AVAILABLE_ICONS, type IconOption } from './CategoryIcons';
 import { createCategory, type NewCategory } from '@/src/lib/supabase/categories';
 import { supabase } from '@/src/lib/supabase/client';
+import { Input } from '@/src/components/common';
 
 interface CategoryFormProps {
     onCategoryCreated: (category: any) => void;
@@ -65,27 +66,17 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 w-full max-w-md mx-4">
-                <h3 className="text-xl font-semibold text-white mb-4">
-                    Nueva Categoría de {categoryType === 'expense' ? 'Gastos' : 'Ingresos'}
-                </h3>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="w-full max-w-md mx-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Nombre */}
-                    <div>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                            Nombre
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Ej: Entretenimiento"
-                            required
-                        />
-                    </div>
+                    <Input
+                        label="Nombre"
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Ej: Entretenimiento"
+                        required
+                    />
 
                     {/* Icono */}
                     <div>
@@ -142,7 +133,7 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                         <label className="block text-sm font-medium text-zinc-300 mb-1">
                             Límite de Presupuesto (opcional)
                         </label>
-                        <input
+                        <Input
                             type="number"
                             min="0"
                             step="0.01"
@@ -151,7 +142,6 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                                 ...prev, 
                                 budget_limit: e.target.value ? parseFloat(e.target.value) : undefined 
                             }))}
-                            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="0.00"
                         />
                     </div>
@@ -196,7 +186,6 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                         </button>
                     </div>
                 </form>
-            </div>
         </div>
     );
 }
