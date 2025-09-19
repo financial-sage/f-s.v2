@@ -6,6 +6,8 @@ import { Button, Input } from '@/src/components/common';
 import { Account, NewAccount, AccountType } from '@/src/types/types';
 import { getUserAccounts, createAccount, updateAccount, deactivateAccount } from '@/src/lib/supabase/accounts';
 import { useSession } from '@/src/hooks/useSession';
+import BlendyButton from '../modal/blendy';
+import { TransferForm } from '../transactions/TransferForm';
 
 const AccountTypeOptions = [
   { value: 'cash' as AccountType, label: 'Efectivo', icon: '💵' },
@@ -119,7 +121,7 @@ export const AccountManagement: React.FC = () => {
 
   const handleDeactivate = async (account: Account) => {
     if (!session?.user?.id) return;
-    
+
     if (account.is_default) {
       alert('No se puede desactivar la cuenta por defecto');
       return;
@@ -146,8 +148,23 @@ export const AccountManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold"></h2>
+      <div className="flex justify-end items-center">
+        <div className="mr-2">
+          <BlendyButton
+            buttonText="Transferir"
+            buttonVariant="secondary"
+            buttonSize="sm"
+            modalTitle="Transferir entre cuentas"
+            modalContent={
+              <TransferForm
+                onSuccess={() => {
+                  window.location.reload(); // Refrescar para ver los cambios
+                }}
+              />
+            }
+          />
+
+        </div>
         <Button
           onClick={() => setShowForm(true)}
           variant="primary"
@@ -277,9 +294,8 @@ export const AccountManagement: React.FC = () => {
                       key={color}
                       type="button"
                       onClick={() => setFormData({ ...formData, color })}
-                      className={`w-8 h-8 rounded-full border-2 ${
-                        formData.color === color ? 'border-gray-800' : 'border-gray-300'
-                      }`}
+                      className={`w-8 h-8 rounded-full border-2 ${formData.color === color ? 'border-gray-800' : 'border-gray-300'
+                        }`}
                       style={{ backgroundColor: color }}
                     />
                   ))}

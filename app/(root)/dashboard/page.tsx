@@ -105,19 +105,7 @@ export default function Dashboard() {
                   </div>
                 }
               />
-              <BlendyButton 
-                buttonText="Transferir" 
-                buttonVariant="secondary"
-                buttonSize="sm"
-                modalTitle="Transferir entre cuentas"
-                modalContent={
-                  <TransferForm 
-                    onSuccess={() => {
-                      window.location.reload(); // Refrescar para ver los cambios
-                    }}
-                  />
-                }
-              />
+              
             </div>
           </div>
         </div>
