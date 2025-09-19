@@ -5,6 +5,7 @@ import BlendyButton from "@/src/components/modal/blendy";
 import TransactionForm from "@/src/components/transactions/TransactionForm";
 import TransferForm from "@/src/components/transactions/TransferForm";
 import { Categories } from "@/src/components/categories/categories";
+import { MonthlyTransactionChart } from "@/src/components/charts/MonthlyTransactionChart";
 import { useState, useEffect } from "react";
 import { getUserCategories, type Category } from "@/src/lib/supabase/categories";
 import { supabase } from "@/src/lib/supabase/client";
@@ -60,8 +61,12 @@ export default function Dashboard() {
           {/* Placeholder for future widgets or information */}
           <div className="card sm h-full">
             <div className="cardHeader">
-              <h3 className="cardTitle">Bienvenido de nuevo!</h3>
-              <p className="cardSubtitle">Aquí tienes un resumen rápido de tu cuenta.</p>
+              <h3 className="cardTitle">Tendencia Mensual</h3>
+              <p className="cardSubtitle">Gastos por categoría durante el tiempo</p>
+            </div>
+            <div>
+              {/* Gráfica de líneas de transacciones mensuales por categoría */}
+              <MonthlyTransactionChart monthsBack={6} height={350} />
             </div>
           </div>
         </div>
