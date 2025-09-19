@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from "@/src/lib/supabase/client";
 import { AppSession, mapSupabaseSessionToApp } from "@/src/types/types";
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useUserImage } from '@/src/hooks/useUserImage';
 import CurrencySelector from '../common/CurrencySelector';
 
@@ -36,15 +36,16 @@ const menuData: MenuSection[] = [
         id: 'operaciones',
         title: 'Operaciones',
         items: [
-            {
-                id: 'Transacciones',
-                title: 'Transacciones',
-                isExpandable: true,
-                children: [
-                    { id: 'operaciones-sub', title: 'Ingresos', href: '/ingresos' },
-                    { id: 'resources-sub', title: 'Gastos', href: '/gastos' }
-                ]
-            },
+            // {
+            //     id: 'Transacciones',
+            //     title: 'Transacciones',
+            //     isExpandable: true,
+            //     children: [
+            //         { id: 'operaciones-sub', title: 'Ingresos', href: '/ingresos' },
+            //         { id: 'resources-sub', title: 'Gastos', href: '/gastos' }
+            //     ]
+            // },
+            { id: 'Transacciones', title: 'Transacciones', href: '/transactions' },
             { id: 'Presupuestos', title: 'Presupuestos', href: '/budget' },
             { id: 'Cuentas', title: 'Cuentas', href: '/cuentas' },
             { id: 'Categorias', title: 'Categorias', href: '/categorias' }
@@ -53,11 +54,22 @@ const menuData: MenuSection[] = [
     }
 ];
 
-
+// Función para obtener el elemento activo basado en la ruta actual
+const getActiveItemFromPath = (pathname: string): string => {
+    if (pathname === '/dashboard') return 'dashboard';
+    if (pathname === '/transactions') return 'Transacciones';
+    if (pathname === '/budget') return 'Presupuestos';
+    if (pathname === '/cuentas') return 'Cuentas';
+    if (pathname === '/categorias') return 'Categorias';
+    
+    // Ruta por defecto
+    return 'dashboard';
+};
 
 export function Header() {
 
     const router = useRouter();
+    const pathname = usePathname();
 
     const [openDropdown, setOpenDropdown] = useState<"profile" | "notification" | null>(null);
     const profileRef = useRef<HTMLDivElement>(null);
@@ -75,7 +87,7 @@ export function Header() {
     // Estado para manejar elementos expandibles y menú móvil
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [activeItem, setActiveItem] = useState<string>('dashboard'); // Estado para el item activo
+    const [activeItem, setActiveItem] = useState<string>(() => getActiveItemFromPath(pathname)); // Estado para el item activo
 
 
     useEffect(() => {
@@ -124,6 +136,12 @@ export function Header() {
             sub?.subscription?.unsubscribe?.();
         };
     }, [router]);
+
+    // useEffect para actualizar el elemento activo cuando cambie la ruta
+    useEffect(() => {
+        const newActiveItem = getActiveItemFromPath(pathname);
+        setActiveItem(newActiveItem);
+    }, [pathname]);
 
     if (loading) return <div>Cargando...</div>;
 

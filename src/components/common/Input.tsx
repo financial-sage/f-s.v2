@@ -12,13 +12,27 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helpText, className = '', ...props }, ref) => {
    
     return (
-      <input 
-        ref={ref} 
-        {...props} 
-        className={`${styles.webflowStyleInput} ${className}`}
-        aria-invalid={error ? 'true' : 'false'} 
-        autoComplete='off'
-      />
+      <div className="space-y-1">
+        {label && (
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{fontWeight: "200"}}>
+            {label}
+          </label>
+        )}
+        <div className={`${styles.webflowStyleInput} ${className}`}>
+          <input 
+            ref={ref} 
+            {...props} 
+            aria-invalid={error ? 'true' : 'false'} 
+            autoComplete='off'
+          />
+        </div>
+        {error && (
+          <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+        )}
+        {helpText && !error && (
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{helpText}</p>
+        )}
+      </div>
     );
   }
 );
