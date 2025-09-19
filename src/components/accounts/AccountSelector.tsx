@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Account } from '../../types/types';
 import { getUserAccounts } from '../../lib/supabase/accounts';
 import { useSession } from '../../hooks/useSession';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { Select } from '@/src/components/common';
 
 import style from '@/scss/modules/input.module.scss'
@@ -43,6 +44,7 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { session } = useSession();
+    const { formatAmount } = useCurrency();
 
     useEffect(() => {
         const loadAccounts = async () => {
@@ -75,19 +77,12 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
         loadAccounts();
     }, [session?.user?.id, selectedAccountId, onAccountSelect]);
 
-    const formatBalance = (balance: number, currency: string) => {
-        return new Intl.NumberFormat('es-ES', {
-            style: 'currency',
-            currency: currency,
-        }).format(balance);
-    };
-
     // Preparar opciones para el componente Select
     const accountOptions = [
         { value: '', label: placeholder },
         ...accounts.map((account) => ({
             value: account.id,
-            label: `${AccountTypeIcons[account.type]} ${account.name}${account.bank_name ? ` - ${account.bank_name}` : ''}${account.last_four_digits ? ` ****${account.last_four_digits}` : ''} (${formatBalance(account.balance, account.currency)})${account.is_default ? ' ⭐' : ''}`
+            label: `${AccountTypeIcons[account.type]} ${account.name}${account.bank_name ? ` - ${account.bank_name}` : ''}${account.last_four_digits ? ` ****${account.last_four_digits}` : ''} (${formatAmount(account.balance)})${account.is_default ? ' ⭐' : ''}`
         }))
     ];
 
@@ -129,12 +124,7 @@ export const AccountCard: React.FC<{
     onDeactivate?: (accountId: string) => void;
     showActions?: boolean;
 }> = ({ account, onClick, isSelected = false, onEdit, onDeactivate, showActions = false }) => {
-    const formatBalance = (balance: number, currency: string) => {
-        return new Intl.NumberFormat('es-ES', {
-            style: 'currency',
-            currency: currency,
-        }).format(balance);
-    };
+    const { formatAmount } = useCurrency();
 
     return (
         <div className="w-full">
@@ -162,7 +152,7 @@ export const AccountCard: React.FC<{
                         </div>
                     </div>
                     <div className="font-medium text-gray-900 dark:text-gray-300">
-                        {formatBalance(account.balance, account.currency)}
+                        {formatAmount(account.balance)}
                     </div>
                 </div>
             </div>
