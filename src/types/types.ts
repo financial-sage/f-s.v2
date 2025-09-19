@@ -74,3 +74,40 @@ export function mapSupabaseSessionToApp(session: unknown): AppSession | null {
   };
 }
 
+// Account/Wallet types
+export type AccountType = 'cash' | 'bank_account' | 'credit_card' | 'debit_card' | 'digital_wallet';
+
+export interface Account {
+  id: string;
+  user_id: string;
+  name: string;
+  type: AccountType;
+  balance: number;
+  currency: string;
+  is_default: boolean;
+  is_active: boolean;
+  icon?: string;
+  color: string;
+  bank_name?: string;
+  last_four_digits?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewAccount {
+  name: string;
+  type: AccountType;
+  balance?: number;
+  currency?: string;
+  is_default?: boolean;
+  icon?: string;
+  color?: string;
+  bank_name?: string;
+  last_four_digits?: string;
+}
+
+export interface AccountResult {
+  data?: Account | Account[];
+  error?: Error | { message: string } | null;
+}
+

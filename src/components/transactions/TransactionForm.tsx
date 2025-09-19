@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Input, Select, Button } from '@/src/components/common';
+import { AccountSelector } from '@/src/components/accounts/AccountSelector';
 import type { Category } from '@/src/lib/supabase/categories';
 import { addTransaction, type NewTransaction } from '@/src/lib/supabase/transactions';
 import { supabase } from '@/src/lib/supabase/client';
@@ -18,6 +19,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   selectedCategoryId,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [formKey, setFormKey] = useState(0); // Para forzar el reset del formulario
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -65,6 +67,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         amount: Number(formData.get('amount')),
         description: String(formData.get('description')),
         category_id: selectedCategoryId || '',
+        account_id: selectedAccountId || undefined,
         type: transactionType,
         date: isoDate,
         status: 'completed',
@@ -81,6 +84,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       if (formRef.current) {
         formRef.current.reset();
       }
+      setSelectedAccountId('');
       setFormKey(prev => prev + 1);
 
       alert('Transacción guardada exitosamente');
@@ -125,6 +129,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             Selecciona una categoría de {transactionType === 'expense' ? 'gastos' : 'ingresos'} arriba para continuar
           </small>
         )}
+
+        {/* Selector de cuenta */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Cuenta
+          </label>
+          <AccountSelector
+            selectedAccountId={selectedAccountId}
+            onAccountSelect={setSelectedAccountId}
+            placeholder="Seleccionar cuenta de pago"
+          />
+        </div>
+
         <div className='grid grid-cols-3 gap-2 pt-2'>
           <Input
             name="amount"

@@ -47,7 +47,7 @@ const menuData: MenuSection[] = [
             // },
             { id: 'Transacciones', title: 'Transacciones', href: '/transactions' },
             { id: 'Presupuestos', title: 'Presupuestos', href: '/budget' },
-            { id: 'Cuentas', title: 'Cuentas', href: '/cuentas' },
+            { id: 'Cuentas', title: 'Cuentas', href: '/accounts' },
             { id: 'Categorias', title: 'Categorias', href: '/categorias' }
 
         ]

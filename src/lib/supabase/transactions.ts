@@ -1,4 +1,5 @@
 import { supabase } from './client';
+import { adjustAccountBalance } from './accounts';
 
 export interface Transaction {
   id: string;
@@ -6,6 +7,7 @@ export interface Transaction {
   amount: number;
   description: string | null;
   category_id: string | null;
+  account_id: string | null;
   date: string;
   type: 'income' | 'expense';
   status: 'pending' | 'completed' | 'canceled';
@@ -21,12 +23,20 @@ export interface TransactionWithCategory extends Transaction {
     color: string;
     icon: string | null;
   } | null;
+  account?: {
+    id: string;
+    name: string;
+    type: string;
+    color: string;
+    icon: string | null;
+  } | null;
 }
 
 export interface NewTransaction {
   amount: number;
   description?: string;
   category_id?: string;
+  account_id?: string;
   type: 'income' | 'expense';
   date?: string;
   status?: 'pending' | 'completed' | 'canceled';
@@ -58,7 +68,7 @@ export async function getUserTransactions(userId: string): Promise<TransactionRe
 }
 
 /**
- * Obtiene todas las transacciones del usuario con información de categorías
+ * Obtiene todas las transacciones del usuario con información de categorías y cuentas
  */
 export async function getUserTransactionsWithCategories(userId: string): Promise<TransactionResult> {
   try {
@@ -66,7 +76,8 @@ export async function getUserTransactionsWithCategories(userId: string): Promise
       .from('transactions')
       .select(`
         *,
-        category:categories(id, name, color, icon)
+        category:categories(id, name, color, icon),
+        account:accounts(id, name, type, color, icon)
       `)
       .eq('user_id', userId)
       .order('date', { ascending: false });
@@ -74,12 +85,12 @@ export async function getUserTransactionsWithCategories(userId: string): Promise
     if (error) throw error;
     return { data: data as TransactionWithCategory[] };
   } catch (error: any) {
-    return { error: { message: error.message || 'Error al obtener las transacciones con categorías' } };
+    return { error: { message: error.message || 'Error al obtener las transacciones con categorías y cuentas' } };
   }
 }
 
 /**
- * Añade una nueva transacción
+ * Añade una nueva transacción y actualiza el balance de la cuenta
  */
 export async function addTransaction(userId: string, tx: NewTransaction): Promise<TransactionResult> {
   try {
@@ -91,6 +102,7 @@ export async function addTransaction(userId: string, tx: NewTransaction): Promis
           amount: tx.amount,
           description: tx.description || null,
           category_id: tx.category_id || null,
+          account_id: tx.account_id || null,
           type: tx.type,
           date: tx.date || new Date().toISOString(),
           status: tx.status || 'completed',
@@ -100,9 +112,15 @@ export async function addTransaction(userId: string, tx: NewTransaction): Promis
       ])
       .select()
       .maybeSingle();
-      console.log(data, error);
       
     if (error) throw error;
+
+    // Actualizar el balance de la cuenta si la transacción está completada y hay una cuenta asociada
+    if (data && tx.account_id && (tx.status === 'completed' || !tx.status)) {
+      const balanceChange = tx.type === 'income' ? tx.amount : -tx.amount;
+      await adjustAccountBalance(tx.account_id, userId, balanceChange);
+    }
+
     return { data: data as Transaction };
   } catch (error: any) {
     return { error: { message: error.message || 'Error al crear la transacción' } };
