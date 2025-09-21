@@ -73,7 +73,7 @@ export default function Dashboard() {
             <h3 className="cardTitle">Transacciones</h3>
             {/* <p className="cardSubtitle">Historial de transacciones</p> */}
           </div>
-          <div style={{ margin: "-16px -18px -16px 0px" }}>
+          <div className="cardContent">
             <TransactionsView />
           </div>
           <div className="cardFooter">

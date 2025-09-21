@@ -311,6 +311,16 @@ $card-shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.25);
     .cardContent {
         flex: 1;
         min-width: 0;
+        margin: -16px -18px -16px 0px !important;
+
+        // Responsive margins for different devices
+        @media (max-width: 768px) {
+            margin: -16px -18px -16px 0px !important;
+        }
+
+        @media (max-width: 480px) {
+            margin: -12px -18px -12px 0px !important;
+        }
     }
 
     // Labels and values
