@@ -186,77 +186,55 @@ export default function TransactionsPage() {
     return (
         <div className="space-y-6">
             {/* Header con indicadores financieros */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
                 <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2">
-                        <h1 className="text-2xl  text-gray-800 dark:text-white" style={{ fontWeight: '300' }}>
+                        <h1 className="text-xl lg:text-2xl text-gray-800 dark:text-white" style={{ fontWeight: '300' }}>
                             Transacciones
                         </h1>
                     </div>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Balance Total</div>
-                        <div className={`text-lg font-medium ${totalBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {new Intl.NumberFormat('es-ES', {
-                                style: 'currency',
-                                currency: 'USD'
-                            }).format(totalBalance)}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
+                    <div className="flex items-center justify-between sm:justify-start sm:space-x-4">
+                        <div className="text-center sm:text-right">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Balance Total</div>
+                            <div className={`text-lg font-medium ${totalBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {new Intl.NumberFormat('es-ES', {
+                                    style: 'currency',
+                                    currency: 'USD'
+                                }).format(totalBalance)}
+                            </div>
                         </div>
-                    </div>
-                    <div className="w-px h-8 bg-gray-300 dark:bg-gray-600"></div>
-                    <div className="text-right">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {viewMode === 'day' || viewMode === 'calendar'
-                                ? (selectedDay.toDateString() === new Date().toDateString() ? 'Hoy' : selectedDay.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))
-                                : (selectedMonth === 'all' ? 'Este Año' : 'Este Mes')
-                            }
-                        </div>
-                        <div className={`text-lg font-medium ${periodBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {new Intl.NumberFormat('es-ES', {
-                                style: 'currency',
-                                currency: 'USD'
-                            }).format(periodBalance)}
+                        <div className="hidden sm:block w-px h-8 bg-gray-300 dark:bg-gray-600"></div>
+                        <div className="text-center sm:text-right">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {viewMode === 'day' || viewMode === 'calendar'
+                                    ? (selectedDay.toDateString() === new Date().toDateString() ? 'Hoy' : selectedDay.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))
+                                    : (selectedMonth === 'all' ? 'Este Año' : 'Este Mes')
+                                }
+                            </div>
+                            <div className={`text-lg font-medium ${periodBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {new Intl.NumberFormat('es-ES', {
+                                    style: 'currency',
+                                    currency: 'USD'
+                                }).format(periodBalance)}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div className="flex items-center w-full justify-between border-b border-gray-300 dark:border-gray-600">
-                <div className="flex items-center justify-center ">
-                    <div className="flex items-center  backdrop-blur-sm border border-0 rounded-lg p-1 pr-2 space-x-2">
+            <div className="flex flex-col lg:flex-row lg:items-center w-full lg:justify-between border-b border-gray-300 dark:border-gray-600 pb-4 lg:pb-0 space-y-4 lg:space-y-0">
+                <div className="flex items-center justify-center lg:justify-start">
+                    <div className="flex items-center backdrop-blur-sm border border-0 rounded-lg p-1 pr-2 space-x-2 w-full sm:w-auto justify-center sm:justify-start">
                         <button
                             onClick={() => setViewMode('month')}
-                            className='dark:bg-white/10 dark:hover:bg-white/20 rounded dark:border-gray-600 dark:text-white/80 hover:dark:text-zinc-300 transition-colors'
+                            className='dark:bg-white/10 dark:hover:bg-white/20 rounded dark:border-gray-600 dark:text-white/80 hover:dark:text-zinc-300 transition-colors flex-1 sm:flex-none'
                             style={{ cursor: 'pointer', padding: '7px 5px' }}
                         >
                             Todo el mes
                         </button>
-                        {/* <button
-                            onClick={() => setViewMode('day')}
-                            className={`
-                                    px-3 py-1 mr-2 rounded-md text-sm font-medium transition-all duration-200
-                                    ${viewMode === 'day'
-                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-white/10'
-                                }
-                                `}
-                        >
-                            Por día
-                        </button> */}
-                        {/* <button
-                            onClick={() => setViewMode('calendar')}
-                            className={`
-                                    px-3 py-1 rounded-md text-sm font-medium transition-all duration-200
-                                    ${viewMode === 'calendar'
-                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-white/10'
-                                }
-                                `}
-                        >
-                            Calendario
-                        </button> */}
                         <BlendyButton
-                            buttonText="Seleccionar dia del calendario"
+                            buttonText="📅 Seleccionar día"
                             buttonVariant="primary"
                             buttonSize="sm"
                             modalTitle="Ver calendario"
@@ -272,101 +250,106 @@ export default function TransactionsPage() {
                         />
                     </div>
                 </div>
-                <div className="flex items-center justify-end space-x-4  dark:border-gray-600">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-end space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4 dark:border-gray-600">
                     {/* Filtros categoria, cuenta, de año y mes */}
-                    <div className="mr-2">
-                        <Select
-                            value={selectedCategory}
-                            onChange={(e) => setSelectedCategory(e.target.value)}
-                            options={[
-                                { value: 'all', label: 'Todas las categorías' },
-                                ...availableCategories.map((category) => ({
-                                    value: category.id,
-                                    label: category.name
-                                }))
-                            ]}
-                        />
+                    <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-2 lg:gap-4">
+                        <div className="w-full sm:w-auto">
+                            <Select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                options={[
+                                    { value: 'all', label: 'Todas las categorías' },
+                                    ...availableCategories.map((category) => ({
+                                        value: category.id,
+                                        label: category.name
+                                    }))
+                                ]}
+                            />
+                        </div>
+                        <div className="w-full sm:w-auto">
+                            <Select
+                                value={selectedAccount}
+                                onChange={(e) => setSelectedAccount(e.target.value)}
+                                options={[
+                                    { value: 'all', label: 'Todas las cuentas' },
+                                    ...availableAccounts.map((account) => ({
+                                        value: account.id,
+                                        label: account.name
+                                    }))
+                                ]}
+                            />
+                        </div>
+                        <div className="w-full sm:w-auto">
+                            <Select
+                                value={selectedYear.toString()}
+                                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                options={yearOptions.map((year) => ({
+                                    value: year.toString(),
+                                    label: year.toString()
+                                }))}
+                            />
+                        </div>
+                        <div className="w-full sm:w-auto">
+                            <Select
+                                value={selectedMonth === 'all' ? 'all' : selectedMonth.toString()}
+                                onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                options={[
+                                    { value: 'all', label: 'Todo el año' },
+                                    ...monthOptions.map((month) => ({
+                                        value: month.value,
+                                        label: month.label
+                                    }))
+                                ]}
+                            />
+                        </div>
                     </div>
-                    <div className="mr-2">
-                        <Select
-                            value={selectedAccount}
-                            onChange={(e) => setSelectedAccount(e.target.value)}
-                            options={[
-                                { value: 'all', label: 'Todas las cuentas' },
-                                ...availableAccounts.map((account) => ({
-                                    value: account.id,
-                                    label: account.name
-                                }))
-                            ]}
-                        />
-                    </div>
-                    <div className="mr-2">
-                        <Select
-                            value={selectedYear.toString()}
-                            onChange={(e) => setSelectedYear(Number(e.target.value))}
-                            options={yearOptions.map((year) => ({
-                                value: year.toString(),
-                                label: year.toString()
-                            }))}
-                        />
-                    </div>
-
-                    <Select
-                        value={selectedMonth === 'all' ? 'all' : selectedMonth.toString()}
-                        onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                        options={[
-                            { value: 'all', label: 'Todo el año' },
-                            ...monthOptions.map((month) => ({
-                                value: month.value,
-                                label: month.label
-                            }))
-                        ]}
-                    />
                 </div>
             </div>
 
-            <div className=" grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-4">
-                <div className=" col-span-2">
-
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="lg:col-span-2 xl:col-span-3">
 
                     {/* Mostrar carrusel solo en modo día */}
                     {viewMode === 'day' && (
-                        <DayCarousel
-                            selectedDate={selectedDay}
-                            onDateChange={setSelectedDay}
-                        />
+                        <div className="mb-4">
+                            <DayCarousel
+                                selectedDate={selectedDay}
+                                onDateChange={setSelectedDay}
+                            />
+                        </div>
                     )}
 
-
-                    <div className={`dark:bg-white/2 p-4 rounded-md shadow-lg overflow-y-auto ${viewMode === 'month' ? 'mt-0' : 'mt-4'}`}>
+                    <div className={`dark:bg-white/2 p-3 sm:p-4 rounded-md shadow-lg overflow-y-auto ${viewMode === 'month' ? 'mt-0' : 'mt-4'}`}>
                         {filteredTransactions.length === 0 ? (
                             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                 No hay transacciones para este período
                             </div>
                         ) : (
-                            <ul >
+                            <ul className="space-y-3">
                                 {filteredTransactions.map((transaction) => (
                                     <li key={transaction.id} className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0">
-                                        <div className="flex items-center justify-between pt-1">
-                                            <div className="flex items-center space-x-3">
-                                                <CategoryIcon
-                                                    iconName={transaction.type === 'transfer'
-                                                        ? "arrow-left-right"
-                                                        : (transaction.category?.icon || "wallet")
-                                                    }
-                                                    color={transaction.type === 'transfer'
-                                                        ? "#6366f1"
-                                                        : (transaction.category?.color || "#6366f1")
-                                                    }
-                                                />
-                                                <div className="flex flex-col">
-                                                    <span className="text-gray-800 dark:text-white font-medium">
+                                        <div className="flex items-start sm:items-center justify-between">
+                                            <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
+                                                <div className="flex-shrink-0 mt-1 sm:mt-0">
+                                                    <CategoryIcon
+                                                        iconName={transaction.type === 'transfer'
+                                                            ? "arrow-left-right"
+                                                            : (transaction.category?.icon || "wallet")
+                                                        }
+                                                        color={transaction.type === 'transfer'
+                                                            ? "#6366f1"
+                                                            : (transaction.category?.color || "#6366f1")
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col min-w-0 flex-1">
+                                                    <span className="text-sm sm:text-base text-gray-800 dark:text-white font-medium truncate">
                                                         {transaction.type === 'transfer'
                                                             ? `Transferencia: ${transaction.account?.name || 'Cuenta'} → ${transaction.destination_account?.name || 'Cuenta'}`
                                                             : (transaction.description || transaction.category?.name || 'Sin descripción')
                                                         }
                                                     </span>
-                                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                                                         {transaction.type === 'transfer'
                                                             ? (transaction.description || 'Transferencia entre cuentas')
                                                             : `${transaction.category?.name || 'Sin categoría'} • ${transaction.account?.name || 'Cuenta no especificada'}`
@@ -374,8 +357,8 @@ export default function TransactionsPage() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-end">
-                                                <span className={`font-medium ${transaction.type === 'income'
+                                            <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                                                <span className={`text-sm sm:text-base font-medium ${transaction.type === 'income'
                                                     ? 'text-green-600 dark:text-green-400'
                                                     : transaction.type === 'transfer'
                                                         ? 'text-blue-600 dark:text-blue-400'
@@ -383,7 +366,7 @@ export default function TransactionsPage() {
                                                     }`}>
                                                     {formatAmount(transaction.amount, transaction.type)}
                                                 </span>
-                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                     {formatDate(transaction.date)}
                                                 </span>
                                             </div>
@@ -394,19 +377,20 @@ export default function TransactionsPage() {
                         )}
                     </div>
                 </div>
-                <div className="col-span-1 mt-4">
+                <div className="lg:col-span-1 xl:col-span-1">
                     {/* Mostrar calendario solo en modo calendario */}
                     {viewMode === 'calendar' && (
-                        <Calendar
-                            selectedDate={selectedDay}
-                            onDateChange={setSelectedDay}
-                            transactionDates={transactionDates}
-                            year={selectedYear}
-                            month={selectedMonth === 'all' ? new Date().getMonth() + 1 : selectedMonth}
-                        />
+                        <div className="mt-4 lg:mt-0">
+                            <Calendar
+                                selectedDate={selectedDay}
+                                onDateChange={setSelectedDay}
+                                transactionDates={transactionDates}
+                                year={selectedYear}
+                                month={selectedMonth === 'all' ? new Date().getMonth() + 1 : selectedMonth}
+                            />
+                        </div>
                     )}
                 </div>
-
             </div>
         </div>
     );
