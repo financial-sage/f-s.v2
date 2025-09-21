@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/src/lib/supabase/client";
 import styles from "@/app/(auth)/login/Login.module.scss";
 import { useRouter } from "next/navigation";
+import { getOAuthRedirectUrl } from '@/src/utils/url';
 
 export default function Home() {
     const [email, setEmail] = useState("");
@@ -54,13 +55,15 @@ export default function Home() {
     };
 
     const handleGoogleLogin = async () => {
-        const baseUrl = process.env.NODE_ENV === 'production' 
-            ? process.env.NEXT_PUBLIC_BASE_URL || window.location.origin
-            : 'http://localhost:3000';
+        const redirectUrl = getOAuthRedirectUrl('/dashboard');
+        
+        console.log('OAuth Redirect URL:', redirectUrl);
         
         const { error } = await supabase.auth.signInWithOAuth({ 
             provider: 'google', 
-            options: { redirectTo: `${baseUrl}/dashboard` } 
+            options: { 
+                redirectTo: redirectUrl
+            } 
         });
         if (error) console.error("Error with Google login:", error.message);
     }

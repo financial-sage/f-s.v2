@@ -26,9 +26,10 @@ export default function Login() {
     };
 
     const handleGoogleLogin = async () => {
+        // Detectar la URL actual automáticamente
         const baseUrl = process.env.NODE_ENV === 'production' 
             ? process.env.NEXT_PUBLIC_BASE_URL || window.location.origin
-            : 'http://localhost:3000';
+            : window.location.origin; // Usar origin actual en desarrollo (funciona con ngrok)
         
         const { error } = await supabase.auth.signInWithOAuth({ 
             provider: 'google', 
