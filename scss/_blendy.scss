@@ -189,7 +189,68 @@
   padding: 10px 20px;
 }
 
-@media (max-width: 800px) {
+// Estilos responsive para dispositivos móviles
+@media (max-width: 768px) {
+  .modal {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    // Mantener will-change para Blendy
+    will-change: transform, opacity;
+  }
+  
+  .modal__header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .modal__content {
+    padding: 20px;
+    height: calc(100vh - 80px); // Restar altura del header
+    overflow-y: auto;
+    // Permitir scroll suave en el contenido
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+// Para dispositivos móviles muy pequeños
+@media (max-width: 480px) {
+  .modal__header {
+    padding: 15px;
+  }
+  
+  .modal__content {
+    padding: 15px;
+    height: calc(100vh - 70px); // Ajustar para header más pequeño
+    font-size: 18px; // Reducir ligeramente el tamaño de fuente
+  }
+  
+  .modal__close {
+    width: 20px;
+    height: 20px;
+    
+    &::before,
+    &::after {
+      width: 14px;
+    }
+    
+    &:hover {
+      &::before,
+      &::after {
+        width: 16px;
+      }
+    }
+  }
+}
+
+@media (max-width: 800px) and (min-width: 769px) {
   .modal__header {
     padding: 0;
   }
