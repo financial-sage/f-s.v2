@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/scss/globals.scss";
-import { Header } from "@/src/components/layout/Header";
+import { ConditionalLayout } from "@/src/components/layout/ConditionalLayout";
 import { TransactionProvider } from "@/src/contexts/TransactionContext";
 import { CurrencyProvider } from "@/src/contexts/CurrencyContext";
 
@@ -30,16 +30,9 @@ export default function RootLayout({
       <body className="flex min-h-full bg-white antialiased h-px" style={{ background: "var(--background-gradient)" }}>
         <CurrencyProvider>
           <TransactionProvider>
-            <div className="w-full" >
-              <div className="h-full lg:ml-72 xl:ml-80">
-                <Header />
-                <div className="relative flex h-full flex-col px-4 pt-14 sm:px-6 lg:px-8">
-                  <main className="flex-auto p-6 sm:p-8">
-                    {children}
-                  </main>
-                </div>
-              </div>
-            </div>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
           </TransactionProvider>
         </CurrencyProvider>
       </body>

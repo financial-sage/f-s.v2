@@ -1,44 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/src/lib/supabase/client";
-import styles from "@/app/(auth)/login/Login.module.scss";
-import { useRouter } from "next/navigation";
+import styles from "./Login.module.scss";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [user, setUser] = useState(null);
-    const router = useRouter();
-
-    useEffect(() => {
-        // Verificar si ya hay un usuario autenticado
-        const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                router.push('/dashboard');
-            }
-        };
-        
-        checkUser();
-
-        // Escuchar cambios en el estado de autenticación
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (event, session) => {
-                if (session?.user) {
-                    router.push('/dashboard');
-                } else if (event === 'SIGNED_OUT') {
-                    // Asegurar que estamos en la página de login después del logout
-                    console.log('Usuario deslogueado, mostrando login');
-                }
-            }
-        );
-
-        return () => subscription.unsubscribe();
-    }, [router]);
 
     const handleLogin = async () => {
         setIsLoading(true);
@@ -49,7 +21,7 @@ export default function Home() {
             console.error("Error logging in:", error.message);
         } else {
             console.log("Login successful!");
-            router.push('/dashboard');
+            window.location.href = '/';
         }
     };
 
@@ -60,7 +32,7 @@ export default function Home() {
         
         const { error } = await supabase.auth.signInWithOAuth({ 
             provider: 'google', 
-            options: { redirectTo: `${baseUrl}/dashboard` } 
+            options: { redirectTo: `${baseUrl}/` } 
         });
         if (error) console.error("Error with Google login:", error.message);
     }
@@ -206,4 +178,5 @@ export default function Home() {
             </div>
         </div>
     );
+
 }

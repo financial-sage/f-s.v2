@@ -5,7 +5,6 @@ import BlendyButton from "@/src/components/modal/blendy";
 import TransactionForm from "@/src/components/transactions/TransactionForm";
 import TransferForm from "@/src/components/transactions/TransferForm";
 import { Categories } from "@/src/components/categories/categories";
-import { MonthlyTransactionChart } from "@/src/components/charts/MonthlyTransactionChart";
 import { useState, useEffect } from "react";
 import { getUserCategories, type Category } from "@/src/lib/supabase/categories";
 import { supabase } from "@/src/lib/supabase/client";
@@ -52,7 +51,7 @@ export default function Dashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-4 dark:text-white" style={{fontWeight: "200"}}>Dashboard!</h1>
 
-      <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <div>
           <CreditCard />
         </div>
@@ -61,18 +60,15 @@ export default function Dashboard() {
           {/* Placeholder for future widgets or information */}
           <div className="card sm h-full">
             <div className="cardHeader">
-              <h3 className="cardTitle">Tendencia Mensual</h3>
-              <p className="cardSubtitle">Gastos por categoría durante el tiempo</p>
+              <h3 className="cardTitle">Bienvenido de nuevo!</h3>
+              <p className="cardSubtitle">Gráfica de transacciones.</p>
             </div>
-            <div>
-              {/* Gráfica de líneas de transacciones mensuales por categoría */}
-              <MonthlyTransactionChart monthsBack={6} height={350} />
-            </div>
+            <div></div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+      <div className="grid grid-cols-4 sm:col-span-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
         <div className="card sm col-span-2">
           <div className="cardHeader">
             <h3 className="cardTitle">Transacciones</h3>

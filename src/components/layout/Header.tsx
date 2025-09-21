@@ -145,9 +145,30 @@ export function Header() {
 
     if (loading) return <div>Cargando...</div>;
 
-    const handleLogout = () => {
-        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-        router.push("/login");
+    const handleLogout = async () => {
+        try {
+            // Cerrar sesión con Supabase
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('Error al cerrar sesión:', error.message);
+            }
+            
+            // Limpiar cualquier cookie manual adicional
+            document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+            
+            // Limpiar localStorage si existe
+            if (typeof window !== 'undefined') {
+                localStorage.clear();
+                sessionStorage.clear();
+            }
+            
+            // Redirigir a la página principal (que ahora es el login)
+            router.push("/");
+        } catch (error) {
+            console.error('Error durante el logout:', error);
+            // Incluso si hay error, redirigir para seguridad
+            router.push("/");
+        }
     };
 
     // Función para toggle de elementos expandibles

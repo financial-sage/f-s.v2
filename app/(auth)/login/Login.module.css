@@ -1,0 +1,65 @@
+/* Basic reset for the login page */
+.root{
+  min-height:100vh;
+  width: 100vw;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:1rem;
+  background: linear-gradient(135deg, #0f172a 0%, #4c1d95 50%, #0f172a 100%);
+  position:relative;
+  color: #fff;
+  overflow:hidden;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.decoratives{ position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.dec1{ position:absolute; top:-160px; right:-160px; width:320px; height:320px; background:#8b5cf6; border-radius:50%; filter: blur(40px); opacity:0.18; }
+.dec2{ position:absolute; bottom:-160px; left:-160px; width:320px; height:320px; background:#06b6d4; border-radius:50%; filter: blur(40px); opacity:0.18; }
+.dec3{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:320px; height:320px; background:#10b981; border-radius:50%; filter: blur(60px); opacity:0.08; }
+
+.wrapper{ position:relative; width:100%; max-width:420px; z-index:10; }
+.header{ text-align:center; margin-bottom:2rem; }
+.logoBox{ display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; background:linear-gradient(90deg,#8b5cf6,#06b6d4); border-radius:12px; margin-bottom:1rem; box-shadow:0 3px 5px rgba(2,6,23,0.3); }
+.logoIcon{ width:32px; height:32px; color:#fff; }
+.title{ font-size:1.75rem; font-weight:700; background:linear-gradient(90deg,#c084fc,#67e8f9,#34d399); -webkit-background-clip:text; background-clip:text; color:transparent; margin-bottom:0.25rem; }
+.subtitle{ color:rgba(148,163,184,0.9); font-size:0.9rem; }
+
+.card{ background: rgba(255,255,255,0.06); backdrop-filter: blur(8px); border-radius:5px; padding:2rem; box-shadow: 0 3px 5px rgba(2,6,23,0.3); border:1px solid rgba(255,255,255,0.08); }
+.switchRow{ display:flex; gap:0.5rem; margin-bottom:1.25rem; }
+.switchButton{ flex:1; padding:0.6rem 1rem; border-radius:0px; font-weight:600; background:transparent; color:rgba(203,213,225,0.8); border:none; cursor:pointer; transition:all 180ms ease; }
+.switchButton:hover{ color:#fff; }
+.active{ background:linear-gradient(90deg,#8b5cf6,#06b6d4); color:#fff; box-shadow:0 3px 5px rgba(2,6,23,0.3); }
+
+.form{ display:block; }
+.inputWrapper{ position:relative; margin-bottom:1rem; }
+.input{ width:100%; padding:0.75rem 1rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);  color:#fff; outline:none; transition:box-shadow 160ms ease, border-color 160ms ease; }
+.input::placeholder{ color:rgba(148,163,184,0.7); }
+.input:focus{ box-shadow:0 0 0 4px rgba(139,92,246,0.12); border-color:rgba(139,92,246,0.8); }
+.inputIcon{ position:absolute; right:12px; top:50%; transform:translateY(-50%); display:flex; align-items:center; }
+.icon{ width:20px; height:20px; color:rgba(148,163,184,0.9); }
+.passwordToggle{ position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:rgba(148,163,184,0.9); cursor:pointer; padding:6px; }
+
+.rowBetween{ display:flex; align-items:center; justify-content:space-between; font-size:0.9rem; color:rgba(148,163,184,0.9); margin-bottom:1rem; }
+.rememberLabel{ display:flex; align-items:center; gap:0.5rem; }
+.checkbox{ width:16px; height:16px; border-radius:4px; }
+.linkButton{ background:transparent; border:none; color:#c084fc; cursor:pointer; }
+
+.submit{ width:100%; padding:0.75rem 1rem; background:linear-gradient(90deg,#8b5cf6,#06b6d4); color:#fff; font-weight:600; border-radius:0px; border:none; cursor:pointer; box-shadow:0 3px 3px rgba(2,6,23,0.3); transition:transform 160ms ease, box-shadow 160ms ease; }
+.submit:disabled{ opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none; }
+
+.loadingInline{ display:flex; align-items:center; justify-content:center; gap:0.5rem; }
+.spinner{ width:18px; height:18px; animation:spin 1s linear infinite; }
+@keyframes spin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+
+.separatorRow{ display:flex; align-items:center; gap:0.75rem; margin:1.25rem 0; }
+.separator{ flex:1; height:1px; background:rgba(255,255,255,0.08); }
+.orText{ color:rgba(148,163,184,0.9); font-size:0.9rem; }
+.socialGrid{ display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; }
+.socialButton{ display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:0.6rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; color:#fff; cursor:pointer; }
+.socialIcon{ width:18px; height:18px; }
+
+.footer{ text-align:center; margin-top:1.5rem; color:rgba(148,163,184,0.9); }
+
+@media (max-width:480px){ .wrapper{ padding:0 12px; } .card{ padding:1.25rem; } }
