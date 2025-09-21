@@ -51,24 +51,23 @@ export default function Dashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-4 dark:text-white" style={{fontWeight: "200"}}>Dashboard!</h1>
 
-      <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-1 lg:grid-cols-3 gap-3">
         <div>
           <CreditCard />
         </div>
 
-        <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+        <div className="lg:col-span-2">
           {/* Placeholder for future widgets or information */}
           <div className="card sm h-full">
             <div className="cardHeader">
               <h3 className="cardTitle">Bienvenido de nuevo!</h3>
-              <p className="cardSubtitle">Gráfica de transacciones.</p>
             </div>
             <div></div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 sm:col-span-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+      <div className="grid sm:col-span-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
         <div className="card sm col-span-2">
           <div className="cardHeader">
             <h3 className="cardTitle">Transacciones</h3>

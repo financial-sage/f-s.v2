@@ -50,12 +50,12 @@ export default function CreditCard() {
                 <div className={`${styles.circle} ${styles.circle1}`}></div>
                 <div className={`${styles.circle} ${styles.circle2}`}></div>
             </div> */}
-            <div>
+            <div className={styles.cardGroup}>
                 <div className={`${styles.card} bg-white/10 dark:bg-gray-800/20 border-2 border-gray-200 dark:border-gray-600`}>
                     <div className={styles.logo}>
                         {/* <img src="https://raw.githubusercontent.com/dasShounak/freeUseImages/main/Visa-Logo-PNG-Image.png" alt="Logo" /> */}
                     </div>
-                    <div className={styles.number}>Saldo Actual: {formattedBalance}</div>
+                    <div className={`${styles.number} flex items-center justify-between`}> <div>Saldo Actual:</div> <div>{formattedBalance}</div></div>
                     <div className={styles.chip}>
                         <img src="https://raw.githubusercontent.com/dasShounak/freeUseImages/main/chip.png" alt="Chip" />
                     </div>

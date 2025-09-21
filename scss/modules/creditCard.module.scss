@@ -18,6 +18,17 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    
+    /* Mobile responsive */
+    @media (max-width: 480px) {
+        height: 200px;
+        width: 320px;
+    }
+    
+    @media (max-width: 360px) {
+        height: 180px;
+        width: 280px;
+    }
 }
 
 .circle1 {
@@ -25,6 +36,20 @@
     width: 180px;
     top: -50px;
     left: -60px;
+    
+    @media (max-width: 480px) {
+        height: 140px;
+        width: 140px;
+        top: -40px;
+        left: -45px;
+    }
+    
+    @media (max-width: 360px) {
+        height: 120px;
+        width: 120px;
+        top: -35px;
+        left: -40px;
+    }
 }
 
 .circle2 {
@@ -33,28 +58,103 @@
     bottom: -90px;
     right: -90px;
     opacity: 0.8;
+    
+    @media (max-width: 480px) {
+        height: 150px;
+        width: 150px;
+        bottom: -70px;
+        right: -70px;
+    }
+    
+    @media (max-width: 360px) {
+        height: 130px;
+        width: 130px;
+        bottom: -60px;
+        right: -60px;
+    }
 }
 
 /* Background circles end */
 
+.creditCard {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    box-sizing: border-box;
+    min-height: 290px; /* Altura mínima para evitar colapso */
+    
+    /* Asegurar que no se desborde en móviles */
+    @media (max-width: 480px) {
+        padding: 0px;
+        min-height: 220px;
+    }
+    
+    @media (max-width: 360px) {
+        padding: 10px;
+        min-height: 200px;
+    }
+    
+    /* Para pantallas muy pequeñas */
+    @media (max-width: 320px) {
+        padding: px;
+        min-height: 190px;
+    }
+}
+
 .cardGroup {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    position: relative;
+    width: 100%;
+    max-width: 450px;
+    display: flex;
+    justify-content: center;
+    
+    @media (max-width: 480px) {
+        max-width: 320px;
+    }
+    
+    @media (max-width: 360px) {
+        max-width: 280px;
+    }
+    
+    @media (max-width: 320px) {
+        max-width: 260px;
+    }
 }
 
 .card {
-
     position: relative;
     height: 270px;
-    width: 450px;
+    width: 100%;
+    max-width: 450px;
+    min-width: 280px;
     border-radius: 25px;
     background: var(--theme-bg-color, rgba(255, 133, 133, 0.07));
     backdrop-filter: blur(30px);
     border: 2px solid var(--border-color);
     box-shadow: 0 0 80px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    
+    /* Responsive heights */
+    @media (max-width: 480px) {
+        height: 200px;
+        border-radius: 20px;
+        margin: 0 auto;
+        min-width: 260px;
+    }
+    
+    @media (max-width: 360px) {
+        height: 180px;
+        border-radius: 18px;
+        min-width: 240px;
+    }
+    
+    @media (max-width: 320px) {
+        height: 170px;
+        border-radius: 16px;
+        min-width: 220px;
+    }
 }
 
 .logo img,
@@ -74,6 +174,24 @@
     width: 80px;
     height: auto;
     opacity: 0.8;
+    
+    @media (max-width: 480px) {
+        top: 25px;
+        right: 30px;
+        width: 60px;
+    }
+    
+    @media (max-width: 360px) {
+        top: 20px;
+        right: 25px;
+        width: 50px;
+    }
+    
+    @media (max-width: 320px) {
+        top: 18px;
+        right: 20px;
+        width: 45px;
+    }
 }
 
 .chip img {
@@ -82,13 +200,30 @@
     width: 50px;
     height: auto;
     opacity: 0.3;
+    
+    @media (max-width: 480px) {
+        top: 90px;
+        left: 30px;
+        width: 40px;
+    }
+    
+    @media (max-width: 360px) {
+        top: 80px;
+        left: 25px;
+        width: 35px;
+    }
+    
+    @media (max-width: 320px) {
+        top: 75px;
+        left: 20px;
+        width: 30px;
+    }
 }
 
 .number,
 .name,
 .from,
 .to {
-   
     color: #c7c7c7;
     font-weight: 300;
     letter-spacing: 1px;
@@ -101,25 +236,105 @@
     bottom: 65px;
     font-size: x-large;
     z-index: 2;
-    // font-family: "Nunito", sans-serif;
+    right: 40px; /* Añadido para controlar el ancho */
+    
+    @media (max-width: 480px) {
+        left: 30px;
+        right: 30px;
+        bottom: 50px;
+        font-size: large;
+        /* Permitir texto en múltiples líneas si es necesario */
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.2;
+    }
+    
+    @media (max-width: 360px) {
+        left: 25px;
+        right: 25px;
+        bottom: 45px;
+        font-size: medium;
+    }
+    
+    @media (max-width: 320px) {
+        left: 20px;
+        right: 20px;
+        bottom: 40px;
+        font-size: small;
+        line-height: 1.1;
+    }
 }
 
 .name {
     font-size: large;
     left: 40px;
     bottom: 35px;
+    
+    @media (max-width: 480px) {
+        left: 30px;
+        bottom: 25px;
+        font-size: medium;
+    }
+    
+    @media (max-width: 360px) {
+        left: 25px;
+        bottom: 20px;
+        font-size: small;
+    }
+    
+    @media (max-width: 320px) {
+        left: 20px;
+        bottom: 18px;
+        font-size: x-small;
+    }
 }
 
 .from {
     font-size: large;
     bottom: 35px;
     right: 110px;
+    
+    @media (max-width: 480px) {
+        bottom: 25px;
+        right: 85px;
+        font-size: medium;
+    }
+    
+    @media (max-width: 360px) {
+        bottom: 20px;
+        right: 70px;
+        font-size: small;
+    }
+    
+    @media (max-width: 320px) {
+        bottom: 18px;
+        right: 60px;
+        font-size: x-small;
+    }
 }
 
 .to {
     font-size: large;
     bottom: 35px;
     right: 40px;
+    
+    @media (max-width: 480px) {
+        bottom: 25px;
+        right: 30px;
+        font-size: medium;
+    }
+    
+    @media (max-width: 360px) {
+        bottom: 20px;
+        right: 25px;
+        font-size: small;
+    }
+    
+    @media (max-width: 320px) {
+        bottom: 18px;
+        right: 20px;
+        font-size: x-small;
+    }
 }
 
 /* The two rings on the card background */
@@ -132,6 +347,30 @@
     bottom: -250px;
     right: -250px;
     box-sizing: border-box;
+    
+    @media (max-width: 480px) {
+        height: 350px;
+        width: 350px;
+        border: 35px solid #2d76a325;
+        bottom: -175px;
+        right: -175px;
+    }
+    
+    @media (max-width: 360px) {
+        height: 300px;
+        width: 300px;
+        border: 30px solid #2d76a325;
+        bottom: -150px;
+        right: -150px;
+    }
+    
+    @media (max-width: 320px) {
+        height: 250px;
+        width: 250px;
+        border: 25px solid #2d76a325;
+        bottom: -125px;
+        right: -125px;
+    }
 }
 
 .ring::after {
@@ -145,4 +384,28 @@
     bottom: -80px;
     right: -110px;
     box-sizing: border-box;
+    
+    @media (max-width: 480px) {
+        height: 420px;
+        width: 420px;
+        border: 20px solid rgba(255, 69, 69, 0.1);
+        bottom: -60px;
+        right: -80px;
+    }
+    
+    @media (max-width: 360px) {
+        height: 360px;
+        width: 360px;
+        border: 18px solid rgba(255, 69, 69, 0.1);
+        bottom: -50px;
+        right: -70px;
+    }
+    
+    @media (max-width: 320px) {
+        height: 300px;
+        width: 300px;
+        border: 15px solid rgba(255, 69, 69, 0.1);
+        bottom: -40px;
+        right: -60px;
+    }
 }
