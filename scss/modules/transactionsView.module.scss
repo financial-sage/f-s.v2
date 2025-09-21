@@ -61,8 +61,8 @@
     width: 1px;
     background: #764ba2;
     backdrop-filter: blur(2px);
-    top: -10px;
-    bottom: -10px;
+    top: -5px;
+    bottom: -5px;
     left: 30.5px;
     z-index: -1;
 }
@@ -163,6 +163,13 @@
     line-height: 1.2;
 }
 
+.categoryTag {
+    margin-left: 8px;
+    font-size: 0.8em;
+    color: #a1a1aa;
+    font-weight: normal;
+}
+
 .transactionMeta {
     display: flex;
     font-size: 0.75rem;
@@ -227,71 +234,263 @@
 /* Responsive */
 @media screen and (max-width: 768px) {
     .scrollContainer {
-        max-height: 280px;
+        max-height: 320px;
         padding-right: 4px;
     }
 
+    .timeline {
+        width: 100%;
+    }
+
     .timeline::after {
-        left: 20px;
+        left: 22px;
     }
 
     .transaction {
-        padding-left: 45px;
+        padding-left: 50px;
+        margin-bottom: 12px;
     }
 
     .transaction::after {
-        left: 14px;
+        left: 16px;
         width: 10px;
         height: 10px;
     }
 
     .content {
-        padding: 8px 10px;
-        flex-direction: column;
-        align-items: flex-start;
-        min-height: 50px;
+        padding: 12px;
+        flex-direction: row; /* Mantener en fila */
+        align-items: center; /* Centrar verticalmente */
+        min-height: auto;
+        gap: 8px;
     }
 
     .transactionInfo {
-        width: 100%;
-        margin-bottom: 8px;
+        flex: 1;
+        min-width: 0; /* Permite que se contraiga */
+    }
+
+    .transactionDetails {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .transactionTitle {
+        font-size: 0.9rem;
+        line-height: 1.3;
+        word-wrap: break-word;
+        hyphens: auto;
+        margin-bottom: 2px;
     }
 
     .transactionAmount {
-        text-align: left;
-        width: 100%;
+        text-align: right;
+        min-width: fit-content;
+        flex-shrink: 0; /* No se encoge */
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        align-items: flex-end;
     }
 
     .icon {
-        width: 26px;
-        height: 26px;
-        font-size: 12px;
-        margin-right: 10px;
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    .transactionMeta {
+        margin-top: 2px;
+        font-size: 0.7rem;
+    }
+
+    .amount {
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+
+    .transactionStatus {
+        font-size: 0.65rem;
     }
 }
 
 @media screen and (max-width: 480px) {
     .scrollContainer {
-        max-height: 250px;
+        max-height: 280px;
+        padding-right: 2px;
     }
 
-    .transactionMeta {
-        flex-direction: column;
+    .timeline::after {
+        left: 3px;
+        top: 4px;
+        bottom: 10px;
     }
 
-    .transactionDate {
-        margin-bottom: 3px;
-        margin-right: 0;
+    .transaction {
+        padding-left: 12px;
+        margin-bottom: 10px;
+        padding-right: 5px;
+    }
+
+    .transaction::after {
+        left: 0px;
+        width: 8px;
+        height: 8px;
+        border-width: 1px;
+    }
+
+    .content {
+        padding: 10px;
+        gap: 6px;
+        flex-direction: row; /* Mantener en fila */
+        align-items: flex-start;
+    }
+
+    .transactionInfo {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .icon {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+        margin-right: 8px;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .transactionDetails {
+        flex: 1;
+        min-width: 0;
     }
 
     .transactionTitle {
         font-size: 0.85rem;
+        line-height: 1.4;
+        margin-bottom: 2px;
+    }
+
+    .categoryTag {
+        display: inline; /* Mantener en línea en lugar de bloque */
+        margin-left: 4px;
+        font-size: 0.7rem;
+    }
+
+    .transactionMeta {
+        font-size: 0.7rem;
+        margin-top: 1px;
+    }
+
+    .transactionAmount {
+        text-align: right;
+        min-width: fit-content;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
     }
 
     .amount {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 1px;
+    }
+
+    .transactionStatus {
+        font-size: 0.65rem;
+        text-align: right;
+    }
+}
+
+@media screen and (max-width: 360px) {
+    .scrollContainer {
+        max-height: 260px;
+    }
+
+    .timeline::after {
+        left: 16px;
+    }
+
+    .transaction {
+        padding-left: 38px;
+        margin-bottom: 8px;
+    }
+
+    .transaction::after {
+        left: 10px;
+        width: 6px;
+        height: 6px;
+    }
+
+    .content {
+        padding: 8px;
+        gap: 4px;
+        flex-direction: row; /* Mantener en fila */
+        align-items: flex-start;
+    }
+
+    .transactionInfo {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .icon {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+        margin-right: 6px;
+        margin-top: 1px;
+        flex-shrink: 0;
+    }
+
+    .transactionDetails {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .transactionTitle {
+        font-size: 0.8rem;
+        line-height: 1.3;
+        margin-bottom: 1px;
+    }
+
+    .categoryTag {
+        display: inline;
+        margin-left: 3px;
+        font-size: 0.65rem;
+    }
+
+    .transactionMeta {
+        font-size: 0.65rem;
+        margin-top: 1px;
+    }
+
+    .transactionAmount {
+        text-align: right;
+        min-width: fit-content;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 1px;
+    }
+
+    .amount {
+        font-size: 0.8rem;
+        margin-bottom: 0;
+    }
+
+    .transactionStatus {
+        font-size: 0.6rem;
+        text-align: right;
+    }
+
+    /* Ocultar emojis en pantallas muy pequeñas para ahorrar espacio */
+    .transactionDate::before,
+    .transactionMethod::before {
+        display: none;
     }
 }

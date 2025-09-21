@@ -39,6 +39,16 @@ function TransactionItem({ transaction }: TransactionItemProps) {
     
     const { icon, color } = getIconAndColor();
     
+    // Obtener el tamaño del ícono según el tamaño de pantalla
+    const getIconSize = () => {
+        if (typeof window !== 'undefined') {
+            if (window.innerWidth <= 360) return 16;
+            if (window.innerWidth <= 480) return 18;
+            if (window.innerWidth <= 768) return 20;
+        }
+        return 22;
+    };
+    
     // Obtener el texto de descripción apropiado para transferencias
     const getTransactionDescription = () => {
         if (transaction.type === 'transfer') {
@@ -59,23 +69,18 @@ function TransactionItem({ transaction }: TransactionItemProps) {
         <div className={styles.transaction}>
             <div className={styles.content}>
                 <div className={styles.transactionInfo}>
-                    <div className={`${styles.icon} ${styles.transactionIcon}`} style={{ backgroundColor: color + '30', width: '40px', height: '40px' }}>
+                    <div className={`${styles.icon} ${styles.transactionIcon}`} style={{ backgroundColor: color + '30' }}>
                         <CategoryIcon 
                             iconName={icon} 
                             color={color} 
-                            size={22} 
+                            size={getIconSize()} 
                         />
                     </div>
                     <div className={styles.transactionDetails}>
                         <div className={styles.transactionTitle}>
                             {getTransactionDescription()}
                             {transaction.category && (
-                                <span style={{ 
-                                    marginLeft: '8px', 
-                                    fontSize: '0.8em', 
-                                    color: '#a1a1aa',
-                                    fontWeight: 'normal'
-                                }}>
+                                <span className={styles.categoryTag}>
                                     · {transaction.category.name}
                                 </span>
                             )}
