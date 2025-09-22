@@ -279,13 +279,16 @@ export const AccountManagement: React.FC = () => {
           buttonSize="sm"
           modalTitle={editingAccount ? 'Editar Cuenta' : 'Nueva Cuenta'}
           modalContent={AccountFormContent}
+          open={showForm}
+          onClose={() => { setShowForm(false); setEditingAccount(null); }}
+          onClick={() => { setShowForm(true); setEditingAccount(null); }}
         />
       </div>
 
       {/* Lista de cuentas */}
-      <div className="grid gap-3">
+      <div className="grid gap-1 lg:grid-cols-3">
         {accounts.map((account) => (
-          <div key={account.id} className="flex items-center justify-between">
+          <div key={account.id} className="">
             <AccountCard
               account={account}
               isSelected={selectedAccountId === account.id}
@@ -293,26 +296,29 @@ export const AccountManagement: React.FC = () => {
                 selectedAccountId === account.id ? '' : account.id
               )}
             />
-            <div className="flex space-x-2 ml-4">
-              <Button
+            <div className="flex space-x-2 ml-4 mt-2">
+              <button
                 onClick={() => handleEdit(account)}
-                variant="secondary"
-                size="sm"
+                className='dark:bg-white/5 px-2 rounded text-sm dark:text-blue-300 border border-zinc-600 hover:bg-blue-300 hover:text-white transition-colors duration-200'
+                style={{ cursor: 'pointer' }}
+                disabled={account.is_default}
               >
                 Editar
-              </Button>
+              </button>
               {!account.is_default && (
-                <Button
-                  onClick={() => handleDeactivate(account)}
-                  variant="danger"
-                  size="sm"
-                >
+                <button onClick={() => handleDeactivate(account)} 
+                className="dark:bg-white/5 px-2 rounded text-sm dark:text-red-300 border border-zinc-600 hover:bg-red-400 hover:text-white transition-colors duration-200" style={{ cursor: 'pointer' }}>
                   Desactivar
-                </Button>
+                </button>
               )}
             </div>
           </div>
         ))}
+      </div>
+
+      <div className='grid gap-1 lg:grid-cols-3'>
+
+       
       </div>
 
       {accounts.length === 0 && (

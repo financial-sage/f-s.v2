@@ -27,6 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
       <body className="flex min-h-full bg-white antialiased h-px" style={{ background: "var(--background-gradient)" }}>
         <CurrencyProvider>
           <TransactionProvider>

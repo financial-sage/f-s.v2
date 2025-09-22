@@ -8,6 +8,7 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import { Select } from '@/src/components/common';
 
 import style from '@/scss/modules/input.module.scss'
+import { CategoryIcon } from '../categories/CategoryIcons';
 
 interface AccountSelectorProps {
     selectedAccountId?: string;
@@ -103,7 +104,7 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
     }
 
     return (
-       
+
         <div className={className}>
             <Select
                 value={selectedAccountId || ''}
@@ -127,8 +128,8 @@ export const AccountCard: React.FC<{
     const { formatAmount } = useCurrency();
 
     return (
-        <div className="w-full">
-            <div
+        <div className="">
+            {/* <div
                 onClick={onClick}
                 className={`
             p-3 pt-6 pb-6 items-center justify-between cursor-pointer transition-all duration-200 dark:bg-white/5 shadow-lg w-full
@@ -155,17 +156,16 @@ export const AccountCard: React.FC<{
                         {formatAmount(account.balance)}
                     </div>
                 </div>
-            </div>
-            
+            </div> */}
+
             {/* Botones de acción debajo de la tarjeta */}
-            {showActions && (
-                <div className="flex gap-2 mt-2 px-3">
-                    {onEdit && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit(account.id);
-                            }}
+            {/* <div className="flex gap-2 mt-2 px-3">
+                {onEdit && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(account.id);
+                        }}
                             className="flex-1 px-3 py-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors duration-200 flex items-center justify-center gap-1"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,8 +193,40 @@ export const AccountCard: React.FC<{
                             Cuenta desactivada
                         </div>
                     )}
+                </div> */}
+            
+
+            <div className='mr-4 ml-4' >
+                {AccountTypeLabels[account.type] != 'Efectivo' ? (
+                <div className="account-card credit-card">
+                    <div className="card-header">
+                        <div className="bank-name"> {AccountTypeLabels[account.type]}{account.bank_name && ` • ${account.bank_name}`}</div>
+                        <div className="card-type">{AccountTypeIcons[account.type]}</div>
+                    </div>
+
+                    <div className="balance-section">
+                        <div className="balance-label">Saldo Disponible</div>
+                        <div className="balance-amount positive"> {formatAmount(account.balance)} <i className="fas fa-credit-card"></i></div>
+                    </div>
+
+                    <div className="card-number">**** ****  {account.last_four_digits && ` ****${account.last_four_digits}`}</div>
                 </div>
-            )}
+                ) : (
+                <div className="account-card cash-card">
+                    <div className="card-header">
+                        <div className="bank-name"> {AccountTypeLabels[account.type]}{account.bank_name && ` • ${account.bank_name}`}</div>
+                        <div className="card-type">{AccountTypeIcons[account.type]}</div>
+                    </div>
+
+                    <div className="balance-section">
+                        <div className="balance-label">Saldo Disponible</div>
+                        <div className="balance-amount positive"> {formatAmount(account.balance)} <i className="fas fa-coins"></i></div>
+                    </div>
+
+                    <div className="card-number">**** ****  {account.last_four_digits && ` ****${account.last_four_digits}`}</div>
+                </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -208,30 +240,30 @@ export const AccountList: React.FC<{
     onDeactivate?: (accountId: string) => void;
     showActions?: boolean;
     className?: string;
-}> = ({ 
-    accounts, 
-    selectedAccountId, 
-    onAccountSelect, 
-    onEdit, 
-    onDeactivate, 
+}> = ({
+    accounts,
+    selectedAccountId,
+    onAccountSelect,
+    onEdit,
+    onDeactivate,
     showActions = false,
-    className = '' 
+    className = ''
 }) => {
-    return (
-        <div className={`space-y-3 ${className}`}>
-            {accounts.map((account) => (
-                <AccountCard
-                    key={account.id}
-                    account={account}
-                    isSelected={selectedAccountId === account.id}
-                    onClick={onAccountSelect ? () => onAccountSelect(account.id) : undefined}
-                    onEdit={onEdit}
-                    onDeactivate={onDeactivate}
-                    showActions={showActions}
-                />
-            ))}
-        </div>
-    );
-};
+        return (
+            <div className={`space-y-3 ${className}`}>
+                {accounts.map((account) => (
+                    <AccountCard
+                        key={account.id}
+                        account={account}
+                        isSelected={selectedAccountId === account.id}
+                        onClick={onAccountSelect ? () => onAccountSelect(account.id) : undefined}
+                        onEdit={onEdit}
+                        onDeactivate={onDeactivate}
+                        showActions={showActions}
+                    />
+                ))}
+            </div>
+        );
+    };
 
 export default AccountSelector;

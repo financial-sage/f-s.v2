@@ -42,6 +42,9 @@ import {
     BanknoteArrowDown,
     BanknoteArrowUp,
     BanknoteIcon,
+    Edit,
+    Ban,
+    Trash,
     type LucideIcon
 } from "lucide-react";
 
@@ -95,6 +98,9 @@ export const AVAILABLE_ICONS: IconOption[] = [
     { name: 'banknote-arrow-down', icon: BanknoteArrowDown, label: 'Ingreso' },
     { name: 'banknote-arrow-up', icon: BanknoteArrowUp, label: 'Gasto' },
     { name: 'banknote-icon', icon: BanknoteIcon, label: 'Dinero' },
+    { name: 'edit', icon: Edit, label: 'Editar' },
+    { name: 'ban', icon: Ban, label: 'Desactivar' },
+    { name: 'trash', icon: Trash, label: 'Eliminar' }
 ];
 
 export interface CategoryIconProps {

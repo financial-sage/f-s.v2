@@ -12,33 +12,37 @@ interface BlendyButtonProps {
         | 'outline-warning' | 'outline-info' | 'outline-dark' | 'outline-light'
         | 'ghost-primary' | 'ghost-secondary' | 'ghost-success' | 'ghost-danger';
     buttonSize?: 'sm' | 'lg' | 'xl';
+    open?: boolean;
+    onClose?: () => void;
+    onClick?: () => void;
 }
+
 
 export default function BlendyButton({ 
     buttonText = "Open", 
     modalTitle = "Modal",
     modalContent = <p>Contenido del modal por defecto</p>,
     buttonVariant = 'primary',
-    buttonSize
+    buttonSize,
+    open,
+    onClose,
+    onClick
 }: BlendyButtonProps) {
     const blendy = useRef<Blendy | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
-    const [isCompletelyDone, setIsCompletelyDone] = useState(true); // Nuevo estado para control total
+    const [isCompletelyDone, setIsCompletelyDone] = useState(true);
+
+    // Si open está definido, el control es externo
+    const isModalOpen = open !== undefined ? open : showModal;
 
     useEffect(() => {
         blendy.current = createBlendy({ 
             animation: 'dynamic'
-            // Nota: Blendy maneja internamente la duración de la animación
         });
-        
-        // Cleanup function para evitar problemas de memoria
         return () => {
-            if (blendy.current) {
-                // Si Blendy tiene un método destroy o cleanup, úsalo aquí
-                blendy.current = null;
-            }
+            blendy.current = null;
         };
     }, []);
 
@@ -46,13 +50,13 @@ export default function BlendyButton({
         setIsClosing(false);
         setIsAnimating(true);
         setIsCompletelyDone(false);
-        setShowModal(true);
+        if (open === undefined) setShowModal(true);
         blendy.current?.toggle('example');
-        // Reset animating state after animation completes (tiempo más generoso)
         setTimeout(() => {
             setIsAnimating(false);
             setIsCompletelyDone(true);
         }, 800);
+        if (onClick) onClick();
     };
 
     const handleCloseModal = () => {
@@ -60,19 +64,17 @@ export default function BlendyButton({
         setIsAnimating(true);
         setIsCompletelyDone(false);
         blendy.current?.untoggle('example', () => {
-            setShowModal(false);
-            // Primera fase: desactivar isAnimating (más tiempo para ver el efecto)
+            if (open === undefined) setShowModal(false);
             setTimeout(() => {
                 setIsAnimating(false);
             }, 300);
-            // Segunda fase: desactivar isClosing (mucho más tiempo para que Blendy termine)
             setTimeout(() => {
                 setIsClosing(false);
             }, 800);
-            // Tercera fase: marcar como completamente terminado
             setTimeout(() => {
                 setIsCompletelyDone(true);
             }, 1000);
+            if (onClose) onClose();
         });
     };
 
@@ -112,7 +114,7 @@ export default function BlendyButton({
 
     return (
         <div>
-            {showModal && createPortal(
+            {isModalOpen && createPortal(
                 <Modal 
                     onClose={handleCloseModal} 
                     title={modalTitle}
