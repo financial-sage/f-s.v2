@@ -1,5 +1,5 @@
 import { supabase } from './client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Category {
   id: string;
   user_id: string;
@@ -38,8 +38,10 @@ export async function getUserCategories(userId: string): Promise<CategoryResult>
 
     if (error) throw error;
     return { data: data as Category[] };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al obtener las categorías' } };
+  } catch (error: unknown) {
+    let message = 'Error al obtener las categorías';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -66,8 +68,10 @@ export async function createCategory(userId: string, category: NewCategory): Pro
 
     if (error) throw error;
     return { data: data as Category };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al crear la categoría' } };
+  } catch (error: unknown) {
+    let message = 'Error al crear la categoría';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -108,8 +112,10 @@ export async function updateCategory(
 
     if (error) throw error;
     return { data: data as Category };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al actualizar la categoría' } };
+  } catch (error: unknown) {
+    let message = 'Error al actualizar la categoría';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -140,7 +146,9 @@ export async function deleteCategory(
 
     if (error) throw error;
     return {};
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al eliminar la categoría' } };
+  } catch (error: unknown) {
+    let message = 'Error al eliminar la categoría';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }

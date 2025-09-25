@@ -1,6 +1,6 @@
 import { supabase } from './client';
 import { adjustAccountBalance } from './accounts';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Transaction {
   id: string;
   user_id: string;
@@ -71,8 +71,10 @@ export async function getUserTransactions(userId: string): Promise<TransactionRe
 
     if (error) throw error;
     return { data: data as Transaction[] };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al obtener las transacciones' } };
+  } catch (error: unknown) {
+    let message = 'Error al obtener las transacciones';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -94,8 +96,10 @@ export async function getUserTransactionsWithCategories(userId: string): Promise
 
     if (error) throw error;
     return { data: data as TransactionWithCategory[] };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al obtener las transacciones con categorías y cuentas' } };
+  } catch (error: unknown) {
+    let message = 'Error al obtener las transacciones con categorías y cuentas';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -152,8 +156,10 @@ export async function addTransaction(userId: string, tx: NewTransaction): Promis
     }
 
     return { data: data as Transaction };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al crear la transacción' } };
+  } catch (error: unknown) {
+    let message = 'Error al crear la transacción';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -176,8 +182,10 @@ export async function updateTransaction(
 
     if (error) throw error;
     return { data: data as Transaction };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al actualizar la transacción' } };
+  } catch (error: unknown) {
+    let message = 'Error al actualizar la transacción';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -197,8 +205,10 @@ export async function deleteTransaction(
 
     if (error) throw error;
     return {};
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al eliminar la transacción' } };
+  } catch (error: unknown) {
+    let message = 'Error al eliminar la transacción';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -226,8 +236,10 @@ export async function getCategoryExpenses(userId: string): Promise<{ data?: Reco
     });
 
     return { data: categoryExpenses };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al obtener gastos por categoría' } };
+  } catch (error: unknown) {
+    let message = 'Error al obtener gastos por categoría';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 

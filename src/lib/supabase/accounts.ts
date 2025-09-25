@@ -1,6 +1,6 @@
 import { supabase } from './client';
 import { Account, NewAccount, AccountResult } from '../../types/types';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Obtiene todas las cuentas del usuario
  */
@@ -16,8 +16,10 @@ export async function getUserAccounts(userId: string): Promise<AccountResult> {
 
     if (error) throw error;
     return { data: data as Account[] };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al obtener las cuentas' } };
+  } catch (error: unknown) {
+    let message = 'Error al obtener las cuentas';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -36,8 +38,10 @@ export async function getDefaultAccount(userId: string): Promise<AccountResult> 
 
     if (error) throw error;
     return { data: data as Account };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al obtener la cuenta por defecto' } };
+  } catch (error: unknown) {
+    let message = 'Error al obtener la cuenta por defecto';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -76,8 +80,10 @@ export async function createAccount(userId: string, account: NewAccount): Promis
 
     if (error) throw error;
     return { data: data as Account };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al crear la cuenta' } };
+  } catch (error: unknown) {
+    let message = 'Error al crear la cuenta';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -120,8 +126,10 @@ export async function updateAccount(
 
     if (error) throw error;
     return { data: data as Account };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al actualizar la cuenta' } };
+  } catch (error: unknown) {
+    let message = 'Error al actualizar la cuenta';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -147,8 +155,10 @@ export async function updateAccountBalance(
 
     if (error) throw error;
     return { data: data as Account };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al actualizar el balance' } };
+  } catch (error: unknown) {
+    let message = 'Error al actualizar el balance';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -176,8 +186,10 @@ export async function adjustAccountBalance(
     const newBalance = account.balance + amount;
 
     return await updateAccountBalance(accountId, userId, newBalance);
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al ajustar el balance' } };
+  } catch (error: unknown) {
+    let message = 'Error al ajustar el balance';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -212,8 +224,10 @@ export async function deactivateAccount(
 
     if (error) throw error;
     return {};
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al desactivar la cuenta' } };
+  } catch (error: unknown) {
+    let message = 'Error al desactivar la cuenta';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -245,8 +259,10 @@ export async function deleteAccount(
 
     if (error) throw error;
     return {};
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al eliminar la cuenta' } };
+  } catch (error: unknown) {
+    let message = 'Error al eliminar la cuenta';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -278,8 +294,10 @@ export async function setDefaultAccount(
 
     if (error) throw error;
     return { data: data as Account };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al establecer cuenta por defecto' } };
+  } catch (error: unknown) {
+    let message = 'Error al establecer cuenta por defecto';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }
 
@@ -298,7 +316,9 @@ export async function getTotalBalance(userId: string): Promise<{ data?: number; 
 
     const total = data?.reduce((sum, account) => sum + account.balance, 0) || 0;
     return { data: total };
-  } catch (error: any) {
-    return { error: { message: error.message || 'Error al calcular el balance total' } };
+  } catch (error: unknown) {
+    let message = 'Error al calcular el balance total';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
   }
 }

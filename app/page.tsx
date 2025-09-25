@@ -12,7 +12,6 @@ export default function Home() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [user, setUser] = useState(null);
     const router = useRouter();
 
     useEffect(() => {

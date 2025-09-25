@@ -93,9 +93,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         onSuccess();
       }
 
-    } catch (error: any) {
-      console.error('Error al guardar la transacción:', error);
-      alert(error.message || 'Error al guardar la transacción');
+    } catch (error: unknown) {
+      let message = 'Error al guardar la transacción:';
+      if (error instanceof Error) message = error.message;
+      alert(error || 'Error al guardar la transacción');
+
     } finally {
       setIsLoading(false);
     }

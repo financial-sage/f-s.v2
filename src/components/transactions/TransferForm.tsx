@@ -76,9 +76,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({
                 }
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error al realizar la transferencia:', error);
-            alert(error.message || 'Error al realizar la transferencia');
+            if (error instanceof Error) {
+                alert(error.message);
+            } else {
+                alert('Error al realizar la transferencia');
+            }
         } finally {
             setIsLoading(false);
         }

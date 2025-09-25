@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from "@/src/lib/supabase/client";
 import { AppSession, mapSupabaseSessionToApp } from "@/src/types/types";
 import { useRouter, usePathname } from 'next/navigation';
@@ -48,7 +48,7 @@ const menuData: MenuSection[] = [
             { id: 'Transacciones', title: 'Transacciones', href: '/transactions' },
             { id: 'Presupuestos', title: 'Presupuestos', href: '/budget' },
             { id: 'Cuentas', title: 'Cuentas', href: '/accounts' },
-            { id: 'Categorias', title: 'Categorias', href: '/categorias' }
+            { id: 'Savings', title: 'Ahorros', href: '/savings' }
 
         ]
     }
@@ -60,7 +60,7 @@ const getActiveItemFromPath = (pathname: string): string => {
     if (pathname === '/transactions') return 'Transacciones';
     if (pathname === '/budget') return 'Presupuestos';
     if (pathname === '/accounts') return 'Cuentas';
-    if (pathname === '/categorias') return 'Categorias';
+    if (pathname === '/savings') return 'Savings';
     
     // Ruta por defecto
     return 'dashboard';
@@ -77,12 +77,12 @@ export function Header() {
 
     const [session, setSession] = useState<AppSession | null>(null);
     const [loading, setLoading] = useState(true);
-    const { imgSrc, isLoading: imageLoading, hasError: imageError } = useUserImage(session);
-    const [notifications] = useState([
-        { id: 1, text: "Nuevo pedido recibido", time: "hace 2 min", unread: true },
-        { id: 2, text: "Usuario registrado", time: "hace 1 hora", unread: true },
-        { id: 3, text: "Backup completado", time: "hace 3 horas", unread: false },
-    ]);
+    const { imgSrc, isLoading: imageLoading } = useUserImage(session);
+    // const [notifications] = useState([
+    //     { id: 1, text: "Nuevo pedido recibido", time: "hace 2 min", unread: true },
+    //     { id: 2, text: "Usuario registrado", time: "hace 1 hora", unread: true },
+    //     { id: 3, text: "Backup completado", time: "hace 3 horas", unread: false },
+    // ]);
 
     // Estado para manejar elementos expandibles y menú móvil
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
@@ -314,9 +314,9 @@ export function Header() {
             {/* Contenedor principal del menú unificado */}
             <div className="contents lg:pointer-events-auto  lg:block lg:w-72 lg:overflow-y-auto lg:border-r lg:border-zinc-900/10 lg:px-6 lg:pt-4 lg:pb-8 xl:w-80 lg:dark:border-white/10 dark:bg-black/20">
                 <div className="hidden lg:flex">
-                    <a aria-label="Home" href="/">
+                    <Link aria-label="Home" href="/">
                         <h1 className="text-zinc-300">Financial Sage</h1>
-                    </a>
+                    </Link>
                 </div>
                 <div
                     className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-12 px-4 transition sm:px-6 lg:left-72 lg:z-30 lg:px-8 xl:left-80 backdrop-blur-xs lg:left-72 xl:left-80 dark:backdrop-blur-sm bg-white/(--bg-opacity-light) dark:bg-zinc-900/(--bg-opacity-dark)"
@@ -361,10 +361,9 @@ export function Header() {
                                 <path d="m1.5 1 7 7M8.5 1l-7 7"></path>
                             </svg> {/* Icono de cerrar menú hamburguesa */}
                         </button>
-                        <a aria-label="Home" href="/">
+                        <Link aria-label="Home" href="/">
                             <h1 className="text-zinc-300">Financial Sage</h1>
-
-                        </a>
+                        </Link>
                     </div>
                     <div className="flex items-center gap-5">
                         <nav className="hidden md:block">
@@ -372,9 +371,9 @@ export function Header() {
                             <ul role="list" className="flex items-center gap-8">
 
                                 {/* <li>
-                                    <a className="text-sm/5 text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white" href="/">
+                                    <Link className="text-sm/5 text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white" href="/">
                                         API
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
                                     <a className="text-sm/5 text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white" href="#">

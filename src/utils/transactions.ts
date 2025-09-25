@@ -1,5 +1,5 @@
 import { Currency } from '@/src/contexts/CurrencyContext';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Formatea un monto para mostrar en la UI
  * @deprecated Usar useCurrency().formatAmountWithType() en su lugar

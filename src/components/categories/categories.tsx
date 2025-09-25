@@ -185,7 +185,7 @@ export function Categories({ onCategoriesUpdate, onCategorySelect, selectedCateg
                 <BlendyCategoriesModal buttonText='plus' modalTitle={`Agregar categoría de ${activeTab === 'expenses' ? 'gastos' : 'ingresos'}`} modalContent={(closeModal) => (
                     <CategoryForm
                         categoryType={activeTab === 'expenses' ? 'expense' : 'income'}
-                        onCategoryCreated={handleNewCategory}
+                        onCategoryCreated={handleNewCategory as (category: unknown) => void}
                         onClose={closeModal}
                     />
                 )} />

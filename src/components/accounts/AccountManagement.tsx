@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AccountSelector, AccountCard } from './AccountSelector';
+import { AccountCard } from './AccountSelector';
 import { Button, Input, Select } from '@/src/components/common';
 import { Account, NewAccount, AccountType } from '@/src/types/types';
 import { getUserAccounts, createAccount, updateAccount, deactivateAccount } from '@/src/lib/supabase/accounts';
@@ -306,8 +306,8 @@ export const AccountManagement: React.FC = () => {
                 Editar
               </button>
               {!account.is_default && (
-                <button onClick={() => handleDeactivate(account)} 
-                className="dark:bg-white/5 px-2 rounded text-sm dark:text-red-300 border border-zinc-600 hover:bg-red-400 hover:text-white transition-colors duration-200" style={{ cursor: 'pointer' }}>
+                <button onClick={() => handleDeactivate(account)}
+                  className="dark:bg-white/5 px-2 rounded text-sm dark:text-red-300 border border-zinc-600 hover:bg-red-400 hover:text-white transition-colors duration-200" style={{ cursor: 'pointer' }}>
                   Desactivar
                 </button>
               )}
@@ -318,7 +318,7 @@ export const AccountManagement: React.FC = () => {
 
       <div className='grid gap-1 lg:grid-cols-3'>
 
-       
+
       </div>
 
       {accounts.length === 0 && (

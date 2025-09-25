@@ -1,19 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "@/scss/globals.scss";
 import { ConditionalLayout } from "@/src/components/layout/ConditionalLayout";
 import { TransactionProvider } from "@/src/contexts/TransactionContext";
 import { CurrencyProvider } from "@/src/contexts/CurrencyContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -27,7 +17,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
+      <head>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
+      </head>
       <body className="flex min-h-full bg-white antialiased h-px" style={{ background: "var(--background-gradient)" }}>
         <CurrencyProvider>
           <TransactionProvider>

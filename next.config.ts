@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  basePath: process.env.NODE_ENV === 'production' ? '/fs' : '',
   // Allow development origins for cross-origin requests
   allowedDevOrigins: [
     "0836e2dd28b7.ngrok-free.app",

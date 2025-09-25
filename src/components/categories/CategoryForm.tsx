@@ -5,7 +5,7 @@ import { supabase } from '@/src/lib/supabase/client';
 import { Input } from '@/src/components/common';
 
 interface CategoryFormProps {
-    onCategoryCreated: (category: any) => void;
+    onCategoryCreated: (category: unknown) => void;
     onClose: () => void;
     categoryType: 'expense' | 'income';
 }

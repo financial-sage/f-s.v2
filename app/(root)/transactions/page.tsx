@@ -1,7 +1,6 @@
 "use client";
 
 import { CategoryIcon } from "@/src/components/categories/CategoryIcons";
-import TransactionsView from "@/src/components/transactions/TransactionsView";
 import DayCarousel from "@/src/components/common/DayCarousel";
 import Calendar from "@/src/components/common/Calendar";
 import { Select } from "@/src/components/common";
