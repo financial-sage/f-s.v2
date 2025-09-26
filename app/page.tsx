@@ -49,20 +49,16 @@ export default function Home() {
             console.error("Error logging in:", error.message);
         } else {
             console.log("Login successful!");
-            router.push('/dashboard');
+            router.push('/');
         }
     };
 
     const handleGoogleLogin = async () => {
-        const redirectUrl = getOAuthRedirectUrl('/dashboard');
-        
-        console.log('OAuth Redirect URL:', redirectUrl);
-        
-        const { error } = await supabase.auth.signInWithOAuth({ 
-            provider: 'google', 
-            options: { 
-                redirectTo: redirectUrl
-            } 
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/dashboard`
+            }
         });
         if (error) console.error("Error with Google login:", error.message);
     }

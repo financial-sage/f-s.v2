@@ -7,6 +7,7 @@ import styles from "./Login.module.scss";
 import { redirect } from "next/navigation";
 
 export default function Login() {
+    console.log("BDEBUG: El componente de Login se ha cargado en el cliente."); // <-- NUEVA LINEA
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -20,22 +21,24 @@ export default function Login() {
         if (error) {
             console.error("Error logging in:", error.message);
         } else {
-            console.log("Login successful!");
+            alert("Login successful!");
             window.location.href = '/';
         }
     };
 
     const handleGoogleLogin = async () => {
-        // Detectar la URL actual automáticamente
-        const baseUrl = process.env.NODE_ENV === 'production' 
-            ? process.env.NEXT_PUBLIC_BASE_URL || window.location.origin
-            : window.location.origin; // Usar origin actual en desarrollo (funciona con ngrok)
-        
-        const { error } = await supabase.auth.signInWithOAuth({ 
-            provider: 'google', 
-            options: { redirectTo: `${baseUrl}/` } 
+        const redirectTo = `${window.location.origin}`;
+        console.log(`BDEBUG: Iniciando login con redirección a: ${redirectTo}`); // <-- Línea de depuración
+
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: redirectTo,
+            },
         });
-        if (error) console.error("Error with Google login:", error.message);
+        if (error) {
+            console.error(`BDEBUG: Error con Google login: ${error.message}`);
+        }
     }
 
     return (
