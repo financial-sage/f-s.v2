@@ -10,7 +10,7 @@ interface BlendyButtonProps {
         | 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'dark' | 'light'
         | 'outline-primary' | 'outline-secondary' | 'outline-success' | 'outline-danger' 
         | 'outline-warning' | 'outline-info' | 'outline-dark' | 'outline-light'
-        | 'ghost-primary' | 'ghost-secondary' | 'ghost-success' | 'ghost-danger';
+        | 'ghost-primary' | 'ghost-secondary' | 'ghost-success' | 'ghost-danger' | 'slide';
     buttonSize?: 'sm' | 'lg' | 'xl';
     open?: boolean;
     onClose?: () => void;
@@ -124,8 +124,8 @@ export default function BlendyButton({
                 document.body
             )}
             <button 
-                className='dark:bg-white/10 dark:hover:bg-white/20 dark:border-gray-600 border rounded dark:text-white/80 hover:dark:text-zinc-300 transition-colors'
-                style={{ cursor: 'pointer', padding: '7px 5px'}}
+                className='btn-slide'
+                style={{ cursor: 'pointer'}}
                 data-blendy-from="example" 
                 onClick={handleOpenModal}
             >

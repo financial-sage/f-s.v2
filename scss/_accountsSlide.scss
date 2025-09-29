@@ -1,0 +1,282 @@
+// Estilos del contenedor principal
+.container {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+
+
+
+.accounts-stack {
+    position: relative;
+    height: 280px;
+    margin-bottom: 40px;
+}
+
+.account-card {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    //border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 25px;
+    color: #393939;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transition: transform 0.5s ease, z-index 0.5s ease, opacity 0.5s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.account-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Posicionamiento inicial de las tarjetas apiladas */
+.account-card[data-index="0"] {
+    z-index: 5;
+    transform: translateY(0) scale(1);
+}
+
+.account-card[data-index="1"] {
+    z-index: 4;
+    transform: translateY(15px) scale(0.95);
+    opacity: 0.9;
+}
+
+.account-card[data-index="2"] {
+    z-index: 3;
+    transform: translateY(30px) scale(0.9);
+    opacity: 0.8;
+}
+
+.account-card[data-index="3"] {
+    z-index: 2;
+    transform: translateY(45px) scale(0.85);
+    opacity: 0.7;
+}
+
+.account-card[data-index="4"] {
+    z-index: 1;
+    transform: translateY(60px) scale(0.8);
+    opacity: 0.6;
+}
+
+.account-card.active {
+    z-index: 10 !important;
+    transform: translateY(0) scale(1) !important;
+    opacity: 1 !important;
+}
+
+.account-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.account-type {
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.account-icon {
+    font-size: 1.5rem;
+    opacity: 0.9;
+}
+
+.cash-icon {
+    color: #05e410; /* Dorado para el efectivo */
+}
+
+.account-logo {
+    height: 35px;
+    filter: brightness(0) invert(1);
+}
+
+.account-balance {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.cash-balance {
+    color: #00f335; /* Dorado para el efectivo */
+}
+
+.account-number {
+    font-size: 1rem;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+    text-align: center;
+    opacity: 0.8;
+}
+
+.account-details {
+    display: flex;
+    justify-content: space-between;
+}
+
+.account-holder, .account-status {
+    display: flex;
+    flex-direction: column;
+}
+
+.label {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-bottom: 5px;
+}
+
+.value {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.btn-slide {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    padding: 6px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    //transition: all 0.3s ease;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-slide:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.3);
+    //transform: translateY(-2px);
+}
+
+.btn-slide:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-slide-add {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px dashed rgba(255, 255, 255, 0.4);
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    margin: 20px auto 0;
+    display: block;
+}
+
+.btn-slide-add:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.account-counter {
+    text-align: center;
+    color: white;
+    margin-top: 15px;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+    .container {
+        max-width: 100%;
+    }
+    
+    .account-card {
+        padding: 20px;
+    }
+    
+    .account-balance {
+        font-size: 1.8rem;
+    }
+
+    .accounts-stack {
+        position: relative;
+        height: 220px;
+        margin-bottom: 40px;
+    }
+}
+
+.swiper-pagination-bullet {
+    background: rgba(255, 255, 255, 0.5);
+    opacity: 0.7;
+    width: 12px;
+    height: 12px;
+}
+
+.swiper-pagination-bullet-active {
+    background: white;
+    opacity: 1;
+}
+
+.swiper-button-next, .swiper-button-prev {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    backdrop-filter: blur(5px);
+}
+
+.swiper-button-next:after, .swiper-button-prev:after {
+    font-size: 1.2rem;
+}
+
+ /* Botones circulares en los extremos */
+ .nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.nav-btn.prev {
+    left: -10px;
+}
+
+.nav-btn.next {
+    right: -10px;
+}

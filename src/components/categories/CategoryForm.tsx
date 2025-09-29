@@ -157,7 +157,7 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                     </div>
 
                     {/* Vista previa */}
-                    <div className="bg-zinc-800 dark:bg-white/5 p-3 rounded-md  border-zinc-700">
+                    {/*<div className="bg-zinc-800 dark:bg-white/5 p-3 rounded-md  border-zinc-700">
                         <p className="text-sm text-zinc-400 mb-2">Vista previa:</p>
                         <div className="flex items-center justify-center gap-3">
                             <div 
@@ -172,7 +172,7 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                             </div>
                             <span className="text-white">{formData.name || 'Nombre de categoría'}</span>
                         </div>
-                    </div>
+                    </div>*/}
 
                     {error && (
                         <div className="text-red-400 text-sm">{error}</div>
@@ -183,14 +183,14 @@ export function CategoryForm({ onCategoryCreated, onClose, categoryType }: Categ
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-zinc-700 text-zinc-300 rounded-md hover:bg-zinc-800 transition-colors"
+                            className="bg-white/8 pt-2 pb-2 rounded-full text-zinc-300 hover:bg-white/30 w-full items-center justify-center"
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
                             disabled={isLoading || !formData.name.trim()}
-                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="bg-green-500/8 pt-2 pb-2 rounded-full text-zinc-300 hover:bg-green-500/30 w-full items-center justify-center"
                         >
                             {isLoading ? 'Creando...' : 'Crear'}
                         </button>

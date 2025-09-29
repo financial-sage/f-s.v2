@@ -8,6 +8,7 @@ import { getUserAccounts, createAccount, updateAccount, deactivateAccount } from
 import { useSession } from '@/src/hooks/useSession';
 import BlendyButton from '../modal/blendy';
 import { TransferForm } from '../transactions/TransferForm';
+import { FiCreditCard, FiDollarSign, FiPieChart, FiTrendingUp, FiZap } from 'react-icons/fi';
 
 const AccountTypeOptions = [
   { value: 'cash' as AccountType, label: 'Efectivo', icon: '💵' },
@@ -254,6 +255,23 @@ export const AccountManagement: React.FC = () => {
     return <div className="animate-pulse">Cargando cuentas...</div>;
   }
 
+  const getAccountIcon = (type: string) => {
+    switch (type) {
+      case 'checking':
+        return <FiCreditCard className="text-xl" />;
+      case 'savings':
+        return <FiTrendingUp className="text-xl" />;
+      case 'credit':
+        return <FiCreditCard className="text-xl" />;
+      case 'investment':
+        return <FiPieChart className="text-xl" />;
+      case 'cash':
+        return <FiDollarSign className="text-xl" />;
+      default:
+        return <FiZap className="text-xl" />;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end items-center">
@@ -285,7 +303,46 @@ export const AccountManagement: React.FC = () => {
         />
       </div>
 
-      {/* Lista de cuentas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {accounts.map((account) => (
+          <div 
+            key={account.id} 
+            className="bg-white/5 rounded-md shadow overflow-hidden hover:shadow-md transition-shadow"
+          >
+            <div 
+              className="h-1 w-full" 
+              style={{ backgroundColor: account.color }}
+            />
+            <div className="p-4">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center space-x-3">
+                  <div 
+                    className="p-2 rounded-lg" 
+                    style={{ backgroundColor: `${account.color}20` }}
+                  >
+                    {getAccountIcon(account.type)}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-zinc-300">{account.name}</h3>
+                    <p className="text-sm text-gray-500 capitalize">{account.type}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold ${account.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {account.balance < 0 ? '-' : ''}${Math.abs(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-zinc-200">{account.currency}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-zinc-200 text-xs text-zinc-400">
+                Última transacción: {account.created_at}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+    
       <div className="grid gap-1 lg:grid-cols-3">
         {accounts.map((account) => (
           <div key={account.id} className="">

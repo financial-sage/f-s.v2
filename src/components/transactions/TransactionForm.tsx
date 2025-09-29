@@ -106,9 +106,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   return (
     <>
       {filteredCategories.length === 0 && (
-        <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
+        <div className="mb-4 p-3 bg-white/10 border border-white/20 text-zinc-300 rounded mt-4 text-base">
           No hay categorías de {transactionType === 'expense' ? 'gastos' : 'ingresos'} disponibles.
-          Crea una categoría primero usando la sección de Categorías arriba.
+          Crea una categoría primero usando la sección de Categorías arriba. Pruab
         </div>
       )}
 
@@ -177,15 +177,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           defaultValue={new Date().toISOString().slice(0, 16)}
         />
         <div className='flex gap-2 items-center content-end justify-end pt-3'>
-          <Button
+          <button
             type="submit"
-            variant='success'
-            size='sm'
-            isLoading={isLoading}
+            className="bg-green-500/8 pt-2 pb-2 rounded-full text-zinc-300 hover:bg-green-500/30 w-full items-center justify-center"
             disabled={filteredCategories.length === 0 || !selectedCategoryId}
           >
             Guardar Transacción
-          </Button>
+          </button>
 
         </div>
       </form>

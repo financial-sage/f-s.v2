@@ -8,6 +8,9 @@ import { Categories } from "@/src/components/categories/categories";
 import { useState, useEffect } from "react";
 import { getUserCategories, type Category } from "@/src/lib/supabase/categories";
 import { supabase } from "@/src/lib/supabase/client";
+import AccountsDashboard from "@/src/components/accounts/accountsDashboard";
+import AccountManagement from "@/src/components/accounts/AccountManagement";
+import { AccountsSlide } from "@/src/components/accounts";
 
 
 export default function Dashboard() {
@@ -46,28 +49,32 @@ export default function Dashboard() {
     setSelectedCategoryId(categoryId);
   };
 
-  
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4 dark:text-white" style={{fontWeight: "200"}}>Dashboard!</h1>
+      <h1 className="text-2xl font-bold mb-4 dark:text-white" style={{ fontWeight: "200" }}>Dashboard!</h1>
 
-      <div className="grid sm:grid-cols-1 lg:grid-cols-3 gap-3">
-        <div>
-          <CreditCard />
+      <div className="grid sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
+        <div className="">
+          <AccountsSlide />
+          {/* <CreditCard /> */}
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="md:col-span-2 lg:col-span-2">
           {/* Placeholder for future widgets or information */}
           <div className="card sm h-full">
             <div className="cardHeader">
               <h3 className="cardTitle">Bienvenido de nuevo!</h3>
             </div>
-            <div></div>
+            <div>
+
+            </div>
           </div>
+
         </div>
       </div>
 
-      <div className="grid sm:col-span-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+      <div className=" mt-4">
         <div className="card sm col-span-2">
           <div className="cardHeader">
             <h3 className="cardTitle">Transacciones</h3>
@@ -77,22 +84,22 @@ export default function Dashboard() {
             <TransactionsView />
           </div>
           <div className="cardFooter">
-            <div className="flex gap-2">
-              <BlendyButton 
-                buttonText="Agregar transacción" 
+            <div className="flex gap-2 mb-2">
+              <BlendyButton
+                buttonText="Agregar transacción"
                 buttonVariant="primary"
                 buttonSize="sm"
                 modalTitle="Nueva Transacción"
                 modalContent={
                   <div>
-                    <Categories 
+                    <Categories
                       onCategoriesUpdate={handleCategoriesUpdate}
                       onCategorySelect={handleCategorySelect}
                       selectedCategoryId={selectedCategoryId}
                       activeTab={activeTab}
                       onTabChange={handleTabChange}
                     />
-                    <TransactionForm 
+                    <TransactionForm
                       categories={categories}
                       transactionType={activeTab === 'expenses' ? 'expense' : 'income'}
                       selectedCategoryId={selectedCategoryId}
@@ -105,7 +112,7 @@ export default function Dashboard() {
                   </div>
                 }
               />
-              
+
             </div>
           </div>
         </div>
