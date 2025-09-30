@@ -11,6 +11,7 @@ import { supabase } from "@/src/lib/supabase/client";
 import AccountsDashboard from "@/src/components/accounts/accountsDashboard";
 import AccountManagement from "@/src/components/accounts/AccountManagement";
 import { AccountsSlide } from "@/src/components/accounts";
+import MonthlyTransactionsEChart from "@/src/components/charts/MonthlyTransactionsEChart";
 
 
 export default function Dashboard() {
@@ -64,18 +65,18 @@ export default function Dashboard() {
           {/* Placeholder for future widgets or information */}
           <div className="card sm h-full">
             <div className="cardHeader">
-              <h3 className="cardTitle">Bienvenido de nuevo!</h3>
+              <h3 className="cardTitle">Gastos del mes</h3>
             </div>
-            <div>
-
+            <div className="cardContent">
+              <MonthlyTransactionsEChart height={260} mock={false} />
             </div>
           </div>
 
         </div>
       </div>
 
-      <div className=" mt-4">
-        <div className="card sm col-span-2">
+      <div className=" mt-4 grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+        <div className="card sm">
           <div className="cardHeader">
             <h3 className="cardTitle">Transacciones</h3>
             {/* <p className="cardSubtitle">Historial de transacciones</p> */}
@@ -115,6 +116,12 @@ export default function Dashboard() {
 
             </div>
           </div>
+        </div>
+
+        <div className="card sm">
+              <div>
+                
+              </div>
         </div>
       </div>
 
