@@ -30,85 +30,45 @@ export default function BlendyButton({
 }: BlendyButtonProps) {
     const blendy = useRef<Blendy | null>(null);
     const [showModal, setShowModal] = useState(false);
-    const [isAnimating, setIsAnimating] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
-    const [isCompletelyDone, setIsCompletelyDone] = useState(true);
 
     // Si open está definido, el control es externo
     const isModalOpen = open !== undefined ? open : showModal;
 
     useEffect(() => {
-        blendy.current = createBlendy({ 
-            animation: 'dynamic'
-        });
-        return () => {
-            blendy.current = null;
-        };
+        blendy.current = createBlendy({ animation: 'dynamic' });
+        return () => { blendy.current = null; };
     }, []);
 
     const handleOpenModal = () => {
         setIsClosing(false);
-        setIsAnimating(true);
-        setIsCompletelyDone(false);
         if (open === undefined) setShowModal(true);
         blendy.current?.toggle('example');
-        setTimeout(() => {
-            setIsAnimating(false);
-            setIsCompletelyDone(true);
-        }, 800);
         if (onClick) onClick();
     };
 
     const handleCloseModal = () => {
         setIsClosing(true);
-        setIsAnimating(true);
-        setIsCompletelyDone(false);
         blendy.current?.untoggle('example', () => {
-            if (open === undefined) setShowModal(false);
-            setTimeout(() => {
-                setIsAnimating(false);
-            }, 300);
             setTimeout(() => {
                 setIsClosing(false);
-            }, 800);
-            setTimeout(() => {
-                setIsCompletelyDone(true);
-            }, 1000);
-            if (onClose) onClose();
+                if (open === undefined) setShowModal(false);
+                if (onClose) onClose();
+            }, 300); // Duración de la animación CSS
         });
     };
 
     const getButtonClasses = () => {
         let classes = 'btn';
-        
-        // Manejar variantes especiales
         if (buttonVariant?.startsWith('ghost-')) {
             classes += ` btn-ghost btn-${buttonVariant}`;
         } else {
             classes += ` btn-${buttonVariant}`;
         }
-        
-        // Agregar tamaño si se especifica
         if (buttonSize) {
             classes += ` btn-${buttonSize}`;
         }
-        
-        // Agregar clase especial para desactivar efectos que interfieren con Blendy
         classes += ' blendy-button';
-        
-        // Solo aplicar estilos restrictivos si NO está completamente terminado
-        if (!isCompletelyDone) {
-            // Deshabilitar efectos durante la animación
-            if (isAnimating) {
-                classes += ' blendy-animating';
-            }
-            
-            // Clase especial para el cierre (máxima estabilidad)
-            if (isClosing) {
-                classes += ' blendy-closing';
-            }
-        }
-        
         return classes;
     };
 
@@ -120,6 +80,7 @@ export default function BlendyButton({
                     title={modalTitle}
                     content={modalContent}
                     closeModal={handleCloseModal}
+                    isClosing={isClosing}
                 />, 
                 document.body
             )}
@@ -143,51 +104,30 @@ interface ModalProps {
     closeModal: () => void;
 }
 
-export function Modal({ onClose, title = "Modal", content, closeModal }: ModalProps) {
-  const [isOpening, setIsOpening] = useState(true);
+export function Modal({ onClose, title = "Modal", content, closeModal, isClosing }: ModalProps) {
+    // Renderizar contenido dinámico
+    const renderContent = () => {
+        if (typeof content === 'function') {
+            return content(closeModal);
+        }
+        return content;
+    };
 
-  useEffect(() => {
-    // Activar la animación de apertura de la X después de un pequeño delay
-    const timer = setTimeout(() => {
-      setIsOpening(false);
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleClose = (e: React.MouseEvent<HTMLElement>) => {
-    // Agregar clase de cierre antes de ejecutar onClose
-    const closeButton = e.currentTarget;
-    closeButton.classList.add('closing');
-    
-    // Pequeño delay para mostrar la animación de cierre
-    setTimeout(() => {
-      onClose(e);
-    }, 200);
-  };
-
-  // Renderizar contenido dinámico
-  const renderContent = () => {
-    if (typeof content === 'function') {
-      return content(closeModal);
-    }
-    return content;
-  };
-
-  return (
-    <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
-      <div>
-        <div className="modal__header border-b border-zinc-700">
-          <h2 className="text-zinc-400">{title}</h2>
-          <button 
-            className={`modal__close ${isOpening ? 'opening' : ''}`}
-            onClick={handleClose}
-          ></button>
+    // Recibe isClosing como prop
+    return (
+        <div className={`modal z-50 border border-zinc-700${(typeof isClosing !== 'undefined' && isClosing) ? ' modal-closing' : ' modal-opening'}`} style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
+            <div>
+                <div className="modal__header border-b border-zinc-700">
+                    <h2 className="text-zinc-400">{title}</h2>
+                    <button 
+                        className="modal__close"
+                        onClick={onClose}
+                    ></button>
+                </div>
+                <div className="modal__content">
+                    {renderContent()}
+                </div>
+            </div>
         </div>
-        <div className="modal__content">
-          {renderContent()}
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
