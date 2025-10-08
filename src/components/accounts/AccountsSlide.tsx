@@ -356,13 +356,13 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                     {/* Modal para agregar gasto a la cuenta actualmente activa */}
                     {accountsData[currentActiveIndex] && (
                         <div className="flex flex-col items-center">
-                            <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} />
+                            <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} type="expense" />
                         </div>
                     )}
 
                     {/* Botón para agregar ingreso a la cuenta activa */}
                     <div className="flex flex-col items-center">
-                       
+                       <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} type="income" />
                     </div>
 
                     {/* Botón para agregar cuenta */}

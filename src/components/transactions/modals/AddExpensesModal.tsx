@@ -7,16 +7,18 @@ import { addTransaction, NewTransaction, getCategoryExpenses } from "@/src/lib/s
 import { CategoryIcon } from "../../categories/CategoryIcons";
 import { CiReceipt } from "react-icons/ci";
 import IconCircleButton from '@/src/components/common/IconCircleButton';
+import { GiPayMoney, GiReceiveMoney } from "react-icons/gi";
 
 interface AccountTransactionModalProps {
   accountId: string;
   categories?: Category[];
+  type?: 'expense' | 'income';
 }
 
-export default function AccountTransactionModal({ accountId, categories: propCategories }: AccountTransactionModalProps) {
+export default function AccountTransactionModal({ accountId, categories: propCategories, type = 'expense' }: AccountTransactionModalProps) {
   const blendy = useRef<Blendy | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [categories, setCategories] = useState<Category[]>((propCategories || []).filter(c => c.type === 'expense'));
+  const [categories, setCategories] = useState<Category[]>((propCategories || []).filter(c => c.type === type));
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
 
@@ -60,27 +62,35 @@ export default function AccountTransactionModal({ accountId, categories: propCat
   return (
     <div>
       {showModal
-        && createPortal(<Modal categories={categories} onClose={() => {
-          blendy.current?.untoggle('modal-trasnaction', () => {
-            setShowModal(false)
-          })
-        }} selectedCategoryId={selectedCategoryId} setSelectedCategoryId={setSelectedCategoryId} categoryExpenses={categoryExpenses} />, document.body)
+        && createPortal(<Modal 
+          categories={categories} 
+          onClose={() => {
+            blendy.current?.untoggle(`modal-transaction-${type}`, () => {
+              setShowModal(false)
+            })
+          }} 
+          selectedCategoryId={selectedCategoryId} 
+          setSelectedCategoryId={setSelectedCategoryId} 
+          categoryExpenses={categoryExpenses}
+          type={type}
+        />, document.body)
       }
       <IconCircleButton
-        data-blendy-from="modal-trasnaction"
+        data-blendy-from={`modal-transaction-${type}`}
         onClick={() => {
           setShowModal(true)
-          blendy.current?.toggle('modal-trasnaction')
+          blendy.current?.toggle(`modal-transaction-${type}`)
         }}
-        ariaLabel="Agregar gasto"
-        icon={<CiReceipt size={20} />}
-        label="+ Gasto"
+        ariaLabel={`Agregar ${type === 'expense' ? 'gasto' : 'ingreso'}`}
+        icon={type === 'expense' ? <GiPayMoney size={20} /> : <GiReceiveMoney size={20} />}
+        label={type === 'expense' ? '+ Gasto' : '+ Ingreso'}
       />
     </div>
+    
   )
 }
 
-function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[], selectedCategoryId: string | null, setSelectedCategoryId: React.Dispatch<React.SetStateAction<string | null>>, categoryExpenses: Record<string, number> }) {
+function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses, type = 'expense' }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[], selectedCategoryId: string | null, setSelectedCategoryId: React.Dispatch<React.SetStateAction<string | null>>, categoryExpenses: Record<string, number>, type?: 'expense' | 'income' }) {
 
   // Helper: convierte hex a rgba con alpha
   const hexToRgba = (hex: string, alpha = 1) => {
@@ -97,7 +107,7 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
   };
 
   return (
-    <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-trasnaction">
+    <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to={`modal-transaction-${type}`}>
       <div>
         <div className="modal__header border-b border-zinc-700">
           <h2 className="text-zinc-400">Agregar transacción</h2>
@@ -108,7 +118,7 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
           {categories.length > 0 && (
             <div className="grid md:grid-cols-6 lg:grid-cols-6 gap-4 dark:text-zinc-400">
 
-              {categories.filter(c => c.type === 'expense').map((option) => {
+              {categories.filter(c => c.type === type).map((option) => {
                 const isSelected = selectedCategoryId === option.id;
 
                 // spent vs limit
