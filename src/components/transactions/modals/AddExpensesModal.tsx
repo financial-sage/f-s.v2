@@ -17,6 +17,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
   const blendy = useRef<Blendy | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [categories, setCategories] = useState<Category[]>(propCategories || []);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   useEffect(() => {
     blendy.current = createBlendy({ animation: 'dynamic' })
   }, [])
@@ -45,7 +46,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
           blendy.current?.untoggle('modal-trasnaction', () => {
             setShowModal(false)
           })
-        }}></Modal>, document.body)
+        }} selectedCategoryId={selectedCategoryId} setSelectedCategoryId={setSelectedCategoryId} ></Modal>, document.body)
       }
       <IconCircleButton
         data-blendy-from="modal-trasnaction"
@@ -61,7 +62,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
   )
 }
 
-function Modal({ onClose, categories }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[] }) {
+function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[], selectedCategoryId: string | null, setSelectedCategoryId: React.Dispatch<React.SetStateAction<string | null>> }) {
   return (
     <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-trasnaction">
       <div>
@@ -72,12 +73,27 @@ function Modal({ onClose, categories }: { onClose: React.MouseEventHandler<HTMLE
         <div className="modal__content">
           {categories.length === 0 && <p className="text-zinc-400">No hay categorías disponibles. Por favor, crea una categoría primero.</p>}
           {categories.length > 0 && (
-            <div>
-              {categories.map((category) => (
-                <div key={category.id} className="grid grid-cols-6 gap-2 mb-2">
-                  <CategoryIcon iconName={category.icon ?? 'default'} color={category.color} size={40} className="border p-1 rounded-full inline-block mr-2" />
-                </div>
-              ))}
+            <div className="grid md:grid-cols-6 lg:grid-cols-6 gap-4 dark:text-zinc-400">
+
+              {categories.map((option) => {
+                const isSelected = selectedCategoryId === option.id;
+                return (
+                  <div
+                    key={option.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => { setSelectedCategoryId(option.id); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedCategoryId(option.id); } }}
+                    className={`flex flex-col items-center dark:bg-white/5 dark:hover:bg-white/10 pt-2 rounded-lg cursor-pointer border-2 transition-all ${isSelected ? 'ring-2 ring-offset-2' : ''}`}
+                    style={{ borderColor: isSelected ? option.color : 'transparent', boxShadow: isSelected ? `0 0 0 6px ${option.color}22` : undefined }}
+                    aria-pressed={isSelected}
+                    aria-checked={isSelected}
+                  >
+                    <div className="text-2xl"><CategoryIcon iconName={option.icon ?? 'default'} color={option.color} /></div>
+                    <div className="text-sm mt-1">{option.name}</div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

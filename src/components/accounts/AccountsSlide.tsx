@@ -81,67 +81,67 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
     }, []);
 
     // Cargar cuentas desde la base de datos
-    useEffect(() => {
-        const loadAccounts = async () => {
-            if (!session?.user?.id) {
-                setLoading(false);
-                return;
-            }
+    const loadAccounts = async () => {
+        if (!session?.user?.id) {
+            setLoading(false);
+            return;
+        }
 
-            try {
-                setLoading(true);
-                setError(null);
-                const result = await getUserAccounts(session.user.id);
+        try {
+            setLoading(true);
+            setError(null);
+            const result = await getUserAccounts(session.user.id);
 
-                if (result.error) {
-                    setError(result.error.message);
-                    setAccountsData([]);
-                } else if (result.data) {
-                    const accounts = result.data as Account[];
-                    console.log(accounts);
-                    const convertedAccounts: AccountData[] = accounts.map(account => ({
-                        id: account.id,
-                        type: AccountTypeLabels[account.type] || account.name,
-                        balance: formatAmount(account.balance),
-                        number: account.last_four_digits ? `**** ${account.last_four_digits}` : account.name,
-                        holder: session.user?.full_name || 'Usuario',
-                        status: account.is_active ? (account.is_default ? 'Por defecto' : 'Activa') : 'Inactiva',
-                        icon: AccountTypeIcons[account.type] || 'fa-university',
-                        isCash: account.type === 'cash',
-                        bank: account.bank_name,
-                        isDefault: account.is_default,
-                        color: account.color
-                    }));
-                    // Crear tarjeta de Saldo Total al inicio
-                    const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
-                    const totalCard: AccountData = {
-                        id: 'total-balance',
-                        type: 'Saldo Total',
-                        balance: formatAmount(totalBalance),
-                        number: 'Todas las cuentas',
-                        holder: session.user?.full_name || 'Usuario',
-                        status: 'Resumen',
-                        icon: 'fa-coins',
-                        isTotal: true,
-                        color: '#6b7280'
-                    };
-
-                    const withTotalFirst = [totalCard, ...convertedAccounts];
-
-                    setAccountsData(withTotalFirst);
-                    // Asegurar que la tarjeta de total se muestre primero
-                    setCurrentActiveIndex(0);
-                } else {
-                    setAccountsData([]);
-                }
-            } catch (err) {
-                setError('Error al cargar las cuentas');
+            if (result.error) {
+                setError(result.error.message);
                 setAccountsData([]);
-            } finally {
-                setLoading(false);
-            }
-        };
+            } else if (result.data) {
+                const accounts = result.data as Account[];
+                console.log(accounts);
+                    const convertedAccounts: AccountData[] = accounts.map(account => ({
+                    id: account.id,
+                        type: AccountTypeLabels[account.type] || account.name,
+                    balance: formatAmount(account.balance),
+                    number: account.last_four_digits ? `**** ${account.last_four_digits}` : account.name,
+                    holder: session.user?.full_name || 'Usuario',
+                    status: account.is_active ? (account.is_default ? 'Por defecto' : 'Activa') : 'Inactiva',
+                        icon: account.icon || AccountTypeIcons[account.type] || 'fa-university',
+                    isCash: account.type === 'cash',
+                    bank: account.bank_name,
+                    isDefault: account.is_default,
+                    color: account.color
+                }));
+                // Crear tarjeta de Saldo Total al inicio
+                const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+                const totalCard: AccountData = {
+                    id: 'total-balance',
+                    type: 'Saldo Total',
+                    balance: formatAmount(totalBalance),
+                    number: 'Todas las cuentas',
+                    holder: session.user?.full_name || 'Usuario',
+                    status: 'Resumen',
+                    icon: 'fa-coins',
+                    isTotal: true,
+                    color: '#6b7280'
+                };
 
+                const withTotalFirst = [totalCard, ...convertedAccounts];
+
+                setAccountsData(withTotalFirst);
+                // Asegurar que la tarjeta de total se muestre primero
+                setCurrentActiveIndex(0);
+            } else {
+                setAccountsData([]);
+            }
+        } catch (err) {
+            setError('Error al cargar las cuentas');
+            setAccountsData([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         loadAccounts();
     }, [session?.user?.id, formatAmount]);
 
@@ -245,11 +245,11 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         return (
             <div className="">
                 <div className="container">
-                    <h1>Mis Cuentas</h1>
-                    <p className="subtitle">Cargando tus cuentas...</p>
+                    
                     <div className="accounts-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ color: 'white', fontSize: '1.2rem' }}>
-                            <i className="fas fa-spinner fa-spin"></i> Cargando...
+                        <div style={{ color: 'white', fontSize: '2rem' }}>
+                            <div className="loader"></div>
+                            
                         </div>
                     </div>
                 </div>
@@ -302,8 +302,8 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
     }
 
     return (
-        <div className="">
-            <div className="container">
+        <div >
+            <div className="container flex flex-col gap-12">
                 <div className="accounts-stack" id="accountsStack">
                     {accountsData.map((account, index) => {
                         const isCash = account.isCash || false;
@@ -352,17 +352,22 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                     </button>
                 </div>
 
-                <div className="flex justify-center gap-4">
-                    {/* Modal para agregar transacción a la cuenta actualmente activa */}
+                <div className="flex justify-center gap-4 border border-white/10 rounded-lg p-2">
+                    {/* Modal para agregar gasto a la cuenta actualmente activa */}
                     {accountsData[currentActiveIndex] && (
                         <div className="flex flex-col items-center">
                             <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} />
                         </div>
                     )}
 
+                    {/* Botón para agregar ingreso a la cuenta activa */}
+                    <div className="flex flex-col items-center">
+                        <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} onSaved={loadAccounts} />
+                    </div>
+
                     {/* Botón para agregar cuenta */}
                     <div className="flex flex-col items-center">
-                        <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} />
+                        <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} onSaved={loadAccounts} />
                     </div>
                     {/* <BlendyButton
                         buttonText="+ Agregar Cuenta"
