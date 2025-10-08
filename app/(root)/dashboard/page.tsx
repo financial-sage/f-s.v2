@@ -55,7 +55,7 @@ export default function Dashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-4 dark:text-white" style={{ fontWeight: "200" }}>Dashboard!</h1>
 
-      <div className="grid sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4">
         <div className="">
           <AccountsSlide />
           {/* <CreditCard /> */}
@@ -85,7 +85,7 @@ export default function Dashboard() {
             <TransactionsView />
           </div>
           <div className="cardFooter">
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2 mt-1">
               <BlendyButton
                 buttonText="Agregar transacción"
                 buttonVariant="primary"

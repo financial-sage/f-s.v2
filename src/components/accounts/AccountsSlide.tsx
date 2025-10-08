@@ -7,6 +7,9 @@ import { useSession } from '../../hooks/useSession';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import BlendyButton from '../modal/blendy';
 import { Input, Select, Button } from '@/src/components/common';
+import AccountTransactionModal from '../transactions/modals/AddExpensesModal';
+import { Category } from '../../lib/supabase/categories';
+import AddAccountModal from '../transactions/modals/AddAccountModal';
 
 interface AccountData {
     id: string;
@@ -50,6 +53,8 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
     const { session } = useSession();
     const { formatAmount } = useCurrency();
     const [accountsData, setAccountsData] = useState<AccountData[]>([]);
+    const [showTxModalIndex, setShowTxModalIndex] = useState<number | null>(null);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [currentActiveIndex, setCurrentActiveIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -62,6 +67,18 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         color: '#6366f1',
         is_default: false
     });
+
+    // Cargar categorías una sola vez
+    useEffect(() => {
+        async function fetchCategories() {
+            const userId = localStorage.getItem('user_id');
+            if (!userId) return;
+            const res = await import('../../lib/supabase/categories');
+            const result = await res.getUserCategories(userId);
+            if (result.data && Array.isArray(result.data)) setCategories(result.data);
+        }
+        fetchCategories();
+    }, []);
 
     // Cargar cuentas desde la base de datos
     useEffect(() => {
@@ -287,43 +304,18 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
     return (
         <div className="">
             <div className="container">
-
                 <div className="accounts-stack" id="accountsStack">
                     {accountsData.map((account, index) => {
                         const isCash = account.isCash || false;
                         const cashIconClass = isCash ? 'cash-icon' : '';
                         const cashBalanceClass = '';
                         const isActive = index === currentActiveIndex;
-
                         return (
-                            <div 
-                                key={account.id}
-                                className={`account-card ${isActive ? 'active' : ''}`}
-                                data-index={index}
-                                onClick={() => handleAccountClick(index)}
-                            >
+                            <div key={account.id} className={`account-card ${isActive ? 'active' : ''}`} data-index={index}>
                                 {/* Franja de color superior acorde al color de la cuenta */}
-                                <div
-                                    style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: 5,
-                                        backgroundColor: account.color || 'rgba(255,255,255,0.5)'
-                                    }}
-                                />
+                                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, backgroundColor: account.color || 'rgba(255,255,255,0.5)' }} />
                                 {/* Overlay de color de fondo con transparencia */}
-                                <div
-                                    style={{
-                                        position: 'absolute',
-                                        inset: 0,
-                                        backgroundColor: account.color || 'transparent',
-                                        opacity: 0.10,
-                                        zIndex: 0,
-                                        pointerEvents: 'none'
-                                    }}
-                                />
+                                <div style={{ position: 'absolute', inset: 0, backgroundColor: account.color || 'transparent', opacity: 0.10, zIndex: 0, pointerEvents: 'none' }} />
                                 <div className="account-header" style={{ position: 'relative', zIndex: 1 }}>
                                     <div className="account-type">
                                         <i className={`fas ${account.icon} account-icon ${cashIconClass}`}></i>
@@ -331,17 +323,12 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                         {account.isDefault && <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>⭐</span>}
                                     </div>
                                     {account.bank && (
-                                        <img
-                                            src={`https://via.placeholder.com/100x30/fff/000?text=${encodeURIComponent(account.bank)}`}
-                                            alt={account.bank}
-                                            className="account-logo"
-                                        />
+                                        <img src={`https://via.placeholder.com/100x30/fff/000?text=${encodeURIComponent(account.bank)}`} alt={account.bank} className="account-logo" />
                                     )}
                                 </div>
-                                <div className={`account-balance ${cashBalanceClass}`} style={{ position: 'relative', zIndex: 1 }}>
+                                <div className={`flex items-center justify-center ${cashBalanceClass}`} style={{ position: 'relative', zIndex: 1, fontSize: '2.3rem', fontWeight: '500', textShadow: '5px 4px 5px rgba(0,0,0,0.2)' }}>
                                     {account.balance}
                                 </div>
-                                {/* <div className="account-number">{account.number}</div> */}
                                 <div className="account-details" style={{ position: 'relative', zIndex: 1 }}>
                                     <div className="account-holder">
                                         <div className="label">Titular</div>
@@ -352,6 +339,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                         <div className="value">{account.status}</div>
                                     </div>
                                 </div>
+                                {/* Botón para agregar transacción y modal blendy independiente (moved) */}
                             </div>
                         );
                     })}
@@ -364,21 +352,26 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                     </button>
                 </div>
 
-                <div className="flex justify-center  gap-4">
-                    {/* <button className="swiper-button-next" onClick={handlePrevClick} disabled={totalAccounts <= 1}>
-                        <i className="fas fa-chevron-left"></i> Anterior
-                    </button>
-                    <button className="btn-slide" onClick={handleNextClick} disabled={totalAccounts <= 1}>
-                        Siguiente <i className="fas fa-chevron-right"></i>
-                    </button>*/}
-                    <BlendyButton
+                <div className="flex justify-center gap-4">
+                    {/* Modal para agregar transacción a la cuenta actualmente activa */}
+                    {accountsData[currentActiveIndex] && (
+                        <div className="flex flex-col items-center">
+                            <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} />
+                        </div>
+                    )}
+
+                    {/* Botón para agregar cuenta */}
+                    <div className="flex flex-col items-center">
+                        <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} />
+                    </div>
+                    {/* <BlendyButton
                         buttonText="+ Agregar Cuenta"
                         buttonVariant="slide"
                         buttonSize="sm"
                         modalTitle="Nueva Cuenta"
                         open={showForm}
                         onClose={() => setShowForm(false)}
-                        onClick={handleAddAccount}
+                        onClick={() => setShowForm(true)}
                         modalContent={(closeModal: () => void) => (
                             <div className="flex justify-center">
                                 <form onSubmit={(e) => handleSubmit(e, closeModal)} className="space-y-4">
@@ -389,7 +382,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                         required
                                         placeholder="Ej: Cuenta Principal, Tarjeta Visa"
                                     />
-
                                     <Select
                                         label="Tipo de cuenta"
                                         value={formData.type}
@@ -400,7 +392,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                             label: `${option.icon} ${option.label}`
                                         }))}
                                     />
-
                                     <div className="">
                                         <Input
                                             label="Balance inicial"
@@ -410,7 +401,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                             onChange={(e) => setFormData({ ...formData, balance: Number(e.target.value) })}
                                         />
                                     </div>
-
                                     {(
                                         formData.type === 'bank_account' ||
                                         formData.type === 'credit_card' ||
@@ -423,7 +413,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                                     onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
                                                     placeholder="Nombre del banco"
                                                 />
-
                                                 <Input
                                                     label="Últimos 4 dígitos"
                                                     value={formData.last_four_digits || ''}
@@ -433,7 +422,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                                 />
                                             </div>
                                         )}
-
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Color
@@ -450,7 +438,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                             ))}
                                         </div>
                                     </div>
-
                                     <div className="flex items-center">
                                         <Input
                                             type="checkbox"
@@ -463,9 +450,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                             Establecer como cuenta por defecto
                                         </label>
                                     </div>
-
                                     <div className="flex space-x-3">
-
                                         <button
                                             type="button"
                                             onClick={() => { setShowForm(false); closeModal(); }}
@@ -480,7 +465,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                 </form>
                             </div>
                         )}
-                    />
+                    /> */}
                 </div>
                 { /* <div className="account-counter">
                     <span>{currentActiveIndex + 1}</span> de <span>{totalAccounts}</span>
