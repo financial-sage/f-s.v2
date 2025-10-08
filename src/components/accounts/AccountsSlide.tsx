@@ -9,7 +9,7 @@ import BlendyButton from '../modal/blendy';
 import { Input, Select, Button } from '@/src/components/common';
 import AccountTransactionModal from '../transactions/modals/AddExpensesModal';
 import { Category } from '../../lib/supabase/categories';
-import AddAccountModal from '../transactions/modals/AddAccountModal';
+import AddAccountModal from './modal/AddAccountModal';
 
 interface AccountData {
     id: string;
@@ -362,7 +362,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
 
                     {/* Botón para agregar ingreso a la cuenta activa */}
                     <div className="flex flex-col items-center">
-                        <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} onSaved={loadAccounts} />
+                       
                     </div>
 
                     {/* Botón para agregar cuenta */}
