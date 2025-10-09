@@ -5,8 +5,6 @@ import { Account, NewAccount, AccountType } from '../../types/types';
 import { getUserAccounts, createAccount } from '../../lib/supabase/accounts';
 import { useSession } from '../../hooks/useSession';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import BlendyButton from '../modal/blendy';
-import { Input, Select, Button } from '@/src/components/common';
 import AccountTransactionModal from '../transactions/modals/AddExpensesModal';
 import { Category } from '../../lib/supabase/categories';
 import AddAccountModal from './modal/AddAccountModal';
@@ -25,6 +23,7 @@ interface AccountData {
     // Marca interna para identificar la tarjeta de saldo total
     isTotal?: boolean;
     color?: string;
+    name?: string;
 }
 
 interface AccountsSlideProps {
@@ -98,18 +97,19 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
             } else if (result.data) {
                 const accounts = result.data as Account[];
                 console.log(accounts);
-                    const convertedAccounts: AccountData[] = accounts.map(account => ({
+                const convertedAccounts: AccountData[] = accounts.map(account => ({
                     id: account.id,
-                        type: AccountTypeLabels[account.type] || account.name,
+                    type: account.type,
                     balance: formatAmount(account.balance),
                     number: account.last_four_digits ? `**** ${account.last_four_digits}` : account.name,
                     holder: session.user?.full_name || 'Usuario',
                     status: account.is_active ? (account.is_default ? 'Por defecto' : 'Activa') : 'Inactiva',
-                        icon: account.icon || AccountTypeIcons[account.type] || 'fa-university',
+                    icon: account.icon || AccountTypeIcons[account.type] || 'fa-university',
                     isCash: account.type === 'cash',
                     bank: account.bank_name,
                     isDefault: account.is_default,
-                    color: account.color
+                    color: account.color,
+                    name: account.name
                 }));
                 // Crear tarjeta de Saldo Total al inicio
                 const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
@@ -245,11 +245,11 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         return (
             <div className="">
                 <div className="container">
-                    
+
                     <div className="accounts-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <div style={{ color: 'white', fontSize: '2rem' }}>
                             <div className="loader"></div>
-                            
+
                         </div>
                     </div>
                 </div>
@@ -319,7 +319,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                                 <div className="account-header" style={{ position: 'relative', zIndex: 1 }}>
                                     <div className="account-type">
                                         <i className={`fas ${account.icon} account-icon ${cashIconClass}`}></i>
-                                        <span>{account.type}</span>
+                                        <span>{account.name || account.type}</span>
                                         {account.isDefault && <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>⭐</span>}
                                     </div>
                                     {account.bank && (
@@ -354,127 +354,25 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
 
                 <div className="flex justify-center gap-4 border border-white/10 rounded-lg p-2">
                     {/* Modal para agregar gasto a la cuenta actualmente activa */}
-                    {accountsData[currentActiveIndex] && (
+                    {accountsData[currentActiveIndex].type === 'bank_account' || accountsData[currentActiveIndex].type === 'cash' ? (
                         <div className="flex flex-col items-center">
                             <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} type="expense" />
                         </div>
-                    )}
+                    ) : null}
 
-                    {/* Botón para agregar ingreso a la cuenta activa */}
-                    <div className="flex flex-col items-center">
-                       <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} type="income" />
-                    </div>
+                    {accountsData[currentActiveIndex].type !== 'Saldo Total'  ? (
+                        <div className="flex flex-col items-center">
+                            <AccountTransactionModal accountId={accountsData[currentActiveIndex].id} categories={categories} type="income" />
+                        </div>
+                    ) : null}
 
                     {/* Botón para agregar cuenta */}
                     <div className="flex flex-col items-center">
                         <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} onSaved={loadAccounts} />
                     </div>
-                    {/* <BlendyButton
-                        buttonText="+ Agregar Cuenta"
-                        buttonVariant="slide"
-                        buttonSize="sm"
-                        modalTitle="Nueva Cuenta"
-                        open={showForm}
-                        onClose={() => setShowForm(false)}
-                        onClick={() => setShowForm(true)}
-                        modalContent={(closeModal: () => void) => (
-                            <div className="flex justify-center">
-                                <form onSubmit={(e) => handleSubmit(e, closeModal)} className="space-y-4">
-                                    <Input
-                                        label="Nombre de la cuenta"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        required
-                                        placeholder="Ej: Cuenta Principal, Tarjeta Visa"
-                                    />
-                                    <Select
-                                        label="Tipo de cuenta"
-                                        value={formData.type}
-                                        onChange={(e) => setFormData({ ...formData, type: e.target.value as AccountType })}
-                                        required
-                                        options={AccountTypeOptions.map((option) => ({
-                                            value: option.value,
-                                            label: `${option.icon} ${option.label}`
-                                        }))}
-                                    />
-                                    <div className="">
-                                        <Input
-                                            label="Balance inicial"
-                                            type="number"
-                                            step="0.01"
-                                            value={formData.balance}
-                                            onChange={(e) => setFormData({ ...formData, balance: Number(e.target.value) })}
-                                        />
-                                    </div>
-                                    {(
-                                        formData.type === 'bank_account' ||
-                                        formData.type === 'credit_card' ||
-                                        formData.type === 'debit_card'
-                                    ) && (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <Input
-                                                    label="Banco"
-                                                    value={formData.bank_name || ''}
-                                                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                                                    placeholder="Nombre del banco"
-                                                />
-                                                <Input
-                                                    label="Últimos 4 dígitos"
-                                                    value={formData.last_four_digits || ''}
-                                                    onChange={(e) => setFormData({ ...formData, last_four_digits: e.target.value })}
-                                                    placeholder="1234"
-                                                    maxLength={4}
-                                                />
-                                            </div>
-                                        )}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Color
-                                        </label>
-                                        <div className="flex space-x-2">
-                                            {AccountColors.map((color) => (
-                                                <button
-                                                    key={color}
-                                                    type="button"
-                                                    onClick={() => setFormData({ ...formData, color })}
-                                                    className={`w-8 h-8 rounded-full border-2 ${formData.color === color ? 'border-gray-800' : 'border-gray-300'}`}
-                                                    style={{ backgroundColor: color }}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <Input
-                                            type="checkbox"
-                                            id="is_default"
-                                            checked={formData.is_default}
-                                            onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                                            className=""
-                                        />
-                                        <label htmlFor="is_default" className="text-sm">
-                                            Establecer como cuenta por defecto
-                                        </label>
-                                    </div>
-                                    <div className="flex space-x-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setShowForm(false); closeModal(); }}
-                                            className="bg-white/8 pt-2 pb-2 rounded-full text-zinc-300 hover:bg-white/30 w-full items-center justify-center"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button type="submit" className="bg-green-500/8 pt-2 pb-2 rounded-full text-zinc-300 hover:bg-green-500/30 w-full items-center justify-center">
-                                            Crear Cuenta
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        )}
-                    /> */}
+
                 </div>
-                { /* <div className="account-counter">
-                    <span>{currentActiveIndex + 1}</span> de <span>{totalAccounts}</span>
-                </div>*/}
+
             </div>
         </div>
     );

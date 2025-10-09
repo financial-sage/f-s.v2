@@ -136,7 +136,7 @@ export default function AddAccountModal({ accountId, categories: propCategories,
                     blendy.current?.toggle('modal-addAccount')
                 }}
                 ariaLabel="Agregar cuenta"
-                icon={<CiCreditCard1 size={20} />}
+                icon={<CiCreditCard1 size={20} color="#6366f1" />}
                 label="+ Cuenta"
             />
         </div>

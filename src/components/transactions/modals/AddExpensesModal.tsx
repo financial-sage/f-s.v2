@@ -4,6 +4,7 @@ import { Blendy, createBlendy } from "blendy";
 import { Category, getUserCategories } from "@/src/lib/supabase/categories";
 import { supabase } from '@/src/lib/supabase/client';
 import { addTransaction, NewTransaction, getCategoryExpenses } from "@/src/lib/supabase/transactions";
+import { getUserAccounts, createAccount } from '@/src/lib/supabase/accounts';
 import { CategoryIcon } from "../../categories/CategoryIcons";
 import { CiReceipt } from "react-icons/ci";
 import IconCircleButton from '@/src/components/common/IconCircleButton';
@@ -73,6 +74,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
           setSelectedCategoryId={setSelectedCategoryId} 
           categoryExpenses={categoryExpenses}
           type={type}
+          accountId={accountId}
         />, document.body)
       }
       <IconCircleButton
@@ -82,7 +84,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
           blendy.current?.toggle(`modal-transaction-${type}`)
         }}
         ariaLabel={`Agregar ${type === 'expense' ? 'gasto' : 'ingreso'}`}
-        icon={type === 'expense' ? <GiPayMoney size={20} /> : <GiReceiveMoney size={20} />}
+        icon={type === 'expense' ? <GiPayMoney size={20} color="#f59e0b" /> : <GiReceiveMoney size={20} color="#4cbc3c" />}
         label={type === 'expense' ? '+ Gasto' : '+ Ingreso'}
       />
     </div>
@@ -90,7 +92,33 @@ export default function AccountTransactionModal({ accountId, categories: propCat
   )
 }
 
-function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses, type = 'expense' }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[], selectedCategoryId: string | null, setSelectedCategoryId: React.Dispatch<React.SetStateAction<string | null>>, categoryExpenses: Record<string, number>, type?: 'expense' | 'income' }) {
+interface Account {
+  id: string;
+  name: string;
+  balance: number;
+  currency: string;
+  type: string;
+}
+
+function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses, type = 'expense', accountId }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[], selectedCategoryId: string | null, setSelectedCategoryId: React.Dispatch<React.SetStateAction<string | null>>, categoryExpenses: Record<string, number>, type?: 'expense' | 'income', accountId: string }) {
+  const [account, setAccount] = useState<Account | null>(null);
+
+  useEffect(() => {
+    const loadAccount = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const accounts = await getUserAccounts(session.user.id);
+        if (accounts.data && Array.isArray(accounts.data)) {
+          const selectedAccount = accounts.data.find((acc: Account) => acc.id === accountId);
+          if (selectedAccount) setAccount(selectedAccount);
+        }
+      } catch (err) {
+        console.error('Error cargando cuenta:', err);
+      }
+    };
+    loadAccount();
+  }, [accountId]);
 
   // Helper: convierte hex a rgba con alpha
   const hexToRgba = (hex: string, alpha = 1) => {
@@ -110,10 +138,26 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
     <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to={`modal-transaction-${type}`}>
       <div>
         <div className="modal__header border-b border-zinc-700">
-          <h2 className="text-zinc-400">Agregar transacción</h2>
+          <h2 className="text-zinc-400">Agregar {type === 'expense' ? 'gasto' : 'ingreso'}</h2>
           <button className="modal__close" onClick={onClose}></button>
         </div>
         <div className="modal__content">
+          <div className="mb-4">
+            Desde:
+            <div className="dark:bg-white/5 p-2 rounded-md">
+              {/* Future: select account */}
+              <p className="text-zinc-400">
+                {account ? (
+                  <span className="flex items-center gap-2">
+                    <span className="font-semibold">{account.name}</span>
+                    <span className="text-sm opacity-75">({new Intl.NumberFormat('es-ES', { style: 'currency', currency: account.currency }).format(account.balance)})</span>
+                  </span>
+                ) : (
+                  'Cargando cuenta...'
+                )}
+              </p>
+            </div>
+          </div>
           {categories.length === 0 && <p className="text-zinc-400">No hay categorías disponibles. Por favor, crea una categoría primero.</p>}
           {categories.length > 0 && (
             <div className="grid md:grid-cols-6 lg:grid-cols-6 gap-4 dark:text-zinc-400">
