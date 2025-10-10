@@ -96,11 +96,10 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                 setAccountsData([]);
             } else if (result.data) {
                 const accounts = result.data as Account[];
-                console.log(accounts);
                 const convertedAccounts: AccountData[] = accounts.map(account => ({
                     id: account.id,
                     type: account.type,
-                    balance: formatAmount(account.balance),
+                    balance: formatAmount(account.balance || 0),
                     number: account.last_four_digits ? `**** ${account.last_four_digits}` : account.name,
                     holder: session.user?.full_name || 'Usuario',
                     status: account.is_active ? (account.is_default ? 'Por defecto' : 'Activa') : 'Inactiva',
@@ -112,7 +111,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                     name: account.name
                 }));
                 // Crear tarjeta de Saldo Total al inicio
-                const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+                const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
                 const totalCard: AccountData = {
                     id: 'total-balance',
                     type: 'Saldo Total',
@@ -141,9 +140,31 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         }
     };
 
+    // Cargar cuentas cuando cambie el usuario o cuando se monte el componente
     useEffect(() => {
         loadAccounts();
-    }, [session?.user?.id, formatAmount]);
+    }, [session?.user?.id]);
+
+    // Solo actualizar el formato de los números cuando cambie formatAmount
+    useEffect(() => {
+        if (accountsData.length > 0) {
+            // Actualizar los balances manteniendo los valores originales
+            const updatedAccounts = accountsData.map(account => {
+                const originalBalance = account.isTotal 
+                    ? accountsData.slice(1).reduce((sum, acc) => {
+                        const cleanNumber = acc.balance.replace(/[^0-9.-]+/g, '');
+                        return sum + parseFloat(cleanNumber);
+                      }, 0)
+                    : parseFloat(account.balance.replace(/[^0-9.-]+/g, ''));
+                
+                return {
+                    ...account,
+                    balance: formatAmount(originalBalance)
+                };
+            });
+            setAccountsData(updatedAccounts);
+        }
+    }, [formatAmount]);
 
     const totalAccounts = accountsData.length;
 

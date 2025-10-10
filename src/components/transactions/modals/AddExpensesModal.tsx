@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
 import { createPortal } from "react-dom";
 import { Blendy, createBlendy } from "blendy";
 import { Category, getUserCategories } from "@/src/lib/supabase/categories";
+import { CurrencyContext, CurrencyContextType } from "@/src/contexts/CurrencyContext";
 import { supabase } from '@/src/lib/supabase/client';
 import { addTransaction, NewTransaction, getCategoryExpenses } from "@/src/lib/supabase/transactions";
 import { getUserAccounts, createAccount } from '@/src/lib/supabase/accounts';
@@ -16,12 +17,23 @@ interface AccountTransactionModalProps {
   type?: 'expense' | 'income';
 }
 
+// Usar un estado global para el modal
+let modalState = {
+  isOpen: false,
+  id: null as string | null
+};
+
 export default function AccountTransactionModal({ accountId, categories: propCategories, type = 'expense' }: AccountTransactionModalProps) {
   const blendy = useRef<Blendy | null>(null)
-  const [showModal, setShowModal] = useState(false)
+  const [showModal, setShowModal] = useState(() => modalState.isOpen && modalState.id === accountId)
   const [categories, setCategories] = useState<Category[]>((propCategories || []).filter(c => c.type === type));
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
+  const currencyContext = useContext(CurrencyContext);
+  
+  if (!currencyContext) {
+    throw new Error('Currency context must be used within CurrencyProvider');
+  }
 
   useEffect(() => {
     blendy.current = createBlendy({ animation: 'dynamic' })
@@ -58,7 +70,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
       }
     };
     loadExpenses();
-  }, [showModal]);
+  }, [showModal, currencyContext.currency]); // Agregamos la moneda como dependencia
 
   return (
     <div>
@@ -67,7 +79,9 @@ export default function AccountTransactionModal({ accountId, categories: propCat
           categories={categories} 
           onClose={() => {
             blendy.current?.untoggle(`modal-transaction-${type}`, () => {
-              setShowModal(false)
+              modalState.isOpen = false;
+              modalState.id = null;
+              setShowModal(false);
             })
           }} 
           selectedCategoryId={selectedCategoryId} 
@@ -75,12 +89,15 @@ export default function AccountTransactionModal({ accountId, categories: propCat
           categoryExpenses={categoryExpenses}
           type={type}
           accountId={accountId}
+          currencyContext={currencyContext}
         />, document.body)
       }
       <IconCircleButton
         data-blendy-from={`modal-transaction-${type}`}
         onClick={() => {
-          setShowModal(true)
+          modalState.isOpen = true;
+          modalState.id = accountId;
+          setShowModal(true);
           blendy.current?.toggle(`modal-transaction-${type}`)
         }}
         ariaLabel={`Agregar ${type === 'expense' ? 'gasto' : 'ingreso'}`}
@@ -100,7 +117,18 @@ interface Account {
   type: string;
 }
 
-function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses, type = 'expense', accountId }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[], selectedCategoryId: string | null, setSelectedCategoryId: React.Dispatch<React.SetStateAction<string | null>>, categoryExpenses: Record<string, number>, type?: 'expense' | 'income', accountId: string }) {
+interface ModalProps {
+  onClose: React.MouseEventHandler<HTMLElement>;
+  categories: Category[];
+  selectedCategoryId: string | null;
+  setSelectedCategoryId: React.Dispatch<React.SetStateAction<string | null>>;
+  categoryExpenses: Record<string, number>;
+  type?: 'expense' | 'income';
+  accountId: string;
+  currencyContext: CurrencyContextType;
+}
+
+function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses, type = 'expense', accountId, currencyContext }: ModalProps) {
   const [account, setAccount] = useState<Account | null>(null);
 
   useEffect(() => {
@@ -118,7 +146,7 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
       }
     };
     loadAccount();
-  }, [accountId]);
+  }, [accountId, currencyContext.currency]); // Agregamos la moneda como dependencia
 
   // Helper: convierte hex a rgba con alpha
   const hexToRgba = (hex: string, alpha = 1) => {
@@ -150,7 +178,7 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
                 {account ? (
                   <span className="flex items-center gap-2">
                     <span className="font-semibold">{account.name}</span>
-                    <span className="text-sm opacity-75">({new Intl.NumberFormat('es-ES', { style: 'currency', currency: account.currency }).format(account.balance)})</span>
+                    <span className="text-sm opacity-75">({currencyContext.formatAmount(account.balance)})</span>
                   </span>
                 ) : (
                   'Cargando cuenta...'

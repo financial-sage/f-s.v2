@@ -20,14 +20,14 @@ export const CURRENCIES: Currency[] = [
   { code: 'BRL', name: 'Real Brasileño', symbol: 'R$', locale: 'pt-BR' },
 ];
 
-interface CurrencyContextType {
+export interface CurrencyContextType {
   currency: Currency;
   setCurrency: (currency: Currency) => void;
   formatAmount: (amount: number, showSymbol?: boolean) => string;
   formatAmountWithType: (amount: number, type: 'income' | 'expense' | 'transfer') => string;
 }
 
-const CurrencyContext = createContext<CurrencyContextType | null>(null);
+export const CurrencyContext = createContext<CurrencyContextType | null>(null);
 
 interface CurrencyProviderProps {
   children: ReactNode;
