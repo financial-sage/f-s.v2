@@ -6,11 +6,11 @@ interface BlendyButtonProps {
     buttonText?: string;
     modalTitle?: string;
     modalContent?: ReactNode | ((closeModal: () => void) => ReactNode);
-    buttonVariant?: 
-        | 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'dark' | 'light'
-        | 'outline-primary' | 'outline-secondary' | 'outline-success' | 'outline-danger' 
-        | 'outline-warning' | 'outline-info' | 'outline-dark' | 'outline-light'
-        | 'ghost-primary' | 'ghost-secondary' | 'ghost-success' | 'ghost-danger' | 'slide';
+    buttonVariant?:
+    | 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'dark' | 'light'
+    | 'outline-primary' | 'outline-secondary' | 'outline-success' | 'outline-danger'
+    | 'outline-warning' | 'outline-info' | 'outline-dark' | 'outline-light'
+    | 'ghost-primary' | 'ghost-secondary' | 'ghost-success' | 'ghost-danger' | 'slide';
     buttonSize?: 'sm' | 'lg' | 'xl';
     open?: boolean;
     onClose?: () => void;
@@ -18,8 +18,8 @@ interface BlendyButtonProps {
 }
 
 
-export default function BlendyButton({ 
-    buttonText = "Open", 
+export default function BlendyButton({
+    buttonText = "Open",
     modalTitle = "Modal",
     modalContent = <p>Contenido del modal por defecto</p>,
     buttonVariant = 'primary',
@@ -75,19 +75,19 @@ export default function BlendyButton({
     return (
         <div>
             {isModalOpen && createPortal(
-                <Modal 
-                    onClose={handleCloseModal} 
+                <Modal
+                    onClose={handleCloseModal}
                     title={modalTitle}
                     content={modalContent}
                     closeModal={handleCloseModal}
                     isClosing={isClosing}
-                />, 
+                />,
                 document.body
             )}
-            <button 
+            <button
                 className='btn-slide'
-                style={{ cursor: 'pointer'}}
-                data-blendy-from="example" 
+                style={{ cursor: 'pointer' }}
+                data-blendy-from="example"
                 onClick={handleOpenModal}
             >
                 <span>{buttonText}</span>
@@ -115,11 +115,11 @@ export function Modal({ onClose, title = "Modal", content, closeModal, isClosing
 
     // Recibe isClosing como prop
     return (
-        <div className={`modal z-50 border border-zinc-700${(typeof isClosing !== 'undefined' && isClosing) ? ' modal-closing' : ' modal-opening'}`} style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
-            <div>
+        <div className="fixed inset-0 bg-black/70 z-40">
+            <div className={`modal z-50 border border-zinc-700${(typeof isClosing !== 'undefined' && isClosing) ? ' modal-closing' : ' modal-opening'}`} style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
                 <div className="modal__header border-b border-zinc-700">
                     <h2 className="text-zinc-400">{title}</h2>
-                    <button 
+                    <button
                         className="modal__close"
                         onClick={onClose}
                     ></button>

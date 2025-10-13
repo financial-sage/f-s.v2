@@ -148,8 +148,8 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
     const [selectedAccountType, setSelectedAccountType] = useState<string>('');
 
     return (
-        <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-addAccount">
-            <div>
+        <div className="fixed inset-0 bg-black/70 z-40">
+            <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-addAccount">
                 <div className="modal__header border-b border-zinc-700">
                     <h2 className="text-zinc-400">Agregar transacción</h2>
                     <button className="modal__close" onClick={onClose}></button>

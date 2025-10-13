@@ -8,6 +8,7 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import AccountTransactionModal from '../transactions/modals/AddExpensesModal';
 import { Category } from '../../lib/supabase/categories';
 import AddAccountModal from './modal/AddAccountModal';
+import AddTransferModal from '../transactions/modals/AddTransferModal';
 
 interface AccountData {
     id: string;
@@ -390,6 +391,10 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                     {/* Botón para agregar cuenta */}
                     <div className="flex flex-col items-center">
                         <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} onSaved={loadAccounts} />
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                        <AddTransferModal/>
                     </div>
 
                 </div>

@@ -30,7 +30,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
   const currencyContext = useContext(CurrencyContext);
-  
+
   if (!currencyContext) {
     throw new Error('Currency context must be used within CurrencyProvider');
   }
@@ -75,17 +75,17 @@ export default function AccountTransactionModal({ accountId, categories: propCat
   return (
     <div>
       {showModal
-        && createPortal(<Modal 
-          categories={categories} 
+        && createPortal(<Modal
+          categories={categories}
           onClose={() => {
             blendy.current?.untoggle(`modal-transaction-${type}`, () => {
               modalState.isOpen = false;
               modalState.id = null;
               setShowModal(false);
             })
-          }} 
-          selectedCategoryId={selectedCategoryId} 
-          setSelectedCategoryId={setSelectedCategoryId} 
+          }}
+          selectedCategoryId={selectedCategoryId}
+          setSelectedCategoryId={setSelectedCategoryId}
           categoryExpenses={categoryExpenses}
           type={type}
           accountId={accountId}
@@ -105,7 +105,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
         label={type === 'expense' ? '+ Gasto' : '+ Ingreso'}
       />
     </div>
-    
+
   )
 }
 
@@ -163,8 +163,8 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
   };
 
   return (
-    <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to={`modal-transaction-${type}`}>
-      <div>
+    <div className="fixed inset-0 bg-black/70 z-40">
+      <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to={`modal-transaction-${type}`}>
         <div className="modal__header border-b border-zinc-700">
           <h2 className="text-zinc-400">Agregar {type === 'expense' ? 'gasto' : 'ingreso'}</h2>
           <button className="modal__close" onClick={onClose}></button>
@@ -176,7 +176,7 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
               {/* Future: select account */}
               <p className="text-zinc-400">
                 {account ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     <span className="font-semibold">{account.name}</span>
                     <span className="text-sm opacity-75">({currencyContext.formatAmount(account.balance)})</span>
                   </span>
@@ -188,7 +188,7 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
           </div>
           {categories.length === 0 && <p className="text-zinc-400">No hay categorías disponibles. Por favor, crea una categoría primero.</p>}
           {categories.length > 0 && (
-            <div className="grid md:grid-cols-6 lg:grid-cols-6 gap-4 dark:text-zinc-400">
+            <div className="grid md:grid-cols-7 lg:grid-cols-7 gap-2 dark:text-zinc-400">
 
               {categories.filter(c => c.type === type).map((option) => {
                 const isSelected = selectedCategoryId === option.id;
