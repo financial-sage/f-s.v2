@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import styles from '@/scss/modules/transactionsView.module.scss';
 import { useTransactionContext } from '@/src/contexts/TransactionContext';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
@@ -191,6 +191,16 @@ function EmptyState() {
 
 export default function TransactionsView() {
     const { transactions, loading, error, refetch } = useTransactionContext();
+
+    // Escuchar eventos de actualización
+    useEffect(() => {
+        const handleDashboardUpdate = () => {
+            refetch();
+        };
+
+        window.addEventListener('dashboard:update' as any, handleDashboardUpdate);
+        return () => window.removeEventListener('dashboard:update' as any, handleDashboardUpdate);
+    }, [refetch]);
 
     // Mostrar estado de carga si las transacciones están cargando
     if (loading) {

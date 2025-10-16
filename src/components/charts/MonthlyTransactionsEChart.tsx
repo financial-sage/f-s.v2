@@ -27,6 +27,35 @@ export default function MonthlyTransactionsEChart({ height = 260, mock = true }:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seriesData, setSeriesData] = useState<{ name: string; color?: string; data: number[] }[]>([]);
+
+  // Escuchar eventos de actualización
+  useEffect(() => {
+    const fetchAndUpdateData = async () => {
+      // Render con datos mock si está habilitado
+      if (mock) {
+        // ... (el código mock existente)
+        return;
+      }
+      if (!session?.user?.id) { setLoading(false); return; }
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await getUserTransactionsWithCategories(session.user.id);
+        // ... (resto del código de fetchData)
+      } catch (e) {
+        setError('Error al cargar transacciones del mes');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleDashboardUpdate = () => {
+      fetchAndUpdateData();
+    };
+
+    window.addEventListener('dashboard:update' as any, handleDashboardUpdate);
+    return () => window.removeEventListener('dashboard:update' as any, handleDashboardUpdate);
+  }, [mock, session?.user?.id]);
   const [xAxisDays, setXAxisDays] = useState<string[]>([]);
   const [txType, setTxType] = useState<'expense' | 'income'>('expense');
   const [monthOffset, setMonthOffset] = useState<number>(0); // 0: mes actual, 1: mes pasado, etc.

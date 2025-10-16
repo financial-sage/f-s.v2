@@ -6,15 +6,22 @@ import { CurrencyContext, CurrencyContextType } from "@/src/contexts/CurrencyCon
 import { supabase } from '@/src/lib/supabase/client';
 import { addTransaction, NewTransaction, getCategoryExpenses } from "@/src/lib/supabase/transactions";
 import { getUserAccounts, createAccount } from '@/src/lib/supabase/accounts';
+import { Account } from '@/src/types/types';
 import { CategoryIcon } from "../../categories/CategoryIcons";
-import { CiReceipt } from "react-icons/ci";
+import { CiCreditCard1, CiReceipt } from "react-icons/ci";
 import IconCircleButton from '@/src/components/common/IconCircleButton';
 import { GiPayMoney, GiReceiveMoney } from "react-icons/gi";
+import { MdOutlineChangeCircle } from "react-icons/md";
+import AccountSelectorModal from "../../accounts/modal/AccountSelectorModal";
+import { Input } from "../../common";
 
 interface AccountTransactionModalProps {
   accountId: string;
   categories?: Category[];
   type?: 'expense' | 'income';
+  onAccountChange?: (newAccountId: string) => void;
+  onTransactionSaved?: () => void;
+  onDashboardUpdate?: () => void; // Nueva prop para actualizar todo el dashboard
 }
 
 // Usar un estado global para el modal
@@ -23,7 +30,7 @@ let modalState = {
   id: null as string | null
 };
 
-export default function AccountTransactionModal({ accountId, categories: propCategories, type = 'expense' }: AccountTransactionModalProps) {
+export default function AccountTransactionModal({ accountId, categories: propCategories, type = 'expense', onAccountChange, onTransactionSaved, onDashboardUpdate }: AccountTransactionModalProps) {
   const blendy = useRef<Blendy | null>(null)
   const [showModal, setShowModal] = useState(() => modalState.isOpen && modalState.id === accountId)
   const [categories, setCategories] = useState<Category[]>((propCategories || []).filter(c => c.type === type));
@@ -90,6 +97,9 @@ export default function AccountTransactionModal({ accountId, categories: propCat
           type={type}
           accountId={accountId}
           currencyContext={currencyContext}
+          onAccountChange={onAccountChange}
+          onTransactionSaved={onTransactionSaved}
+          onDashboardUpdate={onDashboardUpdate}
         />, document.body)
       }
       <IconCircleButton
@@ -109,13 +119,7 @@ export default function AccountTransactionModal({ accountId, categories: propCat
   )
 }
 
-interface Account {
-  id: string;
-  name: string;
-  balance: number;
-  currency: string;
-  type: string;
-}
+// Using Account type from src/types/types.ts
 
 interface ModalProps {
   onClose: React.MouseEventHandler<HTMLElement>;
@@ -126,10 +130,17 @@ interface ModalProps {
   type?: 'expense' | 'income';
   accountId: string;
   currencyContext: CurrencyContextType;
+  onAccountChange?: (newAccountId: string) => void;
+  onTransactionSaved?: () => void;
+  onDashboardUpdate?: () => void;
 }
 
-function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses, type = 'expense', accountId, currencyContext }: ModalProps) {
+function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId, categoryExpenses, type = 'expense', accountId, currencyContext, onAccountChange, onTransactionSaved, onDashboardUpdate }: ModalProps) {
   const [account, setAccount] = useState<Account | null>(null);
+  const [amount, setAmount] = useState<string>('');
+  const [note, setNote] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadAccount = async () => {
@@ -149,6 +160,71 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
   }, [accountId, currencyContext.currency]); // Agregamos la moneda como dependencia
 
   // Helper: convierte hex a rgba con alpha
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCategoryId) {
+      setError('Por favor selecciona una categoría');
+      return;
+    }
+    if (!amount || isNaN(parseFloat(amount))) {
+      setError('Por favor ingresa un monto válido');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('No hay sesión activa');
+        return;
+      }
+
+      const newTransaction: NewTransaction = {
+        amount: parseFloat(amount),
+        category_id: selectedCategoryId,
+        account_id: accountId,
+        description: note || undefined,
+        type: type,
+        date: new Date().toISOString()
+      };
+
+      const result = await addTransaction(session.user.id, newTransaction);
+      
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      // Llamar a todas las funciones de actualización
+      if (onTransactionSaved) {
+        onTransactionSaved();
+      }
+      
+      // Disparar evento de actualización del dashboard
+      const updateEvent = new CustomEvent('dashboard:update', {
+        detail: {
+          accountId: accountId,
+          type: type
+        }
+      });
+      window.dispatchEvent(updateEvent);
+
+      // Limpiar el formulario y cerrar el modal
+      setAmount('');
+      setNote('');
+      setSelectedCategoryId(null);
+      onClose({} as React.MouseEvent<HTMLElement>);
+
+    } catch (err) {
+      setError('Error al guardar la transacción');
+      console.error('Error guardando transacción:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const hexToRgba = (hex: string, alpha = 1) => {
     try {
       const h = hex.replace('#', '');
@@ -172,24 +248,37 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
         <div className="modal__content">
           <div className="mb-4">
             Desde:
-            <div className="dark:bg-white/5 p-2 rounded-md">
+            <div className="dark:bg-black/5 p-2 rounded-md grid lg:grid-cols-2 gap-2">
               {/* Future: select account */}
-              <p className="text-zinc-400">
+              <div className="text-zinc-400 dark:bg-white/5 rounded-md">
                 {account ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="font-semibold">{account.name}</span>
-                    <span className="text-sm opacity-75">({currencyContext.formatAmount(account.balance)})</span>
+                  <span className="flex items-center justify-center gap-2 p-2">
+                    <i style={{color : `${account.color}`}} className={`fas ${account.icon} text-zinc-400 dark:bg-black/20 p-2 rounded-md`}></i>
+                    <span className="text-sm opacity-75"><b>{account.name}</b>({currencyContext.formatAmount(account.balance)})</span>
                   </span>
                 ) : (
                   'Cargando cuenta...'
                 )}
-              </p>
+              </div>
+              <div className="flex items-center justify-center max-w-15">
+                <AccountSelectorModal 
+                  type={type}
+                  currentAccountId={accountId}
+                  onAccountSelect={(newAccountId) => {
+                    // TODO: Implementar la lógica para cambiar la cuenta seleccionada
+                    console.log('Cambiando a cuenta:', newAccountId);
+                    // Aquí deberías actualizar el estado o manejar el cambio de cuenta
+                    if (onAccountChange) {
+                      onAccountChange(newAccountId);
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
           {categories.length === 0 && <p className="text-zinc-400">No hay categorías disponibles. Por favor, crea una categoría primero.</p>}
           {categories.length > 0 && (
-            <div className="grid md:grid-cols-7 lg:grid-cols-7 gap-2 dark:text-zinc-400">
-
+            <div className="grid md:grid-cols-7 lg:grid-cols-7 gap-2 dark:text-zinc-400 m-2">
               {categories.filter(c => c.type === type).map((option) => {
                 const isSelected = selectedCategoryId === option.id;
 
@@ -229,6 +318,48 @@ function Modal({ onClose, categories, selectedCategoryId, setSelectedCategoryId,
             </div>
           )}
         </div>
+        <form onSubmit={handleSubmit} className="ml-6 mr-6 mb-4 space-y-2">
+          {error && (
+            <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">
+              {error}
+            </div>
+          )}
+          
+          <Input 
+            placeholder="Cantidad" 
+            type="number" 
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+            autoFocus 
+          />
+          
+          <Input 
+            placeholder="Descripción" 
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          
+          <button 
+            type="submit"
+            disabled={isSubmitting || !selectedCategoryId}
+            className={`w-full pt-2 pb-2 rounded-full text-zinc-300 transition-colors ${
+              isSubmitting || !selectedCategoryId
+                ? 'bg-zinc-600/20 cursor-not-allowed'
+                : type === 'expense'
+                  ? 'bg-red-500/20 hover:bg-red-500/30'
+                  : 'bg-green-500/20 hover:bg-green-500/30'
+            }`}
+          >
+            {isSubmitting 
+              ? 'Guardando...' 
+              : type === 'expense'
+                ? 'Guardar Gasto'
+                : 'Guardar Ingreso'
+            }
+          </button>
+        </form>
       </div>
     </div>
   )
