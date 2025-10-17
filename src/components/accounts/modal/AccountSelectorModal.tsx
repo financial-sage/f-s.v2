@@ -14,6 +14,7 @@ interface AccountSelectorModalProps {
     type?: 'expense' | 'income';
     onAccountSelect?: (accountId: string) => void;
     currentAccountId?: string; // ID de la cuenta actualmente seleccionada
+    onTransactionComplete?: () => void;
 }
 
 interface ModalProps {
@@ -22,9 +23,10 @@ interface ModalProps {
     type: 'expense' | 'income';
     onAccountSelect?: (accountId: string) => void;
     currentAccountId?: string;
+    onTransactionComplete?: () => void;
 }
 
-function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId }: ModalProps) {
+function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onTransactionComplete }: ModalProps) {
     const currencyContext = useContext(CurrencyContext);
 
     if (!currencyContext) {
@@ -48,6 +50,9 @@ function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId }: M
     const handleAccountSelect = (accountId: string) => {
         if (onAccountSelect) {
             onAccountSelect(accountId);
+        }
+        if (onTransactionComplete) {
+            onTransactionComplete();
         }
         onClose();
     };
@@ -93,7 +98,7 @@ function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId }: M
     );
 }
 
-export default function AccountSelectorModal({ type = 'expense', onAccountSelect, currentAccountId }: AccountSelectorModalProps) {
+export default function AccountSelectorModal({ type = 'expense', onAccountSelect, currentAccountId, onTransactionComplete }: AccountSelectorModalProps) {
     const blendy = useRef<Blendy | null>(null)
     const [showModal, setShowModal] = useState(false)
     const [accounts, setAccounts] = useState<Account[]>([])
@@ -137,6 +142,7 @@ export default function AccountSelectorModal({ type = 'expense', onAccountSelect
                     type={type}
                     onAccountSelect={onAccountSelect}
                     currentAccountId={currentAccountId}
+                    onTransactionComplete={onTransactionComplete}
                 />,
                 document.body
             )}

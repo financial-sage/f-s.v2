@@ -40,12 +40,6 @@ interface ModalProps {
   onTransactionComplete?: () => void;
 }
 
-// Usar un estado global para el modal
-let modalState = {
-  isOpen: false,
-  id: null as string | null
-};
-
 export default function AccountTransactionModal({ 
   accountId, 
   categories: propCategories, 
@@ -56,7 +50,7 @@ export default function AccountTransactionModal({
   onTransactionComplete 
 }: AccountTransactionModalProps) {
   const blendy = useRef<Blendy | null>(null)
-  const [showModal, setShowModal] = useState(() => modalState.isOpen && modalState.id === accountId)
+  const [showModal, setShowModal] = useState(false)
   const [categories, setCategories] = useState<Category[]>(propCategories || []);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
@@ -110,8 +104,6 @@ export default function AccountTransactionModal({
           categories={categories.filter(c => c.type === type)}
           onClose={() => {
             blendy.current?.untoggle(`modal-transaction-${type}`, () => {
-              modalState.isOpen = false;
-              modalState.id = null;
               setShowModal(false);
             })
           }}
@@ -125,26 +117,11 @@ export default function AccountTransactionModal({
           onTransactionSaved={onTransactionSaved}
           onDashboardUpdate={onDashboardUpdate}
           onTransactionComplete={onTransactionComplete}
-          modalType={type}
-          accountId={accountId}
-          currencyContext={currencyContext}
-          onAccountChange={onAccountChange}
-          onTransactionSaved={onTransactionSaved}
-          onDashboardUpdate={onDashboardUpdate}
-          onTransactionComplete={onTransactionComplete}
-          type={type}
-          accountId={accountId}
-          currencyContext={currencyContext}
-          onAccountChange={onAccountChange}
-          onTransactionSaved={onTransactionSaved}
-          onDashboardUpdate={onDashboardUpdate}
         />, document.body)
       }
       <IconCircleButton
         data-blendy-from={`modal-transaction-${type}`}
         onClick={() => {
-          modalState.isOpen = true;
-          modalState.id = accountId;
           setShowModal(true);
           blendy.current?.toggle(`modal-transaction-${type}`)
         }}
@@ -257,23 +234,24 @@ function Modal({
         return;
       }
 
-      // Llamar a todas las funciones de actualización
-      if (onTransactionSaved) {
-        onTransactionSaved();
-      }
-      
-      // Llamar al callback para mantener la tarjeta activa
-      if (onTransactionComplete) {
-        onTransactionComplete();
-      }
-      
-      // Disparar evento de actualización del dashboard
+      // Disparar evento de actualización del dashboard primero
       const updateEvent = new CustomEvent('dashboard:update', {
         detail: {
           accountId: accountId,
           type: modalType
         }
       });
+      window.dispatchEvent(updateEvent);
+
+      // Luego actualizar los datos
+      if (onTransactionSaved) {
+        await onTransactionSaved();
+      }
+      
+      // Finalmente, mantener la tarjeta activa después de todas las actualizaciones
+      if (onTransactionComplete) {
+        onTransactionComplete();
+      }
       window.dispatchEvent(updateEvent);
 
       // Limpiar el formulario y cerrar el modal

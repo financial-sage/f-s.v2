@@ -128,8 +128,10 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                 const withTotalFirst = [totalCard, ...convertedAccounts];
 
                 setAccountsData(withTotalFirst);
-                // Asegurar que la tarjeta de total se muestre primero
-                setCurrentActiveIndex(0);
+                // Solo reseteamos el índice si no hay un índice activo
+                if (currentActiveIndex === null || currentActiveIndex === undefined) {
+                    setCurrentActiveIndex(0);
+                }
             } else {
                 setAccountsData([]);
             }
