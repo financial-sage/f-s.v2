@@ -282,8 +282,8 @@ function Modal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-40">
-      <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to={`modal-transaction-${modalType}`}>
+    <div className="fixed inset-0 bg-black/70 z-40" suppressHydrationWarning>
+      <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to={`modal-transaction-${modalType}`} suppressHydrationWarning>
         <div className="modal__header border-b border-zinc-700">
           <h2 className="text-zinc-400">Agregar {modalType === 'expense' ? 'gasto' : 'ingreso'}</h2>
           <button className="modal__close" onClick={onClose}></button>
@@ -291,9 +291,9 @@ function Modal({
         <div className="modal__content">
           <div className="mb-4">
             Desde:
-            <div className="dark:bg-black/5 p-2 rounded-md grid lg:grid-cols-2 gap-2">
+            <div className="dark:bg-black/5 p-2 rounded-md grid lg:grid-cols-2 gap-2" suppressHydrationWarning>
               {/* Future: select account */}
-              <div className="text-zinc-400 dark:bg-white/5 rounded-md">
+              <div className="text-zinc-400 dark:bg-white/5 rounded-md" suppressHydrationWarning>
                 {account ? (
                   <span className="flex items-center justify-center gap-2 p-2">
                     <i style={{color : `${account.color}`}} className={`fas ${account.icon} text-zinc-400 dark:bg-black/20 p-2 rounded-md`}></i>
@@ -303,19 +303,33 @@ function Modal({
                   'Cargando cuenta...'
                 )}
               </div>
-              <div className="flex items-center justify-center max-w-15">
+              <div className="flex items-center justify-center max-w-50">
                 <AccountSelectorModal 
                   type={modalType}
                   currentAccountId={accountId}
-                  onAccountSelect={(newAccountId) => {
-                    // TODO: Implementar la lógica para cambiar la cuenta seleccionada
+                  onAccountSelect={async (newAccountId) => {
                     console.log('Cambiando a cuenta:', newAccountId);
-                    // Aquí deberías actualizar el estado o manejar el cambio de cuenta
-                    if (onAccountChange) {
-                      onAccountChange(newAccountId);
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (!session) return;
+                      
+                      const accounts = await getUserAccounts(session.user.id);
+                      if (accounts.data && Array.isArray(accounts.data)) {
+                        const selectedAccount = accounts.data.find((acc: Account) => acc.id === newAccountId);
+                        if (selectedAccount) {
+                          setAccount(selectedAccount); // Actualizamos el estado con la nueva cuenta
+                        }
+                      }
+
+                      if (onAccountChange) {
+                        onAccountChange(newAccountId);
+                      }
+                    } catch (err) {
+                      console.error('Error al cambiar de cuenta:', err);
                     }
                   }}
                 />
+                <label className="ml-2 text-sm">Cambiar cuenta</label>
               </div>
             </div>
           </div>
@@ -341,6 +355,7 @@ function Modal({
                     style={{ borderColor: isSelected ? option.color : 'transparent', boxShadow: isSelected ? `0 0 0 6px ${option.color}22` : undefined }}
                     aria-pressed={isSelected}
                     aria-checked={isSelected}
+                    suppressHydrationWarning
                   >
                     {/* Background soft layer */}
                     <div style={{ position: 'absolute', inset: 0, background: hexToRgba(option.color, 0.06), pointerEvents: 'none' }}></div>
@@ -361,7 +376,7 @@ function Modal({
             </div>
           )}
         </div>
-        <form onSubmit={handleSubmit} className="ml-6 mr-6 mb-4 space-y-2">
+        <form onSubmit={handleSubmit} className="ml-6 mr-6 mb-4 space-y-2 grid grid-cols-2 gap-2">
           {error && (
             <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">
               {error}

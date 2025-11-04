@@ -47,6 +47,7 @@ const menuData: MenuSection[] = [
             // },
             { id: 'Transacciones', title: 'Transacciones', href: '/transactions' },
             { id: 'Presupuestos', title: 'Presupuestos', href: '/budget' },
+            { id: 'ExpensesTracking', title: 'Seguimiento de Gastos', href: '/expenses-tracking' },
             { id: 'Cuentas', title: 'Cuentas', href: '/accounts' },
             { id: 'Savings', title: 'Ahorros', href: '/savings' }
 
@@ -59,6 +60,7 @@ const getActiveItemFromPath = (pathname: string): string => {
     if (pathname === '/dashboard') return 'dashboard';
     if (pathname === '/transactions') return 'Transacciones';
     if (pathname === '/budget') return 'Presupuestos';
+    if (pathname === '/expenses-tracking') return 'ExpensesTracking';
     if (pathname === '/accounts') return 'Cuentas';
     if (pathname === '/savings') return 'Savings';
     
