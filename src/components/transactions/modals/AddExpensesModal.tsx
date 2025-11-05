@@ -351,25 +351,58 @@ function Modal({
                     tabIndex={0}
                     onClick={() => { setSelectedCategoryId(option.id); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedCategoryId(option.id); } }}
-                    className={`relative overflow-hidden flex flex-col items-center dark:bg-white/5 dark:hover:bg-white/10 pt-2 rounded-lg cursor-pointer border-2 transition-all ${isSelected ? 'ring-2 ring-offset-2' : ''}`}
-                    style={{ borderColor: isSelected ? option.color : 'transparent', boxShadow: isSelected ? `0 0 0 6px ${option.color}22` : undefined }}
+                    className={`relative overflow-hidden flex flex-col items-center p-3 rounded-lg cursor-pointer border transition-all ${
+                      isSelected 
+                        ? 'bg-zinc-800/50 border-zinc-600' 
+                        : 'bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/30 hover:border-zinc-700'
+                    }`}
                     aria-pressed={isSelected}
                     aria-checked={isSelected}
                     suppressHydrationWarning
                   >
-                    {/* Background soft layer */}
-                    <div style={{ position: 'absolute', inset: 0, background: hexToRgba(option.color, 0.06), pointerEvents: 'none' }}></div>
-
-                    {/* Spent layer from bottom up */}
-                    {limit > 0 && (
-                      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: `${percent}%`, background: hexToRgba(option.color, 0.28), pointerEvents: 'none', transition: 'height 300ms ease' }} />
+                    {/* Borde superior sutil con el color cuando está seleccionado */}
+                    {isSelected && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '2px',
+                          background: option.color,
+                          pointerEvents: 'none',
+                        }}
+                      ></div>
                     )}
 
-                    <div className="text-2xl relative z-10"><CategoryIcon iconName={option.icon ?? 'default'} color={option.color} /></div>
-                    <div className="text-sm mt-1 relative z-10">{option.name}</div>
-                    {/* {limit > 0 && (
-                      <div className="text-xs mt-1 relative z-10 text-zinc-300">{`Gastado: ${spent} / ${limit} (${percent}%)`}</div>
-                    )} */}
+                    {/* Indicador de presupuesto gastado (barra inferior) */}
+                    {limit > 0 && (
+                      <div 
+                        style={{ 
+                          position: 'absolute', 
+                          left: 0, 
+                          right: 0, 
+                          bottom: 0, 
+                          height: '3px', 
+                          background: `linear-gradient(to right, ${option.color} ${percent}%, transparent ${percent}%)`,
+                          pointerEvents: 'none', 
+                          transition: 'all 300ms ease',
+                          opacity: 0.6
+                        }} 
+                      />
+                    )}
+
+                    <div className="text-2xl relative z-10 transition-all">
+                      <CategoryIcon 
+                        iconName={option.icon ?? 'default'} 
+                        color={isSelected ? option.color : '#71717a'} 
+                      />
+                    </div>
+                    <div className={`text-xs mt-1 relative z-10 transition-colors ${
+                      isSelected ? 'text-zinc-200' : 'text-zinc-500'
+                    }`}>
+                      {option.name}
+                    </div>
                   </div>
                 );
               })}

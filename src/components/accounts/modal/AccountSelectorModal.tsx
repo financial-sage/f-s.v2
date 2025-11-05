@@ -68,26 +68,39 @@ function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onT
                     <button className="modal__close" onClick={onClose}></button>
                 </div>
                 <div className="modal__content">
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                         {filteredAccounts.length === 0 ? (
-                            <p className="text-zinc-400 text-center">No hay cuentas disponibles</p>
+                            <p className="text-zinc-400 text-center py-4">No hay cuentas disponibles</p>
                         ) : (
                             filteredAccounts.map(account => (
                                 <div
                                     key={account.id}
-                                    className="hover:border hover:border-zinc-700 text-zinc-400 dark:bg-white/5 rounded-md cursor-pointer hover:bg-white/10 transition-colors"
+                                    className="relative group flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/50 hover:border-zinc-600"
                                     onClick={() => handleAccountSelect(account.id)}
                                 >
-                                    <span className="flex items-center gap-2 p-2">
+                                    {/* Indicador de color al hacer hover */}
+                                    <div
+                                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        style={{ background: account.color }}
+                                    ></div>
+                                    
+                                    <div className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-800/50">
                                         <i
-                                            style={{ color: account.color }}
-                                            className={`fa ${account.icon} text-zinc-400 p-2 rounded-md`}
+                                            className={`fa ${account.icon} text-lg transition-colors text-zinc-500 group-hover:text-[var(--icon-color)]`}
+                                            style={{ '--icon-color': account.color } as React.CSSProperties}
                                         />
-                                        <span className="text-sm opacity-75">
-                                            <b>{account.name}&nbsp;</b>
-                                            ({currencyContext.formatAmount(account.balance)})
-                                        </span>
-                                    </span>
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">
+                                            {account.name}
+                                        </div>
+                                        <div className="text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors">
+                                            {currencyContext.formatAmount(account.balance)}
+                                        </div>
+                                    </div>
+                                    
+                                    <i className="fas fa-chevron-right text-zinc-600 group-hover:text-zinc-400 transition-colors text-xs"></i>
                                 </div>
                             ))
                         )}

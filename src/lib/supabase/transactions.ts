@@ -164,7 +164,53 @@ export async function addTransaction(userId: string, tx: NewTransaction): Promis
 }
 
 /**
- * Actualiza una transacción existente
+ * Revierte los cambios de balance de una transacción
+ */
+async function revertTransactionBalance(tx: Transaction, userId: string): Promise<void> {
+  if (tx.status !== 'completed') return;
+  
+  if (tx.type === 'expense' && tx.account_id) {
+    // Devolver el dinero a la cuenta (revertir gasto)
+    await adjustAccountBalance(tx.account_id, userId, tx.amount);
+  } else if (tx.type === 'income' && tx.account_id) {
+    // Quitar el dinero de la cuenta (revertir ingreso)
+    await adjustAccountBalance(tx.account_id, userId, -tx.amount);
+  } else if (tx.type === 'transfer') {
+    // Revertir transferencia: devolver a origen, quitar de destino
+    if (tx.account_id) {
+      await adjustAccountBalance(tx.account_id, userId, tx.amount);
+    }
+    if (tx.destination_account_id) {
+      await adjustAccountBalance(tx.destination_account_id, userId, -tx.amount);
+    }
+  }
+}
+
+/**
+ * Aplica los cambios de balance de una transacción
+ */
+async function applyTransactionBalance(tx: Transaction, userId: string): Promise<void> {
+  if (tx.status !== 'completed') return;
+  
+  if (tx.type === 'expense' && tx.account_id) {
+    // Restar dinero de la cuenta
+    await adjustAccountBalance(tx.account_id, userId, -tx.amount);
+  } else if (tx.type === 'income' && tx.account_id) {
+    // Sumar dinero a la cuenta
+    await adjustAccountBalance(tx.account_id, userId, tx.amount);
+  } else if (tx.type === 'transfer') {
+    // Aplicar transferencia: restar de origen, sumar a destino
+    if (tx.account_id) {
+      await adjustAccountBalance(tx.account_id, userId, -tx.amount);
+    }
+    if (tx.destination_account_id) {
+      await adjustAccountBalance(tx.destination_account_id, userId, tx.amount);
+    }
+  }
+}
+
+/**
+ * Actualiza una transacción existente (sin ajuste de balance)
  */
 export async function updateTransaction(
   transactionId: string,
@@ -190,7 +236,72 @@ export async function updateTransaction(
 }
 
 /**
- * Elimina una transacción
+ * Actualiza una transacción con ajuste automático de balances
+ * Revierte los cambios de la transacción original y aplica los nuevos
+ */
+export async function updateTransactionWithBalanceAdjustment(
+  transactionId: string,
+  userId: string,
+  updates: Partial<NewTransaction>
+): Promise<TransactionResult> {
+  try {
+    // 1. Obtener transacción original
+    const { data: original, error: fetchError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (fetchError) throw fetchError;
+    if (!original) throw new Error('Transacción no encontrada');
+
+    // 2. Validaciones básicas
+    if (updates.type && updates.type !== original.type) {
+      throw new Error('No se puede cambiar el tipo de transacción');
+    }
+
+    if (updates.amount !== undefined && updates.amount <= 0) {
+      throw new Error('El monto debe ser mayor a cero');
+    }
+
+    // Validación especial para transferencias
+    if (original.type === 'transfer') {
+      const newAccountId = updates.account_id || original.account_id;
+      const newDestinationId = updates.destination_account_id || original.destination_account_id;
+      if (newAccountId === newDestinationId) {
+        throw new Error('No se puede transferir a la misma cuenta');
+      }
+    }
+
+    // 3. REVERTIR balances de la transacción original
+    await revertTransactionBalance(original as Transaction, userId);
+
+    // 4. ACTUALIZAR transacción en la base de datos
+    const { data: updated, error: updateError } = await supabase
+      .from('transactions')
+      .update(updates)
+      .eq('id', transactionId)
+      .eq('user_id', userId)
+      .select()
+      .maybeSingle();
+
+    if (updateError) throw updateError;
+    if (!updated) throw new Error('Error al actualizar la transacción');
+
+    // 5. APLICAR nuevos balances
+    await applyTransactionBalance(updated as Transaction, userId);
+
+    return { data: updated as Transaction };
+  } catch (error: unknown) {
+    let message = 'Error al actualizar la transacción';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
+  }
+}
+
+/**
+ * Elimina una transacción (sin ajuste de balance - uso interno)
  */
 export async function deleteTransaction(
   transactionId: string,
@@ -204,6 +315,49 @@ export async function deleteTransaction(
       .eq('user_id', userId); // Seguridad adicional
 
     if (error) throw error;
+    return {};
+  } catch (error: unknown) {
+    let message = 'Error al eliminar la transacción';
+    if (error instanceof Error) message = error.message;
+    return { error: { message } };
+  }
+}
+
+/**
+ * Elimina una transacción con ajuste automático de balances
+ * Esta función:
+ * 1. Obtiene la transacción original
+ * 2. Revierte los cambios de balance que hizo
+ * 3. Elimina la transacción de la base de datos
+ */
+export async function deleteTransactionWithBalanceAdjustment(
+  transactionId: string,
+  userId: string
+): Promise<{ error?: { message: string } }> {
+  try {
+    // 1. Obtener la transacción original
+    const { data: original, error: fetchError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+    if (!original) throw new Error('Transacción no encontrada');
+
+    // 2. Revertir los balances de la transacción
+    await revertTransactionBalance(original as Transaction, userId);
+
+    // 3. Eliminar la transacción
+    const { error: deleteError } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', transactionId)
+      .eq('user_id', userId);
+
+    if (deleteError) throw deleteError;
+
     return {};
   } catch (error: unknown) {
     let message = 'Error al eliminar la transacción';

@@ -7,14 +7,19 @@ import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
 import { Select } from '@/src/components/common';
 import { supabase } from '@/src/lib/supabase/client';
+import EditTransactionModal from '@/src/components/transactions/modals/EditTransactionModal';
 
 interface Transaction {
   id: string;
   amount: number;
   description: string | null;
   date: string;
-  category_id: string;
+  category_id: string | null;
   subcategory_id: string | null;
+  account_id: string | null;
+  destination_account_id: string | null;
+  type: 'income' | 'expense' | 'transfer';
+  status: 'pending' | 'completed' | 'canceled';
   account: {
     id: string;
     name: string;
@@ -56,6 +61,7 @@ export default function ExpensesTrackingPage() {
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
@@ -292,6 +298,10 @@ export default function ExpensesTrackingPage() {
           date: item.date,
           category_id: item.category_id,
           subcategory_id: item.subcategory_id,
+          account_id: item.account_id,
+          destination_account_id: item.destination_account_id,
+          type: item.type || 'expense',
+          status: item.status || 'completed',
           account: item.account_id && accountsMap[item.account_id] ? {
             id: accountsMap[item.account_id].id,
             name: accountsMap[item.account_id].name
@@ -1017,9 +1027,9 @@ export default function ExpensesTrackingPage() {
                 {transactions.map((transaction) => (
                   <li 
                     key={transaction.id} 
-                    className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0"
+                    className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0 group"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex flex-col flex-1 min-w-0">
                         <span className="text-sm text-gray-800 dark:text-white font-medium">
                           {transaction.description || 'Sin descripción'}
@@ -1034,10 +1044,17 @@ export default function ExpensesTrackingPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end ml-3">
+                      <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-red-600 dark:text-red-400">
                           -{formatAmount(transaction.amount)}
                         </span>
+                        <button
+                          onClick={() => setEditingTransaction(transaction)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
+                          title="Editar transacción"
+                        >
+                          <i className="fas fa-edit text-sm"></i>
+                        </button>
                       </div>
                     </div>
                   </li>
@@ -1047,6 +1064,29 @@ export default function ExpensesTrackingPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de edición */}
+      {editingTransaction && (
+        <EditTransactionModal
+          transaction={editingTransaction}
+          onClose={() => setEditingTransaction(null)}
+          onSaved={async () => {
+            setEditingTransaction(null);
+            // Recargar transacciones y cuentas sin recargar toda la página
+            setLoadingTransactions(true);
+            setLoadingAccounts(true);
+            
+            // Trigger reload by changing a dependency
+            setSelectedMonth(new Date(selectedMonth));
+            
+            // Small delay to ensure data is updated
+            setTimeout(() => {
+              setLoadingTransactions(false);
+              setLoadingAccounts(false);
+            }, 500);
+          }}
+        />
+      )}
     </div>
   );
 }
