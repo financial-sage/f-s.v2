@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Account, NewAccount, AccountType } from '../../types/types';
 import { getUserAccounts, createAccount } from '../../lib/supabase/accounts';
 import { useSession } from '../../hooks/useSession';
@@ -50,6 +51,7 @@ const AccountTypeLabels = {
 };
 
 export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
+    const router = useRouter();
     const { session } = useSession();
     const { formatAmount } = useCurrency();
     const [accountsData, setAccountsData] = useState<AccountData[]>([]);
@@ -194,6 +196,14 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         setShowForm(true);
     };
 
+    const handleCardClick = (account: AccountData) => {
+        // No redirigir si es la tarjeta de "Saldo Total"
+        if (account.isTotal) return;
+        
+        // Redirigir a expenses-tracking con el accountId como parámetro
+        router.push(`/expenses-tracking?accountId=${account.id}`);
+    };
+
     const AccountColors = [
         '#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
         '#ef4444', '#ec4899', '#84cc16', '#f97316', '#6b7280'
@@ -335,11 +345,52 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                         const cashBalanceClass = '';
                         const isActive = index === currentActiveIndex;
                         return (
-                            <div key={account.id} className={`account-card ${isActive ? 'active' : ''}`} data-index={index}>
+                            <div 
+                                key={account.id} 
+                                className={`account-card ${isActive ? 'active' : ''}`} 
+                                data-index={index}
+                                onClick={() => isActive && handleCardClick(account)}
+                                style={{ 
+                                    cursor: isActive && !account.isTotal ? 'pointer' : 'default',
+                                    transition: 'transform 0.2s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (isActive && !account.isTotal) {
+                                        e.currentTarget.style.transform = 'scale(1.02)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (isActive && !account.isTotal) {
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                    }
+                                }}
+                                title={isActive && !account.isTotal ? 'Click para ver detalles de gastos' : undefined}
+                            >
                                 {/* Franja de color superior acorde al color de la cuenta */}
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, backgroundColor: account.color || 'rgba(255,255,255,0.5)' }} />
                                 {/* Overlay de color de fondo con transparencia */}
                                 <div style={{ position: 'absolute', inset: 0, backgroundColor: account.color || 'transparent', opacity: 0.10, zIndex: 0, pointerEvents: 'none' }} />
+                                {/* Indicador de click (solo en tarjeta activa y no "Saldo Total") */}
+                                {isActive && !account.isTotal && (
+                                    <div style={{ 
+                                        position: 'absolute', 
+                                        top: '10px', 
+                                        right: '10px', 
+                                        zIndex: 10,
+                                        backgroundColor: 'rgba(59, 130, 246, 0.9)',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                                    }}>
+                                        <i className="fas fa-chart-line"></i>
+                                    </div>
+                                )}
                                 <div className="account-header" style={{ position: 'relative', zIndex: 1 }}>
                                     <div className="account-type">
                                         <i className={`fas ${account.icon} account-icon ${cashIconClass}`}></i>

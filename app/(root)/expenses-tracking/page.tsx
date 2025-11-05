@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useExpenseTracking } from '@/src/hooks/useExpenseTracking';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
@@ -30,6 +31,9 @@ interface Account {
 }
 
 export default function ExpensesTrackingPage() {
+  const searchParams = useSearchParams();
+  const accountIdFromUrl = searchParams.get('accountId');
+
   const {
     categories,
     isLoading,
@@ -42,11 +46,11 @@ export default function ExpensesTrackingPage() {
   } = useExpenseTracking();
 
   const { formatAmount } = useCurrency();
-  const [viewMode, setViewMode] = useState<'categories' | 'accounts'>('categories');
+  const [viewMode, setViewMode] = useState<'categories' | 'accounts'>(accountIdFromUrl ? 'accounts' : 'categories');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(accountIdFromUrl);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
