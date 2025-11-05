@@ -423,8 +423,8 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                               style={{
                                 position: 'absolute',
                                 top: 0,
-                                left: 0,
-                                right: 0,
+                                left: '0px',
+                                right: '0px',
                                 height: '2px',
                                 background: cat.color,
                                 pointerEvents: 'none',
@@ -486,11 +486,11 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                               <div
                                 style={{
                                   position: 'absolute',
-                                  left: 0,
+                                  left: '0px',
                                   top: '50%',
                                   transform: 'translateY(-50%)',
-                                  width: '3px',
-                                  height: '60%',
+                                  width: '2px',
+                                  height: '100%',
                                   background: color,
                                   borderRadius: '0 2px 2px 0',
                                   pointerEvents: 'none',
@@ -547,8 +547,8 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                               style={{
                                 position: 'absolute',
                                 top: 0,
-                                left: 0,
-                                right: 0,
+                                left: '0px',
+                                right: '0px',
                                 height: '2px',
                                 background: acc.color,
                                 pointerEvents: 'none',
@@ -603,8 +603,8 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                               style={{
                                 position: 'absolute',
                                 top: 0,
-                                left: 0,
-                                right: 0,
+                                left: '4px',
+                                right: '4px',
                                 height: '2px',
                                 background: acc.color,
                                 pointerEvents: 'none',
@@ -645,29 +645,37 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                             setAccountId(acc.id);
                           }
                         }}
-                        className={`relative overflow-hidden flex flex-col items-center dark:bg-white/5 dark:hover:bg-white/10 p-3 rounded-lg cursor-pointer border-2 transition-all ${
-                          isSelected ? 'ring-2 ring-offset-2 ring-offset-zinc-900' : ''
+                        className={`relative overflow-hidden flex flex-col items-center p-3 rounded-lg cursor-pointer border transition-all ${
+                          isSelected 
+                            ? 'bg-zinc-800/50 border-zinc-600' 
+                            : 'bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/30 hover:border-zinc-700'
                         }`}
-                        style={{
-                          borderColor: isSelected ? acc.color : 'transparent',
-                          boxShadow: isSelected ? `0 0 0 6px ${acc.color}22` : undefined,
-                        }}
                         aria-pressed={isSelected}
                         suppressHydrationWarning
                       >
-                        <div
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            background: hexToRgba(acc.color, 0.06),
-                            pointerEvents: 'none',
-                          }}
-                        ></div>
+                        {/* Borde superior con color cuando está seleccionado */}
+                        {isSelected && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: '0px',
+                              right: '0px',
+                              height: '2px',
+                              background: acc.color,
+                              pointerEvents: 'none',
+                            }}
+                          ></div>
+                        )}
                         <i
-                          className={`fas ${acc.icon} text-2xl relative z-10 mb-1`}
-                          style={{ color: acc.color }}
+                          className={`fas ${acc.icon} text-2xl relative z-10 mb-1 transition-colors`}
+                          style={{ color: isSelected ? acc.color : '#71717a' }}
                         ></i>
-                        <div className="text-xs relative z-10 text-center">{acc.name}</div>
+                        <div className={`text-xs relative z-10 text-center transition-colors ${
+                          isSelected ? 'text-zinc-200' : 'text-zinc-500'
+                        }`}>
+                          {acc.name}
+                        </div>
                       </div>
                     );
                   })}
@@ -688,7 +696,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') setStatus('pending');
                   }}
-                  className={`relative flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer border transition-all ${
+                  className={`relative overflow-hidden flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer border transition-all ${
                     status === 'pending'
                       ? 'bg-zinc-800/50 border-zinc-600'
                       : 'bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/30 hover:border-zinc-700'
@@ -721,7 +729,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') setStatus('completed');
                   }}
-                  className={`relative flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer border transition-all ${
+                  className={`relative overflow-hidden flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer border transition-all ${
                     status === 'completed'
                       ? 'bg-zinc-800/50 border-zinc-600'
                       : 'bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/30 hover:border-zinc-700'
@@ -754,7 +762,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') setStatus('canceled');
                   }}
-                  className={`relative flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer border transition-all ${
+                  className={`relative overflow-hidden flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer border transition-all ${
                     status === 'canceled'
                       ? 'bg-zinc-800/50 border-zinc-600'
                       : 'bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/30 hover:border-zinc-700'
