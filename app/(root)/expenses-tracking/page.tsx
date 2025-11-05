@@ -377,29 +377,35 @@ export default function ExpensesTrackingPage() {
       </div>
 
       {/* Tabs y Filtros */}
-      <div className="flex flex-col lg:flex-row lg:items-center w-full lg:justify-between border-b border-gray-300 dark:border-gray-600 pb-4 space-y-4 lg:space-y-0">
+      <div className="flex flex-col lg:flex-row lg:items-center w-full lg:justify-between pb-4 space-y-4 lg:space-y-0">
         <div className="flex items-center gap-4">
-          {/* Tabs */}
-          <div className="flex gap-2">
+          {/* Tabs - Material Design Style */}
+          <div className="relative inline-flex bg-transparent border-b-2 border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setViewMode('categories')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
+              className={`relative px-6 py-3 font-medium text-sm transition-all duration-300 ${
                 viewMode === 'categories'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
               }`}
             >
               Por Categorías
+              {viewMode === 'categories' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 transform transition-all duration-300" />
+              )}
             </button>
             <button
               onClick={() => setViewMode('accounts')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
+              className={`relative px-6 py-3 font-medium text-sm transition-all duration-300 ${
                 viewMode === 'accounts'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
               }`}
             >
               Por Cuentas
+              {viewMode === 'accounts' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 transform transition-all duration-300" />
+              )}
             </button>
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
