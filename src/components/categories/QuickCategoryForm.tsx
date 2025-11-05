@@ -170,21 +170,40 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
                   Icono
                 </label>
                 <div className="grid grid-cols-8 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 dark:border-gray-600 rounded-lg">
-                  {AVAILABLE_ICONS.slice(0, 32).map((icon) => (
-                    <button
-                      key={icon.name}
-                      type="button"
-                      onClick={() => setSelectedIcon(icon.name)}
-                      className={`p-2 rounded transition-all ${
-                        selectedIcon === icon.name
-                          ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-500'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                      title={icon.label}
-                    >
-                      <CategoryIcon iconName={icon.name} color={selectedColor} size={24} />
-                    </button>
-                  ))}
+                  {AVAILABLE_ICONS.slice(0, 32).map((icon) => {
+                    const isSelected = selectedIcon === icon.name;
+                    
+                    return (
+                      <button
+                        key={icon.name}
+                        type="button"
+                        onClick={() => setSelectedIcon(icon.name)}
+                        className={`relative overflow-hidden flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer border-2 transition-all ${
+                          isSelected ? 'ring-2 ring-offset-2' : 'hover:bg-gray-100 dark:hover:bg-white/10'
+                        }`}
+                        style={{
+                          borderColor: isSelected ? selectedColor : 'transparent',
+                          boxShadow: isSelected ? `0 0 0 6px ${selectedColor}22` : undefined
+                        }}
+                        title={icon.label}
+                      >
+                        {/* Background soft layer */}
+                        <div 
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: `${selectedColor}0F`,
+                            pointerEvents: 'none'
+                          }}
+                        />
+                        
+                        {/* Icon */}
+                        <div className="relative z-10">
+                          <CategoryIcon iconName={icon.name} color={selectedColor} size={24} />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

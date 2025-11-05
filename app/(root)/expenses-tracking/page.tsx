@@ -1,10 +1,24 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useExpenseTracking } from '@/src/hooks/useExpenseTracking';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
 import { Select } from '@/src/components/common';
+import { supabase } from '@/src/lib/supabase/client';
+
+interface Transaction {
+  id: string;
+  amount: number;
+  description: string | null;
+  date: string;
+  category_id: string;
+  subcategory_id: string | null;
+  account: {
+    id: string;
+    name: string;
+  } | null;
+}
 
 export default function ExpensesTrackingPage() {
   const {
@@ -21,6 +35,9 @@ export default function ExpensesTrackingPage() {
   const { formatAmount } = useCurrency();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
@@ -70,6 +87,132 @@ export default function ExpensesTrackingPage() {
   const activeCategory = selectedCategory 
     ? categories.find(cat => cat.id === selectedCategory)
     : null;
+
+  // Cargar transacciones cuando se selecciona una categoría o subcategoría
+  useEffect(() => {
+    const loadTransactions = async () => {
+      if (!selectedCategory) {
+        setTransactions([]);
+        return;
+      }
+
+      setLoadingTransactions(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.log('No hay sesión activa');
+          setLoadingTransactions(false);
+          return;
+        }
+
+        const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+        const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+
+        console.log('Cargando transacciones para:', {
+          userId: session.user.id,
+          categoryId: selectedCategory,
+          subcategoryId: selectedSubcategory,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        });
+
+        // Primero obtener las transacciones sin join
+        let query = supabase
+          .from('transactions')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .eq('type', 'expense')
+          .eq('status', 'completed')
+          .eq('category_id', selectedCategory)
+          .gte('date', startDate.toISOString())
+          .lte('date', endDate.toISOString())
+          .order('date', { ascending: false });
+
+        // Filtrar por subcategoría si está seleccionada
+        if (selectedSubcategory) {
+          query = query.eq('subcategory_id', selectedSubcategory);
+        }
+
+        const { data: transactionsData, error: transactionsError } = await query;
+
+        console.log('Resultado de transacciones:', { transactionsData, transactionsError });
+
+        if (transactionsError) {
+          console.error('Error de Supabase:', transactionsError);
+          throw transactionsError;
+        }
+
+        if (!transactionsData || transactionsData.length === 0) {
+          console.log('No se encontraron transacciones');
+          setTransactions([]);
+          setLoadingTransactions(false);
+          return;
+        }
+
+        // Obtener las cuentas relacionadas
+        const accountIds = [...new Set(transactionsData.map(t => t.account_id).filter(Boolean))];
+        console.log('Account IDs a buscar:', accountIds);
+
+        let accountsMap: Record<string, any> = {};
+        
+        if (accountIds.length > 0) {
+          const { data: accountsData, error: accountsError } = await supabase
+            .from('accounts')
+            .select('id, name')
+            .in('id', accountIds);
+
+          console.log('Resultado de accounts:', { accountsData, accountsError });
+
+          if (!accountsError && accountsData) {
+            accountsMap = accountsData.reduce((acc, account) => {
+              acc[account.id] = account;
+              return acc;
+            }, {} as Record<string, any>);
+          }
+        }
+        
+        // Transform data to match Transaction interface
+        const transformedData = transactionsData.map((item: any) => ({
+          id: item.id,
+          amount: item.amount,
+          description: item.description,
+          date: item.date,
+          category_id: item.category_id,
+          subcategory_id: item.subcategory_id,
+          account: item.account_id && accountsMap[item.account_id] ? {
+            id: accountsMap[item.account_id].id,
+            name: accountsMap[item.account_id].name
+          } : null
+        }));
+        
+        console.log('Transacciones transformadas:', transformedData);
+        setTransactions(transformedData);
+      } catch (err) {
+        console.error('Error cargando transacciones:', err);
+        setTransactions([]);
+      } finally {
+        setLoadingTransactions(false);
+      }
+    };
+
+    loadTransactions();
+  }, [selectedCategory, selectedSubcategory, selectedMonth]);
+
+  // Resetear subcategoría al cambiar de categoría
+  useEffect(() => {
+    setSelectedSubcategory(null);
+  }, [selectedCategory]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Cargando gastos...</div>;
@@ -152,10 +295,10 @@ export default function ExpensesTrackingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Iconos de categorías en el lado izquierdo */}
-        <div className="lg:col-span-1">
-          <div className="dark:bg-white/5 rounded-md p-4 shadow-lg">
+        <div className="lg:col-span-2">
+          <div className="dark:bg-white/5 rounded-md p-4 shadow-lg sticky top-6">
             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Categorías</h3>
             {categories.length === 0 ? (
               <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
@@ -171,7 +314,10 @@ export default function ExpensesTrackingPage() {
                   return (
                     <button
                       key={category.id}
-                      onClick={() => setSelectedCategory(isSelected ? null : category.id)}
+                      onClick={() => {
+                        setSelectedCategory(isSelected ? null : category.id);
+                        if (isSelected) setSelectedSubcategory(null);
+                      }}
                       className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all ${
                         isSelected 
                           ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 dark:ring-blue-400' 
@@ -203,7 +349,7 @@ export default function ExpensesTrackingPage() {
         </div>
 
         {/* Detalle de categoría seleccionada */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-5">
           <div className="dark:bg-white/2 p-3 sm:p-4 rounded-md shadow-lg">
             {!selectedCategory ? (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -332,10 +478,17 @@ export default function ExpensesTrackingPage() {
                   ) : (
                     <ul className="space-y-2">
                       {activeCategory.subcategories.map((subcategory) => {
+                        const isSelected = selectedSubcategory === subcategory.id;
+                        
                         return (
                           <li 
                             key={subcategory.id} 
-                            className="flex items-center justify-between py-3 px-4 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-gray-700"
+                            onClick={() => setSelectedSubcategory(isSelected ? null : subcategory.id)}
+                            className={`flex items-center justify-between py-3 px-4 rounded-lg border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400'
+                                : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-white/10'
+                            }`}
                           >
                             <div className="flex flex-col flex-1 min-w-0">
                               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
@@ -373,6 +526,80 @@ export default function ExpensesTrackingPage() {
               <div className="text-center py-8 text-red-600 dark:text-red-400">
                 Categoría no encontrada
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Columna de transacciones */}
+        <div className="lg:col-span-5">
+          <div className="dark:bg-white/2 p-3 sm:p-4 rounded-md shadow-lg">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Transacciones
+                {selectedSubcategory && activeCategory && (
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    ({activeCategory.subcategories.find(s => s.id === selectedSubcategory)?.name})
+                  </span>
+                )}
+              </h3>
+              {transactions.length > 0 && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {transactions.length} {transactions.length === 1 ? 'transacción' : 'transacciones'}
+                </span>
+              )}
+            </div>
+
+            {!selectedCategory ? (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div className="text-6xl mb-4">💳</div>
+                <p className="text-lg mb-2">Selecciona una categoría</p>
+                <p className="text-sm">Las transacciones aparecerán aquí</p>
+              </div>
+            ) : loadingTransactions ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                Cargando transacciones...
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p className="mb-2">No hay transacciones</p>
+                <p className="text-sm">
+                  {selectedSubcategory 
+                    ? 'No hay transacciones para esta subcategoría'
+                    : 'No hay transacciones para esta categoría'
+                  }
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-3 max-h-[600px] overflow-y-auto">
+                {transactions.map((transaction) => (
+                  <li 
+                    key={transaction.id} 
+                    className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="text-sm text-gray-800 dark:text-white font-medium">
+                          {transaction.description || 'Sin descripción'}
+                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {transaction.account?.name || 'Sin cuenta'}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatDate(transaction.date)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end ml-3">
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                          -{formatAmount(transaction.amount)}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
