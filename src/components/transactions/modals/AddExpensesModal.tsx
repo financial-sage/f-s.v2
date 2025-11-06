@@ -258,6 +258,11 @@ function Modal({
         return;
       }
 
+      // Combinar la fecha seleccionada con la hora actual
+      const selectedDate = new Date(date);
+      const now = new Date();
+      selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
       const newTransaction: NewTransaction = {
         amount: parseFloat(amount),
         category_id: selectedCategoryId,
@@ -265,7 +270,7 @@ function Modal({
         account_id: accountId,
         description: note || undefined,
         type: modalType,
-        date: new Date(date).toISOString()
+        date: selectedDate.toISOString()
       };
 
       const result = await addTransaction(session.user.id, newTransaction);

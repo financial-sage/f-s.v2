@@ -127,6 +127,7 @@ export async function addTransaction(userId: string, tx: NewTransaction): Promis
           amount: tx.amount,
           description: tx.description || null,
           category_id: tx.category_id || null,
+          subcategory_id: tx.subcategory_id || null,
           account_id: tx.account_id || null,
           destination_account_id: tx.destination_account_id || null,
           type: tx.type,

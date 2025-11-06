@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '@/scss/modules/transactionsView.module.scss';
 import { useTransactionContext } from '@/src/contexts/TransactionContext';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
 import { formatDate, getTransactionIcon, formatStatus } from '@/src/utils/transactions';
 import { TransactionWithCategory } from '@/src/lib/supabase/transactions';
 import { CategoryIcon } from '../categories/CategoryIcons';
+import EditTransactionModal from '../transactions/modals/EditTransactionModal';
 
 interface TransactionItemProps {
     transaction: TransactionWithCategory;
+    onClick: () => void;
 }
 
-function TransactionItem({ transaction }: TransactionItemProps) {
+function TransactionItem({ transaction, onClick }: TransactionItemProps) {
     const { formatAmountWithType } = useCurrency();
     
     // Obtener información de la categoría o usar valores por defecto
@@ -66,7 +68,7 @@ function TransactionItem({ transaction }: TransactionItemProps) {
     };
     
     return (
-        <div className={styles.transaction}>
+        <div className={styles.transaction} onClick={onClick} style={{ cursor: 'pointer' }}>
             <div className={styles.content}>
                 <div className={styles.transactionInfo}>
                     <div className={`${styles.icon} ${styles.transactionIcon}`} style={{ backgroundColor: color + '30' }}>
@@ -191,6 +193,14 @@ function EmptyState() {
 
 export default function TransactionsView() {
     const { transactions, loading, error, refetch } = useTransactionContext();
+    const [editingTransaction, setEditingTransaction] = useState<any>(null);
+
+    // Ordenar transacciones por fecha completa (incluyendo hora y segundos) - más reciente primero
+    const sortedTransactions = [...transactions].sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateB - dateA; // Orden descendente (más reciente primero)
+    });
 
     // Escuchar eventos de actualización
     useEffect(() => {
@@ -220,21 +230,44 @@ export default function TransactionsView() {
     // Mostrar todas las transacciones (sin limitación)
     
     return (
-        <div 
-            className={styles.scrollContainer}
-            style={{ 
-                maxHeight: '300px', // Altura fija para mostrar exactamente ~5 transacciones visualmente
-                overflowY: 'auto'   // Scroll para ver todas las transacciones
-            }}
-        >
-            <div className={styles.timeline}>
-                {transactions.map((transaction: TransactionWithCategory) => (
-                    <TransactionItem 
-                        key={transaction.id} 
-                        transaction={transaction} 
-                    />
-                ))}
+        <>
+            <div 
+                className={styles.scrollContainer}
+                style={{ 
+                    maxHeight: '300px', // Altura fija para mostrar exactamente ~5 transacciones visualmente
+                    overflowY: 'auto'   // Scroll para ver todas las transacciones
+                }}
+            >
+                <div className={styles.timeline}>
+                    {sortedTransactions.map((transaction: TransactionWithCategory) => (
+                        <TransactionItem 
+                            key={transaction.id} 
+                            transaction={transaction}
+                            onClick={() => setEditingTransaction(transaction)}
+                        />
+                    ))}
+                </div>
             </div>
-        </div>
+
+            {/* Modal de edición - renderizado a nivel de documento */}
+            {typeof window !== 'undefined' && editingTransaction && (
+                <>
+                    {(() => {
+                        const { createPortal } = require('react-dom');
+                        return createPortal(
+                            <EditTransactionModal
+                                transaction={editingTransaction}
+                                onClose={() => setEditingTransaction(null)}
+                                onSaved={() => {
+                                    setEditingTransaction(null);
+                                    refetch();
+                                }}
+                            />,
+                            document.body
+                        );
+                    })()}
+                </>
+            )}
+        </>
     );
 }

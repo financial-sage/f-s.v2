@@ -84,38 +84,6 @@ export default function Dashboard() {
           <div className="cardContent">
             <TransactionsView />
           </div>
-          <div className="cardFooter">
-            <div className="flex gap-2 mt-1">
-              <BlendyButton
-                buttonText="Agregar transacción"
-                buttonVariant="primary"
-                buttonSize="sm"
-                modalTitle="Nueva Transacción"
-                modalContent={
-                  <div>
-                    <Categories
-                      onCategoriesUpdate={handleCategoriesUpdate}
-                      onCategorySelect={handleCategorySelect}
-                      selectedCategoryId={selectedCategoryId}
-                      activeTab={activeTab}
-                      onTabChange={handleTabChange}
-                    />
-                    <TransactionForm
-                      categories={categories}
-                      transactionType={activeTab === 'expenses' ? 'expense' : 'income'}
-                      selectedCategoryId={selectedCategoryId}
-                      onSuccess={() => {
-                        // Aquí puedes agregar lógica para refrescar las transacciones
-                        // Por ejemplo, disparar un evento o actualizar estado
-                        window.location.reload(); // Solución temporal - podrías mejorar esto
-                      }}
-                    />
-                  </div>
-                }
-              />
-
-            </div>
-          </div>
         </div>
 
         <div className="card sm">
