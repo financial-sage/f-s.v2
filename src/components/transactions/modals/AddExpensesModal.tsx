@@ -156,6 +156,12 @@ interface TransactionState {
   type: 'expense' | 'income';
 }
 
+interface Subcategory {
+  id: string;
+  category_id: string;
+  name: string;
+}
+
 function Modal({ 
   onClose, 
   categories, 
@@ -173,6 +179,9 @@ function Modal({
   const [account, setAccount] = useState<Account | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [note, setNote] = useState<string>('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,7 +200,38 @@ function Modal({
       }
     };
     loadAccount();
-  }, [accountId, currencyContext.currency]); // Agregamos la moneda como dependencia
+  }, [accountId, currencyContext.currency]);
+
+  // Cargar subcategorías cuando cambie la categoría
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      setSubcategories([]);
+      setSelectedSubcategoryId(null);
+      return;
+    }
+
+    const loadSubcategories = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const { data, error } = await supabase
+          .from('subcategories')
+          .select('*')
+          .eq('category_id', selectedCategoryId)
+          .eq('user_id', session.user.id)
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        setSubcategories(data || []);
+      } catch (err) {
+        console.error('Error cargando subcategorías:', err);
+        setSubcategories([]);
+      }
+    };
+
+    loadSubcategories();
+  }, [selectedCategoryId]);
 
   // Helper: convierte hex a rgba con alpha
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,10 +261,11 @@ function Modal({
       const newTransaction: NewTransaction = {
         amount: parseFloat(amount),
         category_id: selectedCategoryId,
+        subcategory_id: selectedSubcategoryId || undefined,
         account_id: accountId,
         description: note || undefined,
         type: modalType,
-        date: new Date().toISOString()
+        date: new Date(date).toISOString()
       };
 
       const result = await addTransaction(session.user.id, newTransaction);
@@ -408,34 +449,106 @@ function Modal({
               })}
             </div>
           )}
+          
+          {/* Subcategorías */}
+          {subcategories.length > 0 && selectedCategoryId && (
+            <div className="ml-6 mr-6 mb-4">
+              <label className="block text-sm font-medium text-zinc-400 mb-2">
+                Subcategoría {selectedSubcategoryId && '✓'}
+              </label>
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {subcategories.map((sub) => {
+                  const isSelected = selectedSubcategoryId === sub.id;
+                  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+                  const color = selectedCategory?.color || '#6366f1';
+                  
+                  return (
+                    <div
+                      key={sub.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedSubcategoryId(sub.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setSelectedSubcategoryId(sub.id);
+                        }
+                      }}
+                      className={`relative overflow-hidden flex items-center justify-center p-2.5 rounded-lg cursor-pointer border transition-all ${
+                        isSelected 
+                          ? 'bg-zinc-800/40 border-zinc-600' 
+                          : 'bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/30 hover:border-zinc-700'
+                      }`}
+                      aria-pressed={isSelected}
+                      suppressHydrationWarning
+                    >
+                      {isSelected && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: '0px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '2px',
+                            height: '100%',
+                            background: color,
+                            borderRadius: '0 2px 2px 0',
+                            pointerEvents: 'none',
+                          }}
+                        ></div>
+                      )}
+                      <div className={`text-xs relative z-10 text-center transition-colors ${
+                        isSelected ? 'text-zinc-200' : 'text-zinc-500'
+                      }`}>
+                        {sub.name}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-        <form onSubmit={handleSubmit} className="ml-6 mr-6 mb-4 space-y-2 grid grid-cols-2 gap-2">
+        
+        <form onSubmit={handleSubmit} className="ml-6 mr-6 mb-4 space-y-3">
           {error && (
             <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">
               {error}
             </div>
           )}
           
-          <Input 
-            placeholder="Cantidad" 
-            type="number" 
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-            autoFocus 
-          />
-          
-          <Input 
-            placeholder="Descripción" 
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
+          <div className="grid grid-cols-3 gap-3">
+            <Input 
+              label="Monto *"
+              placeholder="0.00" 
+              type="number" 
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              autoFocus 
+            />
+            
+            <Input 
+              label="Fecha *"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+            
+            <Input 
+              label="Descripción"
+              placeholder="Descripción" 
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
           
           <button 
             type="submit"
             disabled={isSubmitting || !selectedCategoryId}
-            className={`w-full pt-2 pb-2 rounded-full text-zinc-300 transition-colors ${
+            className={`w-full py-3 rounded-lg text-zinc-300 font-medium transition-colors ${
               isSubmitting || !selectedCategoryId
                 ? 'bg-zinc-600/20 cursor-not-allowed'
                 : modalType === 'expense'

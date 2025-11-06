@@ -62,6 +62,7 @@ export default function ExpensesTrackingPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [accountSubcategoryExpenses, setAccountSubcategoryExpenses] = useState<Record<string, number>>({});
 
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
@@ -310,9 +311,23 @@ export default function ExpensesTrackingPage() {
         
         console.log('Transacciones transformadas:', transformedData);
         setTransactions(transformedData);
+
+        // Si estamos en modo cuentas, calcular gastos por subcategoría para esta cuenta
+        if (viewMode === 'accounts' && selectedAccount && !showAllTransactions) {
+          const subcatExpenses: Record<string, number> = {};
+          transactionsData.forEach((t: any) => {
+            if (t.subcategory_id) {
+              subcatExpenses[t.subcategory_id] = (subcatExpenses[t.subcategory_id] || 0) + Math.abs(t.amount);
+            }
+          });
+          setAccountSubcategoryExpenses(subcatExpenses);
+        } else {
+          setAccountSubcategoryExpenses({});
+        }
       } catch (err) {
         console.error('Error cargando transacciones:', err);
         setTransactions([]);
+        setAccountSubcategoryExpenses({});
       } finally {
         setLoadingTransactions(false);
       }
@@ -770,15 +785,22 @@ export default function ExpensesTrackingPage() {
 
                 {/* Lista de subcategorías */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Subcategorías</h3>
-                  {activeCategory.subcategories.length === 0 ? (
+                  <div className="mb-3">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Subcategorías</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Solo se muestran subcategorías con gastos
+                    </p>
+                  </div>
+                  {activeCategory.subcategories.filter(sub => sub.total_expenses > 0).length === 0 ? (
                     <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
-                      No hay subcategorías para esta categoría
+                      No hay subcategorías con gastos para esta categoría
                     </div>
                   ) : (
                     <ul className="space-y-2">
-                      {activeCategory.subcategories.map((subcategory) => {
-                        const isSelected = selectedSubcategory === subcategory.id;
+                      {activeCategory.subcategories
+                        .filter(subcategory => subcategory.total_expenses > 0)
+                        .map((subcategory) => {
+                          const isSelected = selectedSubcategory === subcategory.id;
                         
                         return (
                           <li 
@@ -893,37 +915,45 @@ export default function ExpensesTrackingPage() {
 
                 {/* Filtro cruzado por categoría */}
                 <div className="mb-6 p-4 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Filtrar por categoría (opcional)
-                  </h3>
+                  <div className="mb-3">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Filtrar por categoría (opcional)
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Solo se muestran categorías que han generado gastos
+                    </p>
+                  </div>
                   <div className="grid grid-cols-4 gap-2">
-                    {categories.slice(0, 8).map((category) => {
-                      const isSelected = selectedCategory === category.id;
-                      return (
-                        <button
-                          key={category.id}
-                          onClick={() => {
-                            setSelectedCategory(isSelected ? null : category.id);
-                            if (isSelected) setSelectedSubcategory(null);
-                          }}
-                          className={`flex flex-col items-center p-2 rounded-lg transition-all ${
-                            isSelected 
-                              ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500' 
-                              : 'hover:bg-gray-100 dark:hover:bg-white/10'
-                          }`}
-                          title={category.name}
-                        >
-                          <CategoryIcon
-                            iconName={category.icon || "wallet"}
-                            color={category.color || "#6366f1"}
-                            size={24}
-                          />
-                          <span className="text-xs text-gray-700 dark:text-gray-300 mt-1 text-center truncate w-full">
-                            {category.name}
-                          </span>
-                        </button>
-                      );
-                    })}
+                    {categories
+                      .filter(category => category.total_expenses > 0)
+                      .slice(0, 8)
+                      .map((category) => {
+                        const isSelected = selectedCategory === category.id;
+                        return (
+                          <button
+                            key={category.id}
+                            onClick={() => {
+                              setSelectedCategory(isSelected ? null : category.id);
+                              if (isSelected) setSelectedSubcategory(null);
+                            }}
+                            className={`flex flex-col items-center p-2 rounded-lg transition-all ${
+                              isSelected 
+                                ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500' 
+                                : 'hover:bg-gray-100 dark:hover:bg-white/10'
+                            }`}
+                            title={category.name}
+                          >
+                            <CategoryIcon
+                              iconName={category.icon || "wallet"}
+                              color={category.color || "#6366f1"}
+                              size={24}
+                            />
+                            <span className="text-xs text-gray-700 dark:text-gray-300 mt-1 text-center truncate w-full">
+                              {category.name}
+                            </span>
+                          </button>
+                        );
+                      })}
                   </div>
                   {selectedCategory && (
                     <button
@@ -939,31 +969,52 @@ export default function ExpensesTrackingPage() {
                 </div>
 
                 {/* Subcategorías si hay categoría seleccionada */}
-                {selectedCategory && activeCategory && activeCategory.subcategories.length > 0 && (
+                {selectedCategory && activeCategory && activeCategory.subcategories.filter(sub => {
+                  // En modo cuentas, usar los gastos calculados específicamente para la cuenta
+                  if (viewMode === 'accounts' && selectedAccount) {
+                    return (accountSubcategoryExpenses[sub.id] || 0) > 0;
+                  }
+                  // En modo categorías, usar los gastos totales
+                  return sub.total_expenses > 0;
+                }).length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Filtrar por subcategoría (opcional)
-                    </h3>
+                    <div className="mb-3">
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Filtrar por subcategoría (opcional)
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Solo se muestran subcategorías con gastos
+                      </p>
+                    </div>
                     <ul className="space-y-2">
-                      {activeCategory.subcategories.map((subcategory) => {
-                        const isSelected = selectedSubcategory === subcategory.id;
-                        
-                        return (
-                          <li 
-                            key={subcategory.id} 
-                            onClick={() => setSelectedSubcategory(isSelected ? null : subcategory.id)}
-                            className={`flex items-center justify-between py-2 px-3 rounded-lg border cursor-pointer transition-all ${
-                              isSelected
-                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
-                                : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-white/10'
-                            }`}
-                          >
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {subcategory.name}
-                            </span>
-                          </li>
-                        );
-                      })}
+                      {activeCategory.subcategories
+                        .filter(subcategory => {
+                          // En modo cuentas, usar los gastos calculados específicamente para la cuenta
+                          if (viewMode === 'accounts' && selectedAccount) {
+                            return (accountSubcategoryExpenses[subcategory.id] || 0) > 0;
+                          }
+                          // En modo categorías, usar los gastos totales
+                          return subcategory.total_expenses > 0;
+                        })
+                        .map((subcategory) => {
+                          const isSelected = selectedSubcategory === subcategory.id;
+                          
+                          return (
+                            <li 
+                              key={subcategory.id} 
+                              onClick={() => setSelectedSubcategory(isSelected ? null : subcategory.id)}
+                              className={`flex items-center justify-between py-2 px-3 rounded-lg border cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
+                                  : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-white/10'
+                              }`}
+                            >
+                              <span className="text-sm text-gray-700 dark:text-gray-300">
+                                {subcategory.name}
+                              </span>
+                            </li>
+                          );
+                        })}
                     </ul>
                   </div>
                 )}
@@ -1023,11 +1074,12 @@ export default function ExpensesTrackingPage() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-3 max-h-[600px] overflow-y-auto">
+              <ul className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                 {transactions.map((transaction) => (
                   <li 
                     key={transaction.id} 
-                    className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0 group"
+                    onClick={() => setEditingTransaction(transaction)}
+                    className="cursor-pointer bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 rounded-lg transition-all p-3 hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex flex-col flex-1 min-w-0">
@@ -1048,13 +1100,6 @@ export default function ExpensesTrackingPage() {
                         <span className="text-sm font-medium text-red-600 dark:text-red-400">
                           -{formatAmount(transaction.amount)}
                         </span>
-                        <button
-                          onClick={() => setEditingTransaction(transaction)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
-                          title="Editar transacción"
-                        >
-                          <i className="fas fa-edit text-sm"></i>
-                        </button>
                       </div>
                     </div>
                   </li>

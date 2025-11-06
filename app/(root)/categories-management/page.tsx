@@ -1,20 +1,129 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useExpenseTracking } from '@/src/hooks/useExpenseTracking';
+import React, { useState, useEffect } from 'react';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import { QuickCategoryForm } from '@/src/components/categories/QuickCategoryForm';
+import { EditCategoryForm } from '@/src/components/categories/EditCategoryForm';
+import { deleteCategory, getUserCategories, Category } from '@/src/lib/supabase/categories';
+import { deleteSubcategory, getCategorySubcategories } from '@/src/lib/supabase/subcategories';
+import { useSession } from '@/src/hooks/useSession';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
+import { CategoryWithSubcategories, SubcategoryWithExpenses } from '@/src/lib/supabase/subcategories';
 
 export default function CategoriesManagementPage() {
-  const { categories, isLoading, error, refresh } = useExpenseTracking();
   const { formatAmount } = useCurrency();
+  const { session } = useSession();
+  const [categories, setCategories] = useState<CategoryWithSubcategories[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CategoryWithSubcategories | null>(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [deletingSubcategoryId, setDeletingSubcategoryId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<'income' | 'expense'>('expense');
 
+  // Cargar categorías con sus subcategorías
+  const loadCategories = async () => {
+    if (!session?.user?.id) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Obtener todas las categorías
+      const categoriesResult = await getUserCategories(session.user.id);
+      
+      if (categoriesResult.error) {
+        throw new Error(categoriesResult.error.message);
+      }
+
+      const categoriesData = Array.isArray(categoriesResult.data) 
+        ? categoriesResult.data 
+        : categoriesResult.data 
+        ? [categoriesResult.data] 
+        : [];
+
+      // Para cada categoría, obtener sus subcategorías
+      const categoriesWithSubs: CategoryWithSubcategories[] = await Promise.all(
+        categoriesData.map(async (cat: Category) => {
+          const subsResult = await getCategorySubcategories(cat.id, session.user!.id);
+          const subs = subsResult.data || [];
+          
+          return {
+            id: cat.id,
+            name: cat.name,
+            color: cat.color,
+            icon: cat.icon || null,
+            budget_limit: cat.budget_limit || null,
+            type: cat.type,
+            total_expenses: 0,
+            subcategories: subs.map(sub => ({
+              ...sub,
+              total_expenses: 0
+            }))
+          };
+        })
+      );
+
+      setCategories(categoriesWithSubs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar categorías');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, [session?.user?.id]);
+
   const handleSuccess = () => {
-    refresh();
+    loadCategories();
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!session?.user?.id) return;
+    
+    if (!confirm('¿Estás seguro de eliminar esta categoría? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    setDeletingCategoryId(categoryId);
+    try {
+      const result = await deleteCategory(categoryId, session.user.id);
+      if (result.error) {
+        alert(result.error.message);
+      } else {
+        await loadCategories();
+      }
+    } catch (err) {
+      alert('Error al eliminar la categoría');
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
+
+  const handleDeleteSubcategory = async (subcategoryId: string, categoryId: string) => {
+    if (!session?.user?.id) return;
+    
+    if (!confirm('¿Estás seguro de eliminar esta subcategoría?')) {
+      return;
+    }
+
+    setDeletingSubcategoryId(subcategoryId);
+    try {
+      const result = await deleteSubcategory(subcategoryId, session.user.id);
+      if (result.error) {
+        alert(result.error.message);
+      } else {
+        await loadCategories();
+      }
+    } catch (err) {
+      alert('Error al eliminar la subcategoría');
+    } finally {
+      setDeletingSubcategoryId(null);
+    }
   };
 
   if (isLoading) {
@@ -100,13 +209,16 @@ export default function CategoriesManagementPage() {
                 </div>
                 <div className="flex gap-1">
                   <button
+                    onClick={() => setEditingCategory(category)}
                     className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     title="Editar"
                   >
                     <Edit2 size={16} />
                   </button>
                   <button
-                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                    onClick={() => handleDeleteCategory(category.id)}
+                    disabled={deletingCategoryId === category.id}
+                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
                     title="Eliminar"
                   >
                     <Trash2 size={16} />
@@ -124,9 +236,20 @@ export default function CategoriesManagementPage() {
                     {category.subcategories.map((sub) => (
                       <span
                         key={sub.id}
-                        className="inline-flex items-center px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 rounded"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 rounded group"
                       >
                         {sub.name}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSubcategory(sub.id, category.id);
+                          }}
+                          disabled={deletingSubcategoryId === sub.id}
+                          className="opacity-0 group-hover:opacity-100 ml-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-opacity disabled:opacity-50"
+                          title="Eliminar subcategoría"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </span>
                     ))}
                   </div>
@@ -154,6 +277,15 @@ export default function CategoriesManagementPage() {
           onClose={() => setShowCreateForm(false)}
           onSuccess={handleSuccess}
           type={selectedType}
+        />
+      )}
+
+      {/* Modal de edición */}
+      {editingCategory && (
+        <EditCategoryForm
+          category={editingCategory}
+          onClose={() => setEditingCategory(null)}
+          onSuccess={handleSuccess}
         />
       )}
     </div>

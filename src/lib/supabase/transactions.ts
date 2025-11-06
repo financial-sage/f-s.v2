@@ -44,6 +44,7 @@ export interface NewTransaction {
   amount: number;
   description?: string;
   category_id?: string;
+  subcategory_id?: string;
   account_id?: string;
   destination_account_id?: string; // Para transferencias
   type: 'income' | 'expense' | 'transfer';
