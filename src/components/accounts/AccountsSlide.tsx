@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Account, NewAccount, AccountType } from '../../types/types';
 import { getUserAccounts, createAccount } from '../../lib/supabase/accounts';
@@ -62,6 +62,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showForm, setShowForm] = useState(false);
+    const addAccountButtonRef = useRef<HTMLDivElement>(null);
     const [formData, setFormData] = useState<NewAccount>({
         name: '',
         type: 'cash',
@@ -194,7 +195,18 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
     };
 
     const handleAddAccount = () => {
-        setShowForm(true);
+        // Hacer clic programáticamente en el botón del modal
+        if (addAccountButtonRef.current) {
+            const button = addAccountButtonRef.current.querySelector('button');
+            if (button) {
+                button.click();
+            }
+        }
+        
+        // Llamar al callback si existe
+        if (onAddAccount) {
+            onAddAccount();
+        }
     };
 
     const handleCardClick = (account: AccountData) => {
@@ -320,9 +332,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         return (
             <div className="accounts-slide-container">
                 <div className="container">
-                    <h1>Mis Cuentas</h1>
-                    <p className="subtitle">Aún no tienes cuentas registradas</p>
-                    <div className="accounts-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                   <div className="accounts-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <div style={{ color: 'white', fontSize: '1.2rem', textAlign: 'center' }}>
                             <i className="fas fa-wallet" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}></i>
                             <br />
@@ -332,6 +342,20 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                     <button className="btn-slide btn-slide-add" onClick={handleAddAccount}>
                         <i className="fas fa-plus"></i> Agregar Primera Cuenta
                     </button>
+                    
+                    {/* Modal oculto - el botón anterior hará clic programáticamente en su botón */}
+                    <div ref={addAccountButtonRef} style={{ display: 'none' }}>
+                        <AddAccountModal 
+                            accountId="new" 
+                            categories={categories} 
+                            onSaved={() => {
+                                loadAccounts();
+                                if (onAddAccount) {
+                                    onAddAccount();
+                                }
+                            }} 
+                        />
+                    </div>
                 </div>
             </div>
         );
