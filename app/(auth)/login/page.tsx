@@ -22,12 +22,12 @@ export default function Login() {
             console.error("Error logging in:", error.message);
         } else {
             alert("Login successful!");
-            window.location.href = '/';
+            window.location.href = '/home';
         }
     };
 
     const handleGoogleLogin = async () => {
-        const redirectTo = `${window.location.origin}`;
+        const redirectTo = `${window.location.origin}/home`;
         console.log(`BDEBUG: Iniciando login con redirección a: ${redirectTo}`); // <-- Línea de depuración
 
         const { error } = await supabase.auth.signInWithOAuth({
