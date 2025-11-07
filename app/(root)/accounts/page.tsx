@@ -26,7 +26,7 @@ export default function AccountsPage() {
 
         try {
             const result = await getUserAccounts(session.user.id);
-            setHasAccounts(result.data && result.data.length > 0);
+            setHasAccounts(result.data ? (Array.isArray(result.data) && result.data.length > 0) : false);
         } catch (error) {
             console.error('Error checking accounts:', error);
             setHasAccounts(false);
