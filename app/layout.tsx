@@ -16,11 +16,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full" style={{ background: "var(--background-gradient)" }}>
       <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="theme-color" content="#09090b" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="flex min-h-full bg-white antialiased h-px" style={{ background: "var(--background-gradient)" }}>
+      <body className="flex min-h-full bg-white antialiased h-full overflow-hidden" style={{ background: "var(--background-gradient)" }}>
         <CurrencyProvider>
           <TransactionProvider>
             <ConditionalLayout>

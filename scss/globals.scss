@@ -10,17 +10,40 @@
 * {
   font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
   font-weight: 400;
+  /* Prevenir espacios en blanco por defecto */
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* Altura completa y color de fondo */
+  height: 100%;
+  height: -webkit-fill-available;
+  background: var(--background-gradient);
+  /* Prevenir el bounce/overscroll */
+  overscroll-behavior: none;
+  overflow: hidden;
 }
 
 html,
 body {
   font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
   font-weight: 200;
+  /* Prevenir el bounce/overscroll en móviles */
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+  /* Prevenir la línea blanca en móviles */
+  background: var(--background-gradient);
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
   font-weight: 200;
+  /* Asegurar que el fondo cubra todo el viewport */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 h1,
