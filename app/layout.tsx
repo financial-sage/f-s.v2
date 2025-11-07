@@ -4,7 +4,6 @@ import { ConditionalLayout } from "@/src/components/layout/ConditionalLayout";
 import { TransactionProvider } from "@/src/contexts/TransactionContext";
 import { CurrencyProvider } from "@/src/contexts/CurrencyContext";
 import { RegisterServiceWorker } from "./register-sw";
-import { PWADetector } from "@/src/components/PWADetector";
 
 
 export const metadata: Metadata = {
@@ -46,7 +45,6 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-full bg-white antialiased h-full overflow-hidden" style={{ background: "var(--background-gradient)" }}>
         <RegisterServiceWorker />
-        <PWADetector />
         <CurrencyProvider>
           <TransactionProvider>
             <ConditionalLayout>

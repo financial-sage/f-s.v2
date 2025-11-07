@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:https": "node server-https.js",
+    "tunnel": "npx localtunnel --port 3000",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "setup-https": "powershell -ExecutionPolicy Bypass -File scripts/setup-https.ps1"
   },
   "dependencies": {
     "@fortawesome/react-fontawesome": "^3.1.0",
