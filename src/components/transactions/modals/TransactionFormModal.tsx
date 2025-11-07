@@ -435,9 +435,9 @@ export default function TransactionFormModal({
                       >
                         {limit > 0 && (
                           <div
-                            className="absolute inset-0 opacity-10"
+                            className="absolute inset-0 opacity-20"
                             style={{
-                              background: `linear-gradient(to top, ${hexToRgba(option.color || '#6366f1', 0.3)} ${percent}%, transparent ${percent}%)`
+                              background: `linear-gradient(to top, ${hexToRgba(option.color || '#6366f1', 0.5)} ${percent}%, transparent ${percent}%)`
                             }}
                           />
                         )}
