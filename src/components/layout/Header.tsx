@@ -7,6 +7,7 @@ import { AppSession, mapSupabaseSessionToApp } from "@/src/types/types";
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserImage } from '@/src/hooks/useUserImage';
 import CurrencySelector from '../common/CurrencySelector';
+import Loader from '../common/Loader';
 
 // Tipos para el menú dinámico
 interface MenuItem {
@@ -147,7 +148,14 @@ export function Header() {
         setActiveItem(newActiveItem);
     }, [pathname]);
 
-    if (loading) return <div>Cargando...</div>;
+    if (loading) {
+        return (
+            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/20 dark:bg-black/40 backdrop-blur-sm">
+                <Loader size={64} />
+                <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Cargando...</p>
+            </div>
+        );
+    }
 
     const handleLogout = async () => {
         try {

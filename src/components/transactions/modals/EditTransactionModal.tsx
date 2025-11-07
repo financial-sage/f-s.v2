@@ -876,7 +876,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
-                    <Loader size={16} color="#ffffff" />
+                    <Loader size={16} primaryColor="#ffffff" secondaryColor="#ff4c4c" />
                     <span>Guardando...</span>
                   </div>
                 ) : (

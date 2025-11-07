@@ -59,49 +59,72 @@ function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onT
 
     return (
         <>
-            <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose}></div>
-            <div className="z-50 border rounded-lg border-zinc-700 top-0 bottom-0 left-0 right-0 fixed max-w-xs"
-                style={{ background: "var(--background-gradient)", margin: 'auto', height: 'fit-content' }}
+            <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose}></div>
+            <div 
+                className="fixed z-50 border rounded-lg border-zinc-700 w-[calc(100%-2rem)] sm:w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[70vh] flex flex-col"
+                style={{ background: "var(--background-gradient)" }}
                 data-blendy-to="modal-account-select">
-                <div className="modal__header">
-                    <h2 className="text-zinc-400">Cambiar Cuenta</h2>
-                    <button className="modal__close" onClick={onClose}></button>
+                <div className="border-b border-zinc-700 p-4 sm:p-5 flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-base sm:text-lg font-medium text-zinc-200">Seleccionar Cuenta</h2>
+                        <button 
+                            onClick={onClose}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800/50 transition-colors"
+                        >
+                            <i className="fas fa-times text-zinc-400"></i>
+                        </button>
+                    </div>
                 </div>
-                <div className="modal__content">
+                <div className="p-4 sm:p-5 overflow-y-auto flex-1">
                     <div className="space-y-2">
                         {filteredAccounts.length === 0 ? (
-                            <p className="text-zinc-400 text-center py-4">No hay cuentas disponibles</p>
+                            <div className="text-center py-8">
+                                <i className="fas fa-wallet text-4xl text-zinc-600 mb-3"></i>
+                                <p className="text-zinc-400 text-sm">No hay cuentas disponibles</p>
+                            </div>
                         ) : (
                             filteredAccounts.map(account => (
-                                <div
+                                <button
                                     key={account.id}
-                                    className="relative group flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/50 hover:border-zinc-600"
+                                    className="w-full relative group flex items-center gap-3 p-3 sm:p-4 rounded-lg border transition-all bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/50 hover:border-zinc-600 active:scale-[0.98]"
                                     onClick={() => handleAccountSelect(account.id)}
                                 >
-                                    {/* Indicador de color al hacer hover */}
+                                    {/* Borde izquierdo con color de la cuenta */}
                                     <div
-                                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg transition-all"
+                                        style={{ background: account.color, opacity: 0.3 }}
+                                    ></div>
+                                    <div
+                                        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg opacity-0 group-hover:opacity-100 transition-opacity"
                                         style={{ background: account.color }}
                                     ></div>
                                     
-                                    <div className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-800/50">
+                                    {/* Ícono de la cuenta */}
+                                    <div 
+                                        className="relative flex items-center justify-center w-12 h-12 rounded-lg transition-all"
+                                        style={{ 
+                                            background: `${account.color}15`,
+                                        }}
+                                    >
                                         <i
-                                            className={`fa ${account.icon} text-lg transition-colors text-zinc-500 group-hover:text-[var(--icon-color)]`}
-                                            style={{ '--icon-color': account.color } as React.CSSProperties}
+                                            className={`fa ${account.icon} text-xl transition-all`}
+                                            style={{ color: account.color }}
                                         />
                                     </div>
                                     
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">
+                                    {/* Información de la cuenta */}
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="text-sm sm:text-base font-medium text-zinc-200 group-hover:text-white transition-colors truncate">
                                             {account.name}
                                         </div>
-                                        <div className="text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors">
+                                        <div className="text-xs sm:text-sm font-semibold text-zinc-400 group-hover:text-zinc-300 transition-colors mt-0.5">
                                             {currencyContext.formatAmount(account.balance)}
                                         </div>
                                     </div>
                                     
-                                    <i className="fas fa-chevron-right text-zinc-600 group-hover:text-zinc-400 transition-colors text-xs"></i>
-                                </div>
+                                    {/* Flecha indicadora */}
+                                    <i className="fas fa-chevron-right text-zinc-600 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all text-xs flex-shrink-0"></i>
+                                </button>
                             ))
                         )}
                     </div>

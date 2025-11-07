@@ -185,7 +185,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({
                     >
                         {isLoading ? (
                             <div className="flex items-center gap-2">
-                                <Loader size={20} color="#ffffff" />
+                                <Loader size={20} primaryColor="#ffffff" secondaryColor="#ff4c4c" />
                                 <span>Procesando...</span>
                             </div>
                         ) : 'Transferir'}

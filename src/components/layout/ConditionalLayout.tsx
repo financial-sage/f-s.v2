@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/src/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Header } from "@/src/components/layout/Header";
+import Loader from "@/src/components/common/Loader";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -42,8 +43,9 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-white">Cargando...</div>
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/20 dark:bg-black/40 backdrop-blur-sm">
+        <Loader size={64} />
+        <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Cargando...</p>
       </div>
     );
   }

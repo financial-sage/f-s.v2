@@ -282,7 +282,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                 <div className="container">
                     <div className="accounts-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
                         <div className="flex flex-col items-center gap-3">
-                            <Loader size={48} color="#ffffff" />
+                            <Loader size={48} primaryColor="#ffffff" secondaryColor="#ff4c4c" />
                             <div style={{ color: 'white', fontSize: '0.875rem' }}>Cargando cuentas...</div>
                         </div>
                     </div>
@@ -313,8 +313,10 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         );
     }
 
-    // Mostrar mensaje si no hay cuentas
-    if (totalAccounts === 0) {
+    // Mostrar mensaje si no hay cuentas (solo contar cuentas reales, sin la tarjeta de total)
+    const realAccountsCount = accountsData.filter(acc => !acc.isTotal).length;
+    
+    if (realAccountsCount === 0) {
         return (
             <div className="accounts-slide-container">
                 <div className="container">
@@ -443,19 +445,19 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                         </div>
                     ) : null}
 
-                    {accountsData[currentActiveIndex].type !== 'Saldo Total'  ? (
+                    
                         <div className="flex flex-col items-center">
                             <AccountTransactionModal 
                                 accountId={accountsData[currentActiveIndex].id} 
                                 categories={categories} 
                                 type="income" 
+                                preselectedAccountId={accountsData[currentActiveIndex].id}
                                 onTransactionComplete={() => {
                                     loadAccounts();
                                     setCurrentActiveIndex(currentActiveIndex);
                                 }}
                             />
                         </div>
-                    ) : null}
 
                     {/* Botón para agregar cuenta */}
                     <div className="flex flex-col items-center">

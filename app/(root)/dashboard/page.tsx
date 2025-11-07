@@ -61,7 +61,7 @@ export default function Dashboard() {
           {/* <CreditCard /> */}
         </div>
 
-        <div className="md:col-span-2 lg:col-span-2">
+        <div className="md:col-span-2 lg:col-span-2 hidden md:block">
           {/* Placeholder for future widgets or information */}
           <div className="card sm h-full">
             <div className="cardHeader">
