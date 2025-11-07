@@ -24,6 +24,34 @@ html {
   overflow: hidden;
 }
 
+/* Estilos específicos para PWA standalone/fullscreen */
+@media all and (display-mode: standalone) {
+  html,
+  body {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height para Android */
+    overflow: hidden;
+  }
+  
+  body {
+    /* Ocultar cualquier barra de navegación */
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+}
+
+/* Para Android específicamente */
+@supports (height: 100dvh) {
+  html,
+  body {
+    height: 100dvh;
+  }
+}
+
 html,
 body {
   font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
