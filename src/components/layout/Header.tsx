@@ -359,7 +359,8 @@ export function Header() {
                     </div>
 
                     <div className="flex items-center gap-5 lg:hidden">
-                        <button
+                        {/* Botón de menú hamburguesa - OCULTO en móvil */}
+                        {/* <button
                             type="button"
                             className="relative flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
                             aria-label="Toggle navigation"
@@ -368,16 +369,20 @@ export function Header() {
                             <span className="absolute size-12 pointer-fine:hidden"></span>
                             <svg viewBox="0 0 10 9" fill="none" strokeLinecap="round" aria-hidden="true" className={`w-2.5 stroke-zinc-900 dark:stroke-white ${isMobileMenuOpen ? 'hidden' : 'block'}`}>
                                 <path d="M.5 1h9M.5 8h9M.5 4.5h9"></path>
-                            </svg> {/* Icono de menú hamburguesa */}
+                            </svg>
                             <svg viewBox="0 0 10 9" fill="none" strokeLinecap="round" aria-hidden="true" className={`w-2.5 stroke-zinc-900 dark:stroke-white ${isMobileMenuOpen ? 'block' : 'hidden'}`}>
                                 <path d="m1.5 1 7 7M8.5 1l-7 7"></path>
-                            </svg> {/* Icono de cerrar menú hamburguesa */}
-                        </button>
+                            </svg>
+                        </button> */}
                         <Link aria-label="Home" href="/home">
                             <h1 className="text-zinc-300">Financial Sage</h1>
                         </Link>
                     </div>
                     <div className="flex items-center gap-5">
+                        {/* Currency Selector - Visible en móvil */}
+                        <div className="lg:hidden">
+                            <CurrencySelector />
+                        </div>
                         <nav className="hidden md:block">
                             <CurrencySelector />
                             <ul role="list" className="flex items-center gap-8">
@@ -417,7 +422,8 @@ export function Header() {
                                     </svg>
                                 </button>
                             </div>
-                            <button
+                            {/* Botón de tema - OCULTO porque no es funcional */}
+                            {/* <button
                                 type="button"
                                 className="flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
                                 aria-label="Switch to light theme"
@@ -433,7 +439,7 @@ export function Header() {
                                 <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="hidden h-5 w-5 stroke-white dark:block">
                                     <path d="M15.224 11.724a5.5 5.5 0 0 1-6.949-6.949 5.5 5.5 0 1 0 6.949 6.949Z" />
                                 </svg>
-                            </button>
+                            </button> */}
                         </div>
                         <div className="profile-dropdown" ref={profileRef}>
                             {imageLoading ? (

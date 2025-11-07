@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/src/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Header } from "@/src/components/layout/Header";
+import MobileBottomNav from "@/src/components/layout/MobileBottomNav";
 import Loader from "@/src/components/common/Loader";
 
 interface ConditionalLayoutProps {
@@ -61,10 +62,11 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       <div className="h-full lg:ml-72 xl:ml-80">
         <Header />
         <div className="relative flex h-full flex-col px-4 pt-14 sm:px-6 lg:px-8">
-          <main className="flex-auto p-6 sm:p-8">
+          <main className="flex-auto p-6 sm:p-8 pb-20 lg:pb-8">
             {children}
           </main>
         </div>
+        <MobileBottomNav />
       </div>
     </div>
   );
