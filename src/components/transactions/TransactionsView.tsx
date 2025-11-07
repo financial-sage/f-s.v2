@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from '@/scss/modules/transactionsView.module.scss';
 import { useTransactionContext } from '@/src/contexts/TransactionContext';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
@@ -8,6 +9,7 @@ import { formatDate, getTransactionIcon, formatStatus } from '@/src/utils/transa
 import { TransactionWithCategory } from '@/src/lib/supabase/transactions';
 import { CategoryIcon } from '../categories/CategoryIcons';
 import EditTransactionModal from '../transactions/modals/EditTransactionModal';
+import { Loader } from '../common';
 
 interface TransactionItemProps {
     transaction: TransactionWithCategory;
@@ -114,10 +116,8 @@ function LoadingState() {
                 <div className={styles.transaction}>
                     <div className={styles.content}>
                         <div className={styles.transactionInfo}>
-                            <div className={styles.icon}>
-                                <i className="fas fa-spinner fa-spin"></i>
-                            </div>
-                            <div className={styles.transactionDetails}>
+                            <div className="flex flex-col items-center justify-center py-8 gap-3">
+                                <Loader size={40} />
                                 <div className={styles.transactionTitle}>Cargando transacciones...</div>
                             </div>
                         </div>
@@ -193,7 +193,7 @@ function EmptyState() {
 
 export default function TransactionsView() {
     const { transactions, loading, error, refetch } = useTransactionContext();
-    const [editingTransaction, setEditingTransaction] = useState<any>(null);
+    const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategory | null>(null);
 
     // Ordenar transacciones por fecha completa (incluyendo hora y segundos) - más reciente primero
     const sortedTransactions = [...transactions].sort((a, b) => {
@@ -208,8 +208,8 @@ export default function TransactionsView() {
             refetch();
         };
 
-        window.addEventListener('dashboard:update' as any, handleDashboardUpdate);
-        return () => window.removeEventListener('dashboard:update' as any, handleDashboardUpdate);
+        window.addEventListener('dashboard:update', handleDashboardUpdate);
+        return () => window.removeEventListener('dashboard:update', handleDashboardUpdate);
     }, [refetch]);
 
     // Mostrar estado de carga si las transacciones están cargando
@@ -250,23 +250,16 @@ export default function TransactionsView() {
             </div>
 
             {/* Modal de edición - renderizado a nivel de documento */}
-            {typeof window !== 'undefined' && editingTransaction && (
-                <>
-                    {(() => {
-                        const { createPortal } = require('react-dom');
-                        return createPortal(
-                            <EditTransactionModal
-                                transaction={editingTransaction}
-                                onClose={() => setEditingTransaction(null)}
-                                onSaved={() => {
-                                    setEditingTransaction(null);
-                                    refetch();
-                                }}
-                            />,
-                            document.body
-                        );
-                    })()}
-                </>
+            {typeof window !== 'undefined' && editingTransaction && createPortal(
+                <EditTransactionModal
+                    transaction={editingTransaction}
+                    onClose={() => setEditingTransaction(null)}
+                    onSaved={() => {
+                        setEditingTransaction(null);
+                        refetch();
+                    }}
+                />,
+                document.body
             )}
         </>
     );

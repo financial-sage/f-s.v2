@@ -3,7 +3,7 @@
 import { CategoryIcon } from "@/src/components/categories/CategoryIcons";
 import DayCarousel from "@/src/components/common/DayCarousel";
 import Calendar from "@/src/components/common/Calendar";
-import { Select } from "@/src/components/common";
+import { Select, Loader } from "@/src/components/common";
 import { useSession } from "@/src/hooks/useSession";
 import { useTransactions } from "@/src/hooks/useTransactions";
 import { useState } from "react";
@@ -175,7 +175,12 @@ export default function TransactionsPage() {
     };
 
     if (sessionLoading || transactionsLoading) {
-        return <div className="flex justify-center items-center h-64">Cargando transacciones...</div>;
+        return (
+            <div className="flex flex-col justify-center items-center h-64 gap-3">
+                <Loader />
+                <div className="text-sm text-gray-600 dark:text-gray-400">Cargando transacciones...</div>
+            </div>
+        );
     }
 
     if (error) {

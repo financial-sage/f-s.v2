@@ -10,6 +10,7 @@ import { useSession } from '@/src/hooks/useSession';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
 import { CategoryWithSubcategories, SubcategoryWithExpenses } from '@/src/lib/supabase/subcategories';
+import { Loader } from '@/src/components/common';
 
 export default function CategoriesManagementPage() {
   const { formatAmount } = useCurrency();
@@ -127,7 +128,12 @@ export default function CategoriesManagementPage() {
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Cargando categorías...</div>;
+    return (
+      <div className="flex flex-col justify-center items-center h-64 gap-3">
+        <Loader />
+        <div className="text-sm text-gray-600 dark:text-gray-400">Cargando categorías...</div>
+      </div>
+    );
   }
 
   if (error) {

@@ -5,7 +5,7 @@ import { supabase } from '@/src/lib/supabase/client';
 import { updateTransactionWithBalanceAdjustment, deleteTransactionWithBalanceAdjustment } from '@/src/lib/supabase/transactions';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
-import { Input } from '@/src/components/common';
+import { Input, Loader } from '@/src/components/common';
 
 interface Category {
   id: string;
@@ -35,9 +35,9 @@ interface Transaction {
   amount: number;
   description: string | null;
   category_id: string | null;
-  subcategory_id: string | null;
+  subcategory_id?: string | null;
   account_id: string | null;
-  destination_account_id: string | null;
+  destination_account_id?: string | null;
   date: string;
   type: 'income' | 'expense' | 'transfer';
   status: 'pending' | 'completed' | 'canceled';
@@ -222,7 +222,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
         return;
       }
 
-      const updates: any = {
+      const updates: Record<string, string | number | null> = {
         amount,
         description: description || null,
         date: new Date(date).toISOString(),
@@ -875,10 +875,10 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                 disabled={loading || showDeleteConfirm}
               >
                 {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Guardando...
-                  </>
+                  <div className="flex items-center gap-2">
+                    <Loader size={16} color="#ffffff" />
+                    <span>Guardando...</span>
+                  </div>
                 ) : (
                   <>
                     <i className="fas fa-save"></i>

@@ -10,6 +10,7 @@ import AccountTransactionModal from '../transactions/modals/AddExpensesModal';
 import { Category } from '../../lib/supabase/categories';
 import AddAccountModal from './modal/AddAccountModal';
 import AddTransferModal from '../transactions/modals/AddTransferModal';
+import { Loader } from '../common';
 
 interface AccountData {
     id: string;
@@ -279,11 +280,10 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         return (
             <div className="">
                 <div className="container">
-
-                    <div className="accounts-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ color: 'white', fontSize: '2rem' }}>
-                            <div className="loader"></div>
-
+                    <div className="accounts-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
+                        <div className="flex flex-col items-center gap-3">
+                            <Loader size={48} color="#ffffff" />
+                            <div style={{ color: 'white', fontSize: '0.875rem' }}>Cargando cuentas...</div>
                         </div>
                     </div>
                 </div>

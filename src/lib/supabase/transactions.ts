@@ -7,6 +7,7 @@ export interface Transaction {
   amount: number;
   description: string | null;
   category_id: string | null;
+  subcategory_id?: string | null;
   account_id: string | null;
   destination_account_id?: string | null; // Para transferencias
   date: string;

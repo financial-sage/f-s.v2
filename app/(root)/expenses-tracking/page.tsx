@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useExpenseTracking } from '@/src/hooks/useExpenseTracking';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import { useCurrency } from '@/src/contexts/CurrencyContext';
-import { Select } from '@/src/components/common';
+import { Select, Loader } from '@/src/components/common';
 import { supabase } from '@/src/lib/supabase/client';
 import EditTransactionModal from '@/src/components/transactions/modals/EditTransactionModal';
 
@@ -56,7 +56,7 @@ export default function ExpensesTrackingPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(accountIdFromUrl);
-  const [showAllTransactions, setShowAllTransactions] = useState(false);
+  const [showAllTransactions, setShowAllTransactions] = useState(true);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -273,7 +273,7 @@ export default function ExpensesTrackingPage() {
         const accountIds = [...new Set(transactionsData.map(t => t.account_id).filter(Boolean))];
         console.log('Account IDs a buscar:', accountIds);
 
-        let accountsMap: Record<string, any> = {};
+        let accountsMap: Record<string, { id: string; name: string }> = {};
         
         if (accountIds.length > 0) {
           const { data: accountsData, error: accountsError } = await supabase
@@ -287,12 +287,12 @@ export default function ExpensesTrackingPage() {
             accountsMap = accountsData.reduce((acc, account) => {
               acc[account.id] = account;
               return acc;
-            }, {} as Record<string, any>);
+            }, {} as Record<string, { id: string; name: string }>);
           }
         }
         
         // Transform data to match Transaction interface
-        const transformedData = transactionsData.map((item: any) => ({
+        const transformedData = transactionsData.map((item: Transaction) => ({
           id: item.id,
           amount: item.amount,
           description: item.description,
@@ -315,7 +315,7 @@ export default function ExpensesTrackingPage() {
         // Si estamos en modo cuentas, calcular gastos por subcategoría para esta cuenta
         if (viewMode === 'accounts' && selectedAccount && !showAllTransactions) {
           const subcatExpenses: Record<string, number> = {};
-          transactionsData.forEach((t: any) => {
+          transactionsData.forEach((t: Transaction) => {
             if (t.subcategory_id) {
               subcatExpenses[t.subcategory_id] = (subcatExpenses[t.subcategory_id] || 0) + Math.abs(t.amount);
             }
@@ -363,7 +363,12 @@ export default function ExpensesTrackingPage() {
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Cargando gastos...</div>;
+    return (
+      <div className="flex flex-col justify-center items-center h-64 gap-3">
+        <Loader />
+        <div className="text-sm text-gray-600 dark:text-gray-400">Cargando gastos...</div>
+      </div>
+    );
   }
 
   if (error) {
@@ -553,8 +558,9 @@ export default function ExpensesTrackingPage() {
             ) : (
               // Vista de Cuentas
               loadingAccounts ? (
-                <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
-                  Cargando cuentas...
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <Loader size={32} />
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Cargando cuentas...</div>
                 </div>
               ) : accounts.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
@@ -1056,8 +1062,9 @@ export default function ExpensesTrackingPage() {
                 <p className="text-sm">Las transacciones aparecerán aquí</p>
               </div>
             ) : loadingTransactions ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                Cargando transacciones...
+              <div className="flex flex-col items-center justify-center py-8 gap-3">
+                <Loader size={32} />
+                <div className="text-sm text-gray-500 dark:text-gray-400">Cargando transacciones...</div>
               </div>
             ) : transactions.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">

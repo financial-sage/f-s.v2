@@ -53,8 +53,8 @@ export default function MonthlyTransactionsEChart({ height = 260, mock = true }:
       fetchAndUpdateData();
     };
 
-    window.addEventListener('dashboard:update' as any, handleDashboardUpdate);
-    return () => window.removeEventListener('dashboard:update' as any, handleDashboardUpdate);
+    window.addEventListener('dashboard:update', handleDashboardUpdate);
+    return () => window.removeEventListener('dashboard:update', handleDashboardUpdate);
   }, [mock, session?.user?.id]);
   const [xAxisDays, setXAxisDays] = useState<string[]>([]);
   const [txType, setTxType] = useState<'expense' | 'income'>('expense');

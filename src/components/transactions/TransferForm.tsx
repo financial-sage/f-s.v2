@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { Input, Button } from '@/src/components/common';
+import { Input, Button, Loader } from '@/src/components/common';
 import { AccountSelector } from '@/src/components/accounts/AccountSelector';
 import { createTransfer } from '@/src/lib/supabase/transactions';
 import { useSession } from '@/src/hooks/useSession';
@@ -183,7 +183,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({
                         disabled={isLoading || !fromAccountId || !toAccountId || fromAccountId === toAccountId}
                         className="flex-1"
                     >
-                        {isLoading ? 'Procesando...' : 'Transferir'}
+                        {isLoading ? (
+                            <div className="flex items-center gap-2">
+                                <Loader size={20} color="#ffffff" />
+                                <span>Procesando...</span>
+                            </div>
+                        ) : 'Transferir'}
                     </Button>
                 </div>
             </form>
