@@ -139,7 +139,7 @@ export default function HomePage() {
               Consejos para mejorar tus finanzas
             </h2>
             <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
-              Principios fundamentales basados en "Finanzas Personales para Dummies" 
+              Principios fundamentales basados en &quot;Finanzas Personales para Dummies&quot; 
               que transformarán tu relación con el dinero
             </p>
           </div>

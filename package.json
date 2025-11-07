@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "dev:https": "node server-https.js",
     "tunnel": "npx localtunnel --port 3000",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "setup-https": "powershell -ExecutionPolicy Bypass -File scripts/setup-https.ps1"

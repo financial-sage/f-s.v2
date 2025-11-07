@@ -13,7 +13,7 @@ export function PWADetector() {
     
     // Detectar si está en modo standalone (instalada)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as any).standalone
+      || (window.navigator as { standalone?: boolean }).standalone
       || document.referrer.includes('android-app://');
     
     setIsPWA(isStandalone);

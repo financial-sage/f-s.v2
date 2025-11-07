@@ -435,7 +435,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                         <div className="flex flex-col items-center">
                             <AccountTransactionModal 
                                 accountId={accountsData[currentActiveIndex].id} 
-                                categories={categories} 
                                 type="expense" 
                                 onTransactionComplete={() => {
                                     loadAccounts();
@@ -449,7 +448,6 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                         <div className="flex flex-col items-center">
                             <AccountTransactionModal 
                                 accountId={accountsData[currentActiveIndex].id} 
-                                categories={categories} 
                                 type="income" 
                                 preselectedAccountId={accountsData[currentActiveIndex].id}
                                 onTransactionComplete={() => {

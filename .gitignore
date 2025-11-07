@@ -40,4 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-iisnode
+# iisnode (Windows IIS)
+iisnode/
+
+# local development
+/certs
+/scripts/*.ps1
+server-https.js
+/temp-icons
+/bin
