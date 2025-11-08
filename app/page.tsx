@@ -43,13 +43,33 @@ export default function Home() {
     };
 
     const handleGoogleLogin = async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`
+        try {
+            console.log('Iniciando login con Google...');
+            console.log('Redirect URL:', `${window.location.origin}/auth/callback`);
+            
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback`,
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'consent',
+                    }
+                }
+            });
+            
+            if (error) {
+                console.error("Error with Google login:", error);
+                alert("Error al iniciar sesión con Google: " + error.message);
+            } else if (data?.url) {
+                console.log('Redirigiendo a:', data.url);
+                // Redirigir manualmente a la URL de autenticación de Google
+                window.location.href = data.url;
             }
-        });
-        if (error) console.error("Error with Google login:", error.message);
+        } catch (err) {
+            console.error("Error inesperado:", err);
+            alert("Error inesperado al iniciar sesión");
+        }
     };
 
     // Mostrar loading mientras verifica sesión inicial
