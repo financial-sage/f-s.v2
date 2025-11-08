@@ -43,7 +43,7 @@ export default function RootLayout({
         {/* Favicon */}
         <link rel="icon" href="/icon-192.svg" />
       </head>
-      <body className="flex min-h-full bg-white antialiased h-full overflow-hidden" style={{ background: "var(--background-gradient)" }}>
+      <body className="flex min-h-full bg-white antialiased h-full overflow-hidden" style={{ background: "var(--background-gradient)" }} suppressHydrationWarning>
         <RegisterServiceWorker />
         <CurrencyProvider>
           <TransactionProvider>

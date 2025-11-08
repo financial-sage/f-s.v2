@@ -89,14 +89,14 @@ export default function Dashboard() {
   if (!hasAccounts) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-4 dark:text-white" style={{ fontWeight: "200" }}>Dashboard!</h1>
+        <h1 className="text-2xl font-bold mb-4 dark:text-white hidden md:block" style={{ fontWeight: "200" }}>Dashboard!</h1>
         
         <div className="max-w-4xl mx-auto">
           <AccountsSlide onAddAccount={handleAddAccount} />
           
           <div className="mt-8">
-            <div className="card sm p-8 text-center">
-              <div className="cardContent">
+            <div className="card  text-center">
+              <div className="">
                 <div className="mb-6">
                   <i className="fas fa-chart-line text-6xl text-blue-500 opacity-20"></i>
                 </div>
@@ -139,7 +139,7 @@ export default function Dashboard() {
   // Vista normal para usuarios con cuentas
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4 dark:text-white" style={{ fontWeight: "200" }}>Dashboard!</h1>
+      <h1 className="text-2xl font-bold mb-4 dark:text-white hidden md:block" style={{ fontWeight: "200" }}>Dashboard!</h1>
 
       <div className="grid sm:grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4">
         <div className="">

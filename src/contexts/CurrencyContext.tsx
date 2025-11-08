@@ -11,7 +11,8 @@ export interface Currency {
 
 export const CURRENCIES: Currency[] = [
   { code: 'USD', name: 'Dólar Estadounidense', symbol: '$', locale: 'en-US' },
-  { code: 'EUR', name: 'Euro', symbol: '€', locale: 'es-ES' },
+  { code: 'EUR', name: 'Euro (España)', symbol: '€', locale: 'es-ES' },
+  { code: 'EUR', name: 'Euro (Europa)', symbol: '€', locale: 'es-ES' },
   { code: 'COP', name: 'Peso Colombiano', symbol: '$', locale: 'es-CO' },
   { code: 'MXN', name: 'Peso Mexicano', symbol: '$', locale: 'es-MX' },
   { code: 'ARS', name: 'Peso Argentino', symbol: '$', locale: 'es-AR' },
@@ -58,20 +59,23 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
     localStorage.setItem('financial-sage-currency', JSON.stringify(newCurrency));
   };
 
-  // Formatear cantidad con la moneda actual
+  // Formatear cantidad con la moneda actual (solo cambia el símbolo, sin conversión)
   const formatAmount = (amount: number, showSymbol: boolean = true): string => {
+    // Usar locale fijo para evitar conversiones de moneda
+    const formattedNumber = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+
     if (!showSymbol) {
-      return new Intl.NumberFormat(currency.locale, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(amount);
+      return formattedNumber;
     }
 
-    return new Intl.NumberFormat(currency.locale, {
-      style: 'currency',
-      currency: currency.code,
-      minimumFractionDigits: 2,
-    }).format(amount);
+    // Agregar el símbolo manualmente (EUR-ES va al final)
+    if (currency.code === 'EUR-ES') {
+      return `${formattedNumber}€`;
+    }
+    return `${currency.symbol}${formattedNumber}`;
   };
 
   // Formatear cantidad con tipo (ingreso/gasto/transferencia)

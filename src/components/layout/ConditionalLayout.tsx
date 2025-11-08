@@ -6,6 +6,7 @@ import { User } from "@supabase/supabase-js";
 import { Header } from "@/src/components/layout/Header";
 import MobileBottomNav from "@/src/components/layout/MobileBottomNav";
 import Loader from "@/src/components/common/Loader";
+import { usePathname } from "next/navigation";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,8 @@ interface ConditionalLayoutProps {
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Verificar el estado inicial de autenticación
@@ -29,24 +32,62 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id || 'no user');
-        setUser(session?.user ?? null);
-        setLoading(false);
         
-        // Si el evento es SIGNED_OUT, asegurar que el usuario sea null
+        // Si el evento es SIGNED_OUT, mostrar overlay de transición brevemente
         if (event === 'SIGNED_OUT') {
+          setIsTransitioning(true);
           setUser(null);
+          // Remover el overlay después de un breve momento para permitir la redirección
+          setTimeout(() => {
+            setIsTransitioning(false);
+          }, 500);
+        } else if (event === 'SIGNED_IN') {
+          setUser(session?.user ?? null);
+          setIsTransitioning(false);
+        } else {
+          setUser(session?.user ?? null);
         }
+        
+        setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Overlay de transición (logout o cambio de estado)
+  if (isTransitioning) {
+    return (
+      <div 
+        className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: '#09090b'
+        }}
+      >
+        <Loader size={64} />
+        <p className="text-sm text-white font-medium mt-4">Cerrando sesión...</p>
+      </div>
+    );
+  }
+
+  // Loading inicial
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/20 dark:bg-black/40 backdrop-blur-sm">
+      <div 
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+        style={{ 
+          backgroundColor: '#09090b'
+        }}
+      >
         <Loader size={64} />
-        <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Cargando...</p>
+        <p className="text-sm text-zinc-300 font-medium mt-4">Cargando...</p>
       </div>
     );
   }

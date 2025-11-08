@@ -7,6 +7,7 @@ import { CategoryForm } from './CategoryForm';
 import { CategoryProgressCircle } from './CategoryProgressCircle';
 import { Plus } from "lucide-react";
 import BlendyCategoriesModal from '../modal/blendyCategories';
+import { useCurrency } from '@/src/contexts/CurrencyContext';
 
 type TabType = 'expenses' | 'income';
 
@@ -19,6 +20,7 @@ interface CategoriesProps {
 }
 
 export function Categories({ onCategoriesUpdate, onCategorySelect, selectedCategoryId, activeTab: externalActiveTab, onTabChange }: CategoriesProps) {
+    const { formatAmount } = useCurrency();
     const [categories, setCategories] = useState<Category[]>([]);
     const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -127,19 +129,8 @@ export function Categories({ onCategoriesUpdate, onCategorySelect, selectedCateg
                 {/* Categorías filtradas según el tab activo */}
                 {filteredCategories.map((category) => {
                     const currentExpense = categoryExpenses[category.id] || 0;
-                    const formattedExpense = currentExpense.toLocaleString('es-ES', {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                    });
-                    const formattedBudget = category.budget_limit ? 
-                        category.budget_limit.toLocaleString('es-ES', {
-                            style: 'currency',
-                            currency: 'USD',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0
-                        }) : null;
+                    const formattedExpense = formatAmount(currentExpense, false);
+                    const formattedBudget = category.budget_limit ? formatAmount(category.budget_limit, false) : null;
 
                     return (
                         <div

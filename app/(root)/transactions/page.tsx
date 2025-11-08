@@ -6,12 +6,14 @@ import Calendar from "@/src/components/common/Calendar";
 import { Select, Loader } from "@/src/components/common";
 import { useSession } from "@/src/hooks/useSession";
 import { useTransactions } from "@/src/hooks/useTransactions";
+import { useCurrency } from "@/src/contexts/CurrencyContext";
 import { useState } from "react";
 import BlendyButton from "@/src/components/modal/blendy";
 
 export default function TransactionsPage() {
     const { session, loading: sessionLoading } = useSession();
     const { transactions, loading: transactionsLoading, error } = useTransactions(session?.user?.id || null);
+    const { formatAmountWithType } = useCurrency();
 
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
@@ -159,19 +161,6 @@ export default function TransactionsPage() {
             hour: '2-digit',
             minute: '2-digit'
         });
-    };
-
-    // Formatear cantidad
-    const formatAmount = (amount: number, type: 'income' | 'expense' | 'transfer') => {
-        const formattedAmount = new Intl.NumberFormat('es-ES', {
-            style: 'currency',
-            currency: 'USD'
-        }).format(amount);
-
-        if (type === 'transfer') {
-            return `↔${formattedAmount}`;
-        }
-        return type === 'income' ? `+${formattedAmount}` : `-${formattedAmount}`;
     };
 
     if (sessionLoading || transactionsLoading) {
@@ -371,7 +360,7 @@ export default function TransactionsPage() {
                                                         ? 'text-blue-600 dark:text-blue-400'
                                                         : 'text-red-600 dark:text-red-400'
                                                     }`}>
-                                                    {formatAmount(transaction.amount, transaction.type)}
+                                                    {formatAmountWithType(transaction.amount, transaction.type)}
                                                 </span>
                                                 <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                     {formatDate(transaction.date)}

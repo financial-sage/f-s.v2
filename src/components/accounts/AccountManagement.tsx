@@ -6,6 +6,7 @@ import { Button, Input, Select } from '@/src/components/common';
 import { Account, NewAccount, AccountType } from '@/src/types/types';
 import { getUserAccounts, createAccount, updateAccount, deactivateAccount } from '@/src/lib/supabase/accounts';
 import { useSession } from '@/src/hooks/useSession';
+import { useCurrency } from '@/src/contexts/CurrencyContext';
 import BlendyButton from '../modal/blendy';
 import { TransferForm } from '../transactions/TransferForm';
 import { FiCreditCard, FiDollarSign, FiPieChart, FiTrendingUp, FiZap } from 'react-icons/fi';
@@ -30,6 +31,7 @@ export const AccountManagement: React.FC = () => {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const { session } = useSession();
+  const { formatAmount } = useCurrency();
 
   // Estado del formulario
   const [formData, setFormData] = useState<NewAccount>({
@@ -329,7 +331,7 @@ export const AccountManagement: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <p className={`font-bold ${account.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {account.balance < 0 ? '-' : ''}${Math.abs(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatAmount(account.balance)}
                   </p>
                   <p className="text-xs text-zinc-200">{account.currency}</p>
                 </div>

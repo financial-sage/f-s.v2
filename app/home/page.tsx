@@ -111,22 +111,16 @@ export default function HomePage() {
               Aprende a gestionar tu dinero de manera inteligente, establece metas financieras 
               y construye un futuro económico sólido con consejos probados y herramientas poderosas.
             </p>
-            {!isAuthenticated && (
+            
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
-                  href="/register"
-                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all transform hover:scale-105"
+                  href="/dashboard"
+                  className="px-8 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-sm font-medium transition-all transform hover:scale-105"
                 >
-                  Comenzar Gratis
-                </Link>
-                <Link
-                  href="/login"
-                  className="px-8 py-4 bg-zinc-800/50 hover:bg-zinc-700/50 text-white rounded-lg font-medium transition-colors border border-zinc-700/50"
-                >
-                  Iniciar Sesión
+                  Ir al Dashboard
                 </Link>
               </div>
-            )}
+           
           </div>
         </div>
       </section>
@@ -150,9 +144,9 @@ export default function HomePage() {
               return (
                 <div
                   key={index}
-                  className="card sm group hover:scale-105 transition-all duration-300"
+                  className="card group hover:scale-105 transition-all duration-300"
                 >
-                  <div className="cardContent">
+                  <div className="">
                     <div 
                       className="w-16 h-16 rounded-xl flex items-center justify-center mb-4"
                     >
@@ -196,7 +190,7 @@ export default function HomePage() {
                   key={index}
                   className="card sm hover:bg-zinc-800/30 dark:hover:bg-zinc-800/30 transition-all"
                 >
-                  <div className="cardContent">
+                  <div className="">
                     <div 
                       className="w-14 h-14 rounded-lg flex items-center justify-center mb-4"
                     >

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiPlus, FiCreditCard, FiDollarSign, FiPieChart, FiTrendingUp, FiZap } from 'react-icons/fi';
+import { useCurrency } from '@/src/contexts/CurrencyContext';
 
 // Datos de ejemplo para las cuentas
 const sampleAccounts = [
@@ -68,6 +69,7 @@ const getAccountIcon = (type: string) => {
 };
 
 export default function AccountsDashboard() {
+  const { formatAmount } = useCurrency();
   const totalBalance = sampleAccounts.reduce((sum, account) => sum + account.balance, 0);
 
   return (
@@ -109,7 +111,7 @@ export default function AccountsDashboard() {
                 </div>
                 <div className="text-right">
                   <p className={`font-bold ${account.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {account.balance < 0 ? '-' : ''}${Math.abs(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatAmount(account.balance)}
                   </p>
                   <p className="text-xs text-zinc-200">{account.currency}</p>
                 </div>

@@ -5,51 +5,40 @@ import Link from "next/link";
 import { supabase } from "@/src/lib/supabase/client";
 import styles from "@/app/(auth)/login/Login.module.scss";
 import { useRouter } from "next/navigation";
-import { getOAuthRedirectUrl } from '@/src/utils/url';
 
 export default function Home() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isChecking, setIsChecking] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
-        // Verificar si ya hay un usuario autenticado
-        const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                router.push('/dashboard');
+        // Verificar sesión inicial solo una vez
+        const checkInitialSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                router.replace('/home');
+            } else {
+                setIsChecking(false);
             }
         };
         
-        checkUser();
-
-        // Escuchar cambios en el estado de autenticación
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (event, session) => {
-                if (session?.user) {
-                    router.push('/dashboard');
-                } else if (event === 'SIGNED_OUT') {
-                    // Asegurar que estamos en la página de login después del logout
-                    console.log('Usuario deslogueado, mostrando login');
-                }
-            }
-        );
-
-        return () => subscription.unsubscribe();
+        checkInitialSession();
     }, [router]);
 
     const handleLogin = async () => {
         setIsLoading(true);
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        console.log(error);
-        setIsLoading(false);
+        
         if (error) {
             console.error("Error logging in:", error.message);
+            alert("Error: " + error.message);
+            setIsLoading(false);
         } else {
-            console.log("Login successful!");
-            router.push('/');
+            // Redirigir inmediatamente sin esperar
+            router.replace('/home');
         }
     };
 
@@ -57,10 +46,29 @@ export default function Home() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/dashboard`
+                redirectTo: `${window.location.origin}/home`
             }
         });
         if (error) console.error("Error with Google login:", error.message);
+    };
+
+    // Mostrar loading mientras verifica sesión inicial
+    if (isChecking) {
+        return (
+            <div 
+                className="fixed inset-0 flex items-center justify-center"
+                style={{ 
+                    backgroundColor: '#09090b',
+                    width: '100vw',
+                    height: '100vh'
+                }}
+            >
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <p className="text-sm text-zinc-300 font-medium">Verificando sesión...</p>
+                </div>
+            </div>
+        );
     }
 
     return (

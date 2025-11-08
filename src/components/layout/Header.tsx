@@ -59,6 +59,7 @@ const menuData: MenuSection[] = [
 
 // Función para obtener el elemento activo basado en la ruta actual
 const getActiveItemFromPath = (pathname: string): string => {
+    if (pathname === '/home') return ''; // No seleccionar nada en home
     if (pathname === '/dashboard') return 'dashboard';
     if (pathname === '/transactions') return 'Transacciones';
     if (pathname === '/budget') return 'Presupuestos';
@@ -67,8 +68,8 @@ const getActiveItemFromPath = (pathname: string): string => {
     if (pathname === '/accounts') return 'Cuentas';
     if (pathname === '/savings') return 'Savings';
     
-    // Ruta por defecto
-    return 'dashboard';
+    // Sin selección por defecto
+    return '';
 };
 
 export function Header() {
@@ -82,6 +83,7 @@ export function Header() {
 
     const [session, setSession] = useState<AppSession | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { imgSrc, isLoading: imageLoading } = useUserImage(session);
     // const [notifications] = useState([
     //     { id: 1, text: "Nuevo pedido recibido", time: "hace 2 min", unread: true },
@@ -159,6 +161,9 @@ export function Header() {
 
     const handleLogout = async () => {
         try {
+            // Mostrar overlay de logout inmediatamente
+            setIsLoggingOut(true);
+            
             // Cerrar sesión con Supabase
             const { error } = await supabase.auth.signOut();
             if (error) {
@@ -175,11 +180,11 @@ export function Header() {
             }
             
             // Redirigir a la página principal (que ahora es el login)
-            router.push("/");
+            router.replace("/");
         } catch (error) {
             console.error('Error durante el logout:', error);
             // Incluso si hay error, redirigir para seguridad
-            router.push("/");
+            router.replace("/");
         }
     };
 
@@ -475,9 +480,13 @@ export function Header() {
             <div>{session?.user?.full_name}</div>
             <div className="mt-1 small text-secondary">{session?.user?.email}</div>
           </div> */}
-                            <div className={`profile-menu${openDropdown === "profile" ? " show" : ""}`}>
-                                <button className="profile-menu-item">View Profile</button>
-                                <button className="profile-menu-item" onClick={handleLogout}>Cerrar sesión</button>
+                            <div className={`absolute right-0 top-full mt-3 min-w-[180px] bg-zinc-900/95 border border-zinc-700/50 rounded-xl shadow-xl p-2 backdrop-blur-md z-[100] transition-all duration-300 ${
+                                openDropdown === "profile" 
+                                    ? "opacity-100 visible translate-y-0" 
+                                    : "opacity-0 invisible -translate-y-2"
+                            }`}>
+                                <button className="w-full bg-transparent border-none text-zinc-100 px-6 py-3 text-left text-sm cursor-pointer flex items-center gap-2.5 transition-colors duration-200 hover:bg-zinc-800/50 rounded-lg">View Profile</button>
+                                <button className="w-full bg-transparent border-none text-zinc-100 px-6 py-3 text-left text-sm cursor-pointer flex items-center gap-2.5 transition-colors duration-200 hover:bg-zinc-800/50 rounded-lg" onClick={handleLogout}>Cerrar sesión</button>
                             </div>
                         </div>
                     </div>
@@ -496,6 +505,26 @@ export function Header() {
             <div className={`lg:hidden fixed top-14 bottom-0 left-0 w-72 xl:w-80 overflow-y-auto dark:bg-black/20 px-6 pt-4 pb-8 shadow-lg ring-1 shadow-zinc-900/10 ring-zinc-900/7.5 duration-500 ease-in-out  border-zinc-900/10  dark:ring-zinc-800 dark:border-white/10 z-40 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <NavigationMenu isMobile={true} />
             </div>
+
+            {/* Overlay de cierre de sesión */}
+            {isLoggingOut && (
+                <div 
+                    className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-zinc-950"
+                    style={{ 
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        backgroundColor: '#09090b'
+                    }}
+                >
+                    <Loader size={64} />
+                    <p className="text-sm text-white font-medium mt-4">Cerrando sesión...</p>
+                </div>
+            )}
         </header>
     );
 }

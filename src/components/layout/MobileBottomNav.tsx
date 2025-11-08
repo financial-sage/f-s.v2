@@ -25,7 +25,11 @@ export default function MobileBottomNav() {
     { href: '/categories-management', icon: ShoppingCart, label: 'Categorías', color: '#a855f7' },
   ];
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => {
+    // Si estamos en /home, no marcar nada como activo
+    if (pathname === '/home') return false;
+    return pathname === href;
+  };
 
   return (
     <>
@@ -135,7 +139,7 @@ export default function MobileBottomNav() {
               <LayoutDashboard 
                 size={20} 
                 strokeWidth={1.5}
-                style={{ color: isActive('/dashboard') ? '#3b82f6' : 'currentColor' }}
+                style={{ color: isActive('/dashboard') ? '#3b82f6' : '#6E6E6E' }}
                 className={isActive('/dashboard') ? '' : 'text-zinc-600 dark:text-zinc-400'}
               />
             </div>
@@ -160,7 +164,7 @@ export default function MobileBottomNav() {
               <Receipt 
                 size={20} 
                 strokeWidth={1.5}
-                style={{ color: isActive('/expenses-tracking') ? '#a855f7' : 'currentColor' }}
+                style={{ color: isActive('/expenses-tracking') ? '#a855f7' : '#6E6E6E' }}
                 className={isActive('/expenses-tracking') ? '' : 'text-zinc-600 dark:text-zinc-400'}
               />
             </div>
