@@ -46,12 +46,12 @@ const menuData: MenuSection[] = [
             //         { id: 'resources-sub', title: 'Gastos', href: '/gastos' }
             //     ]
             // },
-            { id: 'Transacciones', title: 'Transacciones', href: '/transactions' },
-            { id: 'Presupuestos', title: 'Presupuestos', href: '/budget' },
+            // { id: 'Transacciones', title: 'Transacciones', href: '/transactions' },
+            // { id: 'Presupuestos', title: 'Presupuestos', href: '/budget' },
             { id: 'ExpensesTracking', title: 'Seguimiento de Gastos', href: '/expenses-tracking' },
             { id: 'CategoriesManagement', title: 'Categorías', href: '/categories-management' },
-            { id: 'Cuentas', title: 'Cuentas', href: '/accounts' },
-            { id: 'Savings', title: 'Ahorros', href: '/savings' }
+            // { id: 'Cuentas', title: 'Cuentas', href: '/accounts' },
+            // { id: 'Savings', title: 'Ahorros', href: '/savings' }
 
         ]
     }

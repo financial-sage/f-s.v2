@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Account, NewAccount, AccountType } from '../../types/types';
 import { getUserAccounts, createAccount } from '../../lib/supabase/accounts';
@@ -71,6 +71,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         color: '#6366f1',
         is_default: false
     });
+    const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
 
     // Cargar categorías una sola vez
     useEffect(() => {
@@ -85,7 +86,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
     }, []);
 
     // Cargar cuentas desde la base de datos
-    const loadAccounts = async () => {
+    const loadAccounts = useCallback(async () => {
         if (!session?.user?.id) {
             setLoading(false);
             return;
@@ -145,12 +146,34 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [session?.user?.id, formatAmount, session?.user?.full_name]);
 
     // Cargar cuentas cuando cambie el usuario o cuando se monte el componente
     useEffect(() => {
         loadAccounts();
-    }, [session?.user?.id]);
+    }, [loadAccounts]);
+
+    // Escuchar eventos de actualización del dashboard (cuando se edita/elimina una transacción)
+    useEffect(() => {
+        const handleDashboardUpdate = () => {
+            console.log('🔄 AccountsSlide: Evento dashboard:update recibido');
+            loadAccounts();
+        };
+
+        window.addEventListener('dashboard:update', handleDashboardUpdate);
+        return () => window.removeEventListener('dashboard:update', handleDashboardUpdate);
+    }, [loadAccounts]);
+
+    // Efecto para cambiar a la cuenta de destino después de una transferencia
+    useEffect(() => {
+        if (pendingDestinationId && accountsData.length > 0) {
+            const destIndex = accountsData.findIndex(acc => acc.id === pendingDestinationId);
+            if (destIndex !== -1) {
+                setCurrentActiveIndex(destIndex);
+            }
+            setPendingDestinationId(null);
+        }
+    }, [accountsData, pendingDestinationId]);
 
     // Solo actualizar el formato de los números cuando cambie formatAmount
     useEffect(() => {
@@ -486,9 +509,21 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                         <AddAccountModal accountId={accountsData[currentActiveIndex].id} categories={categories} onSaved={loadAccounts} />
                     </div>
 
-                    <div className="flex flex-col items-center">
-                        <AddTransferModal/>
-                    </div>
+                    {/* Botón para transferir - solo si no es la tarjeta de saldo total */}
+                    {!accountsData[currentActiveIndex].isTotal && (
+                        <div className="flex flex-col items-center">
+                            <AddTransferModal 
+                                sourceAccountId={accountsData[currentActiveIndex].id}
+                                onTransferComplete={(destinationAccountId) => {
+                                    // Guardar el ID de la cuenta de destino para cambiar después de recargar
+                                    if (destinationAccountId) {
+                                        setPendingDestinationId(destinationAccountId);
+                                    }
+                                    loadAccounts();
+                                }}
+                            />
+                        </div>
+                    )}
 
                 </div>
 

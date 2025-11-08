@@ -18,19 +18,33 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full" style={{ background: "var(--background-gradient)" }}>
+    <html lang="en" className="dark h-full" style={{ background: "var(--background-gradient)", colorScheme: "dark" }} suppressHydrationWarning>
       <head>
+        {/* Force Dark Mode Script - Debe ejecutarse antes que nada */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                document.documentElement.classList.add('dark');
+                document.documentElement.style.colorScheme = 'dark';
+              })();
+            `,
+          }}
+        />
+        
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></link>
         
         {/* PWA Meta Tags */}
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui" />
         <meta name="theme-color" content="#09090b" />
+        <meta name="color-scheme" content="dark" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="FinSage" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="msapplication-tap-highlight" content="no" />
+        <meta name="msapplication-navbutton-color" content="#09090b" />
         
         {/* PWA Manifest */}
         <link rel="manifest" href="/manifest.json" />

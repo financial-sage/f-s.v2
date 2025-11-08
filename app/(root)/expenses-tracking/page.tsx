@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useExpenseTracking } from '@/src/hooks/useExpenseTracking';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
@@ -47,7 +47,8 @@ export default function ExpensesTrackingPage() {
     setSelectedMonth,
     totalBudget,
     totalExpenses,
-    budgetProgress
+    budgetProgress,
+    refresh
   } = useExpenseTracking();
 
   const { formatAmount } = useCurrency();
@@ -118,223 +119,225 @@ export default function ExpensesTrackingPage() {
     ? accounts.find(acc => acc.id === selectedAccount)
     : null;
 
-  // Cargar cuentas con sus gastos del mes
-  useEffect(() => {
-    const loadAccounts = async () => {
-      setLoadingAccounts(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+  // Función para cargar cuentas (fuera de useEffect para poder reutilizar)
+  const loadAccounts = useCallback(async () => {
+    setLoadingAccounts(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-        const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-        const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+      const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+      const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
 
-        // Obtener cuentas del usuario
-        const { data: accountsData, error: accountsError } = await supabase
-          .from('accounts')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .eq('is_active', true)
-          .order('name', { ascending: true });
+      // Obtener cuentas del usuario
+      const { data: accountsData, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
 
-        if (accountsError) throw accountsError;
+      if (accountsError) throw accountsError;
 
-        // Obtener gastos por cuenta
-        const { data: transactionsData, error: transactionsError } = await supabase
-          .from('transactions')
-          .select('account_id, amount')
-          .eq('user_id', session.user.id)
-          .eq('type', 'expense')
-          .eq('status', 'completed')
-          .gte('date', startDate.toISOString())
-          .lte('date', endDate.toISOString());
+      // Obtener gastos por cuenta
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('account_id, amount')
+        .eq('user_id', session.user.id)
+        .eq('type', 'expense')
+        .eq('status', 'completed')
+        .gte('date', startDate.toISOString())
+        .lte('date', endDate.toISOString());
 
-        if (transactionsError) throw transactionsError;
+      if (transactionsError) throw transactionsError;
 
-        // Agrupar gastos por cuenta
-        const expensesByAccount: Record<string, number> = {};
-        (transactionsData || []).forEach(t => {
-          if (t.account_id) {
-            expensesByAccount[t.account_id] = (expensesByAccount[t.account_id] || 0) + Math.abs(t.amount);
-          }
-        });
+      // Agrupar gastos por cuenta
+      const expensesByAccount: Record<string, number> = {};
+      (transactionsData || []).forEach(t => {
+        if (t.account_id) {
+          expensesByAccount[t.account_id] = (expensesByAccount[t.account_id] || 0) + Math.abs(t.amount);
+        }
+      });
 
-        // Combinar datos
-        const accountsWithExpenses = (accountsData || []).map(account => ({
-          ...account,
-          total_expenses: expensesByAccount[account.id] || 0
-        }));
+      // Combinar datos
+      const accountsWithExpenses = (accountsData || []).map(account => ({
+        ...account,
+        total_expenses: expensesByAccount[account.id] || 0
+      }));
 
-        setAccounts(accountsWithExpenses);
-      } catch (err) {
-        console.error('Error cargando cuentas:', err);
-        setAccounts([]);
-      } finally {
-        setLoadingAccounts(false);
-      }
-    };
-
-    loadAccounts();
+      setAccounts(accountsWithExpenses);
+    } catch (err) {
+      console.error('Error cargando cuentas:', err);
+      setAccounts([]);
+    } finally {
+      setLoadingAccounts(false);
+    }
   }, [selectedMonth]);
 
-  // Cargar transacciones cuando se selecciona una categoría, subcategoría o cuenta
+  // Cargar cuentas con sus gastos del mes
   useEffect(() => {
-    const loadTransactions = async () => {
-      // Si showAllTransactions está activo, cargar todas las transacciones
-      // En modo categorías, requiere categoría seleccionada o showAll
-      // En modo cuentas, requiere cuenta seleccionada o showAll
-      if (!showAllTransactions) {
-        if (viewMode === 'categories' && !selectedCategory) {
-          setTransactions([]);
-          return;
-        }
-        if (viewMode === 'accounts' && !selectedAccount) {
-          setTransactions([]);
-          return;
-        }
+    loadAccounts();
+  }, [loadAccounts]);
+
+  // Función para cargar transacciones (fuera de useEffect para poder reutilizar)
+  const loadTransactions = useCallback(async () => {
+    // Si showAllTransactions está activo, cargar todas las transacciones
+    // En modo categorías, requiere categoría seleccionada o showAll
+    // En modo cuentas, requiere cuenta seleccionada o showAll
+    if (!showAllTransactions) {
+      if (viewMode === 'categories' && !selectedCategory) {
+        setTransactions([]);
+        return;
+      }
+      if (viewMode === 'accounts' && !selectedAccount) {
+        setTransactions([]);
+        return;
+      }
+    }
+
+    setLoadingTransactions(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('No hay sesión activa');
+        setLoadingTransactions(false);
+        return;
       }
 
-      setLoadingTransactions(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          console.log('No hay sesión activa');
-          setLoadingTransactions(false);
-          return;
+      const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+      const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+
+      console.log('Cargando transacciones para:', {
+        userId: session.user.id,
+        viewMode,
+        categoryId: selectedCategory,
+        subcategoryId: selectedSubcategory,
+        accountId: selectedAccount,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+
+      // Primero obtener las transacciones sin join
+      let query = supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('type', 'expense')
+        .eq('status', 'completed')
+        .gte('date', startDate.toISOString())
+        .lte('date', endDate.toISOString())
+        .order('date', { ascending: false });
+
+      // Aplicar filtros según el modo (solo si no es "ver todas")
+      if (!showAllTransactions) {
+        if (viewMode === 'categories' && selectedCategory) {
+          query = query.eq('category_id', selectedCategory);
+          
+          // Filtrar por subcategoría si está seleccionada
+          if (selectedSubcategory) {
+            query = query.eq('subcategory_id', selectedSubcategory);
+          }
         }
 
-        const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-        const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
-
-        console.log('Cargando transacciones para:', {
-          userId: session.user.id,
-          viewMode,
-          categoryId: selectedCategory,
-          subcategoryId: selectedSubcategory,
-          accountId: selectedAccount,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString()
-        });
-
-        // Primero obtener las transacciones sin join
-        let query = supabase
-          .from('transactions')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .eq('type', 'expense')
-          .eq('status', 'completed')
-          .gte('date', startDate.toISOString())
-          .lte('date', endDate.toISOString())
-          .order('date', { ascending: false });
-
-        // Aplicar filtros según el modo (solo si no es "ver todas")
-        if (!showAllTransactions) {
-          if (viewMode === 'categories' && selectedCategory) {
+        if (viewMode === 'accounts' && selectedAccount) {
+          query = query.eq('account_id', selectedAccount);
+          
+          // Filtro cruzado: si también hay categoría seleccionada
+          if (selectedCategory) {
             query = query.eq('category_id', selectedCategory);
             
-            // Filtrar por subcategoría si está seleccionada
+            // Y subcategoría si aplica
             if (selectedSubcategory) {
               query = query.eq('subcategory_id', selectedSubcategory);
             }
           }
-
-          if (viewMode === 'accounts' && selectedAccount) {
-            query = query.eq('account_id', selectedAccount);
-            
-            // Filtro cruzado: si también hay categoría seleccionada
-            if (selectedCategory) {
-              query = query.eq('category_id', selectedCategory);
-              
-              // Y subcategoría si aplica
-              if (selectedSubcategory) {
-                query = query.eq('subcategory_id', selectedSubcategory);
-              }
-            }
-          }
         }
-
-        const { data: transactionsData, error: transactionsError } = await query;
-
-        console.log('Resultado de transacciones:', { transactionsData, transactionsError });
-
-        if (transactionsError) {
-          console.error('Error de Supabase:', transactionsError);
-          throw transactionsError;
-        }
-
-        if (!transactionsData || transactionsData.length === 0) {
-          console.log('No se encontraron transacciones');
-          setTransactions([]);
-          setLoadingTransactions(false);
-          return;
-        }
-
-        // Obtener las cuentas relacionadas
-        const accountIds = [...new Set(transactionsData.map(t => t.account_id).filter(Boolean))];
-        console.log('Account IDs a buscar:', accountIds);
-
-        let accountsMap: Record<string, { id: string; name: string }> = {};
-        
-        if (accountIds.length > 0) {
-          const { data: accountsData, error: accountsError } = await supabase
-            .from('accounts')
-            .select('id, name')
-            .in('id', accountIds);
-
-          console.log('Resultado de accounts:', { accountsData, accountsError });
-
-          if (!accountsError && accountsData) {
-            accountsMap = accountsData.reduce((acc, account) => {
-              acc[account.id] = account;
-              return acc;
-            }, {} as Record<string, { id: string; name: string }>);
-          }
-        }
-        
-        // Transform data to match Transaction interface
-        const transformedData = transactionsData.map((item: Transaction) => ({
-          id: item.id,
-          amount: item.amount,
-          description: item.description,
-          date: item.date,
-          category_id: item.category_id,
-          subcategory_id: item.subcategory_id,
-          account_id: item.account_id,
-          destination_account_id: item.destination_account_id,
-          type: item.type || 'expense',
-          status: item.status || 'completed',
-          account: item.account_id && accountsMap[item.account_id] ? {
-            id: accountsMap[item.account_id].id,
-            name: accountsMap[item.account_id].name
-          } : null
-        }));
-        
-        console.log('Transacciones transformadas:', transformedData);
-        setTransactions(transformedData);
-
-        // Si estamos en modo cuentas, calcular gastos por subcategoría para esta cuenta
-        if (viewMode === 'accounts' && selectedAccount && !showAllTransactions) {
-          const subcatExpenses: Record<string, number> = {};
-          transactionsData.forEach((t: Transaction) => {
-            if (t.subcategory_id) {
-              subcatExpenses[t.subcategory_id] = (subcatExpenses[t.subcategory_id] || 0) + Math.abs(t.amount);
-            }
-          });
-          setAccountSubcategoryExpenses(subcatExpenses);
-        } else {
-          setAccountSubcategoryExpenses({});
-        }
-      } catch (err) {
-        console.error('Error cargando transacciones:', err);
-        setTransactions([]);
-        setAccountSubcategoryExpenses({});
-      } finally {
-        setLoadingTransactions(false);
       }
-    };
 
-    loadTransactions();
+      const { data: transactionsData, error: transactionsError } = await query;
+
+      console.log('Resultado de transacciones:', { transactionsData, transactionsError });
+
+      if (transactionsError) {
+        console.error('Error de Supabase:', transactionsError);
+        throw transactionsError;
+      }
+
+      if (!transactionsData || transactionsData.length === 0) {
+        console.log('No se encontraron transacciones');
+        setTransactions([]);
+        setLoadingTransactions(false);
+        return;
+      }
+
+      // Obtener las cuentas relacionadas
+      const accountIds = [...new Set(transactionsData.map(t => t.account_id).filter(Boolean))];
+      console.log('Account IDs a buscar:', accountIds);
+
+      let accountsMap: Record<string, { id: string; name: string }> = {};
+      
+      if (accountIds.length > 0) {
+        const { data: accountsData, error: accountsError } = await supabase
+          .from('accounts')
+          .select('id, name')
+          .in('id', accountIds);
+
+        console.log('Resultado de accounts:', { accountsData, accountsError });
+
+        if (!accountsError && accountsData) {
+          accountsMap = accountsData.reduce((acc, account) => {
+            acc[account.id] = account;
+            return acc;
+          }, {} as Record<string, { id: string; name: string }>);
+        }
+      }
+      
+      // Transform data to match Transaction interface
+      const transformedData = transactionsData.map((item: Transaction) => ({
+        id: item.id,
+        amount: item.amount,
+        description: item.description,
+        date: item.date,
+        category_id: item.category_id,
+        subcategory_id: item.subcategory_id,
+        account_id: item.account_id,
+        destination_account_id: item.destination_account_id,
+        type: item.type || 'expense',
+        status: item.status || 'completed',
+        account: item.account_id && accountsMap[item.account_id] ? {
+          id: accountsMap[item.account_id].id,
+          name: accountsMap[item.account_id].name
+        } : null
+      }));
+      
+      console.log('Transacciones transformadas:', transformedData);
+      setTransactions(transformedData);
+
+      // Si estamos en modo cuentas, calcular gastos por subcategoría para esta cuenta
+      if (viewMode === 'accounts' && selectedAccount && !showAllTransactions) {
+        const subcatExpenses: Record<string, number> = {};
+        transactionsData.forEach((t: Transaction) => {
+          if (t.subcategory_id) {
+            subcatExpenses[t.subcategory_id] = (subcatExpenses[t.subcategory_id] || 0) + Math.abs(t.amount);
+          }
+        });
+        setAccountSubcategoryExpenses(subcatExpenses);
+      } else {
+        setAccountSubcategoryExpenses({});
+      }
+    } catch (err) {
+      console.error('Error cargando transacciones:', err);
+      setTransactions([]);
+      setAccountSubcategoryExpenses({});
+    } finally {
+      setLoadingTransactions(false);
+    }
   }, [selectedCategory, selectedSubcategory, selectedAccount, selectedMonth, viewMode, showAllTransactions]);
+
+  // Cargar transacciones cuando se selecciona una categoría, subcategoría o cuenta
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   // Resetear subcategoría al cambiar de categoría
   useEffect(() => {
@@ -1124,18 +1127,8 @@ export default function ExpensesTrackingPage() {
           onClose={() => setEditingTransaction(null)}
           onSaved={async () => {
             setEditingTransaction(null);
-            // Recargar transacciones y cuentas sin recargar toda la página
-            setLoadingTransactions(true);
-            setLoadingAccounts(true);
-            
-            // Trigger reload by changing a dependency
-            setSelectedMonth(new Date(selectedMonth));
-            
-            // Small delay to ensure data is updated
-            setTimeout(() => {
-              setLoadingTransactions(false);
-              setLoadingAccounts(false);
-            }, 500);
+            // Recargar todos los datos actualizados
+            await Promise.all([loadAccounts(), loadTransactions(), refresh()]);
           }}
         />
       )}

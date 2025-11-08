@@ -249,6 +249,10 @@ export default function TransactionFormModal({
           setError(result.error.message);
           return;
         }
+
+        // Disparar evento de actualización después de editar
+        console.log('🚀 Disparando evento dashboard:update desde TransactionFormModal (edit)');
+        window.dispatchEvent(new Event('dashboard:update'));
       }
 
       // Callbacks de éxito

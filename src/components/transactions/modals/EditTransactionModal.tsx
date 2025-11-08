@@ -39,7 +39,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('No hay sesi�n activa');
+        alert('No hay sesión activa');
         return;
       }
 
@@ -53,11 +53,15 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
         return;
       }
 
+      // Disparar evento para actualizar otros componentes (AccountsSlide, etc.)
+      console.log('🚀 Disparando evento dashboard:update desde EditTransactionModal');
+      window.dispatchEvent(new Event('dashboard:update'));
+
       onSaved();
       onClose();
     } catch (err) {
       console.error('Error al eliminar:', err);
-      alert('Error al eliminar la transacci�n');
+      alert('Error al eliminar la transacción');
     } finally {
       setLoading(false);
     }
@@ -75,22 +79,31 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
             <h2 className="text-zinc-400">Transferencia</h2>
             <button className="modal__close" onClick={onClose}></button>
           </div>
-          <div className="modal__content">
-            <p className="text-zinc-400 text-center py-8">
-              Las transferencias no se pueden editar en este momento.
-            </p>
-            <div className="flex gap-3 pt-4">
+          <div className="modal__content p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <i className="fas fa-exchange-alt text-blue-400 text-2xl"></i>
+              </div>
+              <h3 className="text-lg font-medium text-zinc-200 mb-2">
+                No se puede editar
+              </h3>
+              <p className="text-zinc-400 text-sm">
+                Las transferencias no se pueden modificar. Solo puedes eliminarla y crear una nueva si es necesario.
+              </p>
+            </div>
+            
+            <div className="space-y-3">
               <button
                 type="button"
                 onClick={handleDelete}
-                className={`flex-1 px-4 py-2 rounded-full border transition-colors ${
+                className={`w-full px-4 py-3 rounded-lg border transition-all ${
                   showDeleteConfirm
-                    ? 'border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                    : 'border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-red-400'
+                    ? 'border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30 font-medium'
+                    : 'border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500'
                 }`}
                 disabled={loading}
               >
-                {showDeleteConfirm ? '�Confirmar eliminaci�n?' : 'Eliminar'}
+                {loading ? 'Eliminando...' : showDeleteConfirm ? '¿Confirmar eliminación?' : 'Eliminar transferencia'}
               </button>
               <button
                 type="button"
@@ -98,7 +111,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
                   if (showDeleteConfirm) setShowDeleteConfirm(false);
                   else onClose();
                 }}
-                className="flex-1 px-4 py-2 rounded-full border border-zinc-600 text-zinc-300 hover:bg-zinc-700/50 transition-colors"
+                className="w-full px-4 py-3 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800/50 transition-all"
                 disabled={loading}
               >
                 {showDeleteConfirm ? 'Cancelar' : 'Cerrar'}
