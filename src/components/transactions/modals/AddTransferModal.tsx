@@ -149,7 +149,8 @@ function Modal({ sourceAccountId, onTransferComplete, onClose }: ModalProps) {
       }
       
       // Cerrar modal
-      (onClose as any)();
+      const closeEvent = onClose as unknown as () => void;
+      closeEvent();
     } catch (err) {
       setError('Error al realizar la transferencia');
       console.error(err);
