@@ -9,6 +9,7 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
+    
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -18,15 +19,13 @@ export async function GET(request: Request) {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              try {
                 cookieStore.set(name, value, options);
-              });
-            } catch (error) {
-              // The `set` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
-            }
+              } catch {
+                // Ignore errors
+              }
+            });
           },
         },
       }
@@ -35,10 +34,14 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {
-      return NextResponse.redirect(`${origin}/home`);
+      // Redirigir con forceRefresh para asegurar que se cargue la nueva sesión
+      return NextResponse.redirect(`${origin}/home`, { status: 303 });
     }
+    
+    // Si hay error, volver al login con mensaje
+    return NextResponse.redirect(`${origin}/?error=auth_error`, { status: 303 });
   }
 
-  // Si hay un error, redirigir al login
-  return NextResponse.redirect(`${origin}/`);
+  // No hay código, volver al login
+  return NextResponse.redirect(`${origin}/`, { status: 303 });
 }

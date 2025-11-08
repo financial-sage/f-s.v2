@@ -25,7 +25,9 @@ export async function middleware(request: NextRequest) {
   // Auth check for protected routes
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || 
                       request.nextUrl.pathname.startsWith('/register');
+  const isCallbackRoute = request.nextUrl.pathname.startsWith('/auth/callback');
   const isProtectedRoute = !isAuthRoute && 
+                          !isCallbackRoute &&
                           request.nextUrl.pathname !== '/' &&
                           !request.nextUrl.pathname.startsWith('/_next') &&
                           !request.nextUrl.pathname.startsWith('/api') &&
