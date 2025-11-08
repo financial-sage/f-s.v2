@@ -12,7 +12,6 @@ export interface Currency {
 export const CURRENCIES: Currency[] = [
   { code: 'USD', name: 'Dólar Estadounidense', symbol: '$', locale: 'en-US' },
   { code: 'EUR', name: 'Euro (España)', symbol: '€', locale: 'es-ES' },
-  { code: 'EUR', name: 'Euro (Europa)', symbol: '€', locale: 'es-ES' },
   { code: 'COP', name: 'Peso Colombiano', symbol: '$', locale: 'es-CO' },
   { code: 'MXN', name: 'Peso Mexicano', symbol: '$', locale: 'es-MX' },
   { code: 'ARS', name: 'Peso Argentino', symbol: '$', locale: 'es-AR' },
@@ -72,8 +71,8 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
     }
 
     // Agregar el símbolo manualmente (EUR-ES va al final)
-    if (currency.code === 'EUR-ES') {
-      return `${formattedNumber}€`;
+    if (currency.code === 'EUR') {
+      return `${formattedNumber} €`;
     }
     return `${currency.symbol}${formattedNumber}`;
   };
