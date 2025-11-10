@@ -69,9 +69,9 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
 
   if (transaction.type === 'transfer') {
     return (
-      <div className="fixed inset-0 bg-black/70 z-40" suppressHydrationWarning>
+      <div className="fixed inset-0 bg-black/70 z-60 lg:z-40" suppressHydrationWarning>
         <div 
-          className="modal z-50 border border-zinc-700 max-w-md" 
+          className="modal z-60 lg:z-50 border border-zinc-700 max-w-md" 
           style={{ background: "var(--background-gradient)" }} 
           suppressHydrationWarning
         >

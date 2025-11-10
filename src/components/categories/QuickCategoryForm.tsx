@@ -124,8 +124,8 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 lg:z-50 p-0 lg:p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-none lg:rounded-lg shadow-xl w-full h-full lg:h-auto max-w-full lg:max-w-2xl max-h-full lg:max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">

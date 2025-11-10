@@ -30,17 +30,14 @@ export default function AddTransferModal({ sourceAccountId, onTransferComplete }
           sourceAccountId={sourceAccountId}
           onTransferComplete={onTransferComplete}
           onClose={() => {
-            blendy.current?.untoggle('modal-transfer', () => {
-              setShowModal(false)
-            })
+            setShowModal(false);
           }}
         />, document.body)
       }
       <IconCircleButton
         data-blendy-from="modal-transfer"
         onClick={() => {
-          setShowModal(true)
-          blendy.current?.toggle('modal-transfer')
+          setShowModal(true);
         }}
         ariaLabel="Realizar transferencia"
         icon={<BiTransferAlt size={20} color="#FFF" />}
@@ -163,8 +160,8 @@ function Modal({ sourceAccountId, onTransferComplete, onClose }: ModalProps) {
   const destinationAccount = accounts.find(acc => acc.id === selectedDestinationId);
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-40" suppressHydrationWarning>
-      <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-transfer" suppressHydrationWarning>
+    <div className="fixed inset-0 bg-black/70 z-60 lg:z-40" suppressHydrationWarning>
+      <div className="modal z-60 lg:z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-transfer" suppressHydrationWarning>
         <div className="modal__header border-b border-zinc-700">
           <h2 className="text-zinc-400">Transferencia</h2>
           <button className="modal__close" onClick={onClose}></button>

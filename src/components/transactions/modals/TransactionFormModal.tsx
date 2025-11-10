@@ -6,6 +6,7 @@ import { supabase } from '@/src/lib/supabase/client';
 import { CurrencyContext, CurrencyContextType } from '@/src/contexts/CurrencyContext';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import AccountSelectorModal from '@/src/components/accounts/modal/AccountSelectorModal';
+import { QuickCategoryForm } from '@/src/components/categories/QuickCategoryForm';
 import { Category, getUserCategories } from '@/src/lib/supabase/categories';
 import { getUserAccounts } from '@/src/lib/supabase/accounts';
 import { addTransaction, NewTransaction, getCategoryExpenses, updateTransactionWithBalanceAdjustment, deleteTransactionWithBalanceAdjustment } from '@/src/lib/supabase/transactions';
@@ -72,6 +73,7 @@ export default function TransactionFormModal({
   const [currentAccountId, setCurrentAccountId] = useState<string | undefined>(
     initialData?.accountId || accountId
   );
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
 
   if (!currencyContext) {
     throw new Error('Currency context must be used within CurrencyProvider');
@@ -85,6 +87,27 @@ export default function TransactionFormModal({
       setSelectedDestinationAccountId(preselectedAccountId);
     }
   }, [preselectedAccountId, type, mode]);
+
+  // Función para recargar categorías
+  const reloadCategories = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const categoriesResult = await getUserCategories(session.user.id);
+      if (categoriesResult.data && Array.isArray(categoriesResult.data)) {
+        setCategories(categoriesResult.data);
+      }
+
+      // También recargar gastos por categoría
+      const expensesResult = await getCategoryExpenses(session.user.id);
+      if (!expensesResult.error && expensesResult.data) {
+        setCategoryExpenses(expensesResult.data);
+      }
+    } catch (err) {
+      console.error('Error recargando categorías:', err);
+    }
+  };
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -342,19 +365,19 @@ export default function TransactionFormModal({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/70 z-40" suppressHydrationWarning>
+    <div className="fixed inset-0 bg-black/70 z-60 lg:z-40" suppressHydrationWarning>
       <div 
-        className="modal z-50 border border-zinc-700" 
+        className="modal z-60 lg:z-50 border border-zinc-700 flex flex-col max-h-screen lg:max-h-[90vh]" 
         style={{ background: "var(--background-gradient)" }} 
         suppressHydrationWarning
       >
-        <div className="modal__header border-b border-zinc-700">
+        <div className="modal__header border-b border-zinc-700 flex-shrink-0">
           <h2 className="text-zinc-400">
             {mode === 'add' ? 'Agregar' : 'Editar'} {type === 'expense' ? 'gasto' : 'ingreso'}
           </h2>
           <button className="modal__close" onClick={onClose}></button>
         </div>
-        <div className="modal__content">
+        <div className="modal__content flex-1 overflow-y-auto pb-24 lg:pb-6">
           {/* Sección "Desde" para gastos (agregar y editar) */}
           {type === 'expense' && (
             <div className="mb-4">
@@ -409,10 +432,31 @@ export default function TransactionFormModal({
           {type === 'expense' ? (
             <>
               {categories.filter(c => c.type === type).length === 0 && (
-                <p className="text-zinc-400">No hay categorías disponibles. Por favor, crea una categoría primero.</p>
+                <div className="m-2 p-4 bg-zinc-900/30 border border-zinc-800 rounded-lg">
+                  <p className="text-zinc-400 text-sm mb-3">No hay categorías disponibles.</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryForm(true)}
+                    className="w-full py-2.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 rounded-lg text-blue-400 font-medium transition-all text-sm"
+                  >
+                    + Crear primera categoría
+                  </button>
+                </div>
               )}
               {categories.filter(c => c.type === type).length > 0 && (
-                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-7 gap-1.5 sm:gap-2 dark:text-zinc-400 m-2">
+                <div className="m-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-zinc-400">Categorías:</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryForm(true)}
+                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+                    >
+                      <i className="fas fa-plus text-[10px]"></i>
+                      Nueva
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-7 gap-1.5 sm:gap-2 dark:text-zinc-400">
                   {categories.filter(c => c.type === type).map((option) => {
                     const isSelected = selectedCategoryId === option.id;
                     const spent = categoryExpenses[option.id] || 0;
@@ -463,6 +507,7 @@ export default function TransactionFormModal({
                       </div>
                     );
                   })}
+                </div>
                 </div>
               )}
             </>
@@ -611,7 +656,12 @@ export default function TransactionFormModal({
                 />
               </div>
             </div>
-            
+          </form>
+        </div>
+
+        {/* Botones - Fixed footer */}
+        <div className="border-t border-zinc-700 p-4 sm:p-6 bg-zinc-900/30 flex-shrink-0">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <button 
               type="submit"
               disabled={isSubmitting || (type === 'expense' ? !selectedCategoryId : !selectedDestinationAccountId)}
@@ -678,6 +728,18 @@ export default function TransactionFormModal({
           </form>
         </div>
       </div>
+
+      {/* Modal para crear nueva categoría */}
+      {showCategoryForm && (
+        <QuickCategoryForm
+          type={type}
+          onClose={() => setShowCategoryForm(false)}
+          onSuccess={async () => {
+            await reloadCategories();
+            setShowCategoryForm(false);
+          }}
+        />
+      )}
     </div>,
     document.body
   );

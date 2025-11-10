@@ -2,39 +2,39 @@
   "name": "Financial Sage",
   "short_name": "FinSage",
   "description": "Gestiona tus finanzas personales de manera inteligente",
-  "start_url": "/home?source=pwa",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "background_color": "#09090b",
-  "theme_color": "#6366f1",
+  "theme_color": "#09090b",
   "orientation": "portrait-primary",
   "lang": "es",
   "dir": "ltr",
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
@@ -45,21 +45,21 @@
       "short_name": "Transacción",
       "description": "Registrar un gasto o ingreso",
       "url": "/transactions?source=shortcut",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "Ver resumen financiero",
       "url": "/dashboard?source=shortcut",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Cuentas",
       "short_name": "Cuentas",
       "description": "Gestionar tus cuentas",
       "url": "/accounts?source=shortcut",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "screenshots": []

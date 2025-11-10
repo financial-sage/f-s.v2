@@ -50,12 +50,15 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         
         {/* iOS Icons */}
-        <link rel="apple-touch-icon" href="/icon-192.svg" />
-        <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.svg" />
-        <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.svg" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
         
         {/* Favicon */}
-        <link rel="icon" href="/icon-192.svg" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
       </head>
       <body className="flex min-h-full bg-white antialiased h-full overflow-hidden" style={{ background: "var(--background-gradient)" }} suppressHydrationWarning>
         <RegisterServiceWorker />

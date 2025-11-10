@@ -1,43 +1,44 @@
-// Service Worker para PWA
-const CACHE_NAME = 'financial-sage-v2';
+// Service Worker para PWA - Financial Sage
+const CACHE_NAME = 'financial-sage-v3';
+const STATIC_CACHE = 'static-v3';
+const DYNAMIC_CACHE = 'dynamic-v3';
+
 const urlsToCache = [
   '/',
-  '/home',
-  '/dashboard',
-  '/transactions',
-  '/accounts',
-  '/budget',
-  '/savings',
-  '/expenses-tracking',
   '/manifest.json',
-  '/icon-192.svg',
-  '/icon-512.svg'
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/favicon.png'
 ];
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing Service Worker...');
+  console.log('[SW] Installing Service Worker v3...');
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.open(STATIC_CACHE)
       .then((cache) => {
-        console.log('[SW] Caching app shell');
+        console.log('[SW] Caching static assets');
         return cache.addAll(urlsToCache);
       })
       .then(() => {
         console.log('[SW] Service Worker installed successfully');
         return self.skipWaiting(); // Activar inmediatamente
       })
+      .catch((error) => {
+        console.error('[SW] Installation failed:', error);
+      })
   );
 });
 
 // Activación del Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating Service Worker...');
+  console.log('[SW] Activating Service Worker v3...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
             console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -50,47 +51,82 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Estrategia de caché: Network First, fallback a Cache
+// Estrategia de caché: Network First para HTML, Cache First para assets
 self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
   // Solo cachear peticiones GET
-  if (event.request.method !== 'GET') {
-    return;
-  }
+  if (request.method !== 'GET') return;
 
   // Ignorar peticiones a APIs externas y Supabase
-  const url = new URL(event.request.url);
   if (url.origin.includes('supabase.co') || 
       url.origin.includes('cdnjs.cloudflare.com') ||
-      url.pathname.startsWith('/api/')) {
+      url.pathname.startsWith('/api/') ||
+      url.pathname.startsWith('/_next/webpack-hmr')) {
     return;
   }
 
+  // Network First para navegación (HTML)
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Guardar en caché dinámico
+          const responseToCache = response.clone();
+          caches.open(DYNAMIC_CACHE).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+          return response;
+        })
+        .catch(() => {
+          // Fallback a caché si no hay red
+          return caches.match(request).then((cached) => {
+            return cached || caches.match('/');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache First para assets estáticos (imágenes, iconos, etc)
+  if (request.destination === 'image' || 
+      url.pathname.includes('/icon-') ||
+      url.pathname.includes('.png') ||
+      url.pathname.includes('.svg')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) {
+          return cached;
+        }
+        return fetch(request).then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Network First para el resto (JS, CSS, etc)
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
-        // Si la respuesta es válida, guardarla en caché
         if (response && response.status === 200 && response.type === 'basic') {
           const responseToCache = response.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+          caches.open(DYNAMIC_CACHE).then((cache) => {
+            cache.put(request, responseToCache);
+          });
         }
         return response;
       })
       .catch(() => {
-        // Si falla la red, intentar obtener desde caché
-        return caches.match(event.request)
-          .then((cachedResponse) => {
-            if (cachedResponse) {
-              console.log('[SW] Serving from cache:', event.request.url);
-              return cachedResponse;
-            }
-            // Si no está en caché, devolver una página offline básica
-            if (event.request.mode === 'navigate') {
-              return caches.match('/');
-            }
-          });
+        return caches.match(request);
       })
   );
 });

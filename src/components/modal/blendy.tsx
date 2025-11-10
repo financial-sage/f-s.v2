@@ -115,7 +115,7 @@ export function Modal({ onClose, title = "Modal", content, closeModal, isClosing
 
     // Recibe isClosing como prop
     return (
-        <div className="fixed inset-0 bg-black/70 z-40">
+        <div className="fixed inset-0 bg-black/70 z-60 lg:z-40">
             <div className={`modal z-50 border border-zinc-700${(typeof isClosing !== 'undefined' && isClosing) ? ' modal-closing' : ' modal-opening'}`} style={{ background: "var(--background-gradient)" }} data-blendy-to="example">
                 <div className="modal__header border-b border-zinc-700">
                     <h2 className="text-zinc-400">{title}</h2>

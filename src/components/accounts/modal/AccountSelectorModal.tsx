@@ -15,6 +15,7 @@ interface AccountSelectorModalProps {
     onAccountSelect?: (accountId: string) => void;
     currentAccountId?: string; // ID de la cuenta actualmente seleccionada
     onTransactionComplete?: () => void;
+    showAllAccounts?: boolean; // Si es true, muestra todas las cuentas sin excluir la actual
 }
 
 interface ModalProps {
@@ -24,16 +25,17 @@ interface ModalProps {
     onAccountSelect?: (accountId: string) => void;
     currentAccountId?: string;
     onTransactionComplete?: () => void;
+    showAllAccounts?: boolean;
 }
 
-function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onTransactionComplete }: ModalProps) {
+function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onTransactionComplete, showAllAccounts = false }: ModalProps) {
     const currencyContext = useContext(CurrencyContext);
 
     if (!currencyContext) {
         throw new Error('Currency context must be used within CurrencyProvider');
     }
 
-    // Primero filtramos por tipo de cuenta y luego excluimos la cuenta actual
+    // Primero filtramos por tipo de cuenta y luego excluimos la cuenta actual (si showAllAccounts es false)
     const filteredAccounts = accounts
         .filter(acc => {
             // Filtrar por tipo de cuenta
@@ -41,8 +43,8 @@ function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onT
                 ? acc.type === 'bank_account' || acc.type === 'debit_card' || acc.type === 'cash'
                 : true;
 
-            // Excluir la cuenta actual
-            const excludeCurrent = acc.id !== currentAccountId;
+            // Excluir la cuenta actual solo si showAllAccounts es false
+            const excludeCurrent = showAllAccounts ? true : acc.id !== currentAccountId;
 
             return typeFilter && excludeCurrent;
         });
@@ -59,9 +61,9 @@ function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onT
 
     return (
         <>
-            <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose}></div>
+            <div className="fixed inset-0 bg-black/70 z-[70] lg:z-60" onClick={onClose}></div>
             <div 
-                className="fixed z-50 border rounded-lg border-zinc-700 w-[calc(100%-2rem)] sm:w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[70vh] flex flex-col"
+                className="fixed z-[70] lg:z-[60] border rounded-lg border-zinc-700 w-[calc(100%-2rem)] sm:w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[70vh] flex flex-col"
                 style={{ background: "var(--background-gradient)" }}
                 data-blendy-to="modal-account-select">
                 <div className="border-b border-zinc-700 p-4 sm:p-5 flex-shrink-0">
@@ -134,7 +136,7 @@ function Modal({ onClose, accounts, type, onAccountSelect, currentAccountId, onT
     );
 }
 
-export default function AccountSelectorModal({ type = 'expense', onAccountSelect, currentAccountId, onTransactionComplete }: AccountSelectorModalProps) {
+export default function AccountSelectorModal({ type = 'expense', onAccountSelect, currentAccountId, onTransactionComplete, showAllAccounts = false }: AccountSelectorModalProps) {
     const blendy = useRef<Blendy | null>(null)
     const [showModal, setShowModal] = useState(false)
     const [accounts, setAccounts] = useState<Account[]>([])
@@ -179,6 +181,7 @@ export default function AccountSelectorModal({ type = 'expense', onAccountSelect
                     onAccountSelect={onAccountSelect}
                     currentAccountId={currentAccountId}
                     onTransactionComplete={onTransactionComplete}
+                    showAllAccounts={showAllAccounts}
                 />,
                 document.body
             )}

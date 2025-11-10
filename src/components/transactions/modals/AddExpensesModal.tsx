@@ -29,14 +29,11 @@ export default function AccountTransactionModal({
   }, []);
 
   const handleClose = () => {
-    blendy.current?.untoggle(`modal-transaction-${type}`, () => {
-      setShowModal(false);
-    });
+    setShowModal(false);
   };
 
   const handleOpen = () => {
     setShowModal(true);
-    blendy.current?.toggle(`modal-transaction-${type}`);
   };
 
   return (

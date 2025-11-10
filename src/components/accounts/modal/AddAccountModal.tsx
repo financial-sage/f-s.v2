@@ -105,9 +105,7 @@ export default function AddAccountModal({ accountId, categories: propCategories,
                 return;
             }
             // Solo guardar: cerramos el modal y reiniciamos el formulario localmente
-            blendy.current?.untoggle('modal-addAccount', () => {
-                setShowModal(false);
-            });
+            setShowModal(false);
             setFormData(initialForm);
             alert('Cuenta guardada correctamente.');
             // Notify parent to refresh accounts list if provided
@@ -124,16 +122,13 @@ export default function AddAccountModal({ accountId, categories: propCategories,
         <div>
             {showModal
                 && createPortal(<Modal categories={categories} onClose={() => {
-                    blendy.current?.untoggle('modal-addAccount', () => {
-                        setShowModal(false)
-                    })
+                    setShowModal(false);
                 }} formData={formData} setFormData={setFormData} onSave={handleSave} />, document.body)
             }
             <IconCircleButton
                 data-blendy-from="modal-addAccount"
                 onClick={() => {
-                    setShowModal(true)
-                    blendy.current?.toggle('modal-addAccount')
+                    setShowModal(true);
                 }}
                 ariaLabel="Agregar cuenta"
                 icon={<CiCreditCard1 size={20} color="#6366f1" />}
@@ -165,6 +160,9 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
             setIsSubmitting(true);
             setError(null);
             await onSave();
+            // Cerrar el modal después de guardar exitosamente
+            const closeEvent = onClose as unknown as () => void;
+            closeEvent();
         } catch (err) {
             setError('Error al guardar la cuenta');
             console.error(err);
@@ -174,13 +172,13 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 z-40" suppressHydrationWarning>
-            <div className="modal z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-addAccount" suppressHydrationWarning>
-                <div className="modal__header border-b border-zinc-700">
+        <div className="fixed inset-0 bg-black/70 z-60 lg:z-40" suppressHydrationWarning>
+          <div className="modal z-60 lg:z-50 border border-zinc-700 flex flex-col max-h-screen lg:max-h-[90vh]" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-add-account" suppressHydrationWarning>
+                <div className="modal__header border-b border-zinc-700 flex-shrink-0">
                     <h2 className="text-zinc-400">Agregar cuenta</h2>
                     <button className="modal__close" onClick={onClose}></button>
                 </div>
-                <div className="modal__content">
+                <div className="modal__content flex-1 overflow-y-auto pb-24 lg:pb-6">
                     {/* Tipos de cuenta */}
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 gap-1.5 sm:gap-2 dark:text-zinc-400 m-2">
                         {AccountTypeOptions.map((option) => {
@@ -293,17 +291,23 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
                                 <input
                                     type="number"
                                     step="0.01"
-                                    value={String(formData.balance)}
-                                    onChange={(e) => setFormData({ ...formData, balance: Number(e.target.value) })}
+                                    value={formData.balance === 0 ? '' : String(formData.balance)}
+                                    onChange={(e) => setFormData({ ...formData, balance: e.target.value === '' ? 0 : Number(e.target.value) })}
                                     placeholder="0.00"
                                     required
                                     className="w-full px-3 py-3 sm:py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all text-base sm:text-sm text-right"
                                 />
                             </div>
                         </div>
+                    </form>
+                </div>
 
+                {/* Botones - Fixed footer */}
+                <div className="border-t border-zinc-700 p-4 sm:p-6 bg-zinc-900/30 flex-shrink-0">
+                    <div className="space-y-3">
                         <button 
                             type="submit"
+                            onClick={handleSubmit}
                             disabled={isSubmitting || !selectedAccountType}
                             className={`w-full py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
                                 isSubmitting || !selectedAccountType
@@ -322,7 +326,7 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
                         >
                             Cancelar
                         </button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
