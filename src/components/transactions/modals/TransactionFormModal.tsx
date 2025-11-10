@@ -4,6 +4,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/src/lib/supabase/client';
 import { CurrencyContext, CurrencyContextType } from '@/src/contexts/CurrencyContext';
+import { useTransactionContext } from '@/src/contexts/TransactionContext';
 import { CategoryIcon } from '@/src/components/categories/CategoryIcons';
 import AccountSelectorModal from '@/src/components/accounts/modal/AccountSelectorModal';
 import { QuickCategoryForm } from '@/src/components/categories/QuickCategoryForm';
@@ -55,6 +56,7 @@ export default function TransactionFormModal({
   onAccountChange
 }: TransactionFormModalProps) {
   const currencyContext = useContext(CurrencyContext);
+  const { refetch: refetchTransactions } = useTransactionContext();
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(initialData?.categoryId || null);
@@ -244,6 +246,9 @@ export default function TransactionFormModal({
           }
         });
         window.dispatchEvent(updateEvent);
+
+        // Refrescar transacciones inmediatamente
+        await refetchTransactions();
       } else {
         // Modo editar
         if (!transactionId) {
@@ -335,6 +340,12 @@ export default function TransactionFormModal({
         return;
       }
 
+      // Refrescar transacciones inmediatamente
+      await refetchTransactions();
+
+      // Disparar evento de actualización
+      window.dispatchEvent(new Event('dashboard:update'));
+
       // Callbacks de éxito
       if (onSaved) {
         await onSaved();
@@ -368,7 +379,7 @@ export default function TransactionFormModal({
   return createPortal(
     <div className="fixed inset-0 bg-black/70 z-60 lg:z-40" suppressHydrationWarning>
       <div 
-        className="modal z-60 lg:z-50 border border-zinc-700 flex flex-col max-h-screen lg:max-h-[90vh]" 
+        className="modal z-60 lg:z-50 border border-zinc-700 flex flex-col max-h-[calc(100vh-4rem)] lg:max-h-[90vh]" 
         style={{ background: "var(--background-gradient)" }} 
         suppressHydrationWarning
       >
@@ -378,7 +389,7 @@ export default function TransactionFormModal({
           </h2>
           <button className="modal__close" onClick={onClose}></button>
         </div>
-        <div className="modal__content flex-1 overflow-y-auto pb-24 lg:pb-6">
+        <div className="modal__content flex-1 overflow-y-auto pb-6">
           {/* Sección "Desde" para gastos (agregar y editar) */}
           {type === 'expense' && (
             <div className="mb-4">
@@ -692,7 +703,7 @@ export default function TransactionFormModal({
                 </button>
               </div>
             ) : (
-              /* Modo edición - Actualizar, Eliminar y Cerrar */
+              /* Modo edición - Actualizar (arriba) y Eliminar | Cerrar (abajo) */
               <>
                 <button 
                   type="submit"

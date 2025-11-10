@@ -163,7 +163,7 @@ function Modal({ sourceAccountId, onTransferComplete, onClose }: ModalProps) {
   return (
     <div className="fixed inset-0 bg-black/70 z-60 lg:z-50 p-0" suppressHydrationWarning>
       <div 
-        className="rounded-none lg:rounded-lg shadow-xl w-full h-full lg:h-auto max-w-full lg:max-w-2xl overflow-hidden flex flex-col border-0 lg:border border-zinc-700 mx-auto my-0 lg:my-8"
+        className="rounded-none lg:rounded-lg shadow-xl w-full max-w-full lg:max-w-2xl overflow-hidden flex flex-col border-0 lg:border border-zinc-700 mx-auto my-0 lg:my-8 max-h-[calc(100vh-4rem)] lg:max-h-[90vh]"
         style={{ background: "var(--background-gradient)" }} 
         data-blendy-to="modal-transfer" 
         suppressHydrationWarning

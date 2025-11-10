@@ -126,7 +126,7 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-60 lg:z-50 p-0">
       <div 
-        className="rounded-none lg:rounded-lg shadow-xl w-full h-full lg:h-auto max-w-full lg:max-w-2xl overflow-hidden flex flex-col"
+        className="rounded-none lg:rounded-lg shadow-xl w-full max-w-full lg:max-w-2xl overflow-hidden flex flex-col max-h-[calc(100vh-4rem)] lg:max-h-[90vh]"
         style={{ background: "var(--background-gradient)" }}
       >
         {/* Header */}

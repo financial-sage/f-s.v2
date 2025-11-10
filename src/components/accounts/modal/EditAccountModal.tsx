@@ -85,7 +85,7 @@ export default function EditAccountModal({ account, onClose, onSaved }: EditAcco
   return (
     <div className="fixed inset-0 bg-black/70 z-60 lg:z-50 flex items-center justify-center p-0 lg:p-4">
       <div 
-        className="rounded-none lg:rounded-xl w-full h-full lg:h-auto max-w-full lg:max-w-2xl border-0 lg:border border-zinc-700 shadow-2xl flex flex-col"
+        className="rounded-none lg:rounded-xl w-full max-w-full lg:max-w-2xl border-0 lg:border border-zinc-700 shadow-2xl flex flex-col max-h-[calc(100vh-4rem)] lg:max-h-[90vh]"
         style={{ background: "var(--background-gradient)" }}
       >
         {/* Header */}
