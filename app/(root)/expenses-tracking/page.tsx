@@ -10,6 +10,7 @@ import { supabase } from '@/src/lib/supabase/client';
 import EditTransactionModal from '@/src/components/transactions/modals/EditTransactionModal';
 import DayCarousel from '@/src/components/common/DayCarousel';
 import EditAccountModal from '@/src/components/accounts/modal/EditAccountModal';
+import type { Account } from '@/src/types/types';
 
 interface Transaction {
   id: string;
@@ -28,12 +29,7 @@ interface Transaction {
   } | null;
 }
 
-interface Account {
-  id: string;
-  name: string;
-  balance: number;
-  icon: string | null;
-  color: string;
+interface AccountWithExpenses extends Account {
   total_expenses?: number;
 }
 
@@ -60,7 +56,7 @@ export default function ExpensesTrackingPage() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(accountIdFromUrl);
   const [showAllTransactions, setShowAllTransactions] = useState(true);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<AccountWithExpenses[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
