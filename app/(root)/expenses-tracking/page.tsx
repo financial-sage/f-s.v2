@@ -8,6 +8,8 @@ import { useCurrency } from '@/src/contexts/CurrencyContext';
 import { Select, Loader } from '@/src/components/common';
 import { supabase } from '@/src/lib/supabase/client';
 import EditTransactionModal from '@/src/components/transactions/modals/EditTransactionModal';
+import DayCarousel from '@/src/components/common/DayCarousel';
+import EditAccountModal from '@/src/components/accounts/modal/EditAccountModal';
 
 interface Transaction {
   id: string;
@@ -64,6 +66,10 @@ export default function ExpensesTrackingPage() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [accountSubcategoryExpenses, setAccountSubcategoryExpenses] = useState<Record<string, number>>({});
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [filterByDay, setFilterByDay] = useState(false);
+  const [filterByYear, setFilterByYear] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
@@ -126,8 +132,19 @@ export default function ExpensesTrackingPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-      const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+      // Calcular rango de fechas según el modo
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (filterByYear) {
+        // Todo el año seleccionado
+        startDate = new Date(selectedMonth.getFullYear(), 0, 1); // 1 de enero
+        endDate = new Date(selectedMonth.getFullYear(), 11, 31, 23, 59, 59); // 31 de diciembre
+      } else {
+        // Solo el mes seleccionado
+        startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+        endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+      }
 
       // Obtener cuentas del usuario
       const { data: accountsData, error: accountsError } = await supabase
@@ -159,11 +176,26 @@ export default function ExpensesTrackingPage() {
         }
       });
 
+      console.log('📊 Gastos por cuenta calculados:', {
+        modo: filterByYear ? 'AÑO COMPLETO' : 'MES',
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        transacciones: transactionsData?.length || 0,
+        expensesByAccount
+      });
+
       // Combinar datos
       const accountsWithExpenses = (accountsData || []).map(account => ({
         ...account,
         total_expenses: expensesByAccount[account.id] || 0
       }));
+
+      console.log('💳 Cuentas con gastos:', accountsWithExpenses.map(a => ({
+        name: a.name,
+        balance: a.balance,
+        total_expenses: a.total_expenses,
+        estimado: a.balance - (a.total_expenses || 0)
+      })));
 
       setAccounts(accountsWithExpenses);
     } catch (err) {
@@ -172,7 +204,7 @@ export default function ExpensesTrackingPage() {
     } finally {
       setLoadingAccounts(false);
     }
-  }, [selectedMonth]);
+  }, [selectedMonth, filterByYear]);
 
   // Cargar cuentas con sus gastos del mes
   useEffect(() => {
@@ -204,15 +236,30 @@ export default function ExpensesTrackingPage() {
         return;
       }
 
-      const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-      const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+      // Calcular rango de fechas según el modo
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (filterByYear) {
+        // Todo el año seleccionado
+        startDate = new Date(selectedMonth.getFullYear(), 0, 1); // 1 de enero
+        endDate = new Date(selectedMonth.getFullYear(), 11, 31, 23, 59, 59); // 31 de diciembre
+      } else {
+        // Solo el mes seleccionado
+        startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+        endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+      }
 
       console.log('Cargando transacciones para:', {
         userId: session.user.id,
         viewMode,
+        modo: filterByYear ? 'AÑO COMPLETO' : (filterByDay ? 'DÍA' : 'MES'),
         categoryId: selectedCategory,
         subcategoryId: selectedSubcategory,
         accountId: selectedAccount,
+        filterByDay,
+        filterByYear,
+        selectedDate: filterByDay ? selectedDate.toISOString() : null,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
       });
@@ -224,9 +271,25 @@ export default function ExpensesTrackingPage() {
         .eq('user_id', session.user.id)
         .eq('type', 'expense')
         .eq('status', 'completed')
-        .gte('date', startDate.toISOString())
-        .lte('date', endDate.toISOString())
         .order('date', { ascending: false });
+
+      // Aplicar filtro de fecha según el modo
+      if (filterByDay && !filterByYear) {
+        // Filtrar por día específico (solo si no está en modo año)
+        const dayStart = new Date(selectedDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(selectedDate);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        query = query
+          .gte('date', dayStart.toISOString())
+          .lte('date', dayEnd.toISOString());
+      } else {
+        // Filtrar por mes completo o año completo
+        query = query
+          .gte('date', startDate.toISOString())
+          .lte('date', endDate.toISOString());
+      }
 
       // Aplicar filtros según el modo (solo si no es "ver todas")
       if (!showAllTransactions) {
@@ -332,7 +395,7 @@ export default function ExpensesTrackingPage() {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [selectedCategory, selectedSubcategory, selectedAccount, selectedMonth, viewMode, showAllTransactions]);
+  }, [selectedCategory, selectedSubcategory, selectedAccount, selectedMonth, viewMode, showAllTransactions, filterByDay, selectedDate, filterByYear]);
 
   // Cargar transacciones cuando se selecciona una categoría, subcategoría o cuenta
   useEffect(() => {
@@ -379,116 +442,160 @@ export default function ExpensesTrackingPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header con indicadores financieros */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-xl lg:text-2xl text-gray-800 dark:text-white" style={{ fontWeight: '300' }}>
+      <div className="flex flex-col space-y-3 sm:space-y-4">
+        <div className="flex items-center space-x-3 sm:space-x-4">
+          <h1 className="text-lg sm:text-xl lg:text-2xl text-gray-800 dark:text-white" style={{ fontWeight: '300' }}>
             Seguimiento de Gastos
           </h1>
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
-          <div className="flex items-center justify-between sm:justify-start sm:space-x-4">
-            <div className="text-center sm:text-right">
-              <div className="text-xs text-gray-500 dark:text-gray-400">Presupuesto</div>
-              <div className="text-lg font-medium text-blue-600 dark:text-blue-400">
-                {formatAmount(totalBudget)}
-              </div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="text-center">
+            <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Presupuesto</div>
+            <div className="text-sm sm:text-base lg:text-lg font-medium text-blue-600 dark:text-blue-400">
+              {formatAmount(totalBudget)}
             </div>
-            <div className="hidden sm:block w-px h-8 bg-gray-300 dark:bg-gray-600"></div>
-            <div className="text-center sm:text-right">
-              <div className="text-xs text-gray-500 dark:text-gray-400">Gastado</div>
-              <div className={`text-lg font-medium ${getProgressColor(budgetProgress)}`}>
-                {formatAmount(totalExpenses)}
-              </div>
+          </div>
+          <div className="text-center">
+            <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Gastado</div>
+            <div className={`text-sm sm:text-base lg:text-lg font-medium ${getProgressColor(budgetProgress)}`}>
+              {formatAmount(totalExpenses)}
             </div>
-            <div className="hidden sm:block w-px h-8 bg-gray-300 dark:bg-gray-600"></div>
-            <div className="text-center sm:text-right">
-              <div className="text-xs text-gray-500 dark:text-gray-400">Disponible</div>
-              <div className={`text-lg font-medium ${totalBudget - totalExpenses >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatAmount(totalBudget - totalExpenses)}
-              </div>
+          </div>
+          <div className="text-center">
+            <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Disponible</div>
+            <div className={`text-sm sm:text-base lg:text-lg font-medium ${totalBudget - totalExpenses >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {formatAmount(totalBudget - totalExpenses)}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs y Filtros */}
-      <div className="flex flex-col lg:flex-row lg:items-center w-full lg:justify-between pb-4 space-y-4 lg:space-y-0">
-        <div className="flex items-center gap-4">
-          {/* Tabs - Material Design Style */}
-          <div className="relative inline-flex bg-transparent border-b-2 border-gray-200 dark:border-gray-700">
-            <button
-              onClick={() => setViewMode('categories')}
-              className={`relative px-6 py-3 font-medium text-sm transition-all duration-300 ${
-                viewMode === 'categories'
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
-              }`}
-            >
-              Por Categorías
-              {viewMode === 'categories' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 transform transition-all duration-300" />
-              )}
-            </button>
-            <button
-              onClick={() => setViewMode('accounts')}
-              className={`relative px-6 py-3 font-medium text-sm transition-all duration-300 ${
-                viewMode === 'accounts'
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
-              }`}
-            >
-              Por Cuentas
-              {viewMode === 'accounts' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 transform transition-all duration-300" />
-              )}
-            </button>
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            {viewMode === 'categories' 
-              ? (selectedCategory ? 'Detalle de categoría' : 'Selecciona una categoría')
-              : (selectedAccount ? 'Detalle de cuenta' : 'Selecciona una cuenta')
-            }
-          </div>
+      {/* Filtros de fecha - Ahora arriba, antes de los tabs */}
+      <div className="flex flex-col gap-3 bg-zinc-900/30 border border-zinc-800 rounded-lg p-3">
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedMonth.getFullYear()}
+            onChange={(e) => {
+              const newDate = new Date(selectedMonth);
+              newDate.setFullYear(Number(e.target.value));
+              setSelectedMonth(newDate);
+            }}
+            className="w-20 sm:w-24 px-2 sm:px-3 py-1.5 sm:py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all text-xs sm:text-sm"
+          >
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+          <select
+            value={selectedMonth.getMonth()}
+            onChange={(e) => {
+              const newDate = new Date(selectedMonth);
+              newDate.setMonth(Number(e.target.value));
+              setSelectedMonth(newDate);
+            }}
+            disabled={filterByYear}
+            className={`flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all text-xs sm:text-sm ${
+              filterByYear ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {monthOptions.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              setFilterByYear(!filterByYear);
+              // Si activamos año completo, desactivar filtro por día
+              if (!filterByYear) {
+                setFilterByDay(false);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm font-medium whitespace-nowrap ${
+              filterByYear
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                : 'bg-zinc-900/50 border border-zinc-700 text-zinc-300 hover:bg-zinc-800/50'
+            }`}
+          >
+            <i className={`fas ${filterByYear ? 'fa-calendar-check' : 'fa-calendar'} text-xs`}></i>
+            <span className="hidden sm:inline">{filterByYear ? 'Año completo' : 'Ver año'}</span>
+          </button>
+          <button
+            onClick={() => {
+              setFilterByDay(!filterByDay);
+              // Si activamos día, desactivar año completo
+              if (!filterByDay) {
+                setFilterByYear(false);
+              }
+            }}
+            disabled={filterByYear}
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm font-medium whitespace-nowrap ${
+              filterByDay
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                : filterByYear
+                ? 'bg-zinc-900/50 border border-zinc-700 text-zinc-500 cursor-not-allowed opacity-50'
+                : 'bg-zinc-900/50 border border-zinc-700 text-zinc-300 hover:bg-zinc-800/50'
+            }`}
+          >
+            <i className={`fas ${filterByDay ? 'fa-calendar-day' : 'fa-calendar-alt'} text-xs`}></i>
+            <span className="hidden sm:inline">{filterByDay ? 'Por día' : 'Por día'}</span>
+          </button>
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-end space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4">
-          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-2 lg:gap-4">
-            <div className="w-full sm:w-auto">
-              <Select
-                value={selectedMonth.getFullYear().toString()}
-                onChange={(e) => {
-                  const newDate = new Date(selectedMonth);
-                  newDate.setFullYear(Number(e.target.value));
-                  setSelectedMonth(newDate);
-                }}
-                options={yearOptions.map((year) => ({
-                  value: year.toString(),
-                  label: year.toString()
-                }))}
-              />
-            </div>
-            <div className="w-full sm:w-auto">
-              <Select
-                value={selectedMonth.getMonth().toString()}
-                onChange={(e) => {
-                  const newDate = new Date(selectedMonth);
-                  newDate.setMonth(Number(e.target.value));
-                  setSelectedMonth(newDate);
-                }}
-                options={monthOptions}
-              />
-            </div>
+        
+        {filterByDay && !filterByYear && (
+          <div className="pt-2 border-t border-zinc-800">
+            <DayCarousel
+              selectedDate={selectedDate}
+              onDateChange={(date) => {
+                setSelectedDate(date);
+                if (date.getMonth() !== selectedMonth.getMonth() || date.getFullYear() !== selectedMonth.getFullYear()) {
+                  setSelectedMonth(date);
+                }
+              }}
+            />
           </div>
+        )}
+      </div>
+
+      {/* Tabs - Ancho completo */}
+      <div className="flex flex-col w-full space-y-4">
+        <div className="flex items-center w-full border-b-2 border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setViewMode('categories')}
+            className={`flex-1 relative py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-300 ${
+              viewMode === 'categories'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
+            }`}
+          >
+            Por Categorías
+            {viewMode === 'categories' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 transform transition-all duration-300" />
+            )}
+          </button>
+          <button
+            onClick={() => setViewMode('accounts')}
+            className={`flex-1 relative py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-300 ${
+              viewMode === 'accounts'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
+            }`}
+          >
+            Por Cuentas
+            {viewMode === 'accounts' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 transform transition-all duration-300" />
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Primera columna: Categorías o Cuentas */}
-        <div className="lg:col-span-2">
-          <div className="dark:bg-white/5 rounded-md p-4 shadow-lg sticky top-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <div className="lg:col-span-3">
+          <div className="dark:bg-white/5 rounded-lg p-3 shadow-lg sticky top-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                 {viewMode === 'categories' ? 'Categorías' : 'Cuentas'}
               </h3>
               <button
@@ -500,7 +607,7 @@ export default function ExpensesTrackingPage() {
                     setSelectedAccount(null);
                   }
                 }}
-                className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
                   showAllTransactions
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -513,11 +620,11 @@ export default function ExpensesTrackingPage() {
             {viewMode === 'categories' ? (
               // Vista de Categorías
               categories.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-center py-6 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   No hay categorías
                 </div>
               ) : (
-                <div className="grid grid-cols-4 lg:grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
                   {categories.map((category) => {
                     const categoryBudget = category.budget_limit || 0;
                     const categoryProgress = calculateProgress(category.total_expenses, categoryBudget);
@@ -531,7 +638,7 @@ export default function ExpensesTrackingPage() {
                           setSelectedCategory(isSelected ? null : category.id);
                           if (isSelected) setSelectedSubcategory(null);
                         }}
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all ${
+                        className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${
                           isSelected 
                             ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 dark:ring-blue-400' 
                             : 'hover:bg-gray-50 dark:hover:bg-white/10'
@@ -542,15 +649,16 @@ export default function ExpensesTrackingPage() {
                           <CategoryIcon
                             iconName={category.icon || "wallet"}
                             color={category.color || "#6366f1"}
+                            size={28}
                           />
                           {categoryBudget > 0 && (
-                            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white dark:border-gray-900 ${
+                            <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-900 ${
                               categoryProgress >= 100 ? 'bg-red-500' :
                               categoryProgress >= 80 ? 'bg-yellow-500' : 'bg-green-500'
                             }`}></div>
                           )}
                         </div>
-                        <span className="text-xs text-gray-700 dark:text-gray-300 mt-2 text-center truncate w-full">
+                        <span className="text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 mt-1.5 text-center truncate w-full">
                           {category.name}
                         </span>
                       </button>
@@ -561,16 +669,16 @@ export default function ExpensesTrackingPage() {
             ) : (
               // Vista de Cuentas
               loadingAccounts ? (
-                <div className="flex flex-col items-center justify-center py-8 gap-3">
-                  <Loader size={32} />
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Cargando cuentas...</div>
+                <div className="flex flex-col items-center justify-center py-6 gap-2">
+                  <Loader size={28} />
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Cargando cuentas...</div>
                 </div>
               ) : accounts.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-center py-6 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   No hay cuentas
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
                   {accounts.map((account) => {
                     const isSelected = selectedAccount === account.id;
 
@@ -581,7 +689,7 @@ export default function ExpensesTrackingPage() {
                           setShowAllTransactions(false);
                           setSelectedAccount(isSelected ? null : account.id);
                         }}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+                        className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${
                           isSelected 
                             ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 dark:ring-blue-400' 
                             : 'hover:bg-gray-50 dark:hover:bg-white/10'
@@ -589,17 +697,15 @@ export default function ExpensesTrackingPage() {
                         title={account.name}
                       >
                         <i 
-                          className={`fas ${account.icon || 'fa-wallet'} text-2xl`}
+                          className={`fas ${account.icon || 'fa-wallet'} text-2xl sm:text-3xl lg:text-2xl`}
                           style={{ color: account.color }}
                         />
-                        <div className="flex-1 text-left">
-                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                            {account.name}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatAmount(account.total_expenses || 0)}
-                          </div>
-                        </div>
+                        <span className="text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 mt-1.5 text-center truncate w-full">
+                          {account.name}
+                        </span>
+                        <span className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                          {formatAmount(account.total_expenses || 0)}
+                        </span>
                       </button>
                     );
                   })}
@@ -610,8 +716,8 @@ export default function ExpensesTrackingPage() {
         </div>
 
         {/* Segunda columna: Detalle de categoría o cuenta */}
-        <div className="lg:col-span-5">
-          <div className="dark:bg-white/2 p-3 sm:p-4 rounded-md shadow-lg">
+        <div className="lg:col-span-4">
+          <div className="dark:bg-white/2 p-3 rounded-lg shadow-lg">
             {showAllTransactions ? (
               // Vista de "Ver Todas"
               <div>
@@ -632,32 +738,32 @@ export default function ExpensesTrackingPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                    <div className="text-xs text-blue-600 dark:text-blue-400 mb-1">Total Presupuesto</div>
-                    <div className="text-lg font-medium text-blue-700 dark:text-blue-300">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-2.5 sm:p-4 rounded-lg">
+                    <div className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 mb-0.5 sm:mb-1">Total Presupuesto</div>
+                    <div className="text-sm sm:text-lg font-medium text-blue-700 dark:text-blue-300">
                       {formatAmount(totalBudget)}
                     </div>
                   </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
-                    <div className="text-xs text-red-600 dark:text-red-400 mb-1">Total Gastado</div>
-                    <div className="text-lg font-medium text-red-700 dark:text-red-300">
+                  <div className="bg-red-50 dark:bg-red-900/20 p-2.5 sm:p-4 rounded-lg">
+                    <div className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 mb-0.5 sm:mb-1">Total Gastado</div>
+                    <div className="text-sm sm:text-lg font-medium text-red-700 dark:text-red-300">
                       {formatAmount(totalExpenses)}
                     </div>
                   </div>
-                  <div className={`p-4 rounded-lg ${
+                  <div className={`p-2.5 sm:p-4 rounded-lg ${
                     totalBudget - totalExpenses >= 0
                       ? 'bg-green-50 dark:bg-green-900/20'
                       : 'bg-orange-50 dark:bg-orange-900/20'
                   }`}>
-                    <div className={`text-xs mb-1 ${
+                    <div className={`text-[10px] sm:text-xs mb-0.5 sm:mb-1 ${
                       totalBudget - totalExpenses >= 0
                         ? 'text-green-600 dark:text-green-400'
                         : 'text-orange-600 dark:text-orange-400'
                     }`}>
                       {totalBudget - totalExpenses >= 0 ? 'Disponible' : 'Sobregiro'}
                     </div>
-                    <div className={`text-lg font-medium ${
+                    <div className={`text-sm sm:text-lg font-medium ${
                       totalBudget - totalExpenses >= 0
                         ? 'text-green-700 dark:text-green-300'
                         : 'text-orange-700 dark:text-orange-300'
@@ -708,28 +814,28 @@ export default function ExpensesTrackingPage() {
                 </div>
 
                 {/* Resumen de categoría */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                    <div className="text-xs text-blue-600 dark:text-blue-400 mb-1">Presupuesto</div>
-                    <div className="text-lg font-medium text-blue-700 dark:text-blue-300">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-2.5 sm:p-4 rounded-lg">
+                    <div className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 mb-0.5 sm:mb-1">Presupuesto</div>
+                    <div className="text-sm sm:text-lg font-medium text-blue-700 dark:text-blue-300">
                       {formatAmount(activeCategory.budget_limit || 0)}
                     </div>
                   </div>
-                  <div className={`p-4 rounded-lg ${
+                  <div className={`p-2.5 sm:p-4 rounded-lg ${
                     calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 100
                       ? 'bg-red-50 dark:bg-red-900/20'
                       : calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 80
                       ? 'bg-yellow-50 dark:bg-yellow-900/20'
                       : 'bg-green-50 dark:bg-green-900/20'
                   }`}>
-                    <div className={`text-xs mb-1 ${
+                    <div className={`text-[10px] sm:text-xs mb-0.5 sm:mb-1 ${
                       calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 100
                         ? 'text-red-600 dark:text-red-400'
                         : calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 80
                         ? 'text-yellow-600 dark:text-yellow-400'
                         : 'text-green-600 dark:text-green-400'
                     }`}>Gastado</div>
-                    <div className={`text-lg font-medium ${
+                    <div className={`text-sm sm:text-lg font-medium ${
                       calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 100
                         ? 'text-red-700 dark:text-red-300'
                         : calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 80
@@ -739,19 +845,19 @@ export default function ExpensesTrackingPage() {
                       {formatAmount(activeCategory.total_expenses)}
                     </div>
                   </div>
-                  <div className={`p-4 rounded-lg ${
+                  <div className={`p-2.5 sm:p-4 rounded-lg ${
                     (activeCategory.budget_limit || 0) - activeCategory.total_expenses >= 0
                       ? 'bg-green-50 dark:bg-green-900/20'
                       : 'bg-red-50 dark:bg-red-900/20'
                   }`}>
-                    <div className={`text-xs mb-1 ${
+                    <div className={`text-[10px] sm:text-xs mb-0.5 sm:mb-1 ${
                       (activeCategory.budget_limit || 0) - activeCategory.total_expenses >= 0
                         ? 'text-green-600 dark:text-green-400'
                         : 'text-red-600 dark:text-red-400'
                     }`}>
                       {(activeCategory.budget_limit || 0) - activeCategory.total_expenses >= 0 ? 'Disponible' : 'Sobregiro'}
                     </div>
-                    <div className={`text-lg font-medium ${
+                    <div className={`text-sm sm:text-lg font-medium ${
                       (activeCategory.budget_limit || 0) - activeCategory.total_expenses >= 0
                         ? 'text-green-700 dark:text-green-300'
                         : 'text-red-700 dark:text-red-300'
@@ -763,18 +869,18 @@ export default function ExpensesTrackingPage() {
 
                 {/* Barra de progreso */}
                 {(activeCategory.budget_limit || 0) > 0 && (
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Progreso del presupuesto</span>
-                      <span className={`text-sm font-medium ${getProgressColor(
+                  <div className="mb-4 sm:mb-6">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Progreso del presupuesto</span>
+                      <span className={`text-xs sm:text-sm font-medium ${getProgressColor(
                         calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0)
                       )}`}>
                         {calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0).toFixed(1)}%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 sm:h-3">
                       <div
-                        className={`h-3 rounded-full transition-all ${
+                        className={`h-2.5 sm:h-3 rounded-full transition-all ${
                           calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 100
                             ? 'bg-red-600'
                             : calculateProgress(activeCategory.total_expenses, activeCategory.budget_limit || 0) >= 80
@@ -794,18 +900,18 @@ export default function ExpensesTrackingPage() {
 
                 {/* Lista de subcategorías */}
                 <div>
-                  <div className="mb-3">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Subcategorías</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="mb-2 sm:mb-3">
+                    <h3 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Subcategorías</h3>
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">
                       Solo se muestran subcategorías con gastos
                     </p>
                   </div>
                   {activeCategory.subcategories.filter(sub => sub.total_expenses > 0).length === 0 ? (
-                    <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       No hay subcategorías con gastos para esta categoría
                     </div>
                   ) : (
-                    <ul className="space-y-2">
+                    <ul className="space-y-1.5 sm:space-y-2">
                       {activeCategory.subcategories
                         .filter(subcategory => subcategory.total_expenses > 0)
                         .map((subcategory) => {
@@ -815,34 +921,34 @@ export default function ExpensesTrackingPage() {
                           <li 
                             key={subcategory.id} 
                             onClick={() => setSelectedSubcategory(isSelected ? null : subcategory.id)}
-                            className={`flex items-center justify-between py-3 px-4 rounded-lg border cursor-pointer transition-all ${
+                            className={`flex items-center justify-between py-2 sm:py-3 px-2.5 sm:px-4 rounded-lg border cursor-pointer transition-all ${
                               isSelected
                                 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400'
                                 : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-white/10'
                             }`}
                           >
                             <div className="flex flex-col flex-1 min-w-0">
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                                 {subcategory.name}
                               </span>
                               {subcategory.total_expenses > 0 && activeCategory.total_expenses > 0 && (
-                                <div className="flex items-center gap-2 mt-2">
-                                  <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
+                                  <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 sm:h-2">
                                     <div
-                                      className="h-2 rounded-full bg-blue-500"
+                                      className="h-1.5 sm:h-2 rounded-full bg-blue-500"
                                       style={{ 
                                         width: `${(subcategory.total_expenses / activeCategory.total_expenses) * 100}%` 
                                       }}
                                     ></div>
                                   </div>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                     {((subcategory.total_expenses / activeCategory.total_expenses) * 100).toFixed(0)}%
                                   </span>
                                 </div>
                               )}
                             </div>
-                            <div className="flex flex-col items-end ml-4">
-                              <span className="text-sm font-medium text-gray-800 dark:text-white">
+                            <div className="flex flex-col items-end ml-3 sm:ml-4">
+                              <span className="text-xs sm:text-sm font-medium text-gray-800 dark:text-white">
                                 {formatAmount(subcategory.total_expenses)}
                               </span>
                             </div>
@@ -884,35 +990,45 @@ export default function ExpensesTrackingPage() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedAccount(null)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Botón para editar cuenta */}
+                    <button
+                      onClick={() => setEditingAccount(activeAccount)}
+                      className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                      title="Editar cuenta"
+                    >
+                      <i className="fas fa-edit text-lg"></i>
+                    </button>
+                    <button
+                      onClick={() => setSelectedAccount(null)}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
 
                 {/* Resumen de cuenta */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
-                    <div className="text-xs text-red-600 dark:text-red-400 mb-1">Gastos del mes</div>
-                    <div className="text-lg font-medium text-red-700 dark:text-red-300">
+                <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="flex-1 bg-red-50 dark:bg-red-900/20 p-2.5 sm:p-4 rounded-lg">
+                    <div className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 mb-0.5 sm:mb-1">Gastos del mes</div>
+                    <div className="text-sm sm:text-lg font-medium text-red-700 dark:text-red-300">
                       {formatAmount(activeAccount.total_expenses || 0)}
                     </div>
                   </div>
-                  <div className={`p-4 rounded-lg ${
+                  <div className={`flex-1 p-2.5 sm:p-4 rounded-lg ${
                     activeAccount.balance - (activeAccount.total_expenses || 0) >= 0
                       ? 'bg-green-50 dark:bg-green-900/20'
                       : 'bg-orange-50 dark:bg-orange-900/20'
                   }`}>
-                    <div className={`text-xs mb-1 ${
+                    <div className={`text-[10px] sm:text-xs mb-0.5 sm:mb-1 ${
                       activeAccount.balance - (activeAccount.total_expenses || 0) >= 0
                         ? 'text-green-600 dark:text-green-400'
                         : 'text-orange-600 dark:text-orange-400'
                     }`}>
                       Balance estimado
                     </div>
-                    <div className={`text-lg font-medium ${
+                    <div className={`text-sm sm:text-lg font-medium ${
                       activeAccount.balance - (activeAccount.total_expenses || 0) >= 0
                         ? 'text-green-700 dark:text-green-300'
                         : 'text-orange-700 dark:text-orange-300'
@@ -1039,7 +1155,7 @@ export default function ExpensesTrackingPage() {
 
         {/* Columna de transacciones */}
         <div className="lg:col-span-5">
-          <div className="dark:bg-white/2 p-3 sm:p-4 rounded-md shadow-lg">
+          <div className="dark:bg-white/2 p-3 rounded-lg shadow-lg">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {showAllTransactions ? 'Todas las Transacciones' : 'Transacciones'}
@@ -1084,30 +1200,30 @@ export default function ExpensesTrackingPage() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              <ul className="space-y-1.5 max-h-[600px] overflow-y-auto pr-1">
                 {transactions.map((transaction) => (
                   <li 
                     key={transaction.id} 
                     onClick={() => setEditingTransaction(transaction)}
-                    className="cursor-pointer bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 rounded-lg transition-all p-3 hover:shadow-md"
+                    className="cursor-pointer bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 rounded-lg transition-all p-2.5 hover:shadow-md"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex flex-col flex-1 min-w-0">
-                        <span className="text-sm text-gray-800 dark:text-white font-medium">
+                        <span className="text-xs sm:text-sm text-gray-800 dark:text-white font-medium truncate">
                           {transaction.description || 'Sin descripción'}
                         </span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-0.5">
+                          <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
                             {transaction.account?.name || 'Sin cuenta'}
                           </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                          <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400">•</span>
+                          <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                             {formatDate(transaction.date)}
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 whitespace-nowrap">
                           -{formatAmount(transaction.amount)}
                         </span>
                       </div>
@@ -1120,13 +1236,26 @@ export default function ExpensesTrackingPage() {
         </div>
       </div>
 
-      {/* Modal de edición */}
+      {/* Modal de edición de transacción */}
       {editingTransaction && (
         <EditTransactionModal
           transaction={editingTransaction}
           onClose={() => setEditingTransaction(null)}
           onSaved={async () => {
             setEditingTransaction(null);
+            // Recargar todos los datos actualizados
+            await Promise.all([loadAccounts(), loadTransactions(), refresh()]);
+          }}
+        />
+      )}
+
+      {/* Modal de edición de cuenta */}
+      {editingAccount && (
+        <EditAccountModal
+          account={editingAccount}
+          onClose={() => setEditingAccount(null)}
+          onSaved={async () => {
+            setEditingAccount(null);
             // Recargar todos los datos actualizados
             await Promise.all([loadAccounts(), loadTransactions(), refresh()]);
           }}

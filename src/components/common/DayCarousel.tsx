@@ -129,19 +129,19 @@ export default function DayCarousel({ selectedDate, onDateChange, availableDates
                 onClick={navigateLeft}
                 disabled={currentIndex === 0}
                 className={`
-                    absolute left-0 z-10 p-2 rounded-full transition-all duration-200
+                    absolute left-0 z-10 p-1.5 sm:p-2 rounded-full transition-all duration-200
                     bg-white/10 backdrop-blur-lg border border-white/10
                     hover:bg-white/20 active:scale-95
                     ${currentIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'opacity-70 hover:opacity-100'}
                 `}
             >
-                <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
             </button>
 
             {/* Contenedor del carrusel */}
-            <div className="flex items-center justify-center space-x-1 px-12 py-4">
+            <div className="flex items-center justify-center space-x-0.5 sm:space-x-1 px-8 sm:px-12 py-2 sm:py-4">
                 {visibleDates.map(({ date, index, position }) => (
                     <div
                         key={index}
@@ -154,7 +154,7 @@ export default function DayCarousel({ selectedDate, onDateChange, availableDates
                     >
                         <div
                             className={`
-                                px-2 py-2 rounded-md text-center min-w-[80px] transition-all duration-300
+                                px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-md text-center min-w-[60px] sm:min-w-[80px] transition-all duration-300
                                 backdrop-blur-sm 
                                 ${position === 0 
                                     ? 'bg-blue-500/10 border-blue-400/50 shadow-lg' 
@@ -163,7 +163,7 @@ export default function DayCarousel({ selectedDate, onDateChange, availableDates
                             `}
                         >
                             <div className={`
-                                text-sm font-medium
+                                text-xs sm:text-sm font-medium
                                 ${position === 0 
                                     ? 'text-blue-600 dark:text-blue-400' 
                                     : 'text-gray-600 dark:text-gray-300'
@@ -172,7 +172,7 @@ export default function DayCarousel({ selectedDate, onDateChange, availableDates
                                 {formatDay(date)}
                             </div>
                             <div className={`
-                                text-xs mt-1
+                                text-[10px] sm:text-xs mt-0.5 sm:mt-1
                                 ${position === 0 
                                     ? 'text-blue-500 dark:text-blue-300' 
                                     : 'text-gray-500 dark:text-gray-400'
@@ -190,32 +190,16 @@ export default function DayCarousel({ selectedDate, onDateChange, availableDates
                 onClick={navigateRight}
                 disabled={currentIndex === dates.length - 1}
                 className={`
-                    absolute right-0 z-10 p-2 rounded-full transition-all duration-200
+                    absolute right-0 z-10 p-1.5 sm:p-2 rounded-full transition-all duration-200
                     bg-white/10 backdrop-blur-sm border border-white/20
                     hover:bg-white/20 active:scale-95
                     ${currentIndex === dates.length - 1 ? 'opacity-30 cursor-not-allowed' : 'opacity-70 hover:opacity-100'}
                 `}
             >
-                <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
             </button>
-
-            {/* Indicadores de posición */}
-            {/* <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                {dates.map((_, index) => (
-                    <div
-                        key={index}
-                        className={`
-                            w-1.5 h-1.5 rounded-full transition-all duration-300
-                            ${index === currentIndex 
-                                ? 'bg-blue-500 dark:bg-blue-400 scale-125' 
-                                : 'bg-gray-300 dark:bg-gray-600'
-                            }
-                        `}
-                    />
-                ))}
-            </div> */}
         </div>
     );
 }

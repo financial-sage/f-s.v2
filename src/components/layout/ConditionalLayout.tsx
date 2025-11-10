@@ -102,8 +102,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     <div className="w-full h-full overflow-hidden" style={{ background: "var(--background-gradient)" }}>
       <div className="h-full lg:ml-72 xl:ml-80 flex flex-col overflow-hidden">
         <Header />
-        <div className="relative flex-1 flex flex-col overflow-y-auto overflow-x-hidden px-4 pt-14 sm:px-6 lg:px-8" style={{ background: "var(--background-gradient)" }}>
-          <main className="flex-auto p-6 sm:p-8 pb-20 lg:pb-8">
+        <div className="relative flex-1 flex flex-col overflow-y-auto overflow-x-hidden px-2 sm:px-4 lg:px-8 pt-14" style={{ background: "var(--background-gradient)" }}>
+          <main className="flex-auto p-3 sm:p-6 lg:p-8 pb-20 lg:pb-8">
             {children}
           </main>
         </div>
