@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/src/lib/supabase/client";
 import styles from "../login/Login.module.css";
-import { redirect } from "next/navigation";
 
 export default function Register() {
     const [name, setName] = useState("");
@@ -18,26 +17,69 @@ export default function Register() {
     const handleRegister = async () => {
         setErrorMsg("");
         setSuccessMsg("");
+        
+        // Validaciones
+        if (!name.trim()) {
+            setErrorMsg("Por favor ingresa tu nombre completo");
+            return;
+        }
+        
         if (password !== confirmPassword) {
             setErrorMsg("Las contraseñas no coinciden");
             return;
         }
+        
+        if (password.length < 6) {
+            setErrorMsg("La contraseña debe tener al menos 6 caracteres");
+            return;
+        }
+        
         setIsLoading(true);
+        
         try {
-            // En supabase-js v2 la firma correcta para este cliente es pasar todo en un solo objeto
-            const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+            const { data, error } = await supabase.auth.signUp({ 
+                email, 
+                password, 
+                options: { 
+                    data: { full_name: name },
+                    emailRedirectTo: `${window.location.origin}/home`
+                } 
+            });
+            
             if (error) {
                 console.error("Error registering:", error.message);
                 setErrorMsg(error.message);
-            } else {
-                console.log("Registration started", data);
-                setSuccessMsg("Registro iniciado. Revisa tu correo para confirmar.");
-                redirect('/login');
+                setIsLoading(false);
+                return;
             }
+            
+            console.log("Registration successful", data);
+            
+            // Verificar si el usuario necesita confirmar email o fue auto-confirmado
+            if (data.user && data.user.identities && data.user.identities.length === 0) {
+                // Usuario ya existe
+                setErrorMsg("Este correo ya está registrado. Por favor inicia sesión.");
+                setIsLoading(false);
+                return;
+            }
+            
+            if (data.session) {
+                // Auto-confirmado - redirigir directamente
+                setSuccessMsg("¡Registro exitoso! Redirigiendo...");
+                setTimeout(() => {
+                    window.location.href = '/home';
+                }, 1500);
+            } else {
+                // Requiere confirmación de email
+                setSuccessMsg("¡Registro exitoso! Revisa tu correo para confirmar tu cuenta.");
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 3000);
+            }
+            
         } catch (err) {
-            console.error(err);
-            setErrorMsg("Error realizando el registro");
-        } finally {
+            console.error("Unexpected error:", err);
+            setErrorMsg("Error inesperado durante el registro");
             setIsLoading(false);
         }
     }

@@ -19,9 +19,9 @@ export default function MobileBottomNav() {
   const [showMenu, setShowMenu] = useState(false);
 
   const menuItems = [
-    { href: '/budget', icon: Target, label: 'Presupuestos', color: '#22c55e' },
-    { href: '/accounts', icon: Wallet, label: 'Cuentas', color: '#3b82f6' },
-    { href: '/savings', icon: PiggyBank, label: 'Ahorros', color: '#f59e0b' },
+    // { href: '/budget', icon: Target, label: 'Presupuestos', color: '#22c55e' },
+    // { href: '/accounts', icon: Wallet, label: 'Cuentas', color: '#3b82f6' },
+    // { href: '/savings', icon: PiggyBank, label: 'Ahorros', color: '#f59e0b' },
     { href: '/categories-management', icon: ShoppingCart, label: 'Categorías', color: '#a855f7' },
   ];
 

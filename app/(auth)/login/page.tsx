@@ -27,7 +27,9 @@ export default function Login() {
     };
 
     const handleGoogleLogin = async () => {
-        const redirectTo = `${window.location.origin}/home`;
+        // Usar el dominio de producción si está disponible, sino el local
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+        const redirectTo = `${baseUrl}/home`;
         console.log(`BDEBUG: Iniciando login con redirección a: ${redirectTo}`); // <-- Línea de depuración
 
         const { error } = await supabase.auth.signInWithOAuth({
