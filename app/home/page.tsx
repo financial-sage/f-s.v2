@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/src/lib/supabase/client";
 import Link from "next/link";
-import { 
-  ChartBar, 
-  Target, 
-  PiggyBank, 
-  CreditCard, 
-  TrendingUp, 
+import {
+  ChartBar,
+  Target,
+  PiggyBank,
+  CreditCard,
+  TrendingUp,
   Wallet,
   Smartphone,
   ShoppingCart,
@@ -108,19 +108,12 @@ export default function HomePage() {
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-zinc-400 max-w-3xl mx-auto mb-8">
-              Aprende a gestionar tu dinero de manera inteligente, establece metas financieras 
+              Aprende a gestionar tu dinero de manera inteligente, establece metas financieras
               y construye un futuro económico sólido con consejos probados y herramientas poderosas.
             </p>
-            
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  href="/dashboard"
-                  className="px-8 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-sm font-medium transition-all transform hover:scale-105"
-                >
-                  Ir al Dashboard
-                </Link>
-              </div>
-           
+
+
+
           </div>
         </div>
       </section>
@@ -133,7 +126,7 @@ export default function HomePage() {
               Consejos para mejorar tus finanzas
             </h2>
             <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
-              Principios fundamentales basados en &quot;Finanzas Personales para Dummies&quot; 
+              Principios fundamentales basados en &quot;Finanzas Personales para Dummies&quot;
               que transformarán tu relación con el dinero
             </p>
           </div>
@@ -147,11 +140,11 @@ export default function HomePage() {
                   className="card group hover:scale-105 transition-all duration-300"
                 >
                   <div className="">
-                    <div 
+                    <div
                       className="w-16 h-16 rounded-xl flex items-center justify-center mb-4"
                     >
-                      <IconComponent 
-                        size={32} 
+                      <IconComponent
+                        size={32}
                         strokeWidth={1.5}
                         style={{ color: tip.color }}
                       />
@@ -191,11 +184,11 @@ export default function HomePage() {
                   className="card sm hover:bg-zinc-800/30 dark:hover:bg-zinc-800/30 transition-all"
                 >
                   <div className="">
-                    <div 
+                    <div
                       className="w-14 h-14 rounded-lg flex items-center justify-center mb-4"
                     >
-                      <IconComponent 
-                        size={28} 
+                      <IconComponent
+                        size={28}
                         strokeWidth={1.5}
                         style={{ color: feature.color }}
                       />
@@ -211,14 +204,23 @@ export default function HomePage() {
               );
             })}
           </div>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center p-4">
+            <Link
+              href="/dashboard"
+              className="px-8 py-2 bg-gradient-to-r from-blue-600 text-center to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-sm font-medium transition-all transform hover:scale-105"
+            >
+              Ir al Dashboard
+            </Link>
+          </div>
         </div>
       </section>
+
 
       {/* CTA Section */}
       {!isAuthenticated && (
         <section className="py-12 sm:py-20">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="card sm" style={{ 
+            <div className="card sm" style={{
               background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
               borderColor: 'rgba(59, 130, 246, 0.2)'
             }}>

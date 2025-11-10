@@ -11,6 +11,7 @@ import { Category } from '../../lib/supabase/categories';
 import AddAccountModal from './modal/AddAccountModal';
 import AddTransferModal from '../transactions/modals/AddTransferModal';
 import { Loader } from '../common';
+import { showError } from '@/src/utils/sweetAlert';
 
 interface AccountData {
     id: string;
@@ -259,7 +260,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
         try {
             const result = await createAccount(session.user.id, formData);
             if (result.error) {
-                alert(result.error.message);
+                showError(result.error.message, 'Error al crear cuenta');
                 return;
             }
             // Refrescar datos locales sin recargar toda la página
@@ -306,7 +307,7 @@ export default function AccountsSlide({ onAddAccount }: AccountsSlideProps) {
                 setCurrentActiveIndex(0);
             }
         } catch (err) {
-            alert('Error al guardar la cuenta');
+            showError('Error al guardar la cuenta');
         }
     };
 

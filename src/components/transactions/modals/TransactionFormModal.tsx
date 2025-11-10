@@ -11,6 +11,7 @@ import { Category, getUserCategories } from '@/src/lib/supabase/categories';
 import { getUserAccounts } from '@/src/lib/supabase/accounts';
 import { addTransaction, NewTransaction, getCategoryExpenses, updateTransactionWithBalanceAdjustment, deleteTransactionWithBalanceAdjustment } from '@/src/lib/supabase/transactions';
 import type { Account } from '@/src/types/types';
+import { CurrencyInput } from '@/src/components/common';
 
 interface TransactionFormModalProps {
   isOpen: boolean;
@@ -662,68 +663,85 @@ export default function TransactionFormModal({
         {/* Botones - Fixed footer */}
         <div className="border-t border-zinc-700 p-4 sm:p-6 bg-zinc-900/30 flex-shrink-0">
           <form onSubmit={handleSubmit} className="space-y-3">
-            <button 
-              type="submit"
-              disabled={isSubmitting || (type === 'expense' ? !selectedCategoryId : !selectedDestinationAccountId)}
-              className={`w-full py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
-                isSubmitting || (type === 'expense' ? !selectedCategoryId : !selectedDestinationAccountId)
-                  ? 'bg-zinc-600/20 cursor-not-allowed opacity-60'
-                  : type === 'expense'
-                    ? 'bg-red-500/30 hover:bg-red-500/40 active:bg-red-500/50'
-                    : 'bg-green-500/30 hover:bg-green-500/40 active:bg-green-500/50'
-              }`}
-            >
-              {isSubmitting 
-                ? `${mode === 'add' ? 'Guardando' : 'Actualizando'}...`
-                : mode === 'add'
-                  ? (type === 'expense' ? 'Guardar Gasto' : 'Guardar Ingreso')
-                  : (type === 'expense' ? 'Actualizar Gasto' : 'Actualizar Ingreso')
-              }
-            </button>
-            
-            {/* Botones de modo edición */}
-            {mode === 'edit' && (
+            {mode === 'add' ? (
+              /* Modo agregar - Cancelar y Guardar */
               <div className="grid grid-cols-2 gap-3">
-                <button
+                <button 
                   type="button"
-                  onClick={handleDelete}
+                  onClick={onClose}
+                  className="py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200"
                   disabled={isSubmitting}
-                  className={`py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border ${
-                    showDeleteConfirm
-                      ? 'border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                      : 'border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-red-400 hover:border-red-500/50'
-                  } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  {showDeleteConfirm ? '¿Confirmar eliminación?' : 'Eliminar'}
+                  Cancelar
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (showDeleteConfirm) {
-                      setShowDeleteConfirm(false);
-                    } else {
-                      onClose();
-                    }
-                  }}
-                  disabled={isSubmitting}
-                  className={`py-3.5 sm:py-3 rounded-lg text-zinc-300 font-medium transition-all text-base sm:text-sm bg-zinc-800/30 hover:bg-zinc-800/50 active:bg-zinc-800/60 border border-zinc-700 ${
-                    isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+                <button 
+                  type="submit"
+                  disabled={isSubmitting || (type === 'expense' ? !selectedCategoryId : !selectedDestinationAccountId)}
+                  className={`py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
+                    isSubmitting || (type === 'expense' ? !selectedCategoryId : !selectedDestinationAccountId)
+                      ? 'bg-zinc-600/20 cursor-not-allowed opacity-60'
+                      : type === 'expense'
+                        ? 'bg-red-500/30 hover:bg-red-500/40 active:bg-red-500/50'
+                        : 'bg-green-500/30 hover:bg-green-500/40 active:bg-green-500/50'
                   }`}
                 >
-                  {showDeleteConfirm ? 'Cancelar' : 'Cerrar'}
+                  {isSubmitting 
+                    ? 'Guardando...'
+                    : (type === 'expense' ? 'Guardar Gasto' : 'Guardar Ingreso')
+                  }
                 </button>
               </div>
-            )}
-            
-            {/* Botón Cancelar solo en modo agregar y móviles */}
-            {mode === 'add' && (
-              <button 
-                type="button"
-                onClick={onClose}
-                className="w-full py-3.5 rounded-lg text-zinc-300 font-medium transition-all text-base bg-zinc-800/30 hover:bg-zinc-800/50 active:bg-zinc-800/60 border border-zinc-700 sm:hidden"
-              >
-                Cancelar
-              </button>
+            ) : (
+              /* Modo edición - Actualizar, Eliminar y Cerrar */
+              <>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting || (type === 'expense' ? !selectedCategoryId : !selectedDestinationAccountId)}
+                  className={`w-full py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
+                    isSubmitting || (type === 'expense' ? !selectedCategoryId : !selectedDestinationAccountId)
+                      ? 'bg-zinc-600/20 cursor-not-allowed opacity-60'
+                      : type === 'expense'
+                        ? 'bg-red-500/30 hover:bg-red-500/40 active:bg-red-500/50'
+                        : 'bg-green-500/30 hover:bg-green-500/40 active:bg-green-500/50'
+                  }`}
+                >
+                  {isSubmitting 
+                    ? 'Actualizando...'
+                    : (type === 'expense' ? 'Actualizar Gasto' : 'Actualizar Ingreso')
+                  }
+                </button>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isSubmitting}
+                    className={`py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border ${
+                      showDeleteConfirm
+                        ? 'border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                        : 'border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-red-400 hover:border-red-500/50'
+                    } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    {showDeleteConfirm ? '¿Confirmar eliminación?' : 'Eliminar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (showDeleteConfirm) {
+                        setShowDeleteConfirm(false);
+                      } else {
+                        onClose();
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    className={`py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200 ${
+                      isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {showDeleteConfirm ? 'Cancelar' : 'Cerrar'}
+                  </button>
+                </div>
+              </>
             )}
           </form>
         </div>

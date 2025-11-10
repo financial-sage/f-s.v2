@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import TransactionFormModal from './TransactionFormModal';
 import { supabase } from '@/src/lib/supabase/client';
 import { deleteTransactionWithBalanceAdjustment } from '@/src/lib/supabase/transactions';
+import { showError, showDeleteConfirm } from '@/src/utils/sweetAlert';
 
 interface Transaction {
   id: string;
@@ -25,21 +26,22 @@ interface EditTransactionModalProps {
 }
 
 export default function EditTransactionModal({ transaction, onClose, onSaved }: EditTransactionModalProps) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteConfirmState, setShowDeleteConfirmState] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Solo para transferencias (que no se pueden editar, solo eliminar)
   const handleDelete = async () => {
-    if (!showDeleteConfirm) {
-      setShowDeleteConfirm(true);
-      return;
+    if (!showDeleteConfirmState) {
+      const confirmed = await showDeleteConfirm('esta transacción');
+      if (!confirmed) return;
+      setShowDeleteConfirmState(true);
     }
 
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('No hay sesión activa');
+        showError('No hay sesión activa', 'Error de autenticación');
         return;
       }
 
@@ -49,7 +51,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
       );
 
       if (result.error) {
-        alert(result.error.message);
+        showError(result.error.message, 'Error al eliminar');
         return;
       }
 
@@ -61,7 +63,7 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
       onClose();
     } catch (err) {
       console.error('Error al eliminar:', err);
-      alert('Error al eliminar la transacción');
+      showError('Error al eliminar la transacción');
     } finally {
       setLoading(false);
     }
@@ -92,29 +94,29 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
               </p>
             </div>
             
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleDelete}
-                className={`w-full px-4 py-3 rounded-lg border transition-all ${
-                  showDeleteConfirm
-                    ? 'border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30 font-medium'
-                    : 'border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500'
-                }`}
-                disabled={loading}
-              >
-                {loading ? 'Eliminando...' : showDeleteConfirm ? '¿Confirmar eliminación?' : 'Eliminar transferencia'}
-              </button>
+            <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => {
-                  if (showDeleteConfirm) setShowDeleteConfirm(false);
+                  if (showDeleteConfirmState) setShowDeleteConfirmState(false);
                   else onClose();
                 }}
-                className="w-full px-4 py-3 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800/50 transition-all"
+                className="py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200"
                 disabled={loading}
               >
-                {showDeleteConfirm ? 'Cancelar' : 'Cerrar'}
+                {showDeleteConfirmState ? 'Cancelar' : 'Cerrar'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className={`py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border ${
+                  showDeleteConfirmState
+                    ? 'border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    : 'border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500'
+                } ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                disabled={loading}
+              >
+                {loading ? 'Eliminando...' : showDeleteConfirmState ? '¿Confirmar?' : 'Eliminar'}
               </button>
             </div>
           </div>

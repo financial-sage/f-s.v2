@@ -10,6 +10,7 @@ import { useCurrency } from '@/src/contexts/CurrencyContext';
 import BlendyButton from '../modal/blendy';
 import { TransferForm } from '../transactions/TransferForm';
 import { FiCreditCard, FiDollarSign, FiPieChart, FiTrendingUp, FiZap } from 'react-icons/fi';
+import { showError, showToast, showWarning, showConfirm } from '@/src/utils/sweetAlert';
 
 const AccountTypeOptions = [
   { value: 'cash' as AccountType, label: 'Efectivo', icon: '💵' },
@@ -50,12 +51,12 @@ export const AccountManagement: React.FC = () => {
       setLoading(true);
       const result = await getUserAccounts(session.user.id);
       if (result.error) {
-        alert(result.error.message);
+        showError(result.error.message, 'Error al cargar cuentas');
       } else {
         setAccounts(result.data as Account[] || []);
       }
     } catch (error) {
-      alert('Error al cargar las cuentas');
+      showError('Error al cargar las cuentas');
     } finally {
       setLoading(false);
     }
@@ -86,23 +87,23 @@ export const AccountManagement: React.FC = () => {
       if (editingAccount) {
         const result = await updateAccount(editingAccount.id, session.user.id, formData);
         if (result.error) {
-          alert(result.error.message);
+          showError(result.error.message, 'Error al actualizar');
           return;
         }
-        alert('Cuenta actualizada exitosamente');
+        showToast('Cuenta actualizada exitosamente', 'success');
       } else {
         const result = await createAccount(session.user.id, formData);
         if (result.error) {
-          alert(result.error.message);
+          showError(result.error.message, 'Error al crear cuenta');
           return;
         }
-        alert('Cuenta creada exitosamente');
+        showToast('Cuenta creada exitosamente', 'success');
       }
 
       resetForm();
       await loadAccounts();
     } catch (error) {
-      alert('Error al guardar la cuenta');
+      showError('Error al guardar la cuenta');
     }
   };
 
@@ -126,21 +127,28 @@ export const AccountManagement: React.FC = () => {
     if (!session?.user?.id) return;
 
     if (account.is_default) {
-      alert('No se puede desactivar la cuenta por defecto');
+      showWarning('No se puede desactivar la cuenta por defecto', 'Cuenta por defecto');
       return;
     }
 
-    if (confirm(`¿Estás seguro de que quieres desactivar la cuenta "${account.name}"?`)) {
+    const confirmed = await showConfirm(
+      `¿Estás seguro de que quieres desactivar la cuenta "${account.name}"?`,
+      'Confirmar desactivación',
+      'Sí, desactivar',
+      'Cancelar'
+    );
+
+    if (confirmed) {
       try {
         const result = await deactivateAccount(account.id, session.user.id);
         if (result.error) {
-          alert(result.error.message);
+          showError(result.error.message, 'Error al desactivar');
         } else {
-          alert('Cuenta desactivada exitosamente');
+          showToast('Cuenta desactivada exitosamente', 'success');
           await loadAccounts();
         }
       } catch (error) {
-        alert('Error al desactivar la cuenta');
+        showError('Error al desactivar la cuenta');
       }
     }
   };

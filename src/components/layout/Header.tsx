@@ -344,7 +344,7 @@ export function Header() {
                     <div className="absolute inset-x-0 top-full h-px transition"></div> {/* Desaparece modo escritorio / aparece modo celular */}
 
                     <div className="hidden lg:block lg:max-w-md lg:flex-auto">
-                        <button
+                        {/* <button
                             type="button"
                             className="hidden h-8 w-full items-center gap-2 rounded-full bg-white pr-3 pl-2 text-sm text-zinc-500 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 lg:flex dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20"
                         >
@@ -360,7 +360,7 @@ export function Header() {
                                 <kbd className="font-sans">Ctrl </kbd>
                                 <kbd className="font-sans">K</kbd>
                             </kbd>
-                        </button>
+                        </button> */}
                     </div>
 
                     <div className="flex items-center gap-5 lg:hidden">

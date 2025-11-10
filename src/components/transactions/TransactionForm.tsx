@@ -4,6 +4,7 @@ import { AccountSelector } from '@/src/components/accounts/AccountSelector';
 import type { Category } from '@/src/lib/supabase/categories';
 import { addTransaction, type NewTransaction } from '@/src/lib/supabase/transactions';
 import { supabase } from '@/src/lib/supabase/client';
+import { showWarning, showToast } from '@/src/utils/sweetAlert';
 
 interface TransactionFormProps {
   onSuccess?: () => void;
@@ -32,7 +33,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
     // Validar que se haya seleccionado una categoría
     if (!selectedCategoryId) {
-      alert('Por favor selecciona una categoría antes de guardar la transacción');
+      showWarning('Por favor selecciona una categoría antes de guardar la transacción', 'Categoría requerida');
       setIsLoading(false);
       return;
     }
@@ -87,7 +88,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       setSelectedAccountId('');
       setFormKey(prev => prev + 1);
 
-      alert('Transacción guardada exitosamente');
+      showToast('Transacción guardada exitosamente', 'success');
 
       if (onSuccess) {
         onSuccess();
@@ -96,7 +97,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     } catch (error: unknown) {
       let message = 'Error al guardar la transacción:';
       if (error instanceof Error) message = error.message;
-      alert(error || 'Error al guardar la transacción');
+      showToast(message, 'error');
 
     } finally {
       setIsLoading(false);

@@ -14,10 +14,12 @@ import { AccountsSlide } from "@/src/components/accounts";
 import MonthlyTransactionsEChart from "@/src/components/charts/MonthlyTransactionsEChart";
 import { getUserAccounts } from "@/src/lib/supabase/accounts";
 import { useSession } from "@/src/hooks/useSession";
+import { useTransactionContext } from "@/src/contexts/TransactionContext";
 
 
 export default function Dashboard() {
   const { session } = useSession();
+  const { transactions } = useTransactionContext();
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState<'expenses' | 'income'>('expenses');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -162,21 +164,19 @@ export default function Dashboard() {
       </div>
 
       <div className=" mt-4 grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-        <div className="card sm">
-          <div className="cardHeader">
-            <h3 className="cardTitle">Transacciones</h3>
-            {/* <p className="cardSubtitle">Historial de transacciones</p> */}
+        {transactions.length > 0 && (
+          <div className="card sm">
+            <div className="cardHeader">
+              <h3 className="cardTitle">Transacciones</h3>
+              {/* <p className="cardSubtitle">Historial de transacciones</p> */}
+            </div>
+            <div className="cardContent">
+              <TransactionsView />
+            </div>
           </div>
-          <div className="cardContent">
-            <TransactionsView />
-          </div>
-        </div>
+        )}
 
-        <div className="card sm">
-              <div>
-                
-              </div>
-        </div>
+      
       </div>
 
     </div>

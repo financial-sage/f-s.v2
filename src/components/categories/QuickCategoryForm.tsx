@@ -124,25 +124,28 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 lg:z-50 p-0 lg:p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-none lg:rounded-lg shadow-xl w-full h-full lg:h-auto max-w-full lg:max-w-2xl max-h-full lg:max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-60 lg:z-50 p-0">
+      <div 
+        className="rounded-none lg:rounded-lg shadow-xl w-full h-full lg:h-auto max-w-full lg:max-w-2xl overflow-hidden flex flex-col"
+        style={{ background: "var(--background-gradient)" }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+        <div className="flex items-center justify-between p-4 border-b border-zinc-700 flex-shrink-0">
+          <h2 className="text-lg font-medium text-zinc-200">
             {step === 'category' ? 'Nueva Categoría' : 'Agregar Subcategorías'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-4">
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-sm">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -151,14 +154,14 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
             <div className="space-y-4">
               {/* Nombre */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs font-medium text-zinc-400 mb-2">
                   Nombre de la categoría *
                 </label>
                 <input
                   type="text"
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-3 sm:py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all text-base sm:text-sm"
                   placeholder="Ej: Alimentación"
                   autoFocus
                 />
@@ -166,10 +169,10 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
 
               {/* Icono */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs font-medium text-zinc-400 mb-2">
                   Icono
                 </label>
-                <div className="grid grid-cols-8 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <div className="grid grid-cols-8 gap-2 max-h-48 overflow-y-auto p-2 border border-zinc-700 rounded-lg bg-zinc-900/30">
                   {AVAILABLE_ICONS.slice(0, 32).map((icon) => {
                     const isSelected = selectedIcon === icon.name;
                     
@@ -179,7 +182,7 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
                         type="button"
                         onClick={() => setSelectedIcon(icon.name)}
                         className={`relative overflow-hidden flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer border-2 transition-all ${
-                          isSelected ? 'ring-2 ring-offset-2' : 'hover:bg-gray-100 dark:hover:bg-white/10'
+                          isSelected ? 'ring-2 ring-offset-2 ring-offset-zinc-900' : 'hover:bg-white/10'
                         }`}
                         style={{
                           borderColor: isSelected ? selectedColor : 'transparent',
@@ -209,7 +212,7 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
 
               {/* Color */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs font-medium text-zinc-400 mb-2">
                   Color
                 </label>
                 <div className="flex gap-2 flex-wrap">
@@ -219,7 +222,7 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
                       type="button"
                       onClick={() => setSelectedColor(color)}
                       className={`w-8 h-8 rounded-full transition-all ${
-                        selectedColor === color ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+                        selectedColor === color ? 'ring-2 ring-offset-2 ring-offset-zinc-900 ring-blue-500' : ''
                       }`}
                       style={{ backgroundColor: color }}
                     />
@@ -230,42 +233,24 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
               {/* Presupuesto (solo para gastos) */}
               {type === 'expense' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs font-medium text-zinc-400 mb-2">
                     Presupuesto mensual (opcional)
                   </label>
                   <input
                     type="number"
                     value={budgetLimit}
                     onChange={(e) => setBudgetLimit(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-3 sm:py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all text-base sm:text-sm text-right"
                     placeholder="0.00"
                     step="0.01"
                   />
                 </div>
               )}
-
-              {/* Botones */}
-              <div className="flex gap-2 pt-4">
-                <button
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  disabled={isSubmitting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleCreateCategory}
-                  disabled={isSubmitting || !categoryName.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSubmitting ? 'Creando...' : 'Crear Categoría'}
-                </button>
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Categoría <strong>{categoryName}</strong> creada. Ahora puedes agregar subcategorías (opcional).
+              <p className="text-sm text-zinc-400">
+                Categoría <strong className="text-zinc-200">{categoryName}</strong> creada. Ahora puedes agregar subcategorías (opcional).
               </p>
 
               {/* Subcategorías */}
@@ -276,13 +261,13 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
                       type="text"
                       value={sub}
                       onChange={(e) => updateSubcategory(index, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="flex-1 px-3 py-3 sm:py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all text-base sm:text-sm"
                       placeholder={`Subcategoría ${index + 1}`}
                     />
                     {subcategories.length > 1 && (
                       <button
                         onClick={() => removeSubcategory(index)}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        className="px-3 py-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                       >
                         <X size={18} />
                       </button>
@@ -293,31 +278,52 @@ export function QuickCategoryForm({ onClose, onSuccess, type = 'expense' }: Quic
 
               <button
                 onClick={addSubcategoryField}
-                className="w-full px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="w-full px-4 py-3 sm:py-2 border-2 border-dashed border-zinc-700 text-zinc-400 rounded-lg hover:bg-zinc-800/50 hover:border-zinc-600 transition-all text-base sm:text-sm"
               >
                 + Agregar otra subcategoría
               </button>
+            </div>
+          )}
+        </div>
 
-              {/* Botones */}
-              <div className="flex gap-2 pt-4">
-                <button
-                  onClick={() => {
-                    onSuccess?.();
-                    onClose();
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  disabled={isSubmitting}
-                >
-                  Omitir
-                </button>
-                <button
-                  onClick={handleCreateSubcategories}
-                  disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSubmitting ? 'Guardando...' : 'Guardar Subcategorías'}
-                </button>
-              </div>
+        {/* Botones - Fixed footer */}
+        <div className="border-t border-zinc-700 p-4 sm:p-6 bg-zinc-900/30 flex-shrink-0">
+          {step === 'category' ? (
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={onClose}
+                className="py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200"
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateCategory}
+                disabled={isSubmitting || !categoryName.trim()}
+                className="py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm bg-blue-500/30 hover:bg-blue-500/40 active:bg-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Creando...' : 'Crear Categoría'}
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  onSuccess?.();
+                  onClose();
+                }}
+                className="py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200"
+                disabled={isSubmitting}
+              >
+                Omitir
+              </button>
+              <button
+                onClick={handleCreateSubcategories}
+                disabled={isSubmitting}
+                className="py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm bg-blue-500/30 hover:bg-blue-500/40 active:bg-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Guardando...' : 'Guardar Subcategorías'}
+              </button>
             </div>
           )}
         </div>

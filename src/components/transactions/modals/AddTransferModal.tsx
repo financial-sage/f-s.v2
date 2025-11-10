@@ -8,6 +8,7 @@ import { getUserAccounts } from "@/src/lib/supabase/accounts";
 import { Account } from "@/src/types/types";
 import { createTransfer } from "@/src/lib/supabase/transactions";
 import { useCurrency } from "@/src/contexts/CurrencyContext";
+import { CurrencyInput } from "@/src/components/common";
 
 interface AddTransferModalProps {
   sourceAccountId?: string;
@@ -160,14 +161,24 @@ function Modal({ sourceAccountId, onTransferComplete, onClose }: ModalProps) {
   const destinationAccount = accounts.find(acc => acc.id === selectedDestinationId);
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-60 lg:z-40" suppressHydrationWarning>
-      <div className="modal z-60 lg:z-50 border border-zinc-700" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-transfer" suppressHydrationWarning>
-        <div className="modal__header border-b border-zinc-700">
-          <h2 className="text-zinc-400">Transferencia</h2>
-          <button className="modal__close" onClick={onClose}></button>
+    <div className="fixed inset-0 bg-black/70 z-60 lg:z-50 p-0" suppressHydrationWarning>
+      <div 
+        className="rounded-none lg:rounded-lg shadow-xl w-full h-full lg:h-auto max-w-full lg:max-w-2xl overflow-hidden flex flex-col border-0 lg:border border-zinc-700 mx-auto my-0 lg:my-8"
+        style={{ background: "var(--background-gradient)" }} 
+        data-blendy-to="modal-transfer" 
+        suppressHydrationWarning
+      >
+        <div className="flex items-center justify-between p-4 border-b border-zinc-700 flex-shrink-0">
+          <h2 className="text-lg font-medium text-zinc-200">Transferencia</h2>
+          <button 
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-200 transition-colors"
+          >
+            <i className="fas fa-times text-xl"></i>
+          </button>
         </div>
-        <div className="modal__content">
-          <form onSubmit={handleSubmit} className="ml-2 mr-2 sm:ml-6 sm:mr-6 mb-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {error && (
               <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">
                 {error}
@@ -326,27 +337,33 @@ function Modal({ sourceAccountId, onTransferComplete, onClose }: ModalProps) {
                 )}
               </div>
             )}
+          </form>
+        </div>
 
-            <button 
-              type="submit"
-              disabled={isSubmitting || !selectedDestinationId || !amount || parseFloat(amount) <= 0 || loading}
-              className={`w-full py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
-                isSubmitting || !selectedDestinationId || !amount || parseFloat(amount) <= 0 || loading
-                  ? 'bg-zinc-600/20 cursor-not-allowed opacity-60'
-                  : 'bg-blue-500/30 hover:bg-blue-500/40 active:bg-blue-500/50'
-              }`}
-            >
-              {isSubmitting ? 'Procesando...' : 'Realizar Transferencia'}
-            </button>
-
-            {/* Botón Cancelar solo en móviles */}
-            <button 
-              type="button"
-              onClick={onClose}
-              className="w-full py-3.5 rounded-lg text-zinc-300 font-medium transition-all text-base bg-zinc-800/30 hover:bg-zinc-800/50 active:bg-zinc-800/60 border border-zinc-700 sm:hidden"
-            >
-              Cancelar
-            </button>
+        {/* Botones - Fixed footer */}
+        <div className="border-t border-zinc-700 p-4 sm:p-6 bg-zinc-900/30 flex-shrink-0">
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                type="button"
+                onClick={onClose}
+                className="py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200"
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="submit"
+                disabled={isSubmitting || !selectedDestinationId || !amount || parseFloat(amount) <= 0 || loading}
+                className={`py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
+                  isSubmitting || !selectedDestinationId || !amount || parseFloat(amount) <= 0 || loading
+                    ? 'bg-zinc-600/20 cursor-not-allowed opacity-60'
+                    : 'bg-blue-500/30 hover:bg-blue-500/40 active:bg-blue-500/50'
+                }`}
+              >
+                {isSubmitting ? 'Procesando...' : 'Realizar Transferencia'}
+              </button>
+            </div>
           </form>
         </div>
       </div>

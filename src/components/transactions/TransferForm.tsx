@@ -5,6 +5,7 @@ import { Input, Button, Loader } from '@/src/components/common';
 import { AccountSelector } from '@/src/components/accounts/AccountSelector';
 import { createTransfer } from '@/src/lib/supabase/transactions';
 import { useSession } from '@/src/hooks/useSession';
+import { showError, showWarning, showToast } from '@/src/utils/sweetAlert';
 
 interface TransferFormProps {
     onSuccess?: () => void;
@@ -26,17 +27,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({
         e.preventDefault();
         
         if (!session?.user?.id) {
-            alert('Debe estar autenticado para realizar transferencias');
+            showError('Debe estar autenticado para realizar transferencias', 'Error de autenticación');
             return;
         }
 
         if (!fromAccountId || !toAccountId) {
-            alert('Debe seleccionar cuenta de origen y destino');
+            showWarning('Debe seleccionar cuenta de origen y destino', 'Datos incompletos');
             return;
         }
 
         if (fromAccountId === toAccountId) {
-            alert('No se puede transferir a la misma cuenta');
+            showWarning('No se puede transferir a la misma cuenta', 'Cuenta inválida');
             return;
         }
 
@@ -48,7 +49,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({
             const description = formData.get('description') as string;
 
             if (amount <= 0) {
-                alert('El monto debe ser mayor a 0');
+                showWarning('El monto debe ser mayor a 0', 'Monto inválido');
                 return;
             }
 
@@ -61,7 +62,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({
             );
 
             if (result.error) {
-                alert(result.error.message);
+                showError(result.error.message, 'Error en la transferencia');
             } else {
                 // Resetear el formulario
                 formRef.current?.reset();
@@ -72,16 +73,16 @@ export const TransferForm: React.FC<TransferFormProps> = ({
                 if (onSuccess) {
                     onSuccess();
                 } else {
-                    alert('¡Transferencia realizada exitosamente!');
+                    showToast('¡Transferencia realizada exitosamente!', 'success');
                 }
             }
 
         } catch (error: unknown) {
             console.error('Error al realizar la transferencia:', error);
             if (error instanceof Error) {
-                alert(error.message);
+                showError(error.message, 'Error');
             } else {
-                alert('Error al realizar la transferencia');
+                showError('Error al realizar la transferencia');
             }
         } finally {
             setIsLoading(false);

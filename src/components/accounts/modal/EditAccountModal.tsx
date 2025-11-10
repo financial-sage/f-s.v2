@@ -6,6 +6,7 @@ import { updateAccount, getUserAccounts } from '@/src/lib/supabase/accounts';
 import { Account } from "@/src/types/types";
 import { CurrencyContext } from '@/src/contexts/CurrencyContext';
 import AccountSelectorModal from './AccountSelectorModal';
+import { CurrencyInput } from '@/src/components/common';
 
 interface EditAccountModalProps {
   account: Account;

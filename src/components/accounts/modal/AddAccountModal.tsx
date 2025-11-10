@@ -11,7 +11,8 @@ import { Account, AccountType, NewAccount } from "@/src/types/types";
 import { useSession } from "@/src/hooks/useSession";
 import { LiaMoneyBillWaveAltSolid } from "react-icons/lia";
 import { GiSmartphone } from "react-icons/gi";
-import { Input, Select } from "../../common";
+import { Input, Select, CurrencyInput } from "../../common";
+import { showError, showSuccess, showToast } from "@/src/utils/sweetAlert";
 
 interface AccountTransactionModalProps {
     accountId: string;
@@ -67,12 +68,12 @@ export default function AddAccountModal({ accountId, categories: propCategories,
             setLoading(true);
             const result = await getUserAccounts(session.user.id);
             if (result.error) {
-                alert(result.error.message);
+                showError(result.error.message, 'Error al cargar cuentas');
             } else {
                 setAccounts(result.data as Account[] || []);
             }
         } catch (error) {
-            alert('Error al cargar las cuentas');
+            showError('Error al cargar las cuentas');
         } finally {
             setLoading(false);
         }
@@ -93,7 +94,7 @@ export default function AddAccountModal({ accountId, categories: propCategories,
 
     const handleSave = async () => {
         if (!session?.user?.id) {
-            alert('No se encontró la sesión del usuario.');
+            showError('No se encontró la sesión del usuario.', 'Error de sesión');
             return;
         }
 
@@ -101,18 +102,18 @@ export default function AddAccountModal({ accountId, categories: propCategories,
             setLoading(true);
             const result = await createAccount(session.user.id, formData);
             if (result.error) {
-                alert(result.error.message);
+                showError(result.error.message, 'Error al crear cuenta');
                 return;
             }
             // Solo guardar: cerramos el modal y reiniciamos el formulario localmente
             setShowModal(false);
             setFormData(initialForm);
-            alert('Cuenta guardada correctamente.');
+            showToast('Cuenta guardada correctamente', 'success');
             // Notify parent to refresh accounts list if provided
             if (typeof onSaved === 'function') onSaved();
         } catch (err) {
             console.error(err);
-            alert('Error al guardar la cuenta');
+            showError('Error al guardar la cuenta');
         } finally {
             setLoading(false);
         }
@@ -180,7 +181,9 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
                 </div>
                 <div className="modal__content flex-1 overflow-y-auto pb-24 lg:pb-6">
                     {/* Tipos de cuenta */}
+                       <label>Seleccione el tipo de cuenta que desea crear.</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 gap-1.5 sm:gap-2 dark:text-zinc-400 m-2">
+                       
                         {AccountTypeOptions.map((option) => {
                             const isSelected = selectedAccountType === option.value;
                             return (
@@ -304,27 +307,26 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
 
                 {/* Botones - Fixed footer */}
                 <div className="border-t border-zinc-700 p-4 sm:p-6 bg-zinc-900/30 flex-shrink-0">
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            type="button"
+                            onClick={onClose}
+                            className="py-3.5 sm:py-3 rounded-lg font-medium transition-all text-base sm:text-sm border border-zinc-600 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200"
+                            disabled={isSubmitting}
+                        >
+                            Cancelar
+                        </button>
                         <button 
                             type="submit"
                             onClick={handleSubmit}
                             disabled={isSubmitting || !selectedAccountType}
-                            className={`w-full py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
+                            className={`py-3.5 sm:py-3 rounded-lg text-zinc-100 font-medium transition-all text-base sm:text-sm ${
                                 isSubmitting || !selectedAccountType
                                     ? 'bg-zinc-600/20 cursor-not-allowed opacity-60'
                                     : 'bg-blue-500/30 hover:bg-blue-500/40 active:bg-blue-500/50'
                             }`}
                         >
                             {isSubmitting ? 'Guardando...' : 'Guardar Cuenta'}
-                        </button>
-
-                        {/* Botón Cancelar solo en móviles */}
-                        <button 
-                            type="button"
-                            onClick={onClose}
-                            className="w-full py-3.5 rounded-lg text-zinc-300 font-medium transition-all text-base bg-zinc-800/30 hover:bg-zinc-800/50 active:bg-zinc-800/60 border border-zinc-700 sm:hidden"
-                        >
-                            Cancelar
                         </button>
                     </div>
                 </div>
