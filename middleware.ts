@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 export async function middleware(request: NextRequest) {
+  // Bypass middleware entirely for PWA assets to avoid redirects/cookie mutations
+  const pathname = request.nextUrl.pathname;
+  const isPwaAsset = (
+    pathname === '/sw.js' ||
+    pathname === '/manifest.json' ||
+    pathname === '/favicon.ico' ||
+    pathname.startsWith('/icon-') ||
+    pathname.startsWith('/apple-touch-icon') ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml'
+  );
+
+  if (isPwaAsset) {
+    return NextResponse.next();
+  }
+
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
     return new NextResponse(null, {
@@ -112,6 +128,7 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public files (public folder)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exclude PWA-critical assets from middleware
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|robots.txt|sitemap.xml|icon-.*|apple-touch-icon.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
