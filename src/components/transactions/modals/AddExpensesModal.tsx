@@ -3,6 +3,7 @@ import { Blendy, createBlendy } from 'blendy';
 import IconCircleButton from '@/src/components/common/IconCircleButton';
 import { GiPayMoney, GiReceiveMoney } from 'react-icons/gi';
 import TransactionFormModal from './TransactionFormModal';
+import QuickTransactionModal from './QuickTransactionModal';
 
 interface AccountTransactionModalProps {
   accountId: string;
@@ -23,6 +24,14 @@ export default function AccountTransactionModal({
 }: AccountTransactionModalProps) {
   const blendy = useRef<Blendy | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     blendy.current = createBlendy({ animation: 'dynamic' });
@@ -38,17 +47,32 @@ export default function AccountTransactionModal({
 
   return (
     <div>
-      <TransactionFormModal
-        isOpen={showModal}
-        onClose={handleClose}
-        mode="add"
-        type={type}
-        accountId={accountId}
-        preselectedAccountId={preselectedAccountId}
-        onSaved={onTransactionSaved}
-        onTransactionComplete={onTransactionComplete}
-        onAccountChange={onAccountChange}
-      />
+      {/* Nuevo enfoque rápido para gastos */}
+      {isMobile ? (
+        <QuickTransactionModal
+          isOpen={showModal}
+          onClose={handleClose}
+          mode="add"
+          type={type}
+          accountId={accountId}
+          preselectedAccountId={preselectedAccountId}
+          onSaved={onTransactionSaved}
+          onTransactionComplete={onTransactionComplete}
+          onAccountChange={onAccountChange}
+        />
+      ) : (
+        <TransactionFormModal
+          isOpen={showModal}
+          onClose={handleClose}
+          mode="add"
+          type={type}
+          accountId={accountId}
+          preselectedAccountId={preselectedAccountId}
+          onSaved={onTransactionSaved}
+          onTransactionComplete={onTransactionComplete}
+          onAccountChange={onAccountChange}
+        />
+      )}
       <IconCircleButton
         data-blendy-from={`modal-transaction-${type}`}
         onClick={handleOpen}

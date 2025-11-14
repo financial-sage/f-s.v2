@@ -39,6 +39,7 @@ const monedas = [
 export default function AddAccountModal({ accountId, categories: propCategories, onSaved }: AccountTransactionModalProps) {
     const blendy = useRef<Blendy | null>(null)
     const [showModal, setShowModal] = useState(false)
+    const [isMobile, setIsMobile] = useState<boolean>(false)
     const [formData, setFormData] = useState<NewAccount>({
         name: '',
         type: 'cash',
@@ -59,6 +60,13 @@ export default function AddAccountModal({ accountId, categories: propCategories,
     useEffect(() => {
         blendy.current = createBlendy({ animation: 'dynamic' })
     }, [])
+
+    useEffect(() => {
+        const check = () => setIsMobile(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
 
 
     const loadAccounts = async () => {
@@ -121,11 +129,17 @@ export default function AddAccountModal({ accountId, categories: propCategories,
 
     return (
         <div>
-            {showModal
-                && createPortal(<Modal categories={categories} onClose={() => {
-                    setShowModal(false);
-                }} formData={formData} setFormData={setFormData} onSave={handleSave} />, document.body)
-            }
+            {showModal && createPortal(
+                <Modal
+                    isMobile={isMobile}
+                    categories={categories}
+                    onClose={() => setShowModal(false)}
+                    formData={formData}
+                    setFormData={setFormData}
+                    onSave={handleSave}
+                />,
+                document.body
+            )}
             <IconCircleButton
                 data-blendy-from="modal-addAccount"
                 onClick={() => {
@@ -139,7 +153,7 @@ export default function AddAccountModal({ accountId, categories: propCategories,
     )
 }
 
-function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose: React.MouseEventHandler<HTMLElement>, categories: Category[], formData: NewAccount, setFormData: React.Dispatch<React.SetStateAction<NewAccount>>, onSave: () => Promise<void> }) {
+function Modal({ isMobile, onClose, categories, formData, setFormData, onSave }: { isMobile: boolean, onClose: () => void, categories: Category[], formData: NewAccount, setFormData: React.Dispatch<React.SetStateAction<NewAccount>>, onSave: () => Promise<void> }) {
     const [selectedAccountType, setSelectedAccountType] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -162,8 +176,7 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
             setError(null);
             await onSave();
             // Cerrar el modal después de guardar exitosamente
-            const closeEvent = onClose as unknown as () => void;
-            closeEvent();
+            onClose();
         } catch (err) {
             setError('Error al guardar la cuenta');
             console.error(err);
@@ -172,16 +185,97 @@ function Modal({ onClose, categories, formData, setFormData, onSave }: { onClose
         }
     };
 
+    // Mobile full-screen native style
+    if (isMobile) {
+        return (
+            <div className="fixed inset-0 z-[70] sm:hidden" suppressHydrationWarning>
+                <div className="flex flex-col h-[100dvh] w-full" style={{ background: 'var(--background-gradient)', WebkitTapHighlightColor: 'transparent' }}>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+                        <button onClick={onClose} className="text-zinc-400 active:scale-95 transition-transform" aria-label="Cerrar">
+                            <i className="fas fa-chevron-left" />
+                        </button>
+                        <h2 className="text-sm font-medium text-zinc-300">Nueva cuenta</h2>
+                        <div className="w-5" />
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-3 pt-3 pb-24">
+                        {/* Tipos de cuenta */}
+                        <label className="text-xs text-zinc-400">Seleccione el tipo de cuenta que desea crear.</label>
+                        <div className="grid grid-cols-3 gap-1.5 mt-2">
+                            {AccountTypeOptions.map((option) => {
+                                const isSelected = selectedAccountType === option.value;
+                                return (
+                                    <div
+                                        key={option.value}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => { 
+                                            setSelectedAccountType(option.value); 
+                                            setFormData({ ...formData, type: option.value, color: option.color, icon: option.iconClass }); 
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedAccountType(option.value); setFormData({ ...formData, type: option.value, color: option.color, icon: option.iconClass }); } }}
+                                        className={`relative overflow-hidden flex flex-col items-center p-2 rounded-lg cursor-pointer border transition-all ${isSelected ? 'bg-zinc-800/50 border-zinc-600' : 'bg-zinc-900/30 border-zinc-800 hover:bg-zinc-800/30 hover:border-zinc-700'}`}
+                                        aria-pressed={isSelected}
+                                    >
+                                        {isSelected && (<div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: option.color }} />)}
+                                        <div className="text-xl relative z-10">{option.icon}</div>
+                                        <div className={`text-[10px] mt-1 relative z-10 text-center leading-tight ${isSelected ? 'text-zinc-200' : 'text-zinc-500'}`}>{option.label}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Formulario */}
+                        <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+                            {error && (<div className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">{error}</div>)}
+
+                            <div className="space-y-1.5">
+                                <label className="block text-xs font-medium text-zinc-400">Nombre de la cuenta *</label>
+                                <input type="text" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ej. Cuenta principal" required className="w-full px-3 py-3 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-transparent text-base" />
+                            </div>
+
+                            {(formData.type === 'bank_account' || formData.type === 'credit_card' || formData.type === 'debit_card') && (
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-zinc-400">Nombre del banco</label>
+                                        <input type="text" value={formData.bank_name || ''} onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })} placeholder="Ej. BBVA" className="w-full px-3 py-3 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-transparent text-base" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-zinc-400">Últimos 4 dígitos <span className="text-zinc-600">(Opcional)</span></label>
+                                        <input type="text" value={formData.last_four_digits || ''} onChange={(e) => setFormData({ ...formData, last_four_digits: e.target.value })} placeholder="1234" maxLength={4} className="w-full px-3 py-3 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-transparent text-base" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-1.5">
+                                <label className="block text-xs font-medium text-zinc-400">Saldo inicial *</label>
+                                <input type="number" step="0.01" value={formData.balance === 0 ? '' : String(formData.balance)} onChange={(e) => setFormData({ ...formData, balance: e.target.value === '' ? 0 : Number(e.target.value) })} placeholder="0.00" required className="w-full px-3 py-3 bg-zinc-900/50 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-transparent text-base text-right" />
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* Footer fijo */}
+                    <div className="px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 border-t border-zinc-800 bg-black/30 backdrop-blur-sm">
+                        <div className="grid grid-cols-2 gap-2">
+                            <button type="button" onClick={onClose} className="h-12 rounded-md font-medium border border-zinc-600 text-zinc-300 hover:bg-zinc-800/50">Cancelar</button>
+                            <button type="button" onClick={handleSubmit} disabled={isSubmitting || !selectedAccountType} className={`h-12 rounded-md font-semibold text-white ${isSubmitting || !selectedAccountType ? 'bg-zinc-600/30 cursor-not-allowed' : 'bg-blue-500/60 hover:bg-blue-500/70 active:bg-blue-500/80'} border border-blue-500/60`}>{isSubmitting ? 'Guardando…' : 'Guardar Cuenta'}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Desktop modal fallback
     return (
         <div className="fixed inset-0 bg-black/70 z-60 lg:z-40" suppressHydrationWarning>
-          <div className="modal z-60 lg:z-50 border border-zinc-700 flex flex-col max-h-[calc(100vh-4rem)] lg:max-h-[90vh]" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-add-account" suppressHydrationWarning>
+            <div className="modal z-60 lg:z-50 border border-zinc-700 flex flex-col max-h-[calc(100vh-4rem)] lg:max-h-[90vh]" style={{ background: "var(--background-gradient)" }} data-blendy-to="modal-add-account" suppressHydrationWarning>
                 <div className="modal__header border-b border-zinc-700 flex-shrink-0">
                     <h2 className="text-zinc-400">Agregar cuenta</h2>
                     <button className="modal__close" onClick={onClose}></button>
                 </div>
                 <div className="modal__content flex-1 overflow-y-auto pb-24 lg:pb-6">
                     {/* Tipos de cuenta */}
-                       <label>Seleccione el tipo de cuenta que desea crear.</label>
+                    <label>Seleccione el tipo de cuenta que desea crear.</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 gap-1.5 sm:gap-2 dark:text-zinc-400 m-2">
                        
                         {AccountTypeOptions.map((option) => {

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import TransactionFormModal from './TransactionFormModal';
+import QuickTransactionModal from './QuickTransactionModal';
 import { supabase } from '@/src/lib/supabase/client';
 import { deleteTransactionWithBalanceAdjustment } from '@/src/lib/supabase/transactions';
 import { showError, showDeleteConfirm } from '@/src/utils/sweetAlert';
@@ -28,6 +29,14 @@ interface EditTransactionModalProps {
 export default function EditTransactionModal({ transaction, onClose, onSaved }: EditTransactionModalProps) {
   const [showDeleteConfirmState, setShowDeleteConfirmState] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Solo para transferencias (que no se pueden editar, solo eliminar)
   const handleDelete = async () => {
@@ -122,6 +131,29 @@ export default function EditTransactionModal({ transaction, onClose, onSaved }: 
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <QuickTransactionModal
+        isOpen={true}
+        onClose={onClose}
+        mode="edit"
+        type={transaction.type as 'expense' | 'income'}
+        accountId={transaction.account_id || undefined}
+        transactionId={transaction.id}
+        initialData={{
+          amount: Math.abs(transaction.amount),
+          description: transaction.description || undefined,
+          date: transaction.date,
+          categoryId: transaction.category_id || undefined,
+          subcategoryId: transaction.subcategory_id || undefined,
+          accountId: transaction.account_id || undefined,
+          destinationAccountId: transaction.destination_account_id || undefined,
+        }}
+        onSaved={onSaved}
+      />
     );
   }
 
