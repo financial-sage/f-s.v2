@@ -94,6 +94,22 @@ export default function QuickTransactionModal({
         }
     }, [preselectedAccountId, type, mode, initialData, accountId]);
 
+    // IMPORTANTE: cuando se abre el modal en móvil desde otra cuenta, sincronizar siempre
+    useEffect(() => {
+        if (!isOpen) return;
+        // En alta, forzamos que el origen sea la cuenta actual que viene de props
+        if (mode === 'add' && accountId) {
+            setCurrentAccountId(accountId);
+        }
+        // En edición, preferimos el accountId del initialData si existe
+        if (mode === 'edit') {
+            setCurrentAccountId(initialData?.accountId || accountId);
+            if (type === 'income') {
+                setSelectedDestinationAccountId(initialData?.destinationAccountId || preselectedAccountId || null);
+            }
+        }
+    }, [isOpen, mode, accountId, initialData, type, preselectedAccountId]);
+
     const reloadCategories = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
