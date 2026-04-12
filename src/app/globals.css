@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Sage primary palette */
+  --color-primary: #4a6549;
+  --color-primary-dim: #3f593e;
+  --color-primary-container: #ccebc7;
+  --color-on-primary: #e5ffdf;
+  --color-on-primary-container: #3e583d;
+
+  /* Surfaces */
+  --color-surface: #f8f9fa;
+  --color-surface-low: #f1f4f6;
+  --color-surface-container: #eaeff1;
+  --color-surface-high: #e2e9ec;
+  --color-surface-highest: #dbe4e7;
+  --color-surface-lowest: #ffffff;
+
+  /* Text */
+  --color-on-surface: #2b3437;
+  --color-on-surface-variant: #586064;
+
+  /* Outline */
+  --color-outline: #737c7f;
+  --color-outline-variant: #abb3b7;
+
+  /* Error */
+  --color-error: #9e422c;
+
+  /* Legacy sage aliases */
+  --color-sage: #8BA888;
+  --color-sage-dark: #6F8C6C;
+  --color-sage-light: #A8C5A5;
+
+  /* Fonts */
+  --font-headline: var(--font-manrope);
+  --font-body: var(--font-manrope);
+  --font-label: var(--font-inter);
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
