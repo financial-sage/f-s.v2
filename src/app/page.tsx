@@ -65,19 +65,27 @@ function formatRelativeDate(dateInput: string) {
     .replace(".", "");
 }
 
-function sumVisibleExpenses(expenses: ExpenseRow[]) {
+function sumMemberShare(expenses: ExpenseRow[], memberId: string) {
   const total = expenses.reduce((sum, expense) => {
     const amount = Number(expense.amount);
+    const splitType = expense.split_type ?? "";
 
-    if (expense.split_type === "settlement") {
+    if (splitType === "settlement") {
       return sum;
     }
 
-    if (expense.split_type === "personal") {
-      return sum + amount;
+    if (splitType === "personal") {
+      return expense.paid_by === memberId ? sum + amount : sum;
     }
 
-    return sum + amount * (Number(expense.payer_share_pct ?? 50) / 100);
+    if (splitType.includes("shared")) {
+      const payerPct = Number(expense.payer_share_pct ?? 50);
+      const payerShare = amount * (payerPct / 100);
+      const partnerShare = amount - payerShare;
+      return expense.paid_by === memberId ? sum + payerShare : sum + partnerShare;
+    }
+
+    return sum;
   }, 0);
 
   return Math.round(total * 100) / 100;
@@ -121,7 +129,8 @@ export default async function Home() {
   let coupleExpenses: ExpenseRow[] = [];
   let mySpent = 0;
   let partnerSpent = 0;
-  let debt = { deudorId: null as string | null, acreedorId: null as string | null, monto: 0 };
+  let fundBalance = 0;
+  let personalBalance = 0;
 
   if (familyMemberCount >= 2 && familyId) {
     console.log("--- DEBUG SERVER: OBTENIENDO GASTOS ---");
@@ -131,25 +140,17 @@ export default async function Home() {
       .from("expenses")
       .select("*, profiles!expenses_paid_by_fkey(full_name, avatar_url)")
       .eq("family_id", familyId)
+      .or(`split_type.in.(shared,shared_equal,shared_custom),paid_by.eq.${user.id}`)
       .order("created_at", { ascending: false });
 
-    if (expensesError) {
-      console.error("❌ ERROR SQL en Expenses:", expensesError);
-    } else {
-      console.log("✅ Gastos encontrados:", expenses?.length || 0);
-    }
-    console.log("-----------------------------------------");
-
-    const debtResult = await calculateDebt(familyId);
+    const debtResult = await calculateDebt(familyId, user.id);
 
     coupleExpenses = normalizeExpenses((expenses ?? []) as RawExpenseRow[]);
-    mySpent = sumVisibleExpenses(coupleExpenses.filter((expense) => expense.paid_by === user.id));
-    partnerSpent = sumVisibleExpenses(coupleExpenses.filter((expense) => expense.paid_by !== user.id));
-    debt = {
-      deudorId: debtResult.deudor_id,
-      acreedorId: debtResult.acreedor_id,
-      monto: debtResult.monto,
-    };
+    const partnerId = dashboard.members.find((member) => member.id !== user.id)?.id ?? null;
+    mySpent = sumMemberShare(coupleExpenses, user.id);
+    partnerSpent = partnerId ? sumMemberShare(coupleExpenses, partnerId) : 0;
+    fundBalance = debtResult.fundBalance;
+    personalBalance = debtResult.personalBalance;
   }
 
   return (
@@ -164,7 +165,8 @@ export default async function Home() {
           expenses={coupleExpenses}
           mySpent={mySpent}
           partnerSpent={partnerSpent}
-          debt={debt}
+          fundBalance={fundBalance}
+          personalBalance={personalBalance}
         />
       ) : (
         <DashboardSolo

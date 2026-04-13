@@ -44,7 +44,7 @@ export default function RootLayout({
       lang="es"
       className={`${manrope.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="h-dvh overflow-hidden text-on-surface">
+      <body suppressHydrationWarning className="h-dvh overflow-hidden text-on-surface">
         <main className="h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
           {children}
         </main>

@@ -1,9 +1,11 @@
 export type ExpenseFormPayer = "yo" | "pareja" | "medias";
 export type ExpenseSplitType =
   | "personal"
+  | "p2p_debt"
   | "shared"
   | "shared_equal"
   | "shared_custom"
+  | "fund_transfer"
   | "settlement";
 
 interface BuildExpenseInsertInput {

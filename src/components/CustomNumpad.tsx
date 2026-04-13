@@ -8,7 +8,9 @@ interface CustomNumpadProps {
   initialValue?: string;
   onClose: () => void;
   onValueChange: (value: string) => void;
-  onConfirm: () => void;
+  onConfirm: (value?: string) => void;
+  embedded?: boolean;
+  showDisplay?: boolean;
 }
 
 const operatorMap: Record<string, string> = {
@@ -55,6 +57,8 @@ export default function CustomNumpad({
   onClose,
   onValueChange,
   onConfirm,
+  embedded = false,
+  showDisplay = true,
 }: CustomNumpadProps) {
   const [expression, setExpression] = useState("");
 
@@ -112,39 +116,49 @@ export default function CustomNumpad({
       }
 
       onValueChange(result);
-      onConfirm();
-      onClose();
+      onConfirm(result);
+
+      if (!embedded) {
+        onClose();
+      }
     } catch {
       if (!hasPendingOperation) {
         onValueChange("0");
-        onConfirm();
-        onClose();
+        onConfirm("0");
+
+        if (!embedded) {
+          onClose();
+        }
       }
     }
   }
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />}
+      {isOpen && !embedded && <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />}
       <div
-        className={`pointer-events-auto fixed right-0 bottom-0 left-0 z-50 rounded-t-3xl bg-white px-4 pt-3 pb-10 shadow-2xl transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-y-0" : "translate-y-full"
-        }`}
+        className={`pointer-events-auto ${
+          embedded
+            ? "relative w-full rounded-2xl bg-white px-3 py-2 shadow-md"
+            : "fixed right-0 bottom-0 left-0 z-50 rounded-t-3xl bg-white px-4 pt-3 pb-10 shadow-2xl transition-transform duration-300 ease-in-out"
+        } ${!embedded ? (isOpen ? "translate-y-0" : "translate-y-full") : ""}`}
       >
         <div className="mx-auto w-full max-w-md">
-          <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-slate-300" />
+          {!embedded && <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-slate-300" />}
 
-          <div className="mb-6 flex flex-col items-end px-4">
-            <span className="mb-1 text-[0.6875rem] uppercase tracking-widest text-slate-500">
-              Enter Amount
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-sage text-2xl font-bold">$</span>
-              <span className="text-4xl font-extrabold tracking-tight text-slate-800">
-                {displayValue}
+          {showDisplay && (
+            <div className={`${embedded ? "mb-3" : "mb-6"} flex flex-col items-end px-4`}>
+              <span className="mb-1 text-[0.6875rem] uppercase tracking-widest text-slate-500">
+                Enter Amount
               </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sage text-2xl font-bold">$</span>
+                <span className="text-4xl font-extrabold tracking-tight text-slate-800">
+                  {displayValue}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-5 gap-1 p-2">
             <button
@@ -217,7 +231,7 @@ export default function CustomNumpad({
             <button type="button" onClick={() => appendValue(",")} className="flex h-10 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">,</button>
           </div>
 
-          <div className="h-6 w-full" />
+          {!embedded && <div className="h-6 w-full" />}
         </div>
       </div>
     </>

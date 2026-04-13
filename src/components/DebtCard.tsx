@@ -18,14 +18,19 @@ export default async function DebtCard() {
   const { data: family } = user
     ? await supabase
         .from("families")
-        .select("id")
+        .select("id, user_1_id, user_2_id")
         .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
         .maybeSingle()
     : { data: null };
 
   const familyId = family?.id ?? "";
   const currentUserId = user?.id ?? "";
-  const { deudor_id, acreedor_id, monto } = await calculateDebt(familyId);
+  const { fundBalance } = await calculateDebt(familyId, currentUserId);
+  const otherUserId =
+    family?.user_1_id === currentUserId ? family.user_2_id : family?.user_1_id ?? null;
+  const monto = Math.round(Math.abs(fundBalance) * 100) / 100;
+  const deudor_id = monto === 0 || !otherUserId ? null : fundBalance < 0 ? currentUserId : otherUserId;
+  const acreedor_id = monto === 0 || !otherUserId ? null : fundBalance > 0 ? currentUserId : otherUserId;
 
   const title = monto === 0
     ? "Están al día ✨"

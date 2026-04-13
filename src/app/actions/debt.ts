@@ -7,12 +7,15 @@ interface ExpenseRow {
   amount: number;
   paid_by: string;
   split_type: string;
+  responsible_for?: string | null;
+  payer_share_pct?: number;
+  category?: string | null;
   concept?: string;
 }
 
-export async function calculateDebt(family_id: string) {
-  if (!family_id) {
-    return { deudor_id: null, acreedor_id: null, monto: 0 };
+export async function calculateDebt(family_id: string, current_user_id: string) {
+  if (!family_id || !current_user_id) {
+    return { fundBalance: 0, personalBalance: 0 };
   }
 
   const supabase = await createClient();
@@ -26,53 +29,73 @@ export async function calculateDebt(family_id: string) {
         .maybeSingle(),
       supabase
         .from("expenses")
-        .select("amount, paid_by, split_type, concept")
+        .select("amount, paid_by, split_type, responsible_for, payer_share_pct, category, concept")
         .eq("family_id", family_id),
     ]);
 
   if (familyError || expensesError || !family?.user_1_id || !family?.user_2_id) {
-    return { deudor_id: null, acreedor_id: null, monto: 0 };
+    return { fundBalance: 0, personalBalance: 0 };
   }
 
-  const userA = { id: family.user_1_id };
-  const userB = { id: family.user_2_id };
+  const partnerId =
+    current_user_id === family.user_1_id ? family.user_2_id : family.user_1_id;
   const rows = (expenses ?? []) as ExpenseRow[];
 
-  const sharedRows = rows.filter((row) =>
-    ["shared", "shared_equal"].includes(row.split_type)
-  );
+  const fundBalance = rows.reduce((sum, row) => {
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return sum;
+    }
 
-  const settlementRows = rows.filter((row) => {
-    const concept = row.concept?.trim().toLowerCase() ?? "";
-    return row.split_type === "settlement" || concept === "liquidación" || concept === "liquidacion";
-  });
+    if (row.split_type.includes("shared")) {
+      const payerSharePct = Number(row.payer_share_pct ?? 50);
+      const fundCredit = amount * ((100 - payerSharePct) / 100);
 
-  const paidByUserA = sharedRows
-    .filter((row) => row.paid_by === userA.id)
-    .reduce((sum, row) => sum + Number(row.amount), 0);
+      if (row.paid_by === current_user_id) {
+        return sum + fundCredit;
+      }
 
-  const paidByUserB = sharedRows
-    .filter((row) => row.paid_by === userB.id)
-    .reduce((sum, row) => sum + Number(row.amount), 0);
+      if (row.paid_by === partnerId) {
+        return sum - fundCredit;
+      }
 
-  const settlementsByUserA = settlementRows
-    .filter((row) => row.paid_by === userA.id)
-    .reduce((sum, row) => sum + Number(row.amount), 0);
+      return sum;
+    }
 
-  const settlementsByUserB = settlementRows
-    .filter((row) => row.paid_by === userB.id)
-    .reduce((sum, row) => sum + Number(row.amount), 0);
+    if (row.split_type === "fund_transfer") {
+      if (row.paid_by === current_user_id) {
+        return sum + amount;
+      }
 
-  const net = (paidByUserA - paidByUserB) / 2 + settlementsByUserA - settlementsByUserB;
-  const monto = Math.round(Math.abs(net) * 100) / 100;
+      if (row.paid_by === partnerId) {
+        return sum - amount;
+      }
+    }
 
-  if (monto === 0) {
-    return { deudor_id: null, acreedor_id: null, monto: 0 };
-  }
+    return sum;
+  }, 0);
 
-  return net > 0
-    ? { deudor_id: userB.id, acreedor_id: userA.id, monto }
-    : { deudor_id: userA.id, acreedor_id: userB.id, monto };
+  const personalBalance = rows.reduce((sum, row) => {
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return sum;
+    }
+
+    if (row.responsible_for === partnerId && row.paid_by === current_user_id) {
+      return sum + amount;
+    }
+
+    if (row.responsible_for === current_user_id && row.paid_by === partnerId) {
+      return sum - amount;
+    }
+
+    return sum;
+  }, 0);
+
+  return {
+    fundBalance: Math.round(fundBalance * 100) / 100,
+    personalBalance: Math.round(personalBalance * 100) / 100,
+  };
 }
 
 export async function settleDebt({
