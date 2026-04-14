@@ -4,23 +4,29 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+    CarFront,
+    ChevronDown,
     Home,
-    LoaderCircle,
+    Plus,
     ReceiptText,
     Settings,
     ShoppingCart,
+    House,
     User,
     UtensilsCrossed,
     Wrench,
+    X,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
 import { createDeposit } from "@/app/actions/expenses";
+import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
+import AddExpenseForm from "@/components/AddExpenseForm";
 import CustomNumpad from "@/components/CustomNumpad";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 
-type CoupleExpenseIconKey = "shopping-cart" | "coffee" | "car" | "utensils" | "receipt";
+type CoupleExpenseIconKey = "shopping-cart" | "car" | "utensils" | "home" | "receipt" | "deposit";
 
 interface CoupleDashboardExpense {
     id: string;
@@ -28,6 +34,8 @@ interface CoupleDashboardExpense {
     amount: number;
     paid_by: string;
     paidBy?: string;
+    responsible_for?: string | null;
+    category?: string | null;
     split_type: ExpenseSplitType;
     splitType?: ExpenseSplitType;
     expense_date: string;
@@ -40,6 +48,7 @@ interface CoupleDashboardExpense {
         | null;
     payerName?: string;
     full_name?: string | null;
+    is_settled?: boolean;
 }
 
 type ActivityFilter = "compartido" | "mio" | "suyo";
@@ -59,10 +68,11 @@ interface DashboardCoupleProps {
 
 const iconMap: Record<CoupleExpenseIconKey, LucideIcon> = {
     "shopping-cart": ShoppingCart,
-    coffee: ReceiptText,
-    car: ReceiptText,
+    car: CarFront,
     utensils: UtensilsCrossed,
+    home: House,
     receipt: Wrench,
+    deposit: Plus,
 };
 
 function getInitials(name: string) {
@@ -94,15 +104,38 @@ function formatExpenseDate(dateInput: string) {
         .replace(".", "");
 }
 
-function getExpenseIconKey(concept: string): CoupleExpenseIconKey {
-    const normalized = concept.toLowerCase();
+function getExpenseCategoryPresentation(category?: string | null, concept?: string) {
+    switch (category) {
+        case "super":
+            return { iconKey: "shopping-cart" as CoupleExpenseIconKey, label: "Super" };
+        case "food":
+            return { iconKey: "utensils" as CoupleExpenseIconKey, label: "Comida" };
+        case "transport":
+            return { iconKey: "car" as CoupleExpenseIconKey, label: "Transporte" };
+        case "home":
+            return { iconKey: "home" as CoupleExpenseIconKey, label: "Hogar" };
+        case "deposit":
+            return { iconKey: "deposit" as CoupleExpenseIconKey, label: "Aporte" };
+        case "other":
+            return { iconKey: "receipt" as CoupleExpenseIconKey, label: "Otros" };
+        default: {
+            const normalized = (concept ?? "").toLowerCase();
 
-    if (/super|market|compra|grocery/.test(normalized)) return "shopping-cart";
-    if (/cafe|café|coffee/.test(normalized)) return "coffee";
-    if (/gas|gasolina|uber|taxi|auto|car/.test(normalized)) return "car";
-    if (/comida|rest|restaurant|almuerzo|cena/.test(normalized)) return "utensils";
+            if (/super|market|compra|grocery/.test(normalized)) {
+                return { iconKey: "shopping-cart" as CoupleExpenseIconKey, label: "Super" };
+            }
 
-    return "receipt";
+            if (/cafe|café|coffee|comida|rest|restaurant|almuerzo|cena/.test(normalized)) {
+                return { iconKey: "utensils" as CoupleExpenseIconKey, label: "Comida" };
+            }
+
+            if (/gas|gasolina|uber|taxi|auto|car|bus|bici|viaje/.test(normalized)) {
+                return { iconKey: "car" as CoupleExpenseIconKey, label: "Transporte" };
+            }
+
+            return { iconKey: "receipt" as CoupleExpenseIconKey, label: "Otros" };
+        }
+    }
 }
 
 export default function DashboardCouple({
@@ -112,66 +145,138 @@ export default function DashboardCouple({
     currentUserName,
     members,
     expenses,
-    mySpent,
-    partnerSpent,
+    mySpent: _mySpent,
+    partnerSpent: _partnerSpent,
     fundBalance,
     personalBalance,
 }: DashboardCoupleProps) {
+    const mySpent = 150;
+    const myBudget = 400;
+    const fundSpent = 650;
+    const fundBudget = 1000;
+
     const router = useRouter();
     const [activeFilter, setActiveFilter] = useState<ActivityFilter>("compartido");
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+    const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+    const [expenseModalKey, setExpenseModalKey] = useState(0);
+    const [showBalances, setShowBalances] = useState(false);
+    const [showBudget, setShowBudget] = useState(false);
     const [depositAmount, setDepositAmount] = useState("");
     const [depositError, setDepositError] = useState("");
     const [isDepositing, startDepositTransition] = useTransition();
     const [isLiquidating, startLiquidatingTransition] = useTransition();
+    const [showSettleModal, setShowSettleModal] = useState(false);
     const partner = members.find((member) => member.id !== currentUserId) ?? null;
-    const partnerName = partner?.name ?? "Tu pareja";
+    const partnerId = partner?.id ?? null;
     const fundAmount = Math.round(Math.abs(fundBalance) * 100) / 100;
-    const personalAmount = Math.round(Math.abs(personalBalance) * 100) / 100;
     const deudorId = fundAmount === 0 || !partner ? null : fundBalance < 0 ? currentUserId : partner.id;
     const acreedorId = fundAmount === 0 || !partner ? null : fundBalance > 0 ? currentUserId : partner.id;
 
-    const debtTitle =
-        fundBalance === 0
-            ? "El Fondo está al día ✨"
-            : fundBalance > 0
-                ? `Saldo a favor en el Fondo: ${formatCurrency(fundAmount)}`
-                : `Debes aportar al Fondo: ${formatCurrency(fundAmount)}`;
 
-    const personalDebtTitle =
-        personalBalance > 0
-            ? `Deuda Personal: ${partnerName} te debe ${formatCurrency(personalAmount)}`
-            : `Deuda Personal: Debes a ${partnerName} ${formatCurrency(personalAmount)}`;
+    const fundDeposits = useMemo(() =>
+        expenses.filter(e => e.category === "deposit").reduce((sum, e) => sum + Number(e.amount || 0), 0),
+        [expenses]
+    );
+    const fundWithdrawals = useMemo(() =>
+        expenses.filter(e => e.category === "withdrawal").reduce((sum, e) => sum + Number(e.amount || 0), 0),
+        [expenses]
+    );
+    const fundLiquidity = fundDeposits - fundWithdrawals;
 
-    const totalSpent = Math.max(mySpent + partnerSpent, 1);
-    const myPercent = Math.max(8, Math.min(100, Math.round((mySpent / totalSpent) * 100)));
-    const partnerPercent = Math.max(
-        8,
-        Math.min(100, Math.round((partnerSpent / totalSpent) * 100))
+
+    // Solo sumar si NO está liquidado
+    const fundOwesMe = useMemo(() => {
+        return expenses.reduce((sum, expense) => {
+            const paidBy = expense.paid_by || expense.paidBy;
+            if (
+                paidBy !== currentUserId ||
+                expense.responsible_for !== "joint_fund" ||
+                expense.category === "deposit" ||
+                expense.is_settled
+            ) {
+                return sum;
+            }
+            return sum + Number(expense.amount || 0);
+        }, 0);
+    }, [currentUserId, expenses]);
+
+    // Extraer la lista exacta de esos gastos para mostrarlos en el modal
+    const fundDebtExpenses = useMemo(() =>
+        expenses.filter(
+            (expense) =>
+                (expense.paid_by || expense.paidBy) === currentUserId &&
+                expense.responsible_for === "joint_fund" &&
+                expense.category !== "deposit" &&
+                !expense.is_settled
+        ),
+        [currentUserId, expenses]
+    );
+
+    const iOwePartner = useMemo(() => {
+        return expenses
+            .filter(
+                (expense) =>
+                    (expense.paid_by || expense.paidBy) !== currentUserId &&
+                    (expense.paid_by || expense.paidBy) !== "joint_fund" &&
+                    expense.responsible_for === currentUserId &&
+                    expense.category !== "deposit"
+            )
+            .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    }, [currentUserId, expenses]);
+
+    const partnerOwesMe = useMemo(() => {
+        return expenses
+            .filter(
+                (expense) =>
+                    (expense.paid_by || expense.paidBy) === currentUserId &&
+                    expense.responsible_for !== currentUserId &&
+                    expense.responsible_for !== "joint_fund" &&
+                    expense.category !== "deposit"
+            )
+            .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    }, [currentUserId, expenses]);
+
+            const hasBalances = fundOwesMe > 0 || iOwePartner > 0 || partnerOwesMe > 0;
+
+    const sharedExpenses = useMemo(
+        () => expenses.filter((expense) => expense.responsible_for === "joint_fund" || expense.category === "deposit"),
+        [expenses]
+    );
+
+    const myExpenses = useMemo(
+        () => expenses.filter((expense) => expense.responsible_for === currentUserId && expense.category !== "deposit"),
+        [currentUserId, expenses]
+    );
+
+    const partnerExpenses = useMemo(
+        () =>
+            expenses.filter(
+                (expense) =>
+                    expense.responsible_for !== currentUserId &&
+                    expense.responsible_for !== "joint_fund" &&
+                    expense.category !== "deposit"
+            ),
+        [currentUserId, expenses]
     );
 
     console.log("Data cruda recibida en cliente:", expenses);
 
     const filteredExpenses = useMemo(() => {
-        return expenses.filter((expense) => {
-            const currentSplitType = expense.split_type || expense.splitType || "";
-            const currentPaidBy = expense.paid_by || expense.paidBy || "";
+        if (activeFilter === "compartido") {
+            return sharedExpenses;
+        }
 
-            if (activeFilter === "compartido") {
-                return currentSplitType.includes("shared");
-            }
+        if (activeFilter === "mio") {
+            return myExpenses;
+        }
 
-            if (activeFilter === "mio") {
-                return currentPaidBy === currentUserId && !currentSplitType.includes("shared");
-            }
+        if (activeFilter === "suyo") {
+            return partnerExpenses;
+        }
 
-            if (activeFilter === "suyo") {
-                return currentPaidBy !== currentUserId && !currentSplitType.includes("shared");
-            }
-
-            return true;
-        });
-    }, [activeFilter, currentUserId, expenses]);
+        return sharedExpenses;
+    }, [activeFilter, myExpenses, partnerExpenses, sharedExpenses]);
 
     function handleDepositConfirm(nextValue?: string) {
         const normalizedAmount = Number((nextValue ?? depositAmount).replace(/,/g, ".").trim());
@@ -191,16 +296,35 @@ export default function DashboardCouple({
         });
     }
 
+
     function handleLiquidate() {
-        if (!deudorId || !acreedorId || fundAmount <= 0) {
+        setShowSettleModal(true);
+    }
+
+    function handleSettleFundDebt() {
+        if (fundDebtExpenses.length === 0 || fundOwesMe <= 0) return;
+        startLiquidatingTransition(async () => {
+            await settleFundDebtAction({
+                expenseIds: fundDebtExpenses.map(e => e.id),
+                totalAmount: fundOwesMe,
+                currentUserId,
+                familyId,
+            });
+            setShowSettleModal(false);
+            router.refresh();
+        });
+    }
+
+    function handleSettleP2P(debtorId: string | null, creditorId: string | null, amount: number) {
+        if (!debtorId || !creditorId || amount <= 0) {
             return;
         }
 
         startLiquidatingTransition(async () => {
             await settleDebt({
-                deudor_id: deudorId,
-                acreedor_id: acreedorId,
-                monto: fundAmount,
+                deudor_id: debtorId,
+                acreedor_id: creditorId,
+                monto: amount,
                 family_id: familyId,
             });
 
@@ -232,7 +356,7 @@ export default function DashboardCouple({
             </header>
 
             <main className="mx-auto max-w-md px-4 pt-24 pb-32">
-                <section className="mb-6 px-2">
+                <section className="mb-4 px-2">
                     <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">{familyName}</h1>
                     <p className="text-sm font-medium opacity-70 text-on-surface-variant font-label">
                         Santuario compartido • Hoy
@@ -240,81 +364,213 @@ export default function DashboardCouple({
                 </section>
 
                 <section className="mb-6">
-                    <div className="relative overflow-hidden rounded-xl bg-[#60855c] p-6 shadow-[0_20px_40px_rgba(74,101,73,0.15)]">
+                    {/* La Cuenta Bancaria del Fondo */}
+                    <div className="bg-[#60855c] rounded-3xl p-6 text-white mb-3 shadow-md relative overflow-hidden">
                         <div className="absolute inset-0 opacity-10 pointer-events-none">
-                            <img className="w-full h-full object-cover"
+                            <img
+                                className="w-full h-full object-cover"
                                 data-alt="smooth abstract flowing waves with subtle grain texture and soft organic shapes in light green tones"
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3" />
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3"
+                            />
                         </div>
                         <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-                        <div className="relative flex flex-col gap-4">
-                            <div>
-                                <span className="text-xs font-bold text-on-primary/70 uppercase tracking-widest opacity-80 font-label">
-                                    ESTADO DEL FONDO COMÚN
+                        <span className="relative z-10 text-[10px] font-bold uppercase tracking-widest text-white/70 block mb-1">
+                            Disponible en el Fondo
+                        </span>
+                        <h2 className="relative z-10 text-4xl font-bold mb-6">${fundLiquidity.toFixed(2)}</h2>
+                        <div className="flex gap-3 relative z-10">
+                            <button
+                                type="button"
+                                onClick={() => setIsDepositModalOpen(true)}
+                                className="bg-white/70 text-[#60855c] px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 shadow-sm"
+                            >
+                                <Plus size={16} /> Aportar
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Sección de Saldos Pendientes (Solo se renderiza si hay deudas) */}
+                    {hasBalances && (
+                        <div className="mb-6">
+                            {/* Encabezado Toggle */}
+                            <button
+                                onClick={() => setShowBalances(!showBalances)}
+                                className="w-full flex justify-between items-center mb-3 group"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-xs font-bold text-slate-800">Saldos Pendientes</h2>
+                                    <ChevronDown
+                                        size={18}
+                                        className={`text-slate-400 transition-transform duration-500 ease-out ${showBalances ? "rotate-180" : ""}`}
+                                    />
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-widest transition-colors text-orange-500">
+                                    {showBalances ? "OCULTAR" : "REVISAR"}
                                 </span>
-                                <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-white/90">{debtTitle}</h2>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsDepositModalOpen(true)}
-                                    className="rounded-full bg-slate-100/80 px-5 py-2.5 text-xs font-bold text-primary shadow-sm transition-transform duration-200 active:scale-95 font-label"
-                                >
-                                    ➕ Aportar
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={isLiquidating || !deudorId || !acreedorId || fundAmount <= 0}
-                                    onClick={handleLiquidate}
-                                    className="rounded-full border border-on-primary/20 bg-on-primary/10 px-5 py-2.5 text-xs font-bold text-on-primary transition-opacity disabled:cursor-not-allowed disabled:opacity-50 font-label"
-                                >
-                                    {isLiquidating ? "Liquidando..." : "Liquidar"}
-                                </button>
+                            </button>
+
+                            {/* Lista Compacta Desplegable */}
+                            <div
+                                className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                    showBalances ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                                }`}
+                            >
+                                <div className="overflow-hidden">
+                                    <div
+                                        className={`bg-white rounded-xl  flex flex-col overflow-hidden divide-y divide-slate-50 border border-slate-200 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                            showBalances ? "translate-y-0 scale-100" : "-translate-y-1 scale-[0.98]"
+                                        }`}
+                                    >
+                                    {/* Fila: El Fondo me debe */}
+                                    {fundOwesMe > 0 && (
+                                        <div className="px-4 py-2 flex items-center justify-between">
+                                            <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">El fondo te debe</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[12px] font-semibold text-slate-800">${fundOwesMe.toFixed(2)}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleLiquidate}
+                                                    disabled={isLiquidating || fundDebtExpenses.length === 0}
+                                                    className="text-[9px] bg-slate-100 text-slate-600 hover:bg-slate-200 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    COBRAR
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+            {/* Modal de Liquidación */}
+            {showSettleModal && (
+                <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowSettleModal(false)} />
+                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
+                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
+                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto">
+                            {fundDebtExpenses.map(expense => (
+                                <div key={expense.id} className="flex justify-between items-center p-3 border border-slate-100 rounded-xl">
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                    </div>
+                                    <span className="font-bold text-slate-800">${Number(expense.amount).toFixed(2)}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            onClick={handleSettleFundDebt}
+                            className="w-full bg-[#60855c] text-white py-4 rounded-full font-bold shadow-md"
+                            disabled={isLiquidating || fundDebtExpenses.length === 0}
+                        >
+                            Recuperar ${fundOwesMe.toFixed(2)}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+                                    {/* Fila: Yo le debo a mi pareja */}
+                                    {iOwePartner > 0 && (
+                                        <div className="px-4 py-2 flex items-center justify-between">
+                                            <span className="text-[9px] font-semibold text-[#bb1b1b] uppercase tracking-wide">Le debes a tu pareja</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[12px] font-semibold text-slate-800">${iOwePartner.toFixed(2)}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSettleP2P(currentUserId, partnerId, iOwePartner)}
+                                                    disabled={isLiquidating}
+                                                    className="text-[9px] bg-[#bb1b1b]/10 text-[#bb1b1b] hover:bg-[#bb1b1b]/30 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    PAGAR
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Fila: Mi pareja me debe */}
+                                    {partnerOwesMe > 0 && (
+                                        <div className="px-4 py-2 flex items-center justify-between">
+                                            <span className="text-[9px] font-bold text-[#0f2d91] uppercase tracking-wide">Tu pareja te debe</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[12px] font-semibold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSettleP2P(partnerId, currentUserId, partnerOwesMe)}
+                                                    disabled={isLiquidating}
+                                                    className="text-[9px] bg-blue-50 text-[#0f2d91] hover:bg-blue-100 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    COBRAR
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </section>
 
-                {personalBalance !== 0 && (
-                    <section className="mb-8">
-                        <div className="flex items-center gap-3 rounded-xl bg-surface-container-low p-4">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-high text-on-surface-variant">
-                                <User size={16} />
-                            </div>
-                            <p className="text-sm font-semibold text-on-surface">{personalDebtTitle}</p>
+                <div className="mb-4">
+                    <button
+                        onClick={() => setShowBudget(!showBudget)}
+                        className="w-full flex justify-between items-center mb-3 group"
+                    >
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xs font-bold text-slate-800">Control de Presupuesto</h2>
+                            <ChevronDown
+                                size={18}
+                                className={`text-slate-400 transition-transform duration-500 ease-out ${showBudget ? "rotate-180" : ""}`}
+                            />
                         </div>
-                    </section>
-                )}
+                        <span className="text-[10px] font-bold uppercase tracking-widest transition-colors text-slate-400 group-hover:text-[#60855c]">
+                            {showBudget ? "OCULTAR" : "VER"}
+                        </span>
+                    </button>
 
-                <section className="mb-8">
-                    <div className="mb-4 flex justify-between items-end px-2">
-                        <h3 className="text-lg font-bold tracking-tight text-on-surface">Resumen Semanal</h3>
-                        <span className="text-xs font-bold uppercase tracking-widest text-primary font-label">Este mes</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg bg-surface-container-low p-4">
-                            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-label">
-                                Tus gastos
-                            </p>
-                            <p className="text-xl font-extrabold text-on-surface">{formatCurrency(mySpent)}</p>
-                            <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-primary/20">
-                                <div className="h-full rounded-full bg-primary" style={{ width: `${myPercent}%` }} />
+                    <div
+                        className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                            showBudget ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        }`}
+                    >
+                        <div className="overflow-hidden">
+                            <div
+                                className={`bg-white rounded-xl border border-slate-200 flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                    showBudget ? "translate-y-0 scale-100" : "-translate-y-1 scale-[0.98]"
+                                }`}
+                            >
+                            <div className="p-3">
+                                <div className="flex justify-between items-end mb-1.5">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Mi Bolsillo</span>
+                                        <span className="text-base font-bold text-slate-800">${mySpent.toFixed(2)}</span>
+                                    </div>
+                                    <span className="text-[11px] font-medium text-slate-400">de ${myBudget}</span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-1">
+                                    <div className="bg-slate-800 h-1 rounded-full" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }}></div>
+                                </div>
                             </div>
-                        </div>
-                        <div className="rounded-lg bg-surface-container-low p-4">
-                            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-label">
-                                Gastos de {partnerName}
-                            </p>
-                            <p className="text-xl font-extrabold text-on-surface">{formatCurrency(partnerSpent)}</p>
-                            <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-tertiary/20">
-                                <div className="h-full rounded-full bg-tertiary" style={{ width: `${partnerPercent}%` }} />
-                            </div>
-                        </div>
-                    </div>
-                </section>
 
-                <section className="mb-8">
-                    <div className="flex gap-1 rounded-full bg-surface-low p-1.5">
+                            <div className="h-px w-full bg-slate-50" />
+
+                            <div className="p-3">
+                                <div className="flex justify-between items-end mb-1.5">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-[#60855c] uppercase tracking-wide block mb-0.5">Fondo Común</span>
+                                        <span className="text-base font-bold text-slate-800">${fundSpent.toFixed(2)}</span>
+                                    </div>
+                                    <span className="text-[11px] font-medium text-slate-400">de ${fundBudget}</span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-1">
+                                    <div className="bg-[#60855c] h-1 rounded-full" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }}></div>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <section className="mb-6">
+                    <div className="flex gap-1 rounded-full bg-slate-100/80 p-1.5">
                         <button
                             type="button"
                             onClick={() => setActiveFilter("compartido")}
@@ -375,50 +631,73 @@ export default function DashboardCouple({
                                 <span className="text-sm font-extrabold text-on-surface">{formatCurrency(0)}</span>
                             </div>
                         ) : (
-                            filteredExpenses.map((expense) => {
-                                const Icon = iconMap[getExpenseIconKey(expense.concept)] ?? ReceiptText;
-                                const payerName =
-                                    expense.profiles?.full_name ||
-                                    expense.payerName ||
-                                    expense.full_name ||
-                                    "Alguien";
-                                const actorAvatar = expense.profiles?.avatar_url ?? null;
-                                const actorInitials = getInitials(payerName);
+                            <div className="bg-white rounded-3xl shadow-sm flex flex-col mb-8 overflow-hidden">
+                                {filteredExpenses.map((expense, index) => {
+                                    const categoryPresentation = getExpenseCategoryPresentation(expense.category, expense.concept);
+                                    const Icon = iconMap[categoryPresentation.iconKey] ?? ReceiptText;
+                                    const isDeposit = expense.category === "deposit";
+                                    const isWithdrawal = expense.category === "withdrawal";
+                                    const isLast = index === filteredExpenses.length - 1;
 
-                                return (
-                                    <div
-                                        key={expense.id}
-                                        className="group flex items-center justify-between rounded-lg bg-surface-container-lowest p-4 transition-colors duration-200 hover:bg-surface-container-low"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high">
-                                                <Icon size={20} className="text-on-surface-variant" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-surface-container-low bg-primary-container text-[10px] font-bold text-primary">
-                                                        {actorAvatar ? (
-                                                            // eslint-disable-next-line @next/next/no-img-element
-                                                            <img className="h-full w-full object-cover" src={actorAvatar} alt={payerName} />
-                                                        ) : (
-                                                            actorInitials
-                                                        )}
+                                    return (
+                                        <div key={expense.id} className="flex flex-col">
+                                            <div className="p-3 flex items-center justify-between bg-transparent">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                                                        <Icon size={18} />
                                                     </div>
-                                                    <span className="text-sm font-bold text-on-surface">{expense.concept}</span>
+
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-slate-800">{expense.concept}</span>
+                                                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+                                                            {categoryPresentation.label} • {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? "TÚ" : "PAREJA"}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60 font-label">
-                                                    {formatExpenseDate(expense.expense_date || expense.created_at)} • {payerName}
+
+                                                <span className={`text-base font-bold ${isDeposit ? 'text-[#60855c]' : isWithdrawal ? 'text-orange-500' : 'text-slate-800'}`}>
+                                                    {isDeposit ? '+' : isWithdrawal ? '-' : '-'}${Number(expense.amount).toFixed(2)}
                                                 </span>
                                             </div>
+
+                                            {!isLast && <div className="h-px w-full bg-slate-50" />}
                                         </div>
-                                        <span className="text-sm font-extrabold text-on-surface">-{formatCurrency(expense.amount)}</span>
-                                    </div>
-                                );
-                            })
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
                 </section>
             </main>
+
+            <button
+                type="button"
+                onClick={() => { setIsExpenseModalOpen(true); setExpenseModalKey((k) => k + 1); }}
+                className={`fixed right-6 bottom-24 mb-2 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#60855c] text-3xl leading-none text-white shadow-xl transition-all active:scale-95 ${
+                    isExpenseModalOpen ? "pointer-events-none opacity-0 scale-90" : "opacity-100 scale-100"
+                }`}
+                aria-label="Agregar gasto"
+            >
+                +
+            </button>
+
+            {/* Overlay oscuro */}
+            {isExpenseModalOpen && (
+                <div className="fixed inset-0 z-70 bg-slate-900/40 backdrop-blur-sm transition-opacity animate-in fade-in duration-500" onClick={() => setIsExpenseModalOpen(false)} />
+            )}
+
+            {/* Bottom Sheet del Formulario */}
+            <div className={`fixed inset-x-0 bottom-0 z-80 transform transition-transform duration-500 ease-out flex flex-col bg-slate-50 rounded-t-[2.5rem] shadow-2xl h-[80vh] ${isExpenseModalOpen ? "translate-y-0" : "translate-y-full"}`}>
+                <div className="flex justify-center items-center pt-4 pb-2 relative">
+                    <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+                    <button onClick={() => setIsExpenseModalOpen(false)} className="absolute right-6 top-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8 hide-scrollbar">
+                    <AddExpenseForm key={expenseModalKey} onClose={() => setIsExpenseModalOpen(false)} familyMemberCount={members.length} />
+                </div>
+            </div>
 
             {isDepositModalOpen && (
                 <div className="fixed inset-0 z-60">
@@ -429,7 +708,7 @@ export default function DashboardCouple({
                             setDepositError("");
                         }}
                     />
-                    <div className="absolute bottom-0 w-full rounded-t-3xl bg-white p-4 pb-6 max-h-[92vh] animate-in slide-in-from-bottom duration-300">
+                    <div className="absolute bottom-0 w-full rounded-t-3xl bg-white  max-h-[92vh] animate-in slide-in-from-bottom duration-300">
                         <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-on-surface/10" />
                         <div className="text-center">
                             <h4 className="text-[10px] font-bold tracking-widest text-gray-500 font-label">
@@ -451,9 +730,9 @@ export default function DashboardCouple({
                             <p className="mt-3 text-center text-sm font-medium text-red-600">{depositError}</p>
                         )}
 
-                        <button
+                        {/* <button
                             type="button"
-                            onClick={handleDepositConfirm}
+                            onClick={() => handleDepositConfirm()}
                             disabled={isDepositing}
                             className="mt-4 w-full rounded-xl bg-[#60855c] py-4 font-bold text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
                         >
@@ -465,7 +744,7 @@ export default function DashboardCouple({
                             ) : (
                                 "Confirmar Aporte"
                             )}
-                        </button>
+                        </button> */}
                     </div>
                 </div>
             )}

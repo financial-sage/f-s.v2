@@ -18,6 +18,8 @@ interface ExpenseRow {
   paid_by: string;
   family_id: string;
   split_type: ExpenseSplitType;
+  responsible_for?: string | null;
+  category?: string | null;
   payer_share_pct: number;
   profiles:
     | {
@@ -140,7 +142,6 @@ export default async function Home() {
       .from("expenses")
       .select("*, profiles!expenses_paid_by_fkey(full_name, avatar_url)")
       .eq("family_id", familyId)
-      .or(`split_type.in.(shared,shared_equal,shared_custom),paid_by.eq.${user.id}`)
       .order("created_at", { ascending: false });
 
     const debtResult = await calculateDebt(familyId, user.id);
@@ -176,7 +177,7 @@ export default async function Home() {
           transactions={dashboard.transactions}
         />
       )}
-      <FAB />
+      {/* <FAB /> */}
     </>
   );
 }

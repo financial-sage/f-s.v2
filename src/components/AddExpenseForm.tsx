@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Baby,
@@ -38,13 +39,14 @@ import {
   Shirt,
   Smartphone,
   Stethoscope,
-  Soup,
+  Fuel,
   CarFront,
   UtensilsCrossed,
   User,
   Wallet,
   Wifi,
   X,
+  Zap,
   type LucideIcon,
   Users,
 } from "lucide-react";
@@ -54,10 +56,11 @@ import {
   type ExpenseCategory,
   type ExpenseResponsibleFor,
 } from "@/app/actions/expenses";
-import CustomNumpad from "@/components/CustomNumpad";
+import CustomKeypad from "@/components/CustomNumpad";
 
 interface AddExpenseFormProps {
-  familyMemberCount: number;
+  familyMemberCount?: number;
+  onClose?: () => void;
 }
 
 interface OptionItem<T extends string> {
@@ -90,7 +93,7 @@ const responsibleOptions: OptionItem<ExpenseResponsibleFor>[] = [
 
 const topCategories: CategoryTile[] = [
   { id: "super", value: "super", label: "Super", icon: ShoppingCart },
-  { id: "dining", value: "other", label: "Restaurante", icon: UtensilsCrossed },
+  { id: "dining", value: "food", label: "Restaurante", icon: UtensilsCrossed },
   { id: "transport", value: "transport", label: "Transp", icon: CarFront },
   { id: "home", value: "home", label: "Hogar", icon: House },
   { id: "health", value: "other", label: "Salud", icon: Pill },
@@ -98,27 +101,28 @@ const topCategories: CategoryTile[] = [
   { id: "edu", value: "other", label: "Edu", icon: GraduationCap },
   { id: "gifts", value: "other", label: "Regalos", icon: Gift },
   { id: "pets", value: "other", label: "Mascotas", icon: PawPrint },
+  { id: "fuel", value: "transport", label: "Gasolina", icon: Fuel }
 ];
 
 const extraCategories: CategoryTile[] = [
   { id: "gym", value: "other", label: "Gimnasio", icon: Dumbbell },
   { id: "clothes", value: "other", label: "Ropa", icon: Shirt },
-  { id: "travel", value: "other", label: "Viajes", icon: Plane },
+  { id: "travel", value: "transport", label: "Viajes", icon: Plane },
   { id: "cinema", value: "other", label: "Cine", icon: Film },
   { id: "games", value: "other", label: "Juegos", icon: Gamepad2 },
   { id: "music", value: "other", label: "Musica", icon: Music },
-  { id: "coffee", value: "other", label: "Cafe", icon: Coffee },
+  { id: "coffee", value: "food", label: "Cafe", icon: Coffee },
   { id: "kids", value: "other", label: "Bebe", icon: Baby },
   { id: "books", value: "other", label: "Libros", icon: BookOpen },
-  { id: "phone", value: "other", label: "Telefono", icon: Smartphone },
-  { id: "wifi", value: "other", label: "Internet", icon: Wifi },
-  { id: "energy", value: "other", label: "Energia", icon: Bolt },
-  { id: "water", value: "other", label: "Agua", icon: Droplets },
-  { id: "bus", value: "other", label: "Bus", icon: Bus },
+  { id: "phone", value: "home", label: "Telefono", icon: Smartphone },
+  { id: "wifi", value: "home", label: "Internet", icon: Wifi },
+  { id: "energy", value: "home", label: "Energia", icon: Zap },
+  { id: "water", value: "home", label: "Agua", icon: Droplets },
+  { id: "bus", value: "transport", label: "Bus", icon: Bus },
   { id: "party", value: "other", label: "Fiesta", icon: PartyPopper },
   { id: "beauty", value: "other", label: "Belleza", icon: Scissors },
   { id: "doctor", value: "other", label: "Doctor", icon: Stethoscope },
-  { id: "bike", value: "other", label: "Bici", icon: Bike },
+  { id: "bike", value: "transport", label: "Bici", icon: Bike },
   { id: "misc", value: "other", label: "Varios", icon: Globe },
   { id: "luxury", value: "other", label: "Lujo", icon: Gem },
 ];
@@ -130,7 +134,7 @@ function getSelectorClasses(isSelected: boolean, disabled: boolean) {
 
   return isSelected
     ? "border border-sage/20 bg-sage/20 text-[#3F593E] shadow-sm"
-    : "border border-slate-400 bg-transparent text-on-surface-variant hover:bg-surface-container-lowest";
+    : "border border-slate-100 shadow-sm bg-white/50 text-on-surface-variant hover:bg-surface-container-lowest";
 }
 
 function formatDisplayDate(value: string) {
@@ -145,7 +149,7 @@ function formatDisplayDate(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
-export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProps) {
+export default function AddExpenseForm({ familyMemberCount = 2, onClose }: AddExpenseFormProps) {
   const router = useRouter();
   const isCoupleMode = familyMemberCount > 1;
 
@@ -161,9 +165,27 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
   const [isExpanded, setIsExpanded] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [isSaving, setIsSaving] = useState(false);
-  const [isNumpadOpen, setIsNumpadOpen] = useState(false);
+  const [showKeypad, setShowKeypad] = useState(false);
   const [isCategorySheetOpen, setIsCategorySheetOpen] = useState(false);
+  const [isSheetAnimated, setIsSheetAnimated] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => setMounted(true), []);
+
+  function openCategorySheet() {
+    setIsExpanded(false);
+    setIsCategorySheetOpen(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => setIsSheetAnimated(true)));
+  }
+
+  function closeCategorySheet() {
+    setIsSheetAnimated(false);
+    setTimeout(() => {
+      setIsCategorySheetOpen(false);
+      setIsExpanded(false);
+    }, 450);
+  }
 
   const displayDate = useMemo(() => formatDisplayDate(date), [date]);
   const allCategories = [...topCategories, ...extraCategories];
@@ -275,8 +297,13 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
         });
       }
 
-      router.push("/");
-      router.refresh();
+      if (onClose) {
+        onClose();
+        router.refresh();
+      } else {
+        router.push("/");
+        router.refresh();
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "No se pudo guardar el gasto."
@@ -287,9 +314,9 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex min-h-dvh flex-col bg-slate-50 text-slate-800">
-      <header className="sticky top-0 z-50 w-full bg-slate-50">
-        <div className="flex w-full items-center justify-between px-6 py-4">
+    <form onSubmit={handleSubmit} className="flex min-h-dvh flex-col bg-transparent text-slate-800">
+      {/* <header className="sticky top-0 z-50 w-full bg-transparent">
+        <div className="flex w-full items-center justify-between px-4 py-4">
           <div className="flex items-center gap-4">
             <Link
               href="/"
@@ -301,26 +328,27 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
           </div>
           <div className="w-10" />
         </div>
-      </header>
+      </header> */}
 
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 bg-slate-50 p-3">
-        <section className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 bg-transparent">
+        <section className="flex flex-col items-center gap-4 rounded-3xl bg-white p-4 mt-4.5 shadow-sm">
           <div className="text-center">
             <span className="text-xs uppercase tracking-wider text-slate-500">
               Importe del gasto
             </span>
             <div className="mt-2 flex items-center justify-center">
               <span className="text-sage text-4xl font-extrabold">$</span>
-              <input
-                type="text"
-                readOnly={true}
-                inputMode="none"
-                value={amount === 0 ? "" : amount}
-                onClick={() => setIsNumpadOpen(true)}
-                placeholder="0.00"
-                onFocus={(e) => e.target.blur()}
-                className="w-full border-none bg-transparent text-center text-5xl font-extrabold text-slate-800 outline-none placeholder:text-slate-300 focus:ring-0 focus:outline-none"
-              />
+              <button
+                type="button"
+                onClick={() => setShowKeypad(true)}
+                className="w-full border-none bg-transparent text-center text-5xl font-extrabold text-slate-800 outline-none"
+              >
+                {amount === 0 ? (
+                  <span className="text-slate-300">0.00</span>
+                ) : (
+                  amount.toFixed(2)
+                )}
+              </button>
             </div>
           </div>
 
@@ -338,8 +366,8 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
 
         {isCoupleMode && (
           <>
-            <section className="px-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-3 block">
+            <section className="px-1 mb-4">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
                 PAGADO POR
               </span>
               <div className="flex flex-wrap gap-2">
@@ -351,7 +379,7 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
                       key={value}
                       type="button"
                       onClick={() => setPaidBy(value)}
-                      className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
+                      className={`flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
                         isSelected,
                         false
                       )}`}
@@ -396,7 +424,7 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
             </section>
 
             <section className="px-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-3 block">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
                 DESTINO DEL GASTO
               </span>
               <div className="flex flex-wrap gap-2">
@@ -423,38 +451,34 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
           </>
         )}
 
-        <section className="px-1 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-3 block">
-            CATEGORIA
-          </span>
+        <div className="mt-4 flex flex-col rounded-2xl bg-white shadow-sm">
           <button
             type="button"
-            onClick={() => {
-              setIsExpanded(false);
-              setIsCategorySheetOpen(true);
-            }}
-            className="flex w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 py-3 text-left"
+            onClick={openCategorySheet}
+            className="bg-transparent p-4 flex items-center justify-between text-left"
           >
-            <span className="text-sm font-semibold text-on-surface">Categoria:</span>
+            <span className="text-sm font-semibold text-on-surface">Categoria</span>
             <span className="flex items-center gap-2 text-sm font-semibold text-on-surface">
               <SelectedCategoryIcon size={18} className="text-primary" />
               {selectedCategoryItem.label}
             </span>
           </button>
-        </section>
 
-        <section className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="text-sage flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
-              <CalendarDays size={18} />
-            </div>
-            <span className="text-sm font-semibold capitalize text-slate-800">{displayDate}</span>
-          </div>
+          <div className="h-px w-full bg-slate-100" />
+
           <label
             htmlFor="expense-date"
-            className="cursor-pointer px-2 py-1 text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-[#4A6549]"
+            className="bg-transparent p-4 flex items-center justify-between cursor-pointer"
           >
-            Cambiar
+            <div className="flex items-center gap-3">
+              <div className="text-sage flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+                <CalendarDays size={18} />
+              </div>
+              <span className="text-sm font-semibold capitalize text-slate-800">{displayDate}</span>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-[#4A6549]">
+              Cambiar
+            </span>
           </label>
           <input
             id="expense-date"
@@ -463,7 +487,7 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
             onChange={(e) => setDate(e.target.value)}
             className="sr-only"
           />
-        </section>
+        </div>
 
        
 
@@ -474,7 +498,7 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
         )}
       </main>
 
-      <footer className="sticky bottom-0 bg-slate-50/80 p-4 backdrop-blur-md">
+      <footer className="sticky bottom-0 bg-transparent p-4 backdrop-blur-md">
         <button
           type="submit"
           disabled={isSaving}
@@ -489,29 +513,19 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
         </button>
       </footer>
 
-      <CustomNumpad
-        isOpen={isNumpadOpen}
-        initialValue={amount ? String(amount) : "0"}
-        onClose={() => setIsNumpadOpen(false)}
-        onValueChange={(value) => setAmount(Number(value) || 0)}
-        onConfirm={() => setIsNumpadOpen(false)}
-      />
-
-      {isCategorySheetOpen && (
-        <div className="fixed inset-0 z-60">
+      {isCategorySheetOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-90 flex flex-col justify-end">
           <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            onClick={() => {
-              setIsCategorySheetOpen(false);
-              setIsExpanded(false);
-            }}
+            className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isSheetAnimated ? "opacity-100" : "opacity-0"}`}
+            onClick={closeCategorySheet}
           />
-          <div className="absolute bottom-0 w-full rounded-t-3xl bg-white p-6 pb-10 animate-in slide-in-from-bottom duration-300">
+          <div className={`relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
             <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-on-surface/10" />
             <span className="mb-4 block text-center text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">
               CATEGORIA
             </span>
-            <div className="mt-4">
+            <div className="mt-4 flex flex-col gap-6">
+              {/* Top categories */}
               <div className="grid grid-cols-5 gap-y-6 gap-x-2">
                 {topCategories.map((cat) => (
                   <button
@@ -519,8 +533,7 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
                     type="button"
                     onClick={() => {
                       setSelectedCategory(cat.id);
-                      setIsCategorySheetOpen(false);
-                      setIsExpanded(false);
+                      closeCategorySheet();
                     }}
                     className="flex flex-col items-center gap-2"
                   >
@@ -542,56 +555,90 @@ export default function AddExpenseForm({ familyMemberCount }: AddExpenseFormProp
                     </span>
                   </button>
                 ))}
+              </div>
 
-                {isExpanded &&
-                  extraCategories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCategory(cat.id);
-                        setIsCategorySheetOpen(false);
-                        setIsExpanded(false);
-                      }}
-                      className="flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-6 duration-300"
-                    >
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                          selectedCategory === cat.id
-                            ? "bg-sage/20 text-[#60855c] border-transparent"
-                            : "bg-white border border-slate-300 text-slate-500"
-                        }`}
+              {/* Extra categories — smooth height + opacity transition */}
+              <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+              }`}>
+                <div className="overflow-hidden">
+                  <div className={`grid grid-cols-5 gap-y-6 gap-x-2 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    isExpanded ? "translate-y-0 scale-100" : "-translate-y-2 scale-[0.98]"
+                  }`}>
+                    {extraCategories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategory(cat.id);
+                          closeCategorySheet();
+                        }}
+                        className="flex flex-col items-center gap-2"
                       >
-                        <cat.icon size={20} strokeWidth={1.5} />
-                      </div>
-                      <span
-                        className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
-                          selectedCategory === cat.id ? "text-[#60855c] font-bold" : "text-slate-500"
-                        }`}
-                      >
-                        {cat.label}
-                      </span>
-                    </button>
-                  ))}
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+                            selectedCategory === cat.id
+                              ? "bg-sage/20 text-[#60855c] border-transparent"
+                              : "bg-white border border-slate-300 text-slate-500"
+                          }`}
+                        >
+                          <cat.icon size={20} strokeWidth={1.5} />
+                        </div>
+                        <span
+                          className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
+                            selectedCategory === cat.id ? "text-[#60855c] font-bold" : "text-slate-500"
+                          }`}
+                        >
+                          {cat.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
+              {/* "Otros" toggle — always at the bottom */}
+              <div className="flex justify-center">
                 <button
                   type="button"
                   onClick={() => setIsExpanded(!isExpanded)}
                   className="flex flex-col items-center gap-2"
                 >
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 ${
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isExpanded
                       ? "bg-slate-800 text-white shadow-md rotate-90 scale-105"
                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                   }`}>
                     {isExpanded ? <X size={20} strokeWidth={2} /> : <MoreHorizontal size={20} strokeWidth={1.5} />}
                   </div>
-                  <span className={`text-[9px] font-medium transition-colors ${isExpanded ? "text-slate-800 font-bold" : "text-slate-500"}`}>
+                  <span className={`text-[9px] font-medium transition-colors duration-300 ${isExpanded ? "text-slate-800 font-bold" : "text-slate-500"}`}>
                     {isExpanded ? "Cerrar" : "Otros"}
                   </span>
                 </button>
               </div>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Teclado Personalizado Overlay */}
+      {showKeypad && (
+        <div className="fixed inset-x-0 bottom-0 z-60 bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] animate-in slide-in-from-bottom-full duration-300">
+          <div className="flex justify-end px-6 pt-4 pb-2">
+            <button type="button" onClick={() => setShowKeypad(false)} className="text-[10px] font-bold uppercase tracking-widest text-[#60855c] bg-[#60855c]/10 px-4 py-2 rounded-full">
+              X
+            </button>
+          </div>
+          <div >
+            <CustomKeypad
+              isOpen={showKeypad}
+              embedded
+              initialValue={amount ? String(amount) : "0"}
+              onClose={() => setShowKeypad(false)}
+              onValueChange={(value) => setAmount(Number(value) || 0)}
+              onConfirm={() => setShowKeypad(false)}
+            />
           </div>
         </div>
       )}
