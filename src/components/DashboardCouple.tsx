@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     CarFront,
@@ -16,11 +16,14 @@ import {
     UtensilsCrossed,
     Wrench,
     X,
+    Check,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
 import { createDeposit } from "@/app/actions/expenses";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
+import { settleP2PAction } from "@/app/actions/settleP2P";
+import { createClient } from "@/utils/supabase/client";
 import AddExpenseForm from "@/components/AddExpenseForm";
 import CustomNumpad from "@/components/CustomNumpad";
 import type { DashboardMember } from "@/lib/dashboard";
@@ -40,15 +43,14 @@ interface CoupleDashboardExpense {
     splitType?: ExpenseSplitType;
     expense_date: string;
     created_at: string;
-    profiles:
-        | {
-            full_name: string | null;
-            avatar_url: string | null;
-        }
-        | null;
+    profiles?: {
+        full_name: string | null;
+        avatar_url: string | null;
+    } | null;
     payerName?: string;
     full_name?: string | null;
     is_settled?: boolean;
+    family_id?: string;
 }
 
 type ActivityFilter = "compartido" | "mio" | "suyo";
@@ -167,6 +169,52 @@ export default function DashboardCouple({
     const [isDepositing, startDepositTransition] = useTransition();
     const [isLiquidating, startLiquidatingTransition] = useTransition();
     const [showSettleModal, setShowSettleModal] = useState(false);
+    const [showPayModal, setShowPayModal] = useState(false);
+    const [showChargeModal, setShowChargeModal] = useState(false);
+    // Estado de selección múltiple para liquidación
+    const [selectedSettleIds, setSelectedSettleIds] = useState<string[]>([]);
+
+    // Toggle de selección
+    const toggleSettleSelection = (id: string) => {
+        setSelectedSettleIds(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+        // Gastos P2P pendientes
+        // Blindar family_id para transferencias P2P
+            const currentFamilyId: string = expenses.length > 0 && expenses[0].family_id ? expenses[0].family_id : '';
+
+        // 1. Gastos donde YO saqué el dinero, pero el responsable es MI PAREJA. (Mi pareja me debe a mí)
+        const expensesPartnerOwesMe = useMemo(() =>
+            expenses.filter(e =>
+                (e.paid_by || e.paidBy) === currentUserId &&
+                e.responsible_for !== currentUserId &&
+                e.responsible_for !== 'joint_fund' &&
+                e.category !== 'deposit' &&
+                !e.is_settled
+            ),
+            [currentUserId, expenses]
+        );
+        const partnerOwesMe = useMemo(() =>
+            expensesPartnerOwesMe.reduce((sum, e) => sum + Number(e.amount || 0), 0),
+            [expensesPartnerOwesMe]
+        );
+
+        // 2. Gastos donde MI PAREJA sacó el dinero, pero el responsable soy YO. (Yo le debo a mi pareja)
+        const expensesIOwePartner = useMemo(() =>
+            expenses.filter(e =>
+                (e.paid_by || e.paidBy) !== currentUserId &&
+                (e.paid_by || e.paidBy) !== 'joint_fund' &&
+                e.responsible_for === currentUserId &&
+                e.category !== 'deposit' &&
+                !e.is_settled
+            ),
+            [currentUserId, expenses]
+        );
+        const iOwePartner = useMemo(() =>
+            expensesIOwePartner.reduce((sum, e) => sum + Number(e.amount || 0), 0),
+            [expensesIOwePartner]
+        );
     const partner = members.find((member) => member.id !== currentUserId) ?? null;
     const partnerId = partner?.id ?? null;
     const fundAmount = Math.round(Math.abs(fundBalance) * 100) / 100;
@@ -213,39 +261,30 @@ export default function DashboardCouple({
         [currentUserId, expenses]
     );
 
-    const iOwePartner = useMemo(() => {
-        return expenses
-            .filter(
-                (expense) =>
-                    (expense.paid_by || expense.paidBy) !== currentUserId &&
-                    (expense.paid_by || expense.paidBy) !== "joint_fund" &&
-                    expense.responsible_for === currentUserId &&
-                    expense.category !== "deposit"
-            )
-            .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-    }, [currentUserId, expenses]);
-
-    const partnerOwesMe = useMemo(() => {
-        return expenses
-            .filter(
-                (expense) =>
-                    (expense.paid_by || expense.paidBy) === currentUserId &&
-                    expense.responsible_for !== currentUserId &&
-                    expense.responsible_for !== "joint_fund" &&
-                    expense.category !== "deposit"
-            )
-            .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-    }, [currentUserId, expenses]);
 
             const hasBalances = fundOwesMe > 0 || iOwePartner > 0 || partnerOwesMe > 0;
 
+    // Filtrar gastos de sistema (withdrawal y transfer) de la UI
     const sharedExpenses = useMemo(
-        () => expenses.filter((expense) => expense.responsible_for === "joint_fund" || expense.category === "deposit"),
+        () =>
+            expenses.filter(
+                (expense) =>
+                    (expense.responsible_for === "joint_fund" || expense.category === "deposit") &&
+                    expense.category !== "withdrawal" &&
+                    expense.category !== "transfer"
+            ),
         [expenses]
     );
 
     const myExpenses = useMemo(
-        () => expenses.filter((expense) => expense.responsible_for === currentUserId && expense.category !== "deposit"),
+        () =>
+            expenses.filter(
+                (expense) =>
+                    expense.responsible_for === currentUserId &&
+                    expense.category !== "deposit" &&
+                    expense.category !== "withdrawal" &&
+                    expense.category !== "transfer"
+            ),
         [currentUserId, expenses]
     );
 
@@ -255,7 +294,9 @@ export default function DashboardCouple({
                 (expense) =>
                     expense.responsible_for !== currentUserId &&
                     expense.responsible_for !== "joint_fund" &&
-                    expense.category !== "deposit"
+                    expense.category !== "deposit" &&
+                    expense.category !== "withdrawal" &&
+                    expense.category !== "transfer"
             ),
         [currentUserId, expenses]
     );
@@ -301,36 +342,56 @@ export default function DashboardCouple({
         setShowSettleModal(true);
     }
 
-    function handleSettleFundDebt() {
-        if (fundDebtExpenses.length === 0 || fundOwesMe <= 0) return;
+    function handleSettleFundDebt(selectedIds: string[], selectedTotal: number) {
+        if (selectedIds.length === 0 || selectedTotal <= 0) return;
         startLiquidatingTransition(async () => {
             await settleFundDebtAction({
-                expenseIds: fundDebtExpenses.map(e => e.id),
-                totalAmount: fundOwesMe,
+                expenseIds: selectedIds,
+                totalAmount: selectedTotal,
                 currentUserId,
                 familyId,
             });
             setShowSettleModal(false);
+            setSelectedSettleIds([]);
             router.refresh();
         });
     }
 
-    function handleSettleP2P(debtorId: string | null, creditorId: string | null, amount: number) {
-        if (!debtorId || !creditorId || amount <= 0) {
-            return;
-        }
-
+    async function handleSettleP2P(debtorId: string | null, creditorId: string | null, amount: number, expenseIds: string[]) {
+        if (!debtorId || !creditorId || amount <= 0 || expenseIds.length === 0) return;
         startLiquidatingTransition(async () => {
-            await settleDebt({
-                deudor_id: debtorId,
-                acreedor_id: creditorId,
-                monto: amount,
-                family_id: familyId,
+            await settleP2PAction({
+                payerId: debtorId,
+                receiverId: creditorId,
+                expenseIds,
+                totalAmount: amount,
+                familyId: currentFamilyId,
             });
-
+            setShowPayModal(false);
+            setShowChargeModal(false);
+            setSelectedSettleIds([]);
             router.refresh();
         });
     }
+
+    // Supabase Realtime para refrescar dashboard automáticamente
+    useEffect(() => {
+        const supabase = createClient();
+        const channel = supabase
+            .channel('schema-db-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'expenses' },
+                (payload) => {
+                    console.log('Cambio detectado en BD:', payload);
+                    router.refresh();
+                }
+            )
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [router]);
 
     return (
         <>
@@ -438,35 +499,6 @@ export default function DashboardCouple({
                                             </div>
                                         </div>
                                     )}
-            {/* Modal de Liquidación */}
-            {showSettleModal && (
-                <div className="fixed inset-0 z-50 flex flex-col justify-end">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowSettleModal(false)} />
-                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
-                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
-                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto">
-                            {fundDebtExpenses.map(expense => (
-                                <div key={expense.id} className="flex justify-between items-center p-3 border border-slate-100 rounded-xl">
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
-                                    </div>
-                                    <span className="font-bold text-slate-800">${Number(expense.amount).toFixed(2)}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <button
-                            onClick={handleSettleFundDebt}
-                            className="w-full bg-[#60855c] text-white py-4 rounded-full font-bold shadow-md"
-                            disabled={isLiquidating || fundDebtExpenses.length === 0}
-                        >
-                            Recuperar ${fundOwesMe.toFixed(2)}
-                        </button>
-                    </div>
-                </div>
-            )}
-
                                     {/* Fila: Yo le debo a mi pareja */}
                                     {iOwePartner > 0 && (
                                         <div className="px-4 py-2 flex items-center justify-between">
@@ -475,7 +507,7 @@ export default function DashboardCouple({
                                                 <span className="text-[12px] font-semibold text-slate-800">${iOwePartner.toFixed(2)}</span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleSettleP2P(currentUserId, partnerId, iOwePartner)}
+                                                    onClick={() => setShowPayModal(true)}
                                                     disabled={isLiquidating}
                                                     className="text-[9px] bg-[#bb1b1b]/10 text-[#bb1b1b] hover:bg-[#bb1b1b]/30 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
@@ -484,7 +516,6 @@ export default function DashboardCouple({
                                             </div>
                                         </div>
                                     )}
-
                                     {/* Fila: Mi pareja me debe */}
                                     {partnerOwesMe > 0 && (
                                         <div className="px-4 py-2 flex items-center justify-between">
@@ -493,7 +524,7 @@ export default function DashboardCouple({
                                                 <span className="text-[12px] font-semibold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleSettleP2P(partnerId, currentUserId, partnerOwesMe)}
+                                                    onClick={() => setShowChargeModal(true)}
                                                     disabled={isLiquidating}
                                                     className="text-[9px] bg-blue-50 text-[#0f2d91] hover:bg-blue-100 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
@@ -507,6 +538,187 @@ export default function DashboardCouple({
                             </div>
                         </div>
                     )}
+
+            {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
+            {showSettleModal && (
+                <div className="fixed inset-0 z-[130] flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowSettleModal(false); setSelectedSettleIds([]); }} />
+                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
+                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
+                        {/* Lista seleccionable */}
+                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                            {fundDebtExpenses.map(expense => {
+                                const isSelected = selectedSettleIds.includes(expense.id);
+                                return (
+                                    <button
+                                        key={expense.id}
+                                        onClick={() => toggleSettleSelection(expense.id)}
+                                        className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all ${
+                                            isSelected ? 'border-[#60855c] bg-[#60855c]/5' : 'border-slate-100 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {/* Custom Checkbox */}
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                                isSelected ? 'border-[#60855c] bg-[#60855c]' : 'border-slate-300'
+                                            }`}>
+                                                {isSelected && <Check size={12} className="text-white" />}
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                            </div>
+                                        </div>
+                                        <span className={`font-bold ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                            ${Number(expense.amount).toFixed(2)}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {/* Cálculo Dinámico y Botón */}
+                        {(() => {
+                            const selectedTotal = fundDebtExpenses
+                                .filter(e => selectedSettleIds.includes(e.id))
+                                .reduce((sum, e) => sum + Number(e.amount), 0);
+                            return (
+                                <button
+                                    disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                    onClick={() => handleSettleFundDebt(selectedSettleIds, selectedTotal)}
+                                    className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${
+                                        selectedSettleIds.length === 0 || isLiquidating
+                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            : 'bg-[#60855c] text-white'
+                                    }`}
+                                >
+                                    Recuperar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                </button>
+                            );
+                        })()}
+                    </div>
+                </div>
+            )}
+            {/* Modal P2P: PAGAR */}
+            {showPayModal && (
+                <div className="fixed inset-0 z-[130] flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowPayModal(false); setSelectedSettleIds([]); }} />
+                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a tu pareja</h3>
+                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a liquidar.</p>
+                        {/* Lista seleccionable */}
+                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                            {expensesIOwePartner.map(expense => {
+                                const isSelected = selectedSettleIds.includes(expense.id);
+                                return (
+                                    <button
+                                        key={expense.id}
+                                        onClick={() => toggleSettleSelection(expense.id)}
+                                        className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all ${
+                                            isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-slate-100 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {/* Custom Checkbox */}
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                                isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]' : 'border-slate-300'
+                                            }`}>
+                                                {isSelected && <Check size={12} className="text-white" />}
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                            </div>
+                                        </div>
+                                        <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-slate-800'}`}>
+                                            ${Number(expense.amount).toFixed(2)}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {/* Cálculo Dinámico y Botón */}
+                        {(() => {
+                            const selectedTotal = expensesIOwePartner
+                                .filter(e => selectedSettleIds.includes(e.id))
+                                .reduce((sum, e) => sum + Number(e.amount), 0);
+                            return (
+                                <button
+                                    disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                    onClick={() => handleSettleP2P(currentUserId, partnerId, selectedTotal, selectedSettleIds)}
+                                    className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${
+                                        selectedSettleIds.length === 0 || isLiquidating
+                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            : 'bg-[#bb1b1b] text-white'
+                                    }`}
+                                >
+                                    Pagar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                </button>
+                            );
+                        })()}
+                    </div>
+                </div>
+            )}
+            {/* Modal P2P: COBRAR */}
+            {showChargeModal && (
+                <div className="fixed inset-0 z-[130] flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowChargeModal(false); setSelectedSettleIds([]); }} />
+                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a tu pareja</h3>
+                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
+                        {/* Lista seleccionable */}
+                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                            {expensesPartnerOwesMe.map(expense => {
+                                const isSelected = selectedSettleIds.includes(expense.id);
+                                return (
+                                    <button
+                                        key={expense.id}
+                                        onClick={() => toggleSettleSelection(expense.id)}
+                                        className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all ${
+                                            isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-slate-100 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {/* Custom Checkbox */}
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                                isSelected ? 'border-[#0f2d91] bg-[#0f2d91]' : 'border-slate-300'
+                                            }`}>
+                                                {isSelected && <Check size={12} className="text-white" />}
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                            </div>
+                                        </div>
+                                        <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-slate-800'}`}>
+                                            ${Number(expense.amount).toFixed(2)}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {/* Cálculo Dinámico y Botón */}
+                        {(() => {
+                            const selectedTotal = expensesPartnerOwesMe
+                                .filter(e => selectedSettleIds.includes(e.id))
+                                .reduce((sum, e) => sum + Number(e.amount), 0);
+                            return (
+                                <button
+                                    disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                    onClick={() => handleSettleP2P(partnerId, currentUserId, selectedTotal, selectedSettleIds)}
+                                    className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${
+                                        selectedSettleIds.length === 0 || isLiquidating
+                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            : 'bg-[#0f2d91] text-white'
+                                    }`}
+                                >
+                                    Cobrar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                </button>
+                            );
+                        })()}
+                    </div>
+                </div>
+            )}
                 </section>
 
                 <div className="mb-4">
@@ -638,6 +850,8 @@ export default function DashboardCouple({
                                     const isDeposit = expense.category === "deposit";
                                     const isWithdrawal = expense.category === "withdrawal";
                                     const isLast = index === filteredExpenses.length - 1;
+                                    // NUEVO: Determinar si es deuda
+                                    const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== 'deposit';
 
                                     return (
                                         <div key={expense.id} className="flex flex-col">
@@ -647,11 +861,24 @@ export default function DashboardCouple({
                                                         <Icon size={18} />
                                                     </div>
 
+                                                    {/* Detalles del gasto con badge de estado */}
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-bold text-slate-800">{expense.concept}</span>
-                                                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                                                            {categoryPresentation.label} • {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? "TÚ" : "PAREJA"}
-                                                        </span>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+                                                                {categoryPresentation.label} • {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? "TÚ" : "PAREJA"}
+                                                            </span>
+                                                            {/* NUEVO: Etiqueta de Estado */}
+                                                            {isDebt && (
+                                                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${
+                                                                    expense.is_settled
+                                                                        ? 'bg-emerald-50 text-emerald-600'
+                                                                        : 'bg-orange-50 text-orange-600'
+                                                                }`}>
+                                                                    {expense.is_settled ? 'Liquidado' : 'Pendiente'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
 
