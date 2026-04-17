@@ -8,13 +8,13 @@ import AddExpenseForm from "@/components/AddExpenseForm";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 
 const leftNavItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/cards", label: "Cards", icon: CreditCard },
+  { href: "/", label: "Inicio", icon: Home },
+  { href: "/cards", label: "Tarjetas", icon: CreditCard },
 ] as const;
 
 const rightNavItems = [
-  { href: "/history", label: "History", icon: History },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/history", label: "Historial", icon: History },
+  { href: "/profile", label: "Perfil", icon: User },
 ] as const;
 
 export default function BottomNav() {
@@ -22,7 +22,7 @@ export default function BottomNav() {
   const { isExpenseModalOpen, setIsExpenseModalOpen, expenseToEdit, setExpenseToEdit } = useExpenseModal();
   const [isSheetAnimated, setIsSheetAnimated] = useState(false);
 
-  if (["/add-expense", "/login", "/register"].includes(pathname)) {
+  if (["/add-expense", "/login", "/register", "/onboarding"].includes(pathname)) {
     return null;
   }
 

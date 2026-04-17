@@ -69,6 +69,17 @@ async function generateUniqueInviteCode() {
   throw new Error("No se pudo generar un código único.");
 }
 
+async function resolveProfileName(userId: string, fallbackName?: string | null) {
+  const admin = getSupabaseAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .maybeSingle<{ full_name?: string | null }>();
+
+  return profile?.full_name?.trim() || fallbackName?.trim() || null;
+}
+
 export async function completeUserRegistration({
   userId,
   fullName,
@@ -151,6 +162,141 @@ export async function completeUserRegistration({
   revalidatePath("/add-expense");
 
   return { familyId };
+}
+
+export async function createSoloFamilyAction(userId: string) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (!userId || user.id !== userId) {
+    throw new Error("Usuario inválido.");
+  }
+
+  const existingFamily = await findCurrentFamily(user.id);
+
+  if (existingFamily?.id) {
+    if (existingFamily.user_1_id === user.id && !existingFamily.user_2_id) {
+      const code = existingFamily.invite_code ?? (await ensureFamilyInviteCode());
+      return {
+        familyId: existingFamily.id,
+        code,
+      };
+    }
+
+    throw new Error("Ya tienes una familia configurada.");
+  }
+
+  const admin = getSupabaseAdminClient();
+  const code = await generateUniqueInviteCode();
+  const fullName = await resolveProfileName(user.id, user.user_metadata?.full_name as string | undefined);
+
+  const { data: createdFamily, error: familyError } = await admin
+    .from("families")
+    .insert({
+      user_1_id: user.id,
+      user_2_id: null,
+      invite_code: code,
+      name: fullName ? `Familia de ${fullName}` : "Mi familia",
+    } as never)
+    .select("id")
+    .single();
+
+  if (familyError || !createdFamily?.id) {
+    throw familyError ?? new Error("No se pudo crear la familia.");
+  }
+
+  const { error: profileError } = await admin.from("profiles").upsert({
+    id: user.id,
+    full_name: fullName,
+    family_id: createdFamily.id,
+  } as never);
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/profile");
+  revalidatePath("/onboarding");
+
+  return {
+    familyId: createdFamily.id,
+    code,
+  };
+}
+
+export async function joinFamilyAction(userId: string, inviteCode: string) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (!userId || user.id !== userId) {
+    throw new Error("Usuario inválido.");
+  }
+
+  const code = inviteCode.trim().toUpperCase();
+
+  if (!/^[A-Z0-9]{6}$/.test(code)) {
+    throw new Error("Ingresa un código válido de 6 caracteres.");
+  }
+
+  const admin = getSupabaseAdminClient();
+  const currentFamily = await findCurrentFamily(user.id);
+
+  const { data: family, error: familyError } = await admin
+    .from("families")
+    .select("id, user_1_id, user_2_id, invite_code")
+    .eq("invite_code", code)
+    .maybeSingle<FamilyRow>();
+
+  if (currentFamily?.id) {
+    if (currentFamily.id === family?.id) {
+      return { success: true, familyId: currentFamily.id };
+    }
+
+    throw new Error("Ya perteneces a una familia.");
+  }
+
+  if (familyError || !family?.id) {
+    throw familyError ?? new Error("Código de invitación inválido.");
+  }
+
+  if (family.user_2_id && family.user_2_id !== user.id) {
+    throw new Error("Familia completa");
+  }
+
+  if (family.user_1_id !== user.id && !family.user_2_id) {
+    const { error: joinError } = await admin
+      .from("families")
+      .update({ user_2_id: user.id, invite_code: null } as never)
+      .eq("id", family.id);
+
+    if (joinError) {
+      throw new Error(joinError.message);
+    }
+  }
+
+  const fullName = await resolveProfileName(user.id, user.user_metadata?.full_name as string | undefined);
+  const { error: profileError } = await admin.from("profiles").upsert({
+    id: user.id,
+    full_name: fullName,
+    family_id: family.id,
+  } as never);
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/profile");
+  revalidatePath("/onboarding");
+
+  return { success: true, familyId: family.id };
 }
 
 export async function ensureFamilyInviteCode() {

@@ -6,10 +6,11 @@ import { useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,19 +22,24 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: name.trim(),
+          },
+        },
       });
 
       if (error) {
         throw error;
       }
 
-      router.push("/");
+      router.push("/onboarding");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ocurrió un error.");
+      setError(err instanceof Error ? err.message : "No se pudo crear la cuenta.");
     } finally {
       setIsLoading(false);
     }
@@ -41,14 +47,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-slate-50 text-on-surface">
-      <header className="fixed top-0 z-50 w-full bg-slate-50/80 px-6 py-4 backdrop-blur-md">
-        <div className="flex items-center justify-end">
-          <div className="hidden gap-6 md:flex">
-            <span className="font-label text-sm font-medium text-on-surface">Seguridad</span>
-            <span className="font-label text-sm font-medium text-on-surface">Ayuda</span>
-          </div>
-        </div>
-      </header>
+      <header className="fixed top-0 z-50 w-full bg-slate-50/80 px-6 py-4 backdrop-blur-md" />
 
       <main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto overscroll-none p-6 pt-24 no-scrollbar">
         <div className="w-full max-w-5xl">
@@ -58,17 +57,17 @@ export default function LoginPage() {
                 <div className="absolute inset-0 bg-linear-to-br from-primary/10 to-transparent" />
                 <div className="relative">
                   <h2 className="font-headline text-4xl font-extrabold tracking-tight text-on-surface">
-                    Bienvenido de nuevo
+                    Crea tu cuenta
                   </h2>
                   <p className="mt-3 text-lg text-on-surface-variant">
-                    Controla tus finanzas con calma y claridad.
+                    Tus finanzas, claras y simples.
                   </p>
                   <div className="mt-10 rounded-2xl bg-white/80 p-6 backdrop-blur-sm">
                     <p className="font-headline text-2xl font-bold leading-tight text-on-surface">
-                      "La paz financiera comienza con una conversación honesta."
+                      Diseñado para avanzar paso a paso, sin fricción.
                     </p>
                     <p className="mt-4 text-xs uppercase tracking-[0.2em] text-on-surface-variant">
-                      Filosofía Sage
+                      Onboarding Progresivo
                     </p>
                   </div>
                 </div>
@@ -78,15 +77,29 @@ export default function LoginPage() {
             <div className="w-full">
               <div className="mb-8 text-center lg:hidden">
                 <h1 className="font-headline text-4xl font-extrabold tracking-tight text-on-surface">
-                  Bienvenido de nuevo
+                  Crea tu cuenta
                 </h1>
                 <p className="mt-2 text-lg text-on-surface-variant">
-                  Controla tus finanzas con calma y claridad.
+                  Tus finanzas, claras y simples.
                 </p>
               </div>
 
-              <section className="rounded-3xl bg-white p-8 shadow-sm">
+              <section className="rounded-3xl bg-surface-low p-8 shadow-sm">
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+                      Nombre
+                    </label>
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                      placeholder="Tu nombre"
+                      type="text"
+                      required
+                    />
+                  </div>
+
                   <div className="space-y-2">
                     <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
                       Correo electrónico
@@ -94,7 +107,7 @@ export default function LoginPage() {
                     <input
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-2xl border-none bg-surface-low px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
                       placeholder="nombre@ejemplo.com"
                       type="email"
                       required
@@ -102,18 +115,13 @@ export default function LoginPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="mx-4 flex items-center justify-between">
-                      <label className="block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-                        Contraseña
-                      </label>
-                      <span className="font-label text-xs font-medium text-primary">
-                        ¿Olvidaste tu contraseña?
-                      </span>
-                    </div>
+                    <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+                      Contraseña
+                    </label>
                     <input
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-2xl border-none bg-surface-low px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
                       placeholder="••••••••"
                       type="password"
                       required
@@ -132,24 +140,18 @@ export default function LoginPage() {
                     className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-5 text-lg font-bold text-on-primary shadow-lg shadow-primary/10 transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isLoading && <LoaderCircle size={18} className="animate-spin" />}
-                    {isLoading ? "Entrando..." : "Entrar"}
+                    {isLoading ? "Creando cuenta..." : "Crear cuenta"}
                   </button>
                 </form>
               </section>
 
               <div className="mt-8 text-center">
                 <p className="font-body text-on-surface-variant">
-                  ¿No tienes cuenta?
-                  <Link href="/register" className="ml-1 font-bold text-primary hover:underline">
-                    Regístrate aquí
+                  ¿Ya tienes cuenta?
+                  <Link href="/login" className="ml-1 font-bold text-primary hover:underline">
+                    Inicia sesión
                   </Link>
                 </p>
-              </div>
-
-              <div className="mt-6 text-center">
-                <Link href="/" className="text-sm text-on-surface-variant hover:text-primary">
-                  Volver
-                </Link>
               </div>
             </div>
           </div>
