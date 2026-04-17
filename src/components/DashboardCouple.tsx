@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
+    BarChart3,
     CarFront,
     ChevronDown,
     Home,
     Plus,
+    Receipt,
     ReceiptText,
+    Scale,
     Settings,
     ShoppingCart,
     House,
@@ -17,6 +20,8 @@ import {
     Wrench,
     X,
     Check,
+    Edit,
+    Trash2,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
@@ -24,7 +29,7 @@ import { createDeposit } from "@/app/actions/expenses";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
 import { settleP2PAction } from "@/app/actions/settleP2P";
 import { createClient } from "@/utils/supabase/client";
-import AddExpenseForm from "@/components/AddExpenseForm";
+import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import CustomNumpad from "@/components/CustomNumpad";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
@@ -158,10 +163,11 @@ export default function DashboardCouple({
     const fundBudget = 1000;
 
     const router = useRouter();
+    const supabase = useMemo(() => createClient(), []);
+    const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const [activeFilter, setActiveFilter] = useState<ActivityFilter>("compartido");
+    const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-    const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-    const [expenseModalKey, setExpenseModalKey] = useState(0);
     const [showBalances, setShowBalances] = useState(false);
     const [showBudget, setShowBudget] = useState(false);
     const [depositAmount, setDepositAmount] = useState("");
@@ -173,6 +179,44 @@ export default function DashboardCouple({
     const [showChargeModal, setShowChargeModal] = useState(false);
     // Estado de selección múltiple para liquidación
     const [selectedSettleIds, setSelectedSettleIds] = useState<string[]>([]);
+    const [isBudgetAnimated, setIsBudgetAnimated] = useState(false);
+    const [isBalancesAnimated, setIsBalancesAnimated] = useState(false);
+    const [isSettleAnimated, setIsSettleAnimated] = useState(false);
+    const [isPayAnimated, setIsPayAnimated] = useState(false);
+    const [isChargeAnimated, setIsChargeAnimated] = useState(false);
+    const [isDepositAnimated, setIsDepositAnimated] = useState(false);
+
+    const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
+        setOpen(true);
+        requestAnimationFrame(() => requestAnimationFrame(() => setAnimated(true)));
+    };
+
+    const animateOut = (
+        setOpen: (value: boolean) => void,
+        setAnimated: (value: boolean) => void,
+        onAfterClose?: (() => void) | unknown,
+    ) => {
+        setAnimated(false);
+        window.setTimeout(() => {
+            setOpen(false);
+            if (typeof onAfterClose === "function") {
+                onAfterClose();
+            }
+        }, 450);
+    };
+
+    const openBudgetModal = () => animateIn(setShowBudget, setIsBudgetAnimated);
+    const closeBudgetModal = () => animateOut(setShowBudget, setIsBudgetAnimated);
+    const openBalancesModal = () => animateIn(setShowBalances, setIsBalancesAnimated);
+    const closeBalancesModal = (onAfterClose?: () => void) => animateOut(setShowBalances, setIsBalancesAnimated, onAfterClose);
+    const openSettleModal = () => animateIn(setShowSettleModal, setIsSettleAnimated);
+    const closeSettleModal = () => animateOut(setShowSettleModal, setIsSettleAnimated, () => setSelectedSettleIds([]));
+    const openPayModal = () => animateIn(setShowPayModal, setIsPayAnimated);
+    const closePayModal = () => animateOut(setShowPayModal, setIsPayAnimated, () => setSelectedSettleIds([]));
+    const openChargeModal = () => animateIn(setShowChargeModal, setIsChargeAnimated);
+    const closeChargeModal = () => animateOut(setShowChargeModal, setIsChargeAnimated, () => setSelectedSettleIds([]));
+    const openDepositModal = () => animateIn(setIsDepositModalOpen, setIsDepositAnimated);
+    const closeDepositModal = () => animateOut(setIsDepositModalOpen, setIsDepositAnimated, () => setDepositError(""));
 
     // Toggle de selección
     const toggleSettleSelection = (id: string) => {
@@ -180,41 +224,46 @@ export default function DashboardCouple({
             prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
         );
     };
-        // Gastos P2P pendientes
-        // Blindar family_id para transferencias P2P
-            const currentFamilyId: string = expenses.length > 0 && expenses[0].family_id ? expenses[0].family_id : '';
 
-        // 1. Gastos donde YO saqué el dinero, pero el responsable es MI PAREJA. (Mi pareja me debe a mí)
-        const expensesPartnerOwesMe = useMemo(() =>
-            expenses.filter(e =>
-                (e.paid_by || e.paidBy) === currentUserId &&
-                e.responsible_for !== currentUserId &&
-                e.responsible_for !== 'joint_fund' &&
-                e.category !== 'deposit' &&
-                !e.is_settled
-            ),
-            [currentUserId, expenses]
-        );
-        const partnerOwesMe = useMemo(() =>
-            expensesPartnerOwesMe.reduce((sum, e) => sum + Number(e.amount || 0), 0),
-            [expensesPartnerOwesMe]
-        );
+    const toggleActions = (id: string) => {
+        setActiveActionId(prev => prev === id ? null : id);
+    };
 
-        // 2. Gastos donde MI PAREJA sacó el dinero, pero el responsable soy YO. (Yo le debo a mi pareja)
-        const expensesIOwePartner = useMemo(() =>
-            expenses.filter(e =>
-                (e.paid_by || e.paidBy) !== currentUserId &&
-                (e.paid_by || e.paidBy) !== 'joint_fund' &&
-                e.responsible_for === currentUserId &&
-                e.category !== 'deposit' &&
-                !e.is_settled
-            ),
-            [currentUserId, expenses]
-        );
-        const iOwePartner = useMemo(() =>
-            expensesIOwePartner.reduce((sum, e) => sum + Number(e.amount || 0), 0),
-            [expensesIOwePartner]
-        );
+    // Gastos P2P pendientes
+    // Blindar family_id para transferencias P2P
+    const currentFamilyId: string = expenses.length > 0 && expenses[0].family_id ? expenses[0].family_id : '';
+
+    // 1. Gastos donde YO saqué el dinero, pero el responsable es MI PAREJA. (Mi pareja me debe a mí)
+    const expensesPartnerOwesMe = useMemo(() =>
+        expenses.filter(e =>
+            (e.paid_by || e.paidBy) === currentUserId &&
+            e.responsible_for !== currentUserId &&
+            e.responsible_for !== 'joint_fund' &&
+            e.category !== 'deposit' &&
+            !e.is_settled
+        ),
+        [currentUserId, expenses]
+    );
+    const partnerOwesMe = useMemo(() =>
+        expensesPartnerOwesMe.reduce((sum, e) => sum + Number(e.amount || 0), 0),
+        [expensesPartnerOwesMe]
+    );
+
+    // 2. Gastos donde MI PAREJA sacó el dinero, pero el responsable soy YO. (Yo le debo a mi pareja)
+    const expensesIOwePartner = useMemo(() =>
+        expenses.filter(e =>
+            (e.paid_by || e.paidBy) !== currentUserId &&
+            (e.paid_by || e.paidBy) !== 'joint_fund' &&
+            e.responsible_for === currentUserId &&
+            e.category !== 'deposit' &&
+            !e.is_settled
+        ),
+        [currentUserId, expenses]
+    );
+    const iOwePartner = useMemo(() =>
+        expensesIOwePartner.reduce((sum, e) => sum + Number(e.amount || 0), 0),
+        [expensesIOwePartner]
+    );
     const partner = members.find((member) => member.id !== currentUserId) ?? null;
     const partnerId = partner?.id ?? null;
     const fundAmount = Math.round(Math.abs(fundBalance) * 100) / 100;
@@ -262,7 +311,7 @@ export default function DashboardCouple({
     );
 
 
-            const hasBalances = fundOwesMe > 0 || iOwePartner > 0 || partnerOwesMe > 0;
+    const hasBalances = fundOwesMe > 0 || iOwePartner > 0 || partnerOwesMe > 0;
 
     // Filtrar gastos de sistema (withdrawal y transfer) de la UI
     const sharedExpenses = useMemo(
@@ -319,6 +368,8 @@ export default function DashboardCouple({
         return sharedExpenses;
     }, [activeFilter, myExpenses, partnerExpenses, sharedExpenses]);
 
+    const currentList = filteredExpenses.slice(0, 5);
+
     function handleDepositConfirm(nextValue?: string) {
         const normalizedAmount = Number((nextValue ?? depositAmount).replace(/,/g, ".").trim());
 
@@ -332,14 +383,13 @@ export default function DashboardCouple({
         startDepositTransition(async () => {
             await createDeposit({ amount: normalizedAmount });
             setDepositAmount("");
-            setIsDepositModalOpen(false);
+            closeDepositModal();
             router.refresh();
         });
     }
 
-
     function handleLiquidate() {
-        setShowSettleModal(true);
+        openSettleModal();
     }
 
     function handleSettleFundDebt(selectedIds: string[], selectedTotal: number) {
@@ -351,6 +401,7 @@ export default function DashboardCouple({
                 currentUserId,
                 familyId,
             });
+            setIsSettleAnimated(false);
             setShowSettleModal(false);
             setSelectedSettleIds([]);
             router.refresh();
@@ -367,6 +418,8 @@ export default function DashboardCouple({
                 totalAmount: amount,
                 familyId: currentFamilyId,
             });
+            setIsPayAnimated(false);
+            setIsChargeAnimated(false);
             setShowPayModal(false);
             setShowChargeModal(false);
             setSelectedSettleIds([]);
@@ -376,26 +429,31 @@ export default function DashboardCouple({
 
     // Supabase Realtime para refrescar dashboard automáticamente
     useEffect(() => {
-        const supabase = createClient();
         const channel = supabase
-            .channel('schema-db-changes')
+            .channel(`realtime-expenses-${familyId}`)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'expenses' },
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'expenses',
+                    filter: `family_id=eq.${familyId}`,
+                },
                 (payload) => {
-                    console.log('Cambio detectado en BD:', payload);
+                    console.log('Cambio detectado en base de datos:', payload);
                     router.refresh();
                 }
             )
             .subscribe();
+
         return () => {
-            supabase.removeChannel(channel);
+            void supabase.removeChannel(channel);
         };
-    }, [router]);
+    }, [familyId, router, supabase]);
 
     return (
-        <>
-            <header className="fixed top-0 z-50 flex w-full items-center justify-between bg-[#F8F9FA]/80 px-6 py-4 backdrop-blur-md">
+        <div className="flex flex-col h-dvh bg-slate-50 overflow-hidden">
+            <header className="shrink-0 z-50 flex w-full items-center justify-between bg-[#F8F9FA]/80 px-6 py-4 backdrop-blur-md">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/20">
                         {members[0]?.avatarUrl ? (
@@ -416,17 +474,17 @@ export default function DashboardCouple({
                 </div>
             </header>
 
-            <main className="mx-auto max-w-md px-4 pt-24 pb-32">
-                <section className="mb-4 px-2">
+            <main className="mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-4">
+                <section className="mb-4 shrink-0 px-2">
                     <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">{familyName}</h1>
                     <p className="text-sm font-medium opacity-70 text-on-surface-variant font-label">
                         Santuario compartido • Hoy
                     </p>
                 </section>
 
-                <section className="mb-6">
+                <section className="mb-2">
                     {/* La Cuenta Bancaria del Fondo */}
-                    <div className="bg-[#60855c] rounded-3xl p-6 text-white mb-3 shadow-md relative overflow-hidden">
+                    <div className="bg-[#60855c] rounded-3xl p-6 text-white mb-3 shadow-md relative overflow-hidden shrink-0">
                         <div className="absolute inset-0 opacity-10 pointer-events-none">
                             <img
                                 className="w-full h-full object-cover"
@@ -442,7 +500,7 @@ export default function DashboardCouple({
                         <div className="flex gap-3 relative z-10">
                             <button
                                 type="button"
-                                onClick={() => setIsDepositModalOpen(true)}
+                                onClick={openDepositModal}
                                 className="bg-white/70 text-[#60855c] px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 shadow-sm"
                             >
                                 <Plus size={16} /> Aportar
@@ -450,431 +508,350 @@ export default function DashboardCouple({
                         </div>
                     </div>
 
-                    {/* Sección de Saldos Pendientes (Solo se renderiza si hay deudas) */}
-                    {hasBalances && (
-                        <div className="mb-6">
-                            {/* Encabezado Toggle */}
-                            <button
-                                onClick={() => setShowBalances(!showBalances)}
-                                className="w-full flex justify-between items-center mb-3 group"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-xs font-bold text-slate-800">Saldos Pendientes</h2>
-                                    <ChevronDown
-                                        size={18}
-                                        className={`text-slate-400 transition-transform duration-500 ease-out ${showBalances ? "rotate-180" : ""}`}
-                                    />
-                                </div>
-                                <span className="text-[10px] font-bold uppercase tracking-widest transition-colors text-orange-500">
-                                    {showBalances ? "OCULTAR" : "REVISAR"}
-                                </span>
-                            </button>
+                    {/* Fila de Acciones Rápidas */}
+                    <div className="mb-3 grid grid-cols-2 gap-3 shrink-0">
+                        <button
+                            onClick={openBudgetModal}
+                            className="group flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm transition-all duration-500 hover:border-slate-200"
+                        >
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                <BarChart3 size={16} />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left leading-tight">
+                                <span className="block truncate text-[13px] font-bold text-slate-800">Presupuesto</span>
+                                <span className="block text-[9px] font-medium uppercase tracking-wide text-slate-400">Ver estado</span>
+                            </div>
+                            <ChevronDown size={14} className="shrink-0 -rotate-90 text-slate-300 transition-transform duration-500" />
+                        </button>
 
-                            {/* Lista Compacta Desplegable */}
-                            <div
-                                className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                                    showBalances ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                                }`}
-                            >
-                                <div className="overflow-hidden">
-                                    <div
-                                        className={`bg-white rounded-xl  flex flex-col overflow-hidden divide-y divide-slate-50 border border-slate-200 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                                            showBalances ? "translate-y-0 scale-100" : "-translate-y-1 scale-[0.98]"
-                                        }`}
-                                    >
-                                    {/* Fila: El Fondo me debe */}
-                                    {fundOwesMe > 0 && (
-                                        <div className="px-4 py-2 flex items-center justify-between">
-                                            <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">El fondo te debe</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[12px] font-semibold text-slate-800">${fundOwesMe.toFixed(2)}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleLiquidate}
-                                                    disabled={isLiquidating || fundDebtExpenses.length === 0}
-                                                    className="text-[9px] bg-slate-100 text-slate-600 hover:bg-slate-200 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    COBRAR
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* Fila: Yo le debo a mi pareja */}
-                                    {iOwePartner > 0 && (
-                                        <div className="px-4 py-2 flex items-center justify-between">
-                                            <span className="text-[9px] font-semibold text-[#bb1b1b] uppercase tracking-wide">Le debes a tu pareja</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[12px] font-semibold text-slate-800">${iOwePartner.toFixed(2)}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPayModal(true)}
-                                                    disabled={isLiquidating}
-                                                    className="text-[9px] bg-[#bb1b1b]/10 text-[#bb1b1b] hover:bg-[#bb1b1b]/30 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    PAGAR
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* Fila: Mi pareja me debe */}
-                                    {partnerOwesMe > 0 && (
-                                        <div className="px-4 py-2 flex items-center justify-between">
-                                            <span className="text-[9px] font-bold text-[#0f2d91] uppercase tracking-wide">Tu pareja te debe</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[12px] font-semibold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowChargeModal(true)}
-                                                    disabled={isLiquidating}
-                                                    className="text-[9px] bg-blue-50 text-[#0f2d91] hover:bg-blue-100 px-3 py-1.5 rounded-full font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    COBRAR
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    </div>
+                        <button
+                            onClick={openBalancesModal}
+                            className="group relative flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm transition-all duration-500 hover:border-slate-200"
+                        >
+                            {hasBalances && (
+                                <div className="absolute top-2.5 right-2.5 h-2 w-2 animate-pulse rounded-full border border-white bg-rose-500" />
+                            )}
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                                <Scale size={16} />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left leading-tight">
+                                <span className="block truncate text-[13px] font-bold text-slate-800">Liquidar</span>
+                                <span className="block text-[9px] font-medium uppercase tracking-wide text-slate-400">Cobrar/Pagar</span>
+                            </div>
+                            <ChevronDown size={14} className="shrink-0 -rotate-90 text-slate-300 transition-transform duration-500" />
+                        </button>
+                    </div>
+
+                    {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
+                    {showSettleModal && (
+                        <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                            <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isSettleAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeSettleModal} />
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSettleAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                                <div className="flex justify-center pt-4 pb-2">
+                                    <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                                </div>
+                                <button
+                                    onClick={closeSettleModal}
+                                    className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                                >
+                                    <X size={18} />
+                                </button>
+                                <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
+                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
+                                <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
+                                {/* Lista seleccionable */}
+                                <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                                    {fundDebtExpenses.map(expense => {
+                                        const isSelected = selectedSettleIds.includes(expense.id);
+                                        return (
+                                            <button
+                                                key={expense.id}
+                                                onClick={() => toggleSettleSelection(expense.id)}
+                                                className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#60855c] bg-[#60855c]/5' : 'border-slate-100 bg-white'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {/* Custom Checkbox */}
+                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#60855c] bg-[#60855c]' : 'border-slate-300'
+                                                        }`}>
+                                                        {isSelected && <Check size={12} className="text-white" />}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`font-bold ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                                    ${Number(expense.amount).toFixed(2)}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {/* Cálculo Dinámico y Botón */}
+                                {(() => {
+                                    const selectedTotal = fundDebtExpenses
+                                        .filter(e => selectedSettleIds.includes(e.id))
+                                        .reduce((sum, e) => sum + Number(e.amount), 0);
+                                    return (
+                                        <button
+                                            disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                            onClick={() => handleSettleFundDebt(selectedSettleIds, selectedTotal)}
+                                            className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
+                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                    : 'bg-[#60855c] text-white'
+                                                }`}
+                                        >
+                                            Recuperar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                        </button>
+                                    );
+                                })()}
                                 </div>
                             </div>
                         </div>
                     )}
-
-            {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
-            {showSettleModal && (
-                <div className="fixed inset-0 z-[130] flex flex-col justify-end">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowSettleModal(false); setSelectedSettleIds([]); }} />
-                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
-                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
-                        {/* Lista seleccionable */}
-                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
-                            {fundDebtExpenses.map(expense => {
-                                const isSelected = selectedSettleIds.includes(expense.id);
-                                return (
-                                    <button
-                                        key={expense.id}
-                                        onClick={() => toggleSettleSelection(expense.id)}
-                                        className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all ${
-                                            isSelected ? 'border-[#60855c] bg-[#60855c]/5' : 'border-slate-100 bg-white'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {/* Custom Checkbox */}
-                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                                                isSelected ? 'border-[#60855c] bg-[#60855c]' : 'border-slate-300'
-                                            }`}>
-                                                {isSelected && <Check size={12} className="text-white" />}
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
-                                            </div>
-                                        </div>
-                                        <span className={`font-bold ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
-                                            ${Number(expense.amount).toFixed(2)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {/* Cálculo Dinámico y Botón */}
-                        {(() => {
-                            const selectedTotal = fundDebtExpenses
-                                .filter(e => selectedSettleIds.includes(e.id))
-                                .reduce((sum, e) => sum + Number(e.amount), 0);
-                            return (
+                    {/* Modal P2P: PAGAR */}
+                    {showPayModal && (
+                        <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                            <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isPayAnimated ? "opacity-100" : "opacity-0"}`} onClick={closePayModal} />
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isPayAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                                <div className="flex justify-center pt-4 pb-2">
+                                    <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                                </div>
                                 <button
-                                    disabled={selectedSettleIds.length === 0 || isLiquidating}
-                                    onClick={() => handleSettleFundDebt(selectedSettleIds, selectedTotal)}
-                                    className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${
-                                        selectedSettleIds.length === 0 || isLiquidating
-                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                            : 'bg-[#60855c] text-white'
-                                    }`}
+                                    onClick={closePayModal}
+                                    className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
                                 >
-                                    Recuperar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                    <X size={18} />
                                 </button>
-                            );
-                        })()}
-                    </div>
-                </div>
-            )}
-            {/* Modal P2P: PAGAR */}
-            {showPayModal && (
-                <div className="fixed inset-0 z-[130] flex flex-col justify-end">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowPayModal(false); setSelectedSettleIds([]); }} />
-                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a tu pareja</h3>
-                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a liquidar.</p>
-                        {/* Lista seleccionable */}
-                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
-                            {expensesIOwePartner.map(expense => {
-                                const isSelected = selectedSettleIds.includes(expense.id);
-                                return (
-                                    <button
-                                        key={expense.id}
-                                        onClick={() => toggleSettleSelection(expense.id)}
-                                        className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all ${
-                                            isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-slate-100 bg-white'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {/* Custom Checkbox */}
-                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                                                isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]' : 'border-slate-300'
-                                            }`}>
-                                                {isSelected && <Check size={12} className="text-white" />}
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
-                                            </div>
-                                        </div>
-                                        <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-slate-800'}`}>
-                                            ${Number(expense.amount).toFixed(2)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                                <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
+                                <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a tu pareja</h3>
+                                <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a liquidar.</p>
+                                {/* Lista seleccionable */}
+                                <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                                    {expensesIOwePartner.map(expense => {
+                                        const isSelected = selectedSettleIds.includes(expense.id);
+                                        return (
+                                            <button
+                                                key={expense.id}
+                                                onClick={() => toggleSettleSelection(expense.id)}
+                                                className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-slate-100 bg-white'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {/* Custom Checkbox */}
+                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]' : 'border-slate-300'
+                                                        }`}>
+                                                        {isSelected && <Check size={12} className="text-white" />}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-slate-800'}`}>
+                                                    ${Number(expense.amount).toFixed(2)}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {/* Cálculo Dinámico y Botón */}
+                                {(() => {
+                                    const selectedTotal = expensesIOwePartner
+                                        .filter(e => selectedSettleIds.includes(e.id))
+                                        .reduce((sum, e) => sum + Number(e.amount), 0);
+                                    return (
+                                        <button
+                                            disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                            onClick={() => handleSettleP2P(currentUserId, partnerId, selectedTotal, selectedSettleIds)}
+                                            className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
+                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                    : 'bg-[#bb1b1b] text-white'
+                                                }`}
+                                        >
+                                            Pagar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                        </button>
+                                    );
+                                })()}
+                                </div>
+                            </div>
                         </div>
-                        {/* Cálculo Dinámico y Botón */}
-                        {(() => {
-                            const selectedTotal = expensesIOwePartner
-                                .filter(e => selectedSettleIds.includes(e.id))
-                                .reduce((sum, e) => sum + Number(e.amount), 0);
-                            return (
+                    )}
+                    {/* Modal P2P: COBRAR */}
+                    {showChargeModal && (
+                        <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                            <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isChargeAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeChargeModal} />
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isChargeAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                                <div className="flex justify-center pt-4 pb-2">
+                                    <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                                </div>
                                 <button
-                                    disabled={selectedSettleIds.length === 0 || isLiquidating}
-                                    onClick={() => handleSettleP2P(currentUserId, partnerId, selectedTotal, selectedSettleIds)}
-                                    className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${
-                                        selectedSettleIds.length === 0 || isLiquidating
-                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                            : 'bg-[#bb1b1b] text-white'
-                                    }`}
+                                    onClick={closeChargeModal}
+                                    className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
                                 >
-                                    Pagar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                    <X size={18} />
                                 </button>
-                            );
-                        })()}
-                    </div>
-                </div>
-            )}
-            {/* Modal P2P: COBRAR */}
-            {showChargeModal && (
-                <div className="fixed inset-0 z-[130] flex flex-col justify-end">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setShowChargeModal(false); setSelectedSettleIds([]); }} />
-                    <div className="relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl">
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a tu pareja</h3>
-                        <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
-                        {/* Lista seleccionable */}
-                        <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
-                            {expensesPartnerOwesMe.map(expense => {
-                                const isSelected = selectedSettleIds.includes(expense.id);
-                                return (
-                                    <button
-                                        key={expense.id}
-                                        onClick={() => toggleSettleSelection(expense.id)}
-                                        className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all ${
-                                            isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-slate-100 bg-white'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {/* Custom Checkbox */}
-                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                                                isSelected ? 'border-[#0f2d91] bg-[#0f2d91]' : 'border-slate-300'
-                                            }`}>
-                                                {isSelected && <Check size={12} className="text-white" />}
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
-                                            </div>
-                                        </div>
-                                        <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-slate-800'}`}>
-                                            ${Number(expense.amount).toFixed(2)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                                <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
+                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a tu pareja</h3>
+                                <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
+                                {/* Lista seleccionable */}
+                                <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                                    {expensesPartnerOwesMe.map(expense => {
+                                        const isSelected = selectedSettleIds.includes(expense.id);
+                                        return (
+                                            <button
+                                                key={expense.id}
+                                                onClick={() => toggleSettleSelection(expense.id)}
+                                                className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-slate-100 bg-white'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {/* Custom Checkbox */}
+                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]' : 'border-slate-300'
+                                                        }`}>
+                                                        {isSelected && <Check size={12} className="text-white" />}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-slate-800'}`}>
+                                                    ${Number(expense.amount).toFixed(2)}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {/* Cálculo Dinámico y Botón */}
+                                {(() => {
+                                    const selectedTotal = expensesPartnerOwesMe
+                                        .filter(e => selectedSettleIds.includes(e.id))
+                                        .reduce((sum, e) => sum + Number(e.amount), 0);
+                                    return (
+                                        <button
+                                            disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                            onClick={() => handleSettleP2P(partnerId, currentUserId, selectedTotal, selectedSettleIds)}
+                                            className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
+                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                    : 'bg-[#0f2d91] text-white'
+                                                }`}
+                                        >
+                                            Cobrar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                        </button>
+                                    );
+                                })()}
+                                </div>
+                            </div>
                         </div>
-                        {/* Cálculo Dinámico y Botón */}
-                        {(() => {
-                            const selectedTotal = expensesPartnerOwesMe
-                                .filter(e => selectedSettleIds.includes(e.id))
-                                .reduce((sum, e) => sum + Number(e.amount), 0);
-                            return (
-                                <button
-                                    disabled={selectedSettleIds.length === 0 || isLiquidating}
-                                    onClick={() => handleSettleP2P(partnerId, currentUserId, selectedTotal, selectedSettleIds)}
-                                    className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${
-                                        selectedSettleIds.length === 0 || isLiquidating
-                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                            : 'bg-[#0f2d91] text-white'
-                                    }`}
-                                >
-                                    Cobrar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
-                                </button>
-                            );
-                        })()}
-                    </div>
-                </div>
-            )}
+                    )}
                 </section>
 
-                <div className="mb-4">
-                    <button
-                        onClick={() => setShowBudget(!showBudget)}
-                        className="w-full flex justify-between items-center mb-3 group"
-                    >
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-xs font-bold text-slate-800">Control de Presupuesto</h2>
-                            <ChevronDown
-                                size={18}
-                                className={`text-slate-400 transition-transform duration-500 ease-out ${showBudget ? "rotate-180" : ""}`}
-                            />
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest transition-colors text-slate-400 group-hover:text-[#60855c]">
-                            {showBudget ? "OCULTAR" : "VER"}
-                        </span>
-                    </button>
 
-                    <div
-                        className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                            showBudget ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                        }`}
-                    >
-                        <div className="overflow-hidden">
-                            <div
-                                className={`bg-white rounded-xl border border-slate-200 flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                                    showBudget ? "translate-y-0 scale-100" : "-translate-y-1 scale-[0.98]"
-                                }`}
-                            >
-                            <div className="p-3">
-                                <div className="flex justify-between items-end mb-1.5">
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Mi Bolsillo</span>
-                                        <span className="text-base font-bold text-slate-800">${mySpent.toFixed(2)}</span>
-                                    </div>
-                                    <span className="text-[11px] font-medium text-slate-400">de ${myBudget}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-1">
-                                    <div className="bg-slate-800 h-1 rounded-full" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }}></div>
-                                </div>
-                            </div>
-
-                            <div className="h-px w-full bg-slate-50" />
-
-                            <div className="p-3">
-                                <div className="flex justify-between items-end mb-1.5">
-                                    <div>
-                                        <span className="text-[10px] font-bold text-[#60855c] uppercase tracking-wide block mb-0.5">Fondo Común</span>
-                                        <span className="text-base font-bold text-slate-800">${fundSpent.toFixed(2)}</span>
-                                    </div>
-                                    <span className="text-[11px] font-medium text-slate-400">de ${fundBudget}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-1">
-                                    <div className="bg-[#60855c] h-1 rounded-full" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }}></div>
-                                </div>
-                            </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <section className="mb-6">
-                    <div className="flex gap-1 rounded-full bg-slate-100/80 p-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setActiveFilter("compartido")}
-                            className={`flex-1 rounded-full py-2 text-xs font-bold transition-all font-label ${activeFilter === "compartido"
-                                ? "bg-slate-100 text-[#2B3437] shadow-sm"
-                                : "text-on-surface-variant hover:bg-surface-container-high/50"
-                                }`}
-                        >
-                            Compartido
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveFilter("mio")}
-                            className={`flex-1 rounded-full py-2 text-xs font-bold transition-all font-label ${activeFilter === "mio"
-                                ? "bg-slate-100 text-[#2B3437] shadow-sm"
-                                : "text-on-surface-variant hover:bg-surface-container-high/50"
-                                }`}
-                        >
-                            Mío
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveFilter("suyo")}
-                            className={`flex-1 rounded-full py-2 text-xs font-bold transition-all font-label ${activeFilter === "suyo"
-                                ? "bg-slate-100 text-[#2B3437] shadow-sm"
-                                : "text-on-surface-variant hover:bg-surface-container-high/50"
-                                }`}
-                        >
-                            Suyo
-                        </button>
-                    </div>
-                </section>
-
-                <section>
-                    <div className="mb-5 flex items-center justify-between px-2">
-                        <h3 className="text-lg font-bold tracking-tight text-on-surface">Actividad Compartida</h3>
+                <div className="flex-1 flex flex-col min-h-0  mb-24 px-2">
+                    {/* <div className="shrink-0 flex justify-between items-center mb-4">
+                        <h3 className="text-base font-bold text-slate-800">Actividad Compartida</h3>
                         <Link
                             href="/history"
-                            className="text-xs font-bold uppercase tracking-widest text-primary transition-opacity hover:opacity-80 font-label"
+                            className="text-[10px] font-bold uppercase tracking-widest text-[#60855c] transition-opacity hover:opacity-80 font-label"
                         >
                             Ver todo
                         </Link>
+                    </div> */}
+
+                    <div className="shrink-0 mb-4">
+                        <div className="flex gap-1 rounded-full bg-slate-100/80 p-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setActiveFilter("compartido")}
+                                className={`flex-1 rounded-full py-2 text-xs font-bold transition-all duration-500 font-label ${activeFilter === "compartido"
+                                    ? "bg-slate-100 text-[#2B3437] shadow-sm"
+                                    : "text-on-surface-variant hover:bg-surface-container-high/50"
+                                    }`}
+                            >
+                                Compartido
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveFilter("mio")}
+                                className={`flex-1 rounded-full py-2 text-xs font-bold transition-all duration-500 font-label ${activeFilter === "mio"
+                                    ? "bg-slate-100 text-[#2B3437] shadow-sm"
+                                    : "text-on-surface-variant hover:bg-surface-container-high/50"
+                                    }`}
+                            >
+                                Mío
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveFilter("suyo")}
+                                className={`flex-1 rounded-full py-2 text-xs font-bold transition-all duration-500 font-label ${activeFilter === "suyo"
+                                    ? "bg-slate-100 text-[#2B3437] shadow-sm"
+                                    : "text-on-surface-variant hover:bg-surface-container-high/50"
+                                    }`}
+                            >
+                                Suyo
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex flex-col gap-3">
-                        {filteredExpenses.length === 0 ? (
-                            <div className="flex items-center justify-between rounded-lg bg-surface-container-lowest p-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-high">
-                                        <Home size={20} className="text-on-surface-variant" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-on-surface">Aún no hay gastos</span>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60 font-label">
-                                            Cambia el filtro o agrega un nuevo movimiento
-                                        </span>
+
+                    <div className="flex-1 bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden">
+                        {currentList.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full animate-in fade-in duration-1000">
+                                <div className="relative mb-5 flex items-center justify-center">
+                                    <div className="absolute inset-0 rounded-full bg-[#60855c] opacity-10 animate-ping duration-1000" />
+                                    <div className="absolute inset-0 rounded-full bg-[#60855c] opacity-20 animate-pulse" />
+
+                                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-emerald-100/50 bg-emerald-50 text-[#60855c] shadow-sm">
+                                        <Receipt size={36} strokeWidth={1.5} />
                                     </div>
                                 </div>
-                                <span className="text-sm font-extrabold text-on-surface">{formatCurrency(0)}</span>
+
+                                <h4 className="mb-2 text-lg font-bold text-slate-700">Todo está tranquilo</h4>
+                                <p className="max-w-[220px] text-xs leading-relaxed text-slate-400">
+                                    Aún no hay movimientos aquí. Usa el botón verde para registrar tu primer gasto.
+                                </p>
                             </div>
                         ) : (
-                            <div className="bg-white rounded-3xl shadow-sm flex flex-col mb-8 overflow-hidden">
-                                {filteredExpenses.map((expense, index) => {
+                            <div className="flex h-full flex-col">
+                                {currentList.map((expense) => {
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category, expense.concept);
                                     const Icon = iconMap[categoryPresentation.iconKey] ?? ReceiptText;
                                     const isDeposit = expense.category === "deposit";
-                                    const isWithdrawal = expense.category === "withdrawal";
-                                    const isLast = index === filteredExpenses.length - 1;
-                                    // NUEVO: Determinar si es deuda
-                                    const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== 'deposit';
+                                    const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
 
                                     return (
-                                        <div key={expense.id} className="flex flex-col">
-                                            <div className="p-3 flex items-center justify-between bg-transparent">
+                                        <div
+                                            key={expense.id}
+                                            className={`relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden group ${
+                                                currentList.length >= 5 ? 'flex-1' : ''
+                                            }`}
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleActions(expense.id)}
+                                                className={`flex items-center justify-between px-4 transition-all duration-300 ease-out w-full text-left ${
+                                                    currentList.length >= 5 ? 'h-full' : 'py-4'
+                                                } ${
+                                                    activeActionId === expense.id ? 'scale-[1] bg-slate-50 pr-2 inset-shadow-zinc-700' : 'scale-100 bg-white'
+                                                }`}
+                                            >
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                                                    <div className="w-10 h-10 rounded-full bg-emerald-800/10 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 shadow-sm">
                                                         <Icon size={18} />
                                                     </div>
 
-                                                    {/* Detalles del gasto con badge de estado */}
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-bold text-slate-800">{expense.concept}</span>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                                                                {categoryPresentation.label} • {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? "TÚ" : "PAREJA"}
+                                                                {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : 'PAREJA'}
                                                             </span>
-                                                            {/* NUEVO: Etiqueta de Estado */}
                                                             {isDebt && (
-                                                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${
-                                                                    expense.is_settled
+                                                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${expense.is_settled
                                                                         ? 'bg-emerald-50 text-emerald-600'
                                                                         : 'bg-orange-50 text-orange-600'
-                                                                }`}>
+                                                                    }`}>
                                                                     {expense.is_settled ? 'Liquidado' : 'Pendiente'}
                                                                 </span>
                                                             )}
@@ -882,61 +859,201 @@ export default function DashboardCouple({
                                                     </div>
                                                 </div>
 
-                                                <span className={`text-base font-bold ${isDeposit ? 'text-[#60855c]' : isWithdrawal ? 'text-orange-500' : 'text-slate-800'}`}>
-                                                    {isDeposit ? '+' : isWithdrawal ? '-' : '-'}${Number(expense.amount).toFixed(2)}
+                                                <span className={`text-base font-bold shrink-0 ${isDeposit ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                                    {isDeposit ? '+' : '-'}${Number(expense.amount).toFixed(2)}
                                                 </span>
-                                            </div>
+                                            </button>
 
-                                            {!isLast && <div className="h-px w-full bg-slate-50" />}
+                                            <div
+                                                className={`flex flex-col border-l border-slate-100 transition-all duration-300 ease-out overflow-hidden shrink-0 ${
+                                                    activeActionId === expense.id ? 'w-14 opacity-100' : 'w-0 opacity-0 border-transparent'
+                                                }`}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setExpenseToEdit(expense);
+                                                        setIsExpenseModalOpen(true);
+                                                        setActiveActionId(null);
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 bg-slate-50/50 transition-colors border-b border-slate-100"
+                                                >
+                                                    <Edit size={16} />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); }}
+                                                    className="flex-1 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 bg-rose-50/30 transition-colors"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
                     </div>
-                </section>
+                </div>
             </main>
 
-            <button
-                type="button"
-                onClick={() => { setIsExpenseModalOpen(true); setExpenseModalKey((k) => k + 1); }}
-                className={`fixed right-6 bottom-24 mb-2 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#60855c] text-3xl leading-none text-white shadow-xl transition-all active:scale-95 ${
-                    isExpenseModalOpen ? "pointer-events-none opacity-0 scale-90" : "opacity-100 scale-100"
-                }`}
-                aria-label="Agregar gasto"
-            >
-                +
-            </button>
+            {showBudget && (
+                <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                    <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isBudgetAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeBudgetModal} />
+                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBudgetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                        <div className="flex justify-center pt-4 pb-2">
+                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                        </div>
+                        <button type="button" onClick={closeBudgetModal} className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600">
+                            <X size={18} />
+                        </button>
+                        <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
+                        <div className="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">Control de Presupuesto</h3>
+                                <p className="text-xs text-slate-500">Estado actual de tus bolsillos y del fondo común.</p>
+                            </div>
+                        </div>
 
-            {/* Overlay oscuro */}
-            {isExpenseModalOpen && (
-                <div className="fixed inset-0 z-70 bg-slate-900/40 backdrop-blur-sm transition-opacity animate-in fade-in duration-500" onClick={() => setIsExpenseModalOpen(false)} />
+                        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
+                            <div className="p-4">
+                                <div className="mb-2 flex items-end justify-between">
+                                    <div>
+                                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">Mi Bolsillo</span>
+                                        <span className="text-base font-bold text-slate-800">${mySpent.toFixed(2)}</span>
+                                    </div>
+                                    <span className="text-[11px] font-medium text-slate-400">de ${myBudget}</span>
+                                </div>
+                                <div className="h-1.5 w-full rounded-full bg-slate-100">
+                                    <div className="h-1.5 rounded-full bg-slate-800" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }} />
+                                </div>
+                            </div>
+
+                            <div className="p-4">
+                                <div className="mb-2 flex items-end justify-between">
+                                    <div>
+                                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-[#60855c]">Fondo Común</span>
+                                        <span className="text-base font-bold text-slate-800">${fundSpent.toFixed(2)}</span>
+                                    </div>
+                                    <span className="text-[11px] font-medium text-slate-400">de ${fundBudget}</span>
+                                </div>
+                                <div className="h-1.5 w-full rounded-full bg-slate-100">
+                                    <div className="h-1.5 rounded-full bg-[#60855c]" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
-            {/* Bottom Sheet del Formulario */}
-            <div className={`fixed inset-x-0 bottom-0 z-80 transform transition-transform duration-500 ease-out flex flex-col bg-slate-50 rounded-t-[2.5rem] shadow-2xl h-[80vh] ${isExpenseModalOpen ? "translate-y-0" : "translate-y-full"}`}>
-                <div className="flex justify-center items-center pt-4 pb-2 relative">
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
-                    <button onClick={() => setIsExpenseModalOpen(false)} className="absolute right-6 top-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1">
-                        <X size={20} />
-                    </button>
+            {showBalances && (
+                <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                    <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isBalancesAnimated ? "opacity-100" : "opacity-0"}`} onClick={() => closeBalancesModal()} />
+                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBalancesAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                        <div className="flex justify-center pt-4 pb-2">
+                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                        </div>
+                        <button type="button" onClick={() => closeBalancesModal()} className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600">
+                            <X size={18} />
+                        </button>
+                        <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
+                        <div className="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">Saldos Pendientes</h3>
+                                <p className="text-xs text-slate-500">Gestiona aquí lo que puedes cobrar o pagar.</p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
+                            {fundOwesMe > 0 && (
+                                <div className="flex items-center justify-between p-4">
+                                    <div>
+                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">El fondo te debe</span>
+                                        <span className="text-sm font-bold text-slate-800">${fundOwesMe.toFixed(2)}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            closeBalancesModal(() => openSettleModal());
+                                        }}
+                                        disabled={isLiquidating || fundDebtExpenses.length === 0}
+                                        className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        COBRAR
+                                    </button>
+                                </div>
+                            )}
+
+                            {iOwePartner > 0 && (
+                                <div className="flex items-center justify-between p-4">
+                                    <div>
+                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#bb1b1b]">Le debes a tu pareja</span>
+                                        <span className="text-sm font-bold text-slate-800">${iOwePartner.toFixed(2)}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            closeBalancesModal(() => openPayModal());
+                                        }}
+                                        disabled={isLiquidating}
+                                        className="rounded-full bg-[#bb1b1b]/10 px-3 py-1.5 text-[10px] font-bold text-[#bb1b1b] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        PAGAR
+                                    </button>
+                                </div>
+                            )}
+
+                            {partnerOwesMe > 0 && (
+                                <div className="flex items-center justify-between p-4">
+                                    <div>
+                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#0f2d91]">Tu pareja te debe</span>
+                                        <span className="text-sm font-bold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            closeBalancesModal(() => openChargeModal());
+                                        }}
+                                        disabled={isLiquidating}
+                                        className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-[#0f2d91] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        COBRAR
+                                    </button>
+                                </div>
+                            )}
+
+                            {!hasBalances && (
+                                <div className="p-4 text-sm font-medium text-slate-500">
+                                    No hay saldos pendientes por ahora.
+                                </div>
+                            )}
+                        </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex-1 overflow-y-auto px-4 pb-8 hide-scrollbar">
-                    <AddExpenseForm key={expenseModalKey} onClose={() => setIsExpenseModalOpen(false)} familyMemberCount={members.length} />
-                </div>
-            </div>
+            )}
+
 
             {isDepositModalOpen && (
-                <div className="fixed inset-0 z-60">
+                <div className="fixed inset-0 z-60 flex flex-col justify-end">
                     <div
-                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                        onClick={() => {
-                            setIsDepositModalOpen(false);
-                            setDepositError("");
-                        }}
+                        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isDepositAnimated ? "opacity-100" : "opacity-0"}`}
+                        onClick={closeDepositModal}
                     />
-                    <div className="absolute bottom-0 w-full rounded-t-3xl bg-white  max-h-[92vh] animate-in slide-in-from-bottom duration-300">
-                        <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-on-surface/10" />
+                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isDepositAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                        <div className="flex justify-center pt-4 pb-2">
+                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                        </div>
+                        <button
+                            onClick={closeDepositModal}
+                            className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                        >
+                            <X size={18} />
+                        </button>
+                        <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
                         <div className="text-center">
                             <h4 className="text-[10px] font-bold tracking-widest text-gray-500 font-label">
                                 APORTAR AL FONDO COMÚN
@@ -956,6 +1073,7 @@ export default function DashboardCouple({
                         {depositError && (
                             <p className="mt-3 text-center text-sm font-medium text-red-600">{depositError}</p>
                         )}
+                        </div>
 
                         {/* <button
                             type="button"
@@ -975,6 +1093,6 @@ export default function DashboardCouple({
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }

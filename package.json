@@ -4,14 +4,20 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mobile": "next dev --hostname 0.0.0.0 --port 3000",
+    "dev:https": "next dev --hostname 0.0.0.0 --port 3000 --experimental-https --experimental-https-cert ./.vscode/ssl/cert.pem --experimental-https-key ./.vscode/ssl/key.pem",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "prod": "next start --hostname 0.0.0.0 --port 3002",
+    "preview:mobile": "npm run build && concurrently -k -s first \"next start --hostname 0.0.0.0 --port 3000\" \"node scripts/tunnel.js\"",
+    "lint": "eslint",
+    "public": "cloudflared tunnel --url http://localhost:3002"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.102.1",
     "lucide-react": "^1.7.0",
+    "mkcert": "^3.2.0",
     "next": "16.2.2",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -21,8 +27,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "localtunnel": "^2.0.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

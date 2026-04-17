@@ -142,6 +142,7 @@ export default async function Home() {
       .from("expenses")
       .select("*, profiles!expenses_paid_by_fkey(full_name, avatar_url)")
       .eq("family_id", familyId)
+      .eq("is_active", true)
       .order("created_at", { ascending: false });
 
     const debtResult = await calculateDebt(familyId, user.id);

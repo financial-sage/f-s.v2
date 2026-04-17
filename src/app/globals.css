@@ -1,3 +1,4 @@
+@import url('https://fonts.cdnfonts.com/css/satoshi');
 @import "tailwindcss";
 
 @theme inline {
@@ -33,17 +34,18 @@
   --color-sage-light: #A8C5A5;
 
   /* Fonts */
-  --font-headline: var(--font-manrope);
-  --font-body: var(--font-manrope);
-  --font-label: var(--font-inter);
-  --font-sans: var(--font-manrope);
-  --font-mono: var(--font-geist-mono);
+  --font-headline: "Satoshi", sans-serif;
+  --font-body: "Satoshi", sans-serif;
+  --font-label: "Satoshi", sans-serif;
+  --font-sans: "Satoshi", sans-serif;
+  --font-mono: "Satoshi", monospace;
 }
 
+html,
 body {
   background: var(--color-surface);
   color: var(--color-on-surface);
-  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  font-family: "Satoshi", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }

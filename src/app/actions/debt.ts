@@ -30,7 +30,8 @@ export async function calculateDebt(family_id: string, current_user_id: string) 
       supabase
         .from("expenses")
         .select("amount, paid_by, split_type, responsible_for, payer_share_pct, category, concept")
-        .eq("family_id", family_id),
+        .eq("family_id", family_id)
+        .eq("is_active", true),
     ]);
 
   if (familyError || expensesError || !family?.user_1_id || !family?.user_2_id) {

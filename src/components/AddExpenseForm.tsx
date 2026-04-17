@@ -56,11 +56,14 @@ import {
   type ExpenseCategory,
   type ExpenseResponsibleFor,
 } from "@/app/actions/expenses";
+import { editExpenseAction } from "@/app/actions/editExpense";
 import CustomKeypad from "@/components/CustomNumpad";
+import type { ExpenseToEdit } from "@/components/ExpenseModalProvider";
 
 interface AddExpenseFormProps {
   familyMemberCount?: number;
   onClose?: () => void;
+  expenseToEdit?: ExpenseToEdit | null;
 }
 
 interface OptionItem<T extends string> {
@@ -149,7 +152,11 @@ function formatDisplayDate(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
-export default function AddExpenseForm({ familyMemberCount = 2, onClose }: AddExpenseFormProps) {
+function getCategoryIdFromValue(category?: string | null) {
+  return [...topCategories, ...extraCategories].find((option) => option.value === category)?.id ?? "food";
+}
+
+export default function AddExpenseForm({ familyMemberCount = 2, onClose, expenseToEdit = null }: AddExpenseFormProps) {
   const router = useRouter();
   const isCoupleMode = familyMemberCount > 1;
 
@@ -172,6 +179,26 @@ export default function AddExpenseForm({ familyMemberCount = 2, onClose }: AddEx
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (expenseToEdit) {
+      setAmount(Number(expenseToEdit.amount ?? 0));
+      setConcept(expenseToEdit.concept ?? "");
+      setSelectedCategory(getCategoryIdFromValue(expenseToEdit.category));
+      setErrorMessage("");
+      return;
+    }
+
+    setAmount(0);
+    setConcept("");
+    setPaidBy(isCoupleMode ? "me" : "me");
+    setResponsibleFor(isCoupleMode ? "joint_fund" : "me");
+    setMyContribution("");
+    setPartnerContribution("");
+    setSelectedCategory("food");
+    setDate(new Date().toISOString().slice(0, 10));
+    setErrorMessage("");
+  }, [expenseToEdit, isCoupleMode]);
 
   function openCategorySheet() {
     setIsExpanded(false);
@@ -215,86 +242,90 @@ export default function AddExpenseForm({ familyMemberCount = 2, onClose }: AddEx
     try {
       setIsSaving(true);
 
-      if (paidBy === "joint_fund") {
-        throw new Error("Gastar directamente desde Fondo Común aún no está soportado en este flujo.");
-      }
-
-      if (isCoupleMode && paidBy === "both_split") {
-        const mine = parseDecimal(myContribution);
-        const partner = parseDecimal(partnerContribution);
-
-        if (!Number.isFinite(mine) || mine < 0 || !Number.isFinite(partner) || partner < 0) {
-          throw new Error("Ingresa cuánto puso cada persona.");
-        }
-
-        if (Math.round((mine + partner) * 100) !== Math.round(amount * 100)) {
-          throw new Error("La suma de ambos aportes debe coincidir con el monto total.");
-        }
-
-        const requests = [];
-
-        if (mine > 0) {
-          requests.push(
-            saveExpenseAction({
-              amount: mine,
-              concept,
-              paidBy: "me",
-              responsibleFor,
-              payerSharePct: 100,
-              category: selectedCategoryValue,
-              date,
-              splitTypeOverride:
-                responsibleFor === "joint_fund"
-                  ? "fund_transfer"
-                  : responsibleFor === "partner"
-                    ? "p2p_debt"
-                    : "personal",
-            })
-          );
-        }
-
-        if (partner > 0) {
-          requests.push(
-            saveExpenseAction({
-              amount: partner,
-              concept,
-              paidBy: "partner",
-              responsibleFor,
-              payerSharePct: 100,
-              category: selectedCategoryValue,
-              date,
-              splitTypeOverride:
-                responsibleFor === "joint_fund"
-                  ? "fund_transfer"
-                  : responsibleFor === "me"
-                    ? "p2p_debt"
-                    : "personal",
-            })
-          );
-        }
-
-        await Promise.all(requests);
+      if (expenseToEdit) {
+        await editExpenseAction(expenseToEdit.id, amount, concept);
       } else {
-        const singlePaidBy = (isCoupleMode ? paidBy : "me") as ExpenseActor;
-        const splitTypeOverride =
-          responsibleFor === "joint_fund"
-            ? "fund_transfer"
-            : responsibleFor === "partner" && singlePaidBy === "me"
-              ? "p2p_debt"
-              : responsibleFor === "me" && singlePaidBy === "partner"
-                ? "p2p_debt"
-                : "personal";
+        if (paidBy === "joint_fund") {
+          throw new Error("Gastar directamente desde Fondo Común aún no está soportado en este flujo.");
+        }
 
-        await saveExpenseAction({
-          amount,
-          concept,
-          paidBy: singlePaidBy,
-          responsibleFor: isCoupleMode ? responsibleFor : "me",
-          payerSharePct: 100,
-          category: selectedCategoryValue,
-          date,
-          splitTypeOverride,
-        });
+        if (isCoupleMode && paidBy === "both_split") {
+          const mine = parseDecimal(myContribution);
+          const partner = parseDecimal(partnerContribution);
+
+          if (!Number.isFinite(mine) || mine < 0 || !Number.isFinite(partner) || partner < 0) {
+            throw new Error("Ingresa cuánto puso cada persona.");
+          }
+
+          if (Math.round((mine + partner) * 100) !== Math.round(amount * 100)) {
+            throw new Error("La suma de ambos aportes debe coincidir con el monto total.");
+          }
+
+          const requests = [];
+
+          if (mine > 0) {
+            requests.push(
+              saveExpenseAction({
+                amount: mine,
+                concept,
+                paidBy: "me",
+                responsibleFor,
+                payerSharePct: 100,
+                category: selectedCategoryValue,
+                date,
+                splitTypeOverride:
+                  responsibleFor === "joint_fund"
+                    ? "fund_transfer"
+                    : responsibleFor === "partner"
+                      ? "p2p_debt"
+                      : "personal",
+              })
+            );
+          }
+
+          if (partner > 0) {
+            requests.push(
+              saveExpenseAction({
+                amount: partner,
+                concept,
+                paidBy: "partner",
+                responsibleFor,
+                payerSharePct: 100,
+                category: selectedCategoryValue,
+                date,
+                splitTypeOverride:
+                  responsibleFor === "joint_fund"
+                    ? "fund_transfer"
+                    : responsibleFor === "me"
+                      ? "p2p_debt"
+                      : "personal",
+              })
+            );
+          }
+
+          await Promise.all(requests);
+        } else {
+          const singlePaidBy = (isCoupleMode ? paidBy : "me") as ExpenseActor;
+          const splitTypeOverride =
+            responsibleFor === "joint_fund"
+              ? "fund_transfer"
+              : responsibleFor === "partner" && singlePaidBy === "me"
+                ? "p2p_debt"
+                : responsibleFor === "me" && singlePaidBy === "partner"
+                  ? "p2p_debt"
+                  : "personal";
+
+          await saveExpenseAction({
+            amount,
+            concept,
+            paidBy: singlePaidBy,
+            responsibleFor: isCoupleMode ? responsibleFor : "me",
+            payerSharePct: 100,
+            category: selectedCategoryValue,
+            date,
+            splitTypeOverride,
+          });
+        }
       }
 
       if (onClose) {
@@ -331,7 +362,16 @@ export default function AddExpenseForm({ familyMemberCount = 2, onClose }: AddEx
       </header> */}
 
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 bg-transparent">
-        <section className="flex flex-col items-center gap-4 rounded-3xl bg-white p-4 mt-4.5 shadow-sm">
+        <section className="px-1 pt-2">
+          <h1 className="text-lg font-bold text-slate-800">
+            {expenseToEdit ? "Editar Gasto" : "Nuevo Gasto"}
+          </h1>
+          <p className="text-sm text-slate-500">
+            {expenseToEdit ? "Actualiza el movimiento seleccionado." : "Registra un nuevo movimiento."}
+          </p>
+        </section>
+
+        <section className="mt-2 flex flex-col items-center gap-4 rounded-3xl bg-white p-4 shadow-sm">
           <div className="text-center">
             <span className="text-xs uppercase tracking-wider text-slate-500">
               Importe del gasto
@@ -509,7 +549,7 @@ export default function AddExpenseForm({ familyMemberCount = 2, onClose }: AddEx
           ) : (
             <CheckCircle2 size={18} />
           )}
-          {isSaving ? "Guardando..." : "Guardar Gasto"}
+          {isSaving ? (expenseToEdit ? "Actualizando..." : "Guardando...") : (expenseToEdit ? "Actualizar" : "Guardar")}
         </button>
       </footer>
 

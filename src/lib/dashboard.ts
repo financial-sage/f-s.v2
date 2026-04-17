@@ -290,6 +290,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         .from("expenses")
         .select("id, amount, concept, paid_by, split_type, payer_share_pct, expense_date, created_at")
         .eq("family_id", family.id)
+        .eq("is_active", true)
         .order("expense_date", { ascending: false })
         .order("created_at", { ascending: false }),
     ]);
