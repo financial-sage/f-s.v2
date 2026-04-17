@@ -195,6 +195,7 @@ export default function DashboardCouple({
     const [isDepositAnimated, setIsDepositAnimated] = useState(false);
     const [showSharedWelcome, setShowSharedWelcome] = useState(false);
     const [welcomeProgress, setWelcomeProgress] = useState(0);
+    const [highlightFundCard, setHighlightFundCard] = useState(false);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -454,12 +455,14 @@ export default function DashboardCouple({
 
         window.sessionStorage.removeItem("fsage:shared-welcome");
         setShowSharedWelcome(true);
+        setHighlightFundCard(true);
         setWelcomeProgress(0);
         requestAnimationFrame(() => requestAnimationFrame(() => setWelcomeProgress(100)));
 
         const timeoutId = window.setTimeout(() => {
             setShowSharedWelcome(false);
             setWelcomeProgress(0);
+            setHighlightFundCard(false);
         }, 2600);
 
         return () => window.clearTimeout(timeoutId);
@@ -544,7 +547,11 @@ export default function DashboardCouple({
 
                 <section className="mb-2">
                     {/* La Cuenta Bancaria del Fondo */}
-                    <div className="bg-[#60855c] rounded-3xl p-6 text-white mb-3 shadow-md relative overflow-hidden shrink-0">
+                    <div className={`bg-[#60855c] rounded-3xl p-6 text-white mb-3 shadow-md relative overflow-hidden shrink-0 transition-all duration-1000 ${
+                        highlightFundCard
+                            ? "scale-[1.02] shadow-[0_20px_50px_rgba(96,133,92,0.35)] ring-2 ring-emerald-200/70"
+                            : "scale-100 ring-0"
+                    }`}>
                         <div className="absolute inset-0 opacity-10 pointer-events-none">
                             <img
                                 className="w-full h-full object-cover"
@@ -552,7 +559,12 @@ export default function DashboardCouple({
                                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3"
                             />
                         </div>
-                        <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+                        <div className={`absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl transition-all duration-1000 ${
+                            highlightFundCard ? "scale-125 opacity-100" : "scale-100 opacity-100"
+                        }`} />
+                        {highlightFundCard && (
+                            <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-white/10 via-transparent to-white/5 animate-[pulse_1.6s_ease-in-out_2]" />
+                        )}
                         <span className="relative z-10 text-[10px] font-bold uppercase tracking-widest text-white/70 block mb-1">
                             Disponible en el Fondo
                         </span>
