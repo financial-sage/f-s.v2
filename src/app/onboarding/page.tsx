@@ -148,7 +148,7 @@ export default function OnboardingPage() {
                 <UserRound size={20} />
               </div>
               <div>
-                <div className="text-base font-bold text-slate-800">Empezar solo</div>
+                <div className="text-base font-bold text-slate-800">Cuenta Individual</div>
                 <div className="mt-1 text-sm text-slate-500">
                   Crea tu espacio y obtén un código para invitar después.
                 </div>

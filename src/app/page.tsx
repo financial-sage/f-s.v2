@@ -47,6 +47,11 @@ function normalizeExpenses(rows: RawExpenseRow[]): ExpenseRow[] {
   }));
 }
 
+function getFirstName(value?: string | null, fallback = "Mi pareja") {
+  const firstName = value?.trim().split(/\s+/)[0];
+  return firstName || fallback;
+}
+
 function formatRelativeDate(dateInput: string) {
   const date = new Date(dateInput);
   const now = new Date();
@@ -115,6 +120,23 @@ export default async function Home() {
 
   const familyId = profile.family_id;
 
+  const { data: family } = await supabase
+    .from("families")
+    .select("user_1_id, user_2_id")
+    .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
+    .maybeSingle();
+
+  const resolvedPartnerId =
+    family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
+
+  const { data: partnerProfile } = resolvedPartnerId
+    ? await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", resolvedPartnerId)
+        .maybeSingle()
+    : { data: null };
+
   const familyCountQuery = familyId
     ? await supabase
         .from("profiles")
@@ -125,6 +147,10 @@ export default async function Home() {
   const familyMemberCount = familyCountQuery.count ?? 1;
   const dashboard = await getDashboardData();
   const currentMember = dashboard.members.find((member) => member.id === user.id);
+  const partnerFirstName = getFirstName(
+    partnerProfile?.full_name ?? dashboard.members.find((member) => member.id !== user.id)?.name,
+    "Mi pareja"
+  );
   const currentUserName =
     profile?.full_name?.trim() ||
     currentMember?.name ||
@@ -167,6 +193,7 @@ export default async function Home() {
           currentUserId={user.id}
           familyName={dashboard.familyName}
           currentUserName={currentUserName}
+          partnerFirstName={partnerFirstName}
           members={dashboard.members}
           expenses={coupleExpenses}
           mySpent={mySpent}
@@ -176,6 +203,8 @@ export default async function Home() {
         />
       ) : (
         <DashboardSolo
+          currentUserId={user.id}
+          familyId={familyId}
           userName={currentUserName}
           avatarUrl={avatarUrl}
           budget={dashboard.budget}

@@ -63,6 +63,7 @@ import { createClient } from "@/utils/supabase/client";
 
 interface AddExpenseFormProps {
   familyMemberCount?: number;
+  partnerFirstName?: string;
   onClose?: () => void;
   expenseToEdit?: ExpenseToEdit | null;
 }
@@ -82,18 +83,27 @@ interface CategoryTile {
 
 type ExpenseOrigin = ExpenseActor | "both_split";
 
-const paidByOptions: OptionItem<ExpenseOrigin>[] = [
-  { value: "me", label: "Mi", icon: Wallet },
-  { value: "partner", label: "Mi pareja", icon: Heart },
-  { value: "joint_fund", label: "Fondo Común", icon: Home },
-  { value: "both_split", label: "Ambos", icon: Users },
-];
+function getFirstName(value?: string | null, fallback = "Mi pareja") {
+  const firstName = value?.trim().split(/\s+/)[0];
+  return firstName || fallback;
+}
 
-const responsibleOptions: OptionItem<ExpenseResponsibleFor>[] = [
-  { value: "joint_fund", label: "Fondo Común", icon: Home },
-  { value: "me", label: "Mío", icon: User },
-  { value: "partner", label: "De mi pareja", icon: Heart },
-];
+function buildPaidByOptions(partnerLabel: string): OptionItem<ExpenseOrigin>[] {
+  return [
+    { value: "me", label: "Mi", icon: Wallet },
+    { value: "partner", label: partnerLabel, icon: Heart },
+    { value: "joint_fund", label: "Fondo Común", icon: Home },
+    { value: "both_split", label: "Ambos", icon: Users },
+  ];
+}
+
+function buildResponsibleOptions(partnerLabel: string): OptionItem<ExpenseResponsibleFor>[] {
+  return [
+    { value: "joint_fund", label: "Fondo Común", icon: Home },
+    { value: "me", label: "Mío", icon: User },
+    { value: "partner", label: partnerLabel, icon: Heart },
+  ];
+}
 
 const topCategories: CategoryTile[] = [
   { id: "super", value: "super", label: "Super", icon: ShoppingCart },
@@ -157,10 +167,18 @@ function getCategoryIdFromValue(category?: string | null) {
   return [...topCategories, ...extraCategories].find((option) => option.value === category)?.id ?? "food";
 }
 
-export default function AddExpenseForm({ familyMemberCount, onClose, expenseToEdit = null }: AddExpenseFormProps) {
+export default function AddExpenseForm({
+  familyMemberCount,
+  partnerFirstName,
+  onClose,
+  expenseToEdit = null,
+}: AddExpenseFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [resolvedFamilyMemberCount, setResolvedFamilyMemberCount] = useState<number>(familyMemberCount ?? 1);
+  const [resolvedPartnerFirstName, setResolvedPartnerFirstName] = useState<string>(
+    getFirstName(partnerFirstName)
+  );
   const isSolo = resolvedFamilyMemberCount <= 1;
   const isCoupleMode = !isSolo;
 
@@ -187,9 +205,16 @@ export default function AddExpenseForm({ familyMemberCount, onClose, expenseToEd
   useEffect(() => {
     let isCancelled = false;
 
-    async function resolveFamilyMemberCount() {
+    async function resolveFamilyContext() {
       if (typeof familyMemberCount === "number") {
         setResolvedFamilyMemberCount(familyMemberCount);
+      }
+
+      if (partnerFirstName?.trim()) {
+        setResolvedPartnerFirstName(getFirstName(partnerFirstName));
+      }
+
+      if (typeof familyMemberCount === "number" && partnerFirstName?.trim()) {
         return;
       }
 
@@ -197,8 +222,13 @@ export default function AddExpenseForm({ familyMemberCount, onClose, expenseToEd
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user || isCancelled) {
-        setResolvedFamilyMemberCount(1);
+      if (isCancelled || !user) {
+        if (typeof familyMemberCount !== "number") {
+          setResolvedFamilyMemberCount(1);
+        }
+        if (!partnerFirstName?.trim()) {
+          setResolvedPartnerFirstName("Mi pareja");
+        }
         return;
       }
 
@@ -208,27 +238,66 @@ export default function AddExpenseForm({ familyMemberCount, onClose, expenseToEd
         .eq("id", user.id)
         .maybeSingle();
 
-      if (!profile?.family_id || isCancelled) {
-        setResolvedFamilyMemberCount(1);
+      if (isCancelled || !profile?.family_id) {
+        if (typeof familyMemberCount !== "number") {
+          setResolvedFamilyMemberCount(1);
+        }
+        if (!partnerFirstName?.trim()) {
+          setResolvedPartnerFirstName("Mi pareja");
+        }
         return;
       }
 
-      const { count } = await supabase
+      if (typeof familyMemberCount !== "number") {
+        const { count } = await supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("family_id", profile.family_id);
+
+        if (!isCancelled) {
+          setResolvedFamilyMemberCount(count && count > 1 ? count : 1);
+        }
+      }
+
+      if (partnerFirstName?.trim()) {
+        return;
+      }
+
+      const { data: family } = await supabase
+        .from("families")
+        .select("user_1_id, user_2_id")
+        .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
+        .maybeSingle();
+
+      if (isCancelled) {
+        return;
+      }
+
+      const resolvedPartnerId =
+        family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
+
+      if (!resolvedPartnerId) {
+        setResolvedPartnerFirstName("Mi pareja");
+        return;
+      }
+
+      const { data: partnerProfile } = await supabase
         .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("family_id", profile.family_id);
+        .select("full_name")
+        .eq("id", resolvedPartnerId)
+        .maybeSingle();
 
       if (!isCancelled) {
-        setResolvedFamilyMemberCount(count && count > 1 ? count : 1);
+        setResolvedPartnerFirstName(getFirstName(partnerProfile?.full_name));
       }
     }
 
-    void resolveFamilyMemberCount();
+    void resolveFamilyContext();
 
     return () => {
       isCancelled = true;
     };
-  }, [familyMemberCount, supabase]);
+  }, [familyMemberCount, partnerFirstName, supabase]);
 
   useEffect(() => {
     if (expenseToEdit) {
@@ -265,6 +334,14 @@ export default function AddExpenseForm({ familyMemberCount, onClose, expenseToEd
   }
 
   const displayDate = useMemo(() => formatDisplayDate(date), [date]);
+  const paidByOptions = useMemo(
+    () => buildPaidByOptions(resolvedPartnerFirstName),
+    [resolvedPartnerFirstName]
+  );
+  const responsibleOptions = useMemo(
+    () => buildResponsibleOptions(resolvedPartnerFirstName),
+    [resolvedPartnerFirstName]
+  );
   const allCategories = [...topCategories, ...extraCategories];
   const selectedCategoryItem =
     allCategories.find((option) => option.id === selectedCategory) ?? topCategories[0];
@@ -497,7 +574,7 @@ export default function AddExpenseForm({ familyMemberCount, onClose, expenseToEd
                     </div>
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-bold uppercase text-on-surface-variant">Tu pareja puso</label>
+                    <label className="text-[10px] font-bold uppercase text-on-surface-variant">{resolvedPartnerFirstName} puso</label>
                     <div className="relative mt-1">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
                       <input

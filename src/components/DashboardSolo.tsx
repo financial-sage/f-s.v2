@@ -1,22 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Bolt,
     CarFront,
     Coffee,
     Edit,
+    CheckCircle2,
+    LoaderCircle,
     ReceiptText,
     Settings,
     ShoppingBag,
+    Sparkles,
     Trash2,
     type LucideIcon,
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
+import { createClient } from "@/utils/supabase/client";
 
 interface DashboardSoloProps {
+    currentUserId: string;
+    familyId: string;
     userName: string;
     avatarUrl?: string | null;
     budget: DashboardBudget;
@@ -43,21 +50,114 @@ function formatCurrency(value: number) {
 }
 
 export default function DashboardSolo({
+    currentUserId,
+    familyId,
     userName,
     avatarUrl,
     budget,
     transactions,
 }: DashboardSoloProps) {
+    const router = useRouter();
+    const supabase = useMemo(() => createClient(), []);
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const displayName = userName?.trim() || "Tomás García";
     const displayBalance = budget.available;
     const percent = budget.budget > 0 ? Math.min(100, Math.round((budget.spent / budget.budget) * 100)) : 0;
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
+    const [isPartnerJoining, setIsPartnerJoining] = useState(false);
+    const [transitionStep, setTransitionStep] = useState(0);
+    const hasCelebratedRef = useRef(false);
+    const refreshTimeoutRef = useRef<number | null>(null);
+    const stageTimeoutsRef = useRef<number[]>([]);
     const currentList = transactions.slice(0, 5);
+    const transitionStages = [
+        "Tu pareja se ha unido",
+        "Sincronizando movimientos",
+        "Preparando tablero compartido",
+    ] as const;
+    const progressValue = [28, 68, 100][transitionStep] ?? 28;
+
+    useEffect(() => {
+        async function triggerCelebration() {
+            if (hasCelebratedRef.current) {
+                return;
+            }
+
+            hasCelebratedRef.current = true;
+            setIsPartnerJoining(true);
+            setTransitionStep(0);
+
+            stageTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+            stageTimeoutsRef.current = [
+                window.setTimeout(() => setTransitionStep(1), 850),
+                window.setTimeout(() => setTransitionStep(2), 1850),
+            ];
+
+            try {
+                const confettiModule = await import("canvas-confetti");
+                const confetti = confettiModule.default;
+                const sharedConfig = {
+                    spread: 72,
+                    startVelocity: 28,
+                    ticks: 220,
+                    gravity: 0.9,
+                    scalar: 0.9,
+                    zIndex: 9999,
+                    colors: ["#60855c", "#8BA888", "#d4af37", "#f3e7b3"],
+                };
+
+                confetti({ ...sharedConfig, particleCount: 90, origin: { x: 0.18, y: 0.78 } });
+                confetti({ ...sharedConfig, particleCount: 90, origin: { x: 0.82, y: 0.78 } });
+                window.setTimeout(() => {
+                    confetti({ ...sharedConfig, particleCount: 50, spread: 90, origin: { x: 0.5, y: 0.65 } });
+                }, 180);
+            } catch {
+                // no-op: transition should continue even if confetti is unavailable
+            }
+
+            refreshTimeoutRef.current = window.setTimeout(() => {
+                try {
+                    window.sessionStorage.setItem("fsage:shared-welcome", JSON.stringify({ at: Date.now() }));
+                } catch {
+                    // ignore storage issues and continue the transition
+                }
+                router.refresh();
+            }, 3000);
+        }
+
+        const channel = supabase
+            .channel(`family-updates-${familyId}-${currentUserId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "families",
+                    filter: `id=eq.${familyId}`,
+                },
+                (payload) => {
+                    const nextPartnerId = payload.new && "user_2_id" in payload.new ? payload.new.user_2_id : null;
+                    const previousPartnerId = payload.old && "user_2_id" in payload.old ? payload.old.user_2_id : null;
+
+                    if (!previousPartnerId && nextPartnerId) {
+                        void triggerCelebration();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            if (refreshTimeoutRef.current) {
+                window.clearTimeout(refreshTimeoutRef.current);
+            }
+            stageTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+            void supabase.removeChannel(channel);
+        };
+    }, [currentUserId, familyId, router, supabase]);
 
     return (
-        <>
-            <header className="fixed top-0 z-50 flex w-full items-center justify-between bg-[#F8F9FA]/80 px-6 py-4 backdrop-blur-md">
+        <div className="relative">
+            <header className="fixed top-0 z-50 flex w-full items-center justify-between bg-[#F8F9FA]/80 px-6 py-4 backdrop-blur-md transition-opacity duration-500">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/20 bg-surface-container">
                         {avatarUrl ? (
@@ -85,7 +185,9 @@ export default function DashboardSolo({
                 </Link>
             </header>
 
-            <main className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-4 pt-20 pb-24">
+            <main className={`mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-4 pt-20 pb-24 transition-all duration-1000 ${
+                isPartnerJoining ? "scale-[0.97] opacity-25 blur-[2px] saturate-50" : "scale-100 opacity-100"
+            }`}>
                 <section className="mb-4 px-2">
                     <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">Tu tablero</h1>
                 </section>
@@ -255,6 +357,61 @@ export default function DashboardSolo({
                     </div>
                 </div>
             </main>
-        </>
+
+            {isPartnerJoining && (
+                <div className="fixed inset-0 z-120 overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(96,133,92,0.22),_transparent_55%),linear-gradient(to_bottom,_rgba(248,249,250,0.72),_rgba(15,23,42,0.18))] px-6 backdrop-blur-md animate-in fade-in duration-500">
+                    <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute left-1/2 top-[18%] h-56 w-56 -translate-x-1/2 rounded-full bg-emerald-200/35 blur-3xl animate-pulse" />
+                        <div className="absolute left-[15%] top-[20%] h-24 w-24 rounded-full border border-white/40 bg-white/15 animate-ping" />
+                        <div className="absolute right-[12%] top-[24%] h-16 w-16 rounded-full border border-amber-200/50 bg-amber-100/20 animate-pulse" />
+                    </div>
+
+                    <div className="relative flex h-full items-center justify-center">
+                        <div className="w-full max-w-sm rounded-4xl border border-white/70 bg-white/88 p-6 text-center shadow-[0_20px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 slide-in-from-bottom-4 duration-700">
+                            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-emerald-50 to-amber-50 text-[#60855c] shadow-sm ring-8 ring-emerald-50/70">
+                                {transitionStep < 2 ? <Sparkles size={26} /> : <CheckCircle2 size={26} />}
+                            </div>
+
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-500">
+                                Conexión completada
+                            </p>
+                            <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-800">
+                                {transitionStages[transitionStep]}
+                            </h3>
+                            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                                Estamos transformando tu espacio personal en un entorno compartido, elegante y sincronizado.
+                            </p>
+
+                            <div className="mt-5 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                    className="h-2 rounded-full bg-linear-to-r from-[#60855c] via-[#8BA888] to-[#d4af37] transition-all duration-700"
+                                    style={{ width: `${progressValue}%` }}
+                                />
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] font-semibold text-slate-500">
+                                {transitionStages.map((stage, index) => (
+                                    <div
+                                        key={stage}
+                                        className={`rounded-2xl px-2 py-2 transition-all duration-500 ${
+                                            index <= transitionStep
+                                                ? "bg-emerald-50 text-[#60855c]"
+                                                : "bg-slate-50 text-slate-400"
+                                        }`}
+                                    >
+                                        {stage.replace("Tu pareja se ha unido", "Unión").replace("Sincronizando movimientos", "Sync").replace("Preparando tablero compartido", "Switch")}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
+                                <LoaderCircle size={16} className="animate-spin text-[#60855c]" />
+                                Abriendo experiencia compartida
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

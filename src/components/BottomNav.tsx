@@ -17,7 +17,11 @@ const rightNavItems = [
   { href: "/profile", label: "Perfil", icon: User },
 ] as const;
 
-export default function BottomNav() {
+interface BottomNavProps {
+  partnerFirstName?: string;
+}
+
+export default function BottomNav({ partnerFirstName = "Mi pareja" }: BottomNavProps) {
   const pathname = usePathname();
   const { isExpenseModalOpen, setIsExpenseModalOpen, expenseToEdit, setExpenseToEdit } = useExpenseModal();
   const [isSheetAnimated, setIsSheetAnimated] = useState(false);
@@ -106,7 +110,11 @@ export default function BottomNav() {
               </button>
             </div>
             <div className="hide-scrollbar flex-1 overflow-y-auto px-4 pb-8">
-              <AddExpenseForm expenseToEdit={expenseToEdit} onClose={closeExpenseSheet} />
+              <AddExpenseForm
+                expenseToEdit={expenseToEdit}
+                onClose={closeExpenseSheet}
+                partnerFirstName={partnerFirstName}
+              />
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import BottomNav from "@/components/BottomNav";
 import InstallPrompt from "@/components/InstallPrompt";
 import PWARegister from "@/components/PWARegister";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
+import { createClient } from "@/utils/supabase/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,11 +25,44 @@ export const viewport: Viewport = {
   themeColor: "#4a6549",
 };
 
-export default function RootLayout({
+function getFirstName(value?: string | null, fallback = "Mi pareja") {
+  const firstName = value?.trim().split(/\s+/)[0];
+  return firstName || fallback;
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let partnerFirstName = "Mi pareja";
+
+  if (user) {
+    const { data: family } = await supabase
+      .from("families")
+      .select("user_1_id, user_2_id")
+      .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
+      .maybeSingle();
+
+    const partnerId =
+      family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
+
+    if (partnerId) {
+      const { data: partnerProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", partnerId)
+        .maybeSingle();
+
+      partnerFirstName = getFirstName(partnerProfile?.full_name);
+    }
+  }
+
   return (
     <html
       lang="es"
@@ -41,7 +75,7 @@ export default function RootLayout({
           <main className="h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
             {children}
           </main>
-          <BottomNav />
+          <BottomNav partnerFirstName={partnerFirstName} />
         </ExpenseModalProvider>
       </body>
     </html>

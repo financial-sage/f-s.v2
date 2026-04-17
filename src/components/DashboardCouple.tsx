@@ -22,6 +22,7 @@ import {
     Check,
     Edit,
     Trash2,
+    Sparkles,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
@@ -65,6 +66,7 @@ interface DashboardCoupleProps {
     currentUserId: string;
     familyName: string;
     currentUserName: string;
+    partnerFirstName: string;
     members: DashboardMember[];
     expenses: CoupleDashboardExpense[];
     mySpent: number;
@@ -91,6 +93,11 @@ function getInitials(name: string) {
             .map((part) => part[0]?.toUpperCase() ?? "")
             .join("") || "FS"
     );
+}
+
+function getFirstName(value?: string | null, fallback = "Mi pareja") {
+    const firstName = value?.trim().split(/\s+/)[0];
+    return firstName || fallback;
 }
 
 function formatCurrency(value: number) {
@@ -150,6 +157,7 @@ export default function DashboardCouple({
     currentUserId,
     familyName,
     currentUserName,
+    partnerFirstName,
     members,
     expenses,
     mySpent: _mySpent,
@@ -185,6 +193,8 @@ export default function DashboardCouple({
     const [isPayAnimated, setIsPayAnimated] = useState(false);
     const [isChargeAnimated, setIsChargeAnimated] = useState(false);
     const [isDepositAnimated, setIsDepositAnimated] = useState(false);
+    const [showSharedWelcome, setShowSharedWelcome] = useState(false);
+    const [welcomeProgress, setWelcomeProgress] = useState(0);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -266,6 +276,10 @@ export default function DashboardCouple({
     );
     const partner = members.find((member) => member.id !== currentUserId) ?? null;
     const partnerId = partner?.id ?? null;
+    const partnerDisplayName = getFirstName(partnerFirstName, getFirstName(partner?.name));
+    const partnerShortLabel = partnerDisplayName.length <= 8
+        ? partnerDisplayName.toUpperCase()
+        : getInitials(partnerDisplayName);
     const fundAmount = Math.round(Math.abs(fundBalance) * 100) / 100;
     const deudorId = fundAmount === 0 || !partner ? null : fundBalance < 0 ? currentUserId : partner.id;
     const acreedorId = fundAmount === 0 || !partner ? null : fundBalance > 0 ? currentUserId : partner.id;
@@ -427,6 +441,30 @@ export default function DashboardCouple({
         });
     }
 
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const pendingWelcome = window.sessionStorage.getItem("fsage:shared-welcome");
+
+        if (!pendingWelcome) {
+            return;
+        }
+
+        window.sessionStorage.removeItem("fsage:shared-welcome");
+        setShowSharedWelcome(true);
+        setWelcomeProgress(0);
+        requestAnimationFrame(() => requestAnimationFrame(() => setWelcomeProgress(100)));
+
+        const timeoutId = window.setTimeout(() => {
+            setShowSharedWelcome(false);
+            setWelcomeProgress(0);
+        }, 2600);
+
+        return () => window.clearTimeout(timeoutId);
+    }, []);
+
     // Supabase Realtime para refrescar dashboard automáticamente
     useEffect(() => {
         const channel = supabase
@@ -475,6 +513,28 @@ export default function DashboardCouple({
             </header>
 
             <main className="mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-4">
+                {showSharedWelcome && (
+                    <div className="pointer-events-none mb-3 shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
+                        <div className="overflow-hidden rounded-3xl border border-emerald-100/70 bg-white/90 p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-[#60855c] shadow-sm">
+                                    <Sparkles size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800">Espacio compartido listo</p>
+                                    <p className="text-xs text-slate-500">Todo quedó sincronizado con {partnerDisplayName}.</p>
+                                </div>
+                            </div>
+                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-50">
+                                <div
+                                    className="h-full rounded-full bg-linear-to-r from-[#60855c] to-[#8BA888] transition-[width] ease-linear"
+                                    style={{ width: `${welcomeProgress}%`, transitionDuration: "2400ms" }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <section className="mb-4 shrink-0 px-2">
                     <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">{familyName}</h1>
                     <p className="text-sm font-medium opacity-70 text-on-surface-variant font-label">
@@ -625,7 +685,7 @@ export default function DashboardCouple({
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a tu pareja</h3>
+                                <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a {partnerDisplayName}</h3>
                                 <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a liquidar.</p>
                                 {/* Lista seleccionable */}
                                 <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
@@ -693,7 +753,7 @@ export default function DashboardCouple({
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a tu pareja</h3>
+                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a {partnerDisplayName}</h3>
                                 <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
                                 {/* Lista seleccionable */}
                                 <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
@@ -790,7 +850,7 @@ export default function DashboardCouple({
                                     : "text-on-surface-variant hover:bg-surface-container-high/50"
                                     }`}
                             >
-                                Suyo
+                                {partnerDisplayName}
                             </button>
                         </div>
                     </div>
@@ -845,7 +905,7 @@ export default function DashboardCouple({
                                                         <span className="text-sm font-bold text-slate-800">{expense.concept}</span>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                                                                {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : 'PAREJA'}
+                                                                {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : partnerShortLabel}
                                                             </span>
                                                             {isDebt && (
                                                                 <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${expense.is_settled
@@ -990,7 +1050,7 @@ export default function DashboardCouple({
                             {iOwePartner > 0 && (
                                 <div className="flex items-center justify-between p-4">
                                     <div>
-                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#bb1b1b]">Le debes a tu pareja</span>
+                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#bb1b1b]">Le debes a {partnerDisplayName}</span>
                                         <span className="text-sm font-bold text-slate-800">${iOwePartner.toFixed(2)}</span>
                                     </div>
                                     <button
@@ -1009,7 +1069,7 @@ export default function DashboardCouple({
                             {partnerOwesMe > 0 && (
                                 <div className="flex items-center justify-between p-4">
                                     <div>
-                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#0f2d91]">Tu pareja te debe</span>
+                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#0f2d91]">{partnerDisplayName} te debe</span>
                                         <span className="text-sm font-bold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
                                     </div>
                                     <button
