@@ -59,6 +59,7 @@ import {
 import { editExpenseAction } from "@/app/actions/editExpense";
 import CustomKeypad from "@/components/CustomNumpad";
 import type { ExpenseToEdit } from "@/components/ExpenseModalProvider";
+import { createClient } from "@/utils/supabase/client";
 
 interface AddExpenseFormProps {
   familyMemberCount?: number;
@@ -156,9 +157,12 @@ function getCategoryIdFromValue(category?: string | null) {
   return [...topCategories, ...extraCategories].find((option) => option.value === category)?.id ?? "food";
 }
 
-export default function AddExpenseForm({ familyMemberCount = 2, onClose, expenseToEdit = null }: AddExpenseFormProps) {
+export default function AddExpenseForm({ familyMemberCount, onClose, expenseToEdit = null }: AddExpenseFormProps) {
   const router = useRouter();
-  const isCoupleMode = familyMemberCount > 1;
+  const supabase = useMemo(() => createClient(), []);
+  const [resolvedFamilyMemberCount, setResolvedFamilyMemberCount] = useState<number>(familyMemberCount ?? 1);
+  const isSolo = resolvedFamilyMemberCount <= 1;
+  const isCoupleMode = !isSolo;
 
   const [amount, setAmount] = useState<number>(0);
   const [concept, setConcept] = useState("");
@@ -179,6 +183,52 @@ export default function AddExpenseForm({ familyMemberCount = 2, onClose, expense
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function resolveFamilyMemberCount() {
+      if (typeof familyMemberCount === "number") {
+        setResolvedFamilyMemberCount(familyMemberCount);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user || isCancelled) {
+        setResolvedFamilyMemberCount(1);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("family_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profile?.family_id || isCancelled) {
+        setResolvedFamilyMemberCount(1);
+        return;
+      }
+
+      const { count } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("family_id", profile.family_id);
+
+      if (!isCancelled) {
+        setResolvedFamilyMemberCount(count && count > 1 ? count : 1);
+      }
+    }
+
+    void resolveFamilyMemberCount();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [familyMemberCount, supabase]);
 
   useEffect(() => {
     if (expenseToEdit) {
@@ -404,7 +454,7 @@ export default function AddExpenseForm({ familyMemberCount = 2, onClose, expense
           </div>
         </section>
 
-        {isCoupleMode && (
+        {!isSolo && (
           <>
             <section className="px-1 mb-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">

@@ -21,16 +21,17 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { isExpenseModalOpen, setIsExpenseModalOpen, expenseToEdit, setExpenseToEdit } = useExpenseModal();
   const [isSheetAnimated, setIsSheetAnimated] = useState(false);
-
-  if (["/add-expense", "/login", "/register", "/onboarding"].includes(pathname)) {
-    return null;
-  }
+  const shouldHideNav = ["/add-expense", "/login", "/register", "/onboarding"].includes(pathname);
 
   useEffect(() => {
     if (isExpenseModalOpen) {
       requestAnimationFrame(() => requestAnimationFrame(() => setIsSheetAnimated(true)));
     }
   }, [isExpenseModalOpen]);
+
+  if (shouldHideNav) {
+    return null;
+  }
 
   function openExpenseSheet() {
     setExpenseToEdit(null);

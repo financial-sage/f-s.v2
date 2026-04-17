@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, MailCheck } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 export default function RegisterPage() {
@@ -13,6 +13,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,8 +37,7 @@ export default function RegisterPage() {
         throw error;
       }
 
-      router.push("/onboarding");
-      router.refresh();
+      setIsSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear la cuenta.");
     } finally {
@@ -85,64 +85,84 @@ export default function RegisterPage() {
               </div>
 
               <section className="rounded-3xl bg-surface-low p-8 shadow-sm">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-                      Nombre
-                    </label>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
-                      placeholder="Tu nombre"
-                      type="text"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-                      Correo electrónico
-                    </label>
-                    <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
-                      placeholder="nombre@ejemplo.com"
-                      type="email"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-                      Contraseña
-                    </label>
-                    <input
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
-                      placeholder="••••••••"
-                      type="password"
-                      required
-                    />
-                  </div>
-
-                  {error && (
-                    <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {error}
+                {isSuccess ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center animate-in fade-in zoom-in-95 duration-700 ease-out">
+                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-emerald-100/50 bg-emerald-50 shadow-sm">
+                      <MailCheck className="h-10 w-10 text-[#60855c]" strokeWidth={1.2} />
                     </div>
-                  )}
 
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-5 text-lg font-bold text-on-primary shadow-lg shadow-primary/10 transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {isLoading && <LoaderCircle size={18} className="animate-spin" />}
-                    {isLoading ? "Creando cuenta..." : "Crear cuenta"}
-                  </button>
-                </form>
+                    <h3 className="mb-3 text-2xl font-bold tracking-tight text-slate-800">Revisa tu bandeja</h3>
+                    <p className="mb-8 max-w-[280px] text-sm leading-relaxed text-slate-500">
+                      Hemos enviado un enlace seguro a <span className="font-semibold text-slate-700">{email}</span> para verificar tu identidad.
+                    </p>
+
+                    <button
+                      onClick={() => router.push("/login")}
+                      className="rounded-full px-6 py-2 text-sm font-semibold text-[#60855c] transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+                    >
+                      Ya lo confirmé, iniciar sesión
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+                        Nombre
+                      </label>
+                      <input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                        placeholder="Tu nombre"
+                        type="text"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+                        Correo electrónico
+                      </label>
+                      <input
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                        placeholder="nombre@ejemplo.com"
+                        type="email"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
+                        Contraseña
+                      </label>
+                      <input
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full rounded-2xl border-none bg-surface-lowest px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                        placeholder="••••••••"
+                        type="password"
+                        required
+                      />
+                    </div>
+
+                    {error && (
+                      <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-5 text-lg font-bold text-on-primary shadow-lg shadow-primary/10 transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isLoading && <LoaderCircle size={18} className="animate-spin" />}
+                      {isLoading ? "Creando cuenta..." : "Crear cuenta"}
+                    </button>
+                  </form>
+                )}
               </section>
 
               <div className="mt-8 text-center">

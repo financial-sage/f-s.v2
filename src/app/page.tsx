@@ -107,9 +107,13 @@ export default async function Home() {
     .from("profiles")
     .select("family_id, full_name, avatar_url")
     .eq("id", user.id)
-    .maybeSingle();
+    .single();
 
-  const familyId = profile?.family_id ?? null;
+  if (!profile?.family_id) {
+    redirect("/onboarding");
+  }
+
+  const familyId = profile.family_id;
 
   const familyCountQuery = familyId
     ? await supabase
