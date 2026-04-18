@@ -196,6 +196,7 @@ export default function DashboardCouple({
     const [showSharedWelcome, setShowSharedWelcome] = useState(false);
     const [welcomeProgress, setWelcomeProgress] = useState(0);
     const [highlightFundCard, setHighlightFundCard] = useState(false);
+    const [animateSharedEntrance, setAnimateSharedEntrance] = useState(false);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -365,7 +366,6 @@ export default function DashboardCouple({
         [currentUserId, expenses]
     );
 
-    console.log("Data cruda recibida en cliente:", expenses);
 
     const filteredExpenses = useMemo(() => {
         if (activeFilter === "compartido") {
@@ -456,6 +456,7 @@ export default function DashboardCouple({
         window.sessionStorage.removeItem("fsage:shared-welcome");
         setShowSharedWelcome(true);
         setHighlightFundCard(true);
+        setAnimateSharedEntrance(true);
         setWelcomeProgress(0);
         requestAnimationFrame(() => requestAnimationFrame(() => setWelcomeProgress(100)));
 
@@ -538,7 +539,9 @@ export default function DashboardCouple({
                     </div>
                 )}
 
-                <section className="mb-4 shrink-0 px-2">
+                <section
+                    className={`mb-4 shrink-0 px-2 ${animateSharedEntrance ? "animate-in slide-in-from-left-3 fade-in duration-500" : ""}`}
+                >
                     <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">{familyName}</h1>
                     <p className="text-sm font-medium opacity-70 text-on-surface-variant font-label">
                         Santuario compartido • Hoy
@@ -581,7 +584,10 @@ export default function DashboardCouple({
                     </div>
 
                     {/* Fila de Acciones Rápidas */}
-                    <div className="mb-3 grid grid-cols-2 gap-3 shrink-0">
+                    <div
+                        className={`mb-3 grid grid-cols-2 gap-3 shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
+                        style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
+                    >
                         <button
                             onClick={openBudgetModal}
                             className="group flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm transition-all duration-500 hover:border-slate-200"
@@ -832,7 +838,10 @@ export default function DashboardCouple({
                         </Link>
                     </div> */}
 
-                    <div className="shrink-0 mb-4">
+                    <div
+                        className={`shrink-0 mb-4 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
+                        style={animateSharedEntrance ? { animationDelay: "220ms" } : undefined}
+                    >
                         <div className="flex gap-1 rounded-full bg-slate-100/80 p-1.5">
                             <button
                                 type="button"
@@ -867,7 +876,10 @@ export default function DashboardCouple({
                         </div>
                     </div>
 
-                    <div className="flex-1 bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden">
+                    <div
+                        className={`flex-1 bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
+                        style={animateSharedEntrance ? { animationDelay: "320ms" } : undefined}
+                    >
                         {currentList.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full animate-in fade-in duration-1000">
                                 <div className="relative mb-5 flex items-center justify-center">
@@ -880,7 +892,7 @@ export default function DashboardCouple({
                                 </div>
 
                                 <h4 className="mb-2 text-lg font-bold text-slate-700">Todo está tranquilo</h4>
-                                <p className="max-w-[220px] text-xs leading-relaxed text-slate-400">
+                                <p className="max-w-55 text-xs leading-relaxed text-slate-400">
                                     Aún no hay movimientos aquí. Usa el botón verde para registrar tu primer gasto.
                                 </p>
                             </div>

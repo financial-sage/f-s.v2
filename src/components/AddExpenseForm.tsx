@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Baby,
@@ -143,7 +142,9 @@ const extraCategories: CategoryTile[] = [
 
 function getSelectorClasses(isSelected: boolean, disabled: boolean) {
   if (disabled) {
-    return "bg-white text-slate-400 opacity-50";
+    return isSelected
+      ? "border border-sage/20 bg-sage/20 text-[#3F593E] shadow-sm opacity-100"
+      : "border border-slate-100 bg-white/70 text-slate-400 opacity-60";
   }
 
   return isSelected
@@ -167,6 +168,17 @@ function getCategoryIdFromValue(category?: string | null) {
   return [...topCategories, ...extraCategories].find((option) => option.value === category)?.id ?? "food";
 }
 
+function sanitizeDecimalInput(value: string | number) {
+  const normalized = String(value ?? "")
+    .replace(/,/g, ".")
+    .replace(/[^\d.]/g, "");
+
+  const [integerPart = "", ...decimalParts] = normalized.split(".");
+  const decimalPart = decimalParts.join("").slice(0, 2);
+
+  return decimalPart ? `${integerPart}.${decimalPart}` : integerPart;
+}
+
 export default function AddExpenseForm({
   familyMemberCount,
   partnerFirstName,
@@ -175,14 +187,16 @@ export default function AddExpenseForm({
 }: AddExpenseFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
   const [resolvedFamilyMemberCount, setResolvedFamilyMemberCount] = useState<number>(familyMemberCount ?? 1);
   const [resolvedPartnerFirstName, setResolvedPartnerFirstName] = useState<string>(
     getFirstName(partnerFirstName)
   );
+  const [resolvedPartnerUserId, setResolvedPartnerUserId] = useState<string | null>(null);
   const isSolo = resolvedFamilyMemberCount <= 1;
   const isCoupleMode = !isSolo;
 
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState("0");
   const [concept, setConcept] = useState("");
   const [paidBy, setPaidBy] = useState<ExpenseOrigin>(isCoupleMode ? "me" : "me");
   const [responsibleFor, setResponsibleFor] = useState<ExpenseResponsibleFor>(
@@ -214,15 +228,18 @@ export default function AddExpenseForm({
         setResolvedPartnerFirstName(getFirstName(partnerFirstName));
       }
 
-      if (typeof familyMemberCount === "number" && partnerFirstName?.trim()) {
-        return;
-      }
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
+      if (typeof familyMemberCount === "number" && partnerFirstName?.trim()) {
+        if (!isCancelled) {
+          setResolvedPartnerUserId(null);
+        }
+      }
+
       if (isCancelled || !user) {
+        setResolvedCurrentUserId(null);
         if (typeof familyMemberCount !== "number") {
           setResolvedFamilyMemberCount(1);
         }
@@ -231,6 +248,8 @@ export default function AddExpenseForm({
         }
         return;
       }
+
+      setResolvedCurrentUserId(user.id);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -277,9 +296,12 @@ export default function AddExpenseForm({
         family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
 
       if (!resolvedPartnerId) {
+        setResolvedPartnerUserId(null);
         setResolvedPartnerFirstName("Mi pareja");
         return;
       }
+
+      setResolvedPartnerUserId(resolvedPartnerId);
 
       const { data: partnerProfile } = await supabase
         .from("profiles")
@@ -300,24 +322,48 @@ export default function AddExpenseForm({
   }, [familyMemberCount, partnerFirstName, supabase]);
 
   useEffect(() => {
-    if (expenseToEdit) {
-      setAmount(Number(expenseToEdit.amount ?? 0));
+    if (expenseToEdit && resolvedCurrentUserId) {
+      const hydratedAmount = expenseToEdit.amount?.toString() ?? "0";
+      const hydratedDate = (expenseToEdit as ExpenseToEdit & { expense_date?: string | null })
+        .expense_date;
+
+      setAmount(sanitizeDecimalInput(hydratedAmount));
       setConcept(expenseToEdit.concept ?? "");
       setSelectedCategory(getCategoryIdFromValue(expenseToEdit.category));
+      setPaidBy(expenseToEdit.paid_by === resolvedCurrentUserId ? "me" : "partner");
+
+      if (expenseToEdit.responsible_for === "joint_fund") {
+        setResponsibleFor("joint_fund");
+      } else if (expenseToEdit.responsible_for === resolvedCurrentUserId) {
+        setResponsibleFor("me");
+      } else {
+        setResponsibleFor("partner");
+      }
+
+      if (hydratedDate) {
+        setDate(hydratedDate.slice(0, 10));
+      }
+
+      setMyContribution("");
+      setPartnerContribution("");
       setErrorMessage("");
       return;
     }
 
-    setAmount(0);
+    if (expenseToEdit) {
+      return;
+    }
+
+    setAmount("0");
     setConcept("");
-    setPaidBy(isCoupleMode ? "me" : "me");
+    setPaidBy("me");
     setResponsibleFor(isCoupleMode ? "joint_fund" : "me");
     setMyContribution("");
     setPartnerContribution("");
     setSelectedCategory("food");
     setDate(new Date().toISOString().slice(0, 10));
     setErrorMessage("");
-  }, [expenseToEdit, isCoupleMode]);
+  }, [expenseToEdit, isCoupleMode, resolvedCurrentUserId]);
 
   function openCategorySheet() {
     setIsExpanded(false);
@@ -348,16 +394,21 @@ export default function AddExpenseForm({
   const selectedCategoryValue = selectedCategoryItem.value;
   const SelectedCategoryIcon = selectedCategoryItem.icon;
 
-  function parseDecimal(value: string) {
-    return Number(value.replace(/,/g, ".").trim());
+  function parseDecimal(value: string | number) {
+    const safeValue = sanitizeDecimalInput(value);
+    return safeValue ? Number.parseFloat(safeValue) : Number.NaN;
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrorMessage("");
 
-    if (!amount || amount <= 0) {
-      setErrorMessage("Ingresa un importe válido.");
+    const finalAmount = parseFloat(amount.toString().replace(/,/g, "."));
+
+    if (isNaN(finalAmount) || finalAmount <= 0) {
+      const message = "El importe debe ser mayor a 0";
+      setErrorMessage(message);
+      window.alert(message);
       return;
     }
 
@@ -370,7 +421,34 @@ export default function AddExpenseForm({
       setIsSaving(true);
 
       if (expenseToEdit) {
-        await editExpenseAction(expenseToEdit.id, amount, concept);
+        const resolvedPaidByValue =
+          paidBy === "partner"
+            ? resolvedPartnerUserId ?? expenseToEdit.paid_by ?? ""
+            : paidBy === "me"
+              ? resolvedCurrentUserId ?? expenseToEdit.paid_by ?? ""
+              : expenseToEdit.paid_by ?? resolvedCurrentUserId ?? "";
+
+        const resolvedResponsibleForValue =
+          responsibleFor === "joint_fund"
+            ? "joint_fund"
+            : responsibleFor === "partner"
+              ? resolvedPartnerUserId ?? expenseToEdit.responsible_for ?? ""
+              : resolvedCurrentUserId ?? expenseToEdit.responsible_for ?? "";
+
+        const formData = new FormData();
+        formData.set("id", expenseToEdit.id);
+        formData.set("amount", finalAmount.toString());
+        formData.set("concept", concept.trim());
+        formData.set("category", selectedCategoryValue);
+        formData.set("expense_date", date);
+        formData.set("paid_by", resolvedPaidByValue);
+        formData.set("responsible_for", resolvedResponsibleForValue);
+
+        const result = await editExpenseAction(formData);
+
+        if (result?.error) {
+          throw new Error(result.error);
+        }
       } else {
         if (paidBy === "joint_fund") {
           throw new Error("Gastar directamente desde Fondo Común aún no está soportado en este flujo.");
@@ -384,7 +462,7 @@ export default function AddExpenseForm({
             throw new Error("Ingresa cuánto puso cada persona.");
           }
 
-          if (Math.round((mine + partner) * 100) !== Math.round(amount * 100)) {
+          if (Math.round((mine + partner) * 100) !== Math.round(finalAmount * 100)) {
             throw new Error("La suma de ambos aportes debe coincidir con el monto total.");
           }
 
@@ -443,7 +521,7 @@ export default function AddExpenseForm({
                   : "personal";
 
           await saveExpenseAction({
-            amount,
+            amount: finalAmount,
             concept,
             paidBy: singlePaidBy,
             responsibleFor: isCoupleMode ? responsibleFor : "me",
@@ -455,9 +533,15 @@ export default function AddExpenseForm({
         }
       }
 
+      setShowKeypad(false);
+      setIsSheetAnimated(false);
+      setIsCategorySheetOpen(false);
+
       if (onClose) {
         onClose();
-        router.refresh();
+        window.setTimeout(() => {
+          router.refresh();
+        }, 460);
       } else {
         router.push("/");
         router.refresh();
@@ -510,10 +594,10 @@ export default function AddExpenseForm({
                 onClick={() => setShowKeypad(true)}
                 className="w-full border-none bg-transparent text-center text-5xl font-extrabold text-slate-800 outline-none"
               >
-                {amount === 0 ? (
+                {Number.isNaN(parseDecimal(amount)) || parseDecimal(amount) <= 0 ? (
                   <span className="text-slate-300">0.00</span>
                 ) : (
-                  amount.toFixed(2)
+                  parseDecimal(amount).toFixed(2)
                 )}
               </button>
             </div>
@@ -567,7 +651,7 @@ export default function AddExpenseForm({
                       <input
                         type="number"
                         value={myContribution}
-                        onChange={(e) => setMyContribution(e.target.value)}
+                        onChange={(e) => setMyContribution(e.target.value.replace(/,/g, "."))}
                         className="w-full rounded-xl text-slate-800 bg-slate-200 py-2 pl-7 pr-3 outline-none border border-slate-400"
                         placeholder="0.00"
                       />
@@ -580,7 +664,7 @@ export default function AddExpenseForm({
                       <input
                         type="number"
                         value={partnerContribution}
-                        onChange={(e) => setPartnerContribution(e.target.value)}
+                        onChange={(e) => setPartnerContribution(e.target.value.replace(/,/g, "."))}
                         className="w-full rounded-xl text-slate-800 bg-slate-200 py-2 pl-7 pr-3 outline-none border border-slate-400"
                         placeholder="0.00"
                       />
@@ -680,7 +764,7 @@ export default function AddExpenseForm({
         </button>
       </footer>
 
-      {isCategorySheetOpen && mounted && createPortal(
+      {isCategorySheetOpen && mounted && (
         <div className="fixed inset-0 z-90 flex flex-col justify-end">
           <div
             className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isSheetAnimated ? "opacity-100" : "opacity-0"}`}
@@ -785,8 +869,7 @@ export default function AddExpenseForm({
               </div>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
 
       {/* Teclado Personalizado Overlay */}
@@ -801,9 +884,9 @@ export default function AddExpenseForm({
             <CustomKeypad
               isOpen={showKeypad}
               embedded
-              initialValue={amount ? String(amount) : "0"}
+              initialValue={amount || "0"}
               onClose={() => setShowKeypad(false)}
-              onValueChange={(value) => setAmount(Number(value) || 0)}
+              onValueChange={(value) => setAmount(sanitizeDecimalInput(value))}
               onConfirm={() => setShowKeypad(false)}
             />
           </div>

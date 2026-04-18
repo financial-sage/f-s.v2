@@ -15,6 +15,8 @@ export interface ExpenseToEdit {
   amount: number;
   concept: string;
   category?: string | null;
+  paid_by?: string | null;
+  responsible_for?: string | null;
 }
 
 interface ExpenseModalContextValue {
