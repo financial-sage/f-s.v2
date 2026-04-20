@@ -23,6 +23,8 @@ interface ExpenseRow {
   payer_share_pct: number;
   expense_date: string;
   created_at: string;
+  responsible_for?: string | null;
+  category?: string | null;
 }
 
 export interface DashboardMember {
@@ -122,6 +124,36 @@ function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+export function filterExpensesForPrivacy<
+  T extends { paid_by: string; responsible_for?: string | null }
+>(expenses: T[], currentUserId: string) {
+  const sharedAliases = new Set(["joint_fund", "fondo_comun", "shared", "compartido"]);
+  const partnerAliases = new Set(["partner", "pareja"]);
+
+  return expenses.filter((expense) => {
+    const responsibleForRaw = String(expense.responsible_for ?? "").trim();
+    const responsibleFor = responsibleForRaw.toLowerCase();
+
+    if (sharedAliases.has(responsibleFor)) {
+      return true;
+    }
+
+    if (expense.paid_by === currentUserId) {
+      return true;
+    }
+
+    if (expense.responsible_for === currentUserId) {
+      return true;
+    }
+
+    if (partnerAliases.has(responsibleFor) && expense.paid_by !== currentUserId) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
 function calculateDebtSummary(
   expenses: ExpenseRow[],
   currentUserId: string,
@@ -216,11 +248,7 @@ function mapTransactions(
     return {
       id: expense.id,
       concept: expense.concept,
-      tag: isShared
-        ? "Nuestro"
-        : expense.paid_by === currentUserId
-          ? "Mío"
-          : "Pareja",
+      tag: isShared ? "Compartido" : "Personal",
       dateLabel: formatRelativeDate(expense.expense_date),
       amount: Number(expense.amount),
       status: isShared ? "Compartido" : "Personal",
@@ -288,7 +316,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         .in("id", memberIds),
       supabase
         .from("expenses")
-        .select("id, amount, concept, paid_by, split_type, payer_share_pct, expense_date, created_at")
+        .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at")
         .eq("family_id", family.id)
         .eq("is_active", true)
         .order("expense_date", { ascending: false })
@@ -311,13 +339,14 @@ export async function getDashboardData(): Promise<DashboardData> {
 
     const partnerUserId = members.find((member) => member.id !== user.id)?.id ?? user.id;
     const safeExpenses = (expensesResult.data ?? []) as ExpenseRow[];
+    const visibleExpenses = filterExpensesForPrivacy(safeExpenses, user.id);
 
     return {
       familyName: family.name?.trim() || "Nuestra familia",
       members,
-      debt: calculateDebtSummary(safeExpenses, user.id, partnerUserId, membersById),
-      budget: calculateBudget(safeExpenses),
-      transactions: mapTransactions(safeExpenses, user.id),
+      debt: calculateDebtSummary(visibleExpenses, user.id, partnerUserId, membersById),
+      budget: calculateBudget(visibleExpenses),
+      transactions: mapTransactions(visibleExpenses, user.id),
     };
   } catch {
     return getFallbackData();

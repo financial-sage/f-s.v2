@@ -26,11 +26,12 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
-import { createDeposit } from "@/app/actions/expenses";
+import { createDeposit, createPersonalDeposit } from "@/app/actions/expenses";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
 import { settleP2PAction } from "@/app/actions/settleP2P";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
+import ProfileDrawer from "@/components/ProfileDrawer";
 import CustomNumpad from "@/components/CustomNumpad";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
@@ -59,7 +60,7 @@ interface CoupleDashboardExpense {
     family_id?: string;
 }
 
-type ActivityFilter = "compartido" | "mio" | "suyo";
+type ActivityFilter = "all" | "mine" | "shared";
 
 interface DashboardCoupleProps {
     familyId: string;
@@ -73,6 +74,7 @@ interface DashboardCoupleProps {
     partnerSpent: number;
     fundBalance: number;
     personalBalance: number;
+    financialModel?: string;
 }
 
 const iconMap: Record<CoupleExpenseIconKey, LucideIcon> = {
@@ -164,18 +166,14 @@ export default function DashboardCouple({
     partnerSpent: _partnerSpent,
     fundBalance,
     personalBalance,
+    financialModel = "joint_fund",
 }: DashboardCoupleProps) {
-    const mySpent = 150;
-    const myBudget = 400;
-    const fundSpent = 650;
-    const fundBudget = 1000;
-
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
-    const [activeFilter, setActiveFilter] = useState<ActivityFilter>("compartido");
+    const [currentFilter, setCurrentFilter] = useState<ActivityFilter>("all");
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
-    const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+    const [depositTarget, setDepositTarget] = useState<"shared" | "personal" | null>(null);
     const [showBalances, setShowBalances] = useState(false);
     const [showBudget, setShowBudget] = useState(false);
     const [depositAmount, setDepositAmount] = useState("");
@@ -197,6 +195,7 @@ export default function DashboardCouple({
     const [welcomeProgress, setWelcomeProgress] = useState(0);
     const [highlightFundCard, setHighlightFundCard] = useState(false);
     const [animateSharedEntrance, setAnimateSharedEntrance] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -227,8 +226,22 @@ export default function DashboardCouple({
     const closePayModal = () => animateOut(setShowPayModal, setIsPayAnimated, () => setSelectedSettleIds([]));
     const openChargeModal = () => animateIn(setShowChargeModal, setIsChargeAnimated);
     const closeChargeModal = () => animateOut(setShowChargeModal, setIsChargeAnimated, () => setSelectedSettleIds([]));
-    const openDepositModal = () => animateIn(setIsDepositModalOpen, setIsDepositAnimated);
-    const closeDepositModal = () => animateOut(setIsDepositModalOpen, setIsDepositAnimated, () => setDepositError(""));
+    const openDepositModal = () => {
+        setDepositTarget("shared");
+        requestAnimationFrame(() => requestAnimationFrame(() => setIsDepositAnimated(true)));
+    };
+    const openPersonalDepositModal = () => {
+        setDepositTarget("personal");
+        requestAnimationFrame(() => requestAnimationFrame(() => setIsDepositAnimated(true)));
+    };
+    const closeDepositModal = () => {
+        setIsDepositAnimated(false);
+        window.setTimeout(() => {
+            setDepositTarget(null);
+            setDepositAmount("");
+            setDepositError("");
+        }, 450);
+    };
 
     // Toggle de selección
     const toggleSettleSelection = (id: string) => {
@@ -287,32 +300,106 @@ export default function DashboardCouple({
     const acreedorId = fundAmount === 0 || !partner ? null : fundBalance > 0 ? currentUserId : partner.id;
 
 
-    const fundDeposits = useMemo(() =>
-        expenses.filter(e => e.category === "deposit").reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    const myTotalIncome = useMemo(
+        () =>
+            expenses
+                .filter(
+                    (expense) =>
+                        expense.category === "deposit" &&
+                        (expense.responsible_for === currentUserId || expense.responsible_for === "mio")
+                )
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+        [currentUserId, expenses]
+    );
+    // Todo el dinero que salió físicamente del bolsillo del usuario (excluye movimientos internos de sistema)
+    const moneyOutFromMe = useMemo(
+        () =>
+            expenses
+                .filter(
+                    (expense) =>
+                        (expense.paid_by || expense.paidBy) === currentUserId &&
+                        expense.category !== "deposit" &&
+                        expense.category !== "withdrawal"
+                )
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+        [currentUserId, expenses]
+    );
+    // mySpent: solo gastos donde el usuario es responsable, para la barra de progreso
+    const mySpent = useMemo(
+        () =>
+            expenses
+                .filter(
+                    (expense) =>
+                        (expense.responsible_for === currentUserId || expense.responsible_for === "mio") &&
+                        expense.category !== "deposit" &&
+                        expense.category !== "withdrawal"
+                )
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+        [currentUserId, expenses]
+    );
+    const myAvailableFund = myTotalIncome - moneyOutFromMe;
+    const myBudget = Math.max(mySpent, 400);
+
+    const fundIncome = useMemo(
+        () =>
+            expenses
+                .filter(
+                    (expense) => expense.category === "deposit" && expense.responsible_for === "joint_fund"
+                )
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
         [expenses]
     );
-    const fundWithdrawals = useMemo(() =>
-        expenses.filter(e => e.category === "withdrawal").reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    const fundWithdrawals = useMemo(
+        () =>
+            expenses
+                .filter(
+                    (expense) => expense.category === "withdrawal" && expense.responsible_for === "joint_fund"
+                )
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
         [expenses]
     );
-    const fundLiquidity = fundDeposits - fundWithdrawals;
+    const fundDirectExpenses = useMemo(
+        () =>
+            expenses
+                .filter(
+                    (expense) =>
+                        expense.responsible_for === "joint_fund" &&
+                        expense.category !== "deposit" &&
+                        expense.category !== "withdrawal"
+                )
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+        [expenses]
+    );
+    // El fondo solo resta gastos reales; los withdrawals (liquidaciones) no duplican la pérdida
+    const fundLiquidity = fundIncome - fundDirectExpenses;
+    const fundSpent = Math.max(fundLiquidity, 0);
+    const fundBudget = Math.max(fundSpent, 1000);
+    const isJointModel = financialModel === "joint_fund";
+    const hasP2PBalance = iOwePartner > 0 || partnerOwesMe > 0;
+    const secondaryWidgetTitle = isJointModel ? "Fondo Común" : "Balance P2P";
+    const secondaryWidgetValue = isJointModel ? fundLiquidity : personalBalance;
+    const secondaryWidgetHint = isJointModel
+        ? ""
+        : hasP2PBalance
+            ? personalBalance >= 0
+                ? "A tu favor"
+                : "Por pagar"
+            : "Sin deuda";
 
 
-    // Solo sumar si NO está liquidado
-    const fundOwesMe = useMemo(() => {
-        return expenses.reduce((sum, expense) => {
-            const paidBy = expense.paid_by || expense.paidBy;
-            if (
-                paidBy !== currentUserId ||
-                expense.responsible_for !== "joint_fund" ||
-                expense.category === "deposit" ||
-                expense.is_settled
-            ) {
-                return sum;
-            }
-            return sum + Number(expense.amount || 0);
-        }, 0);
-    }, [currentUserId, expenses]);
+    // Préstamos personales al fondo aún no recuperados (calculado directamente)
+    const fundOwesMe = useMemo(
+        () =>
+            expenses
+                .filter(
+                    (expense) =>
+                        (expense.paid_by || expense.paidBy) === currentUserId &&
+                        expense.responsible_for === "joint_fund" &&
+                        expense.is_settled === false
+                )
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+        [currentUserId, expenses]
+    );
 
     // Extraer la lista exacta de esos gastos para mostrarlos en el modal
     const fundDebtExpenses = useMemo(() =>
@@ -330,58 +417,45 @@ export default function DashboardCouple({
     const hasBalances = fundOwesMe > 0 || iOwePartner > 0 || partnerOwesMe > 0;
 
     // Filtrar gastos de sistema (withdrawal y transfer) de la UI
-    const sharedExpenses = useMemo(
+    const activityExpenses = useMemo(
         () =>
             expenses.filter(
-                (expense) =>
-                    (expense.responsible_for === "joint_fund" || expense.category === "deposit") &&
-                    expense.category !== "withdrawal" &&
-                    expense.category !== "transfer"
+                (expense) => expense.category !== "withdrawal" && expense.category !== "transfer"
             ),
         [expenses]
     );
 
+    const sharedExpenses = useMemo(
+        () =>
+            activityExpenses.filter(
+                (expense) =>
+                    expense.responsible_for === "joint_fund" ||
+                    (expense.category === "deposit" && expense.responsible_for === "joint_fund")
+            ),
+        [activityExpenses]
+    );
+
     const myExpenses = useMemo(
         () =>
-            expenses.filter(
+            activityExpenses.filter(
                 (expense) =>
-                    expense.responsible_for === currentUserId &&
-                    expense.category !== "deposit" &&
-                    expense.category !== "withdrawal" &&
-                    expense.category !== "transfer"
+                    expense.responsible_for === currentUserId ||
+                    ((expense.paid_by || expense.paidBy) === currentUserId && expense.category !== "deposit")
             ),
-        [currentUserId, expenses]
+        [activityExpenses, currentUserId]
     );
-
-    const partnerExpenses = useMemo(
-        () =>
-            expenses.filter(
-                (expense) =>
-                    expense.responsible_for !== currentUserId &&
-                    expense.responsible_for !== "joint_fund" &&
-                    expense.category !== "deposit" &&
-                    expense.category !== "withdrawal" &&
-                    expense.category !== "transfer"
-            ),
-        [currentUserId, expenses]
-    );
-
 
     const filteredExpenses = useMemo(() => {
-        if (activeFilter === "compartido") {
+        if (currentFilter === "shared") {
             return sharedExpenses;
         }
 
-        if (activeFilter === "mio") {
+        if (currentFilter === "mine") {
             return myExpenses;
         }
 
-        if (activeFilter === "suyo") {
-            return partnerExpenses;
-        }
-
-        return sharedExpenses;
-    }, [activeFilter, myExpenses, partnerExpenses, sharedExpenses]);
+        return activityExpenses;
+    }, [activityExpenses, currentFilter, myExpenses, sharedExpenses]);
 
     const currentList = filteredExpenses.slice(0, 5);
 
@@ -396,7 +470,12 @@ export default function DashboardCouple({
         setDepositError("");
 
         startDepositTransition(async () => {
-            await createDeposit({ amount: normalizedAmount });
+            if (depositTarget === "personal") {
+                await createPersonalDeposit({ amount: normalizedAmount });
+            } else {
+                await createDeposit({ amount: normalizedAmount });
+            }
+
             setDepositAmount("");
             closeDepositModal();
             router.refresh();
@@ -493,10 +572,61 @@ export default function DashboardCouple({
         };
     }, [familyId, router, supabase]);
 
+    useEffect(() => {
+        const channel = supabase
+            .channel(`family-settings-updates-${familyId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "families",
+                    filter: `id=eq.${familyId}`,
+                },
+                (payload) => {
+                    const previousModel =
+                        payload.old && typeof payload.old === "object" && "financial_model" in payload.old
+                            ? payload.old.financial_model
+                            : null;
+                    const nextModel =
+                        payload.new && typeof payload.new === "object" && "financial_model" in payload.new
+                            ? payload.new.financial_model
+                            : null;
+                    const previousSplitPct =
+                        payload.old && typeof payload.old === "object" && "user_1_split_pct" in payload.old
+                            ? payload.old.user_1_split_pct
+                            : null;
+                    const nextSplitPct =
+                        payload.new && typeof payload.new === "object" && "user_1_split_pct" in payload.new
+                            ? payload.new.user_1_split_pct
+                            : null;
+
+                    if (previousModel === nextModel && previousSplitPct === nextSplitPct) {
+                        return;
+                    }
+
+                    if (typeof window !== "undefined") {
+                        window.alert("Configuración financiera actualizada por tu pareja.");
+                    }
+
+                    router.refresh();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [familyId, router, supabase]);
+
     return (
         <div className="flex flex-col h-dvh bg-slate-50 overflow-hidden">
             <header className="shrink-0 z-50 flex w-full items-center justify-between bg-[#F8F9FA]/80 px-6 py-4 backdrop-blur-md">
-                <div className="flex items-center gap-3">
+                <button
+                    type="button"
+                    onClick={() => setIsProfileOpen(true)}
+                    className="flex items-center gap-3 cursor-pointer"
+                >
                     <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/20">
                         {members[0]?.avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -508,11 +638,15 @@ export default function DashboardCouple({
                         )}
                     </div>
                     <span className="text-lg font-bold text-[#2B3437] font-headline">Financial Sage</span>
-                </div>
+                </button>
                 <div className="flex items-center gap-4">
-                    <Link href="/profile" className="text-[#2B3437]/60 transition-opacity hover:opacity-80">
+                    <button
+                        type="button"
+                        onClick={() => setIsProfileOpen(true)}
+                        className="text-[#2B3437]/60 transition-opacity hover:opacity-80"
+                    >
                         <Settings size={22} />
-                    </Link>
+                    </button>
                 </div>
             </header>
 
@@ -531,7 +665,7 @@ export default function DashboardCouple({
                             </div>
                             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-50">
                                 <div
-                                    className="h-full rounded-full bg-linear-to-r from-[#60855c] to-[#8BA888] transition-[width] ease-linear"
+                                    className="h-full rounded-full bg-linear-to-r from-[#60855c] to-sage transition-[width] ease-linear"
                                     style={{ width: `${welcomeProgress}%`, transitionDuration: "2400ms" }}
                                 />
                             </div>
@@ -549,75 +683,94 @@ export default function DashboardCouple({
                 </section>
 
                 <section className="mb-2">
-                    {/* La Cuenta Bancaria del Fondo */}
-                    <div className={`bg-[#60855c] rounded-3xl p-6 text-white mb-3 shadow-md relative overflow-hidden shrink-0 transition-all duration-1000 ${
-                        highlightFundCard
-                            ? "scale-[1.02] shadow-[0_20px_50px_rgba(96,133,92,0.35)] ring-2 ring-emerald-200/70"
-                            : "scale-100 ring-0"
-                    }`}>
-                        <div className="absolute inset-0 opacity-10 pointer-events-none">
-                            <img
-                                className="w-full h-full object-cover"
-                                data-alt="smooth abstract flowing waves with subtle grain texture and soft organic shapes in light green tones"
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3"
-                            />
-                        </div>
-                        <div className={`absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl transition-all duration-1000 ${
-                            highlightFundCard ? "scale-125 opacity-100" : "scale-100 opacity-100"
-                        }`} />
-                        {highlightFundCard && (
-                            <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-white/10 via-transparent to-white/5 animate-[pulse_1.6s_ease-in-out_2]" />
-                        )}
-                        <span className="relative z-10 text-[10px] font-bold uppercase tracking-widest text-white/70 block mb-1">
-                            Disponible en el Fondo
-                        </span>
-                        <h2 className="relative z-10 text-4xl font-bold mb-6">${fundLiquidity.toFixed(2)}</h2>
-                        <div className="flex gap-3 relative z-10">
-                            <button
-                                type="button"
-                                onClick={openDepositModal}
-                                className="bg-white/70 text-[#60855c] px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 shadow-sm"
-                            >
-                                <Plus size={16} /> Aportar
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Fila de Acciones Rápidas */}
                     <div
-                        className={`mb-3 grid grid-cols-2 gap-3 shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
+                        className={`grid grid-cols-2 gap-4 mb-6 shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
                     >
-                        <button
-                            onClick={openBudgetModal}
-                            className="group flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm transition-all duration-500 hover:border-slate-200"
-                        >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                                <BarChart3 size={16} />
-                            </div>
-                            <div className="min-w-0 flex-1 text-left leading-tight">
-                                <span className="block truncate text-[13px] font-bold text-slate-800">Presupuesto</span>
-                                <span className="block text-[9px] font-medium uppercase tracking-wide text-slate-400">Ver estado</span>
-                            </div>
-                            <ChevronDown size={14} className="shrink-0 -rotate-90 text-slate-300 transition-transform duration-500" />
-                        </button>
+                        {/* TARJETA 1: MI FONDO (ÍNDIGO) */}
+                        <div className="relative overflow-hidden flex flex-col justify-between min-h-[164px] rounded-3xl bg-indigo-50 border border-indigo-100 shadow-sm p-4">
+                            {/* Capa de Textura Sutil */}
+                            <div className="absolute inset-0 z-0 opacity-20 mix-blend-multiply pointer-events-none bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3')] bg-cover bg-center" />
 
-                        <button
-                            onClick={openBalancesModal}
-                            className="group relative flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm transition-all duration-500 hover:border-slate-200"
-                        >
-                            {hasBalances && (
-                                <div className="absolute top-2.5 right-2.5 h-2 w-2 animate-pulse rounded-full border border-white bg-rose-500" />
-                            )}
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
-                                <Scale size={16} />
+                            {/* Contenido Superior (z-10 para estar sobre la textura) */}
+                            <div className="relative z-10 flex flex-col">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-indigo-700 mb-2 backdrop-blur-sm shadow-sm">
+                                    <User size={16} />
+                                </div>
+                                <span className="text-[10px] font-bold text-indigo-800/60 uppercase tracking-widest">Mi Fondo</span>
+                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-indigo-950">
+                                    {formatCurrency(myAvailableFund)}
+                                </p>
+                                <p className="mt-0.5 text-[10px] font-medium text-indigo-700/80">
+                                    {/* Gastado: {formatCurrency(mySpent)} */}
+                                </p>
                             </div>
-                            <div className="min-w-0 flex-1 text-left leading-tight">
-                                <span className="block truncate text-[13px] font-bold text-slate-800">Liquidar</span>
-                                <span className="block text-[9px] font-medium uppercase tracking-wide text-slate-400">Cobrar/Pagar</span>
+
+                            {/* Contenido Inferior (Botones) */}
+                            <div className="relative z-10 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={openPersonalDepositModal}
+                                    className="w-full rounded-xl bg-white/80 py-2.5 text-xs font-bold text-indigo-700 transition-all hover:bg-white shadow-sm backdrop-blur-sm"
+                                >
+                                    Aportar
+                                </button>
                             </div>
-                            <ChevronDown size={14} className="shrink-0 -rotate-90 text-slate-300 transition-transform duration-500" />
-                        </button>
+                        </div>
+
+                        {/* TARJETA 2: FONDO COMÚN (VERDE SALVIA) */}
+                        <div className="relative overflow-hidden flex flex-col justify-between min-h-[164px] rounded-3xl bg-[#60855c]/10 border border-[#60855c]/20 shadow-sm p-4">
+                            {/* Capa de Textura Sutil */}
+                            <div className="absolute inset-0 z-0 opacity-20 mix-blend-multiply pointer-events-none bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3')] bg-cover bg-center" />
+
+                            {/* Contenido Superior */}
+                            <div className="relative z-10 flex flex-col">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-[#60855c] mb-2 backdrop-blur-sm shadow-sm">
+                                    {isJointModel ? <Home size={16} /> : <Scale size={16} />}
+                                </div>
+                                <span className="text-[10px] font-bold text-[#60855c]/70 uppercase tracking-widest">{secondaryWidgetTitle}</span>
+                                <p className={`mt-0.5 text-2xl font-semibold tracking-tight ${secondaryWidgetValue < 0 ? 'text-red-600' : 'text-[#2B3437]'}`}>
+                                    {secondaryWidgetValue < 0 ? '-' : ''}{formatCurrency(Math.abs(secondaryWidgetValue))}
+                                </p>
+                                {/* Espaciador invisible para igualar la altura con "Gastado: $X" de la tarjeta 1 */}
+                                <p className="mt-0.5 text-[10px] font-medium opacity-0 select-none">
+                                    Espaciador
+                                </p>
+                            </div>
+
+                            {/* Contenido Inferior (Botones) */}
+                            <div className="relative z-10 mt-4 flex gap-2">
+                                {isJointModel ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={openDepositModal}
+                                            className="w-full rounded-xl bg-white/80 py-2.5 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm"
+                                        >
+                                            Aportar
+                                        </button>
+                                        {fundOwesMe > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={openBalancesModal}
+                                                className="w-full rounded-xl bg-red-50 py-2.5 text-xs font-bold text-red-600 transition-all hover:bg-white shadow-sm border border-red-100"
+                                            >
+                                                Cobrar
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={openBalancesModal}
+                                        disabled={!hasP2PBalance}
+                                        className="w-full rounded-xl bg-white/80 py-2.5 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        Liquidar
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
@@ -635,55 +788,55 @@ export default function DashboardCouple({
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
-                                <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
-                                {/* Lista seleccionable */}
-                                <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
-                                    {fundDebtExpenses.map(expense => {
-                                        const isSelected = selectedSettleIds.includes(expense.id);
+                                    <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
+                                    {/* Lista seleccionable */}
+                                    <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                                        {fundDebtExpenses.map(expense => {
+                                            const isSelected = selectedSettleIds.includes(expense.id);
+                                            return (
+                                                <button
+                                                    key={expense.id}
+                                                    onClick={() => toggleSettleSelection(expense.id)}
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#60855c] bg-[#60855c]/5' : 'border-slate-100 bg-white'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {/* Custom Checkbox */}
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#60855c] bg-[#60855c]' : 'border-slate-300'
+                                                            }`}>
+                                                            {isSelected && <Check size={12} className="text-white" />}
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                            <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`font-bold ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                                        ${Number(expense.amount).toFixed(2)}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {/* Cálculo Dinámico y Botón */}
+                                    {(() => {
+                                        const selectedTotal = fundDebtExpenses
+                                            .filter(e => selectedSettleIds.includes(e.id))
+                                            .reduce((sum, e) => sum + Number(e.amount), 0);
                                         return (
                                             <button
-                                                key={expense.id}
-                                                onClick={() => toggleSettleSelection(expense.id)}
-                                                className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#60855c] bg-[#60855c]/5' : 'border-slate-100 bg-white'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {/* Custom Checkbox */}
-                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#60855c] bg-[#60855c]' : 'border-slate-300'
-                                                        }`}>
-                                                        {isSelected && <Check size={12} className="text-white" />}
-                                                    </div>
-                                                    <div className="text-left">
-                                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
-                                                    </div>
-                                                </div>
-                                                <span className={`font-bold ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
-                                                    ${Number(expense.amount).toFixed(2)}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {/* Cálculo Dinámico y Botón */}
-                                {(() => {
-                                    const selectedTotal = fundDebtExpenses
-                                        .filter(e => selectedSettleIds.includes(e.id))
-                                        .reduce((sum, e) => sum + Number(e.amount), 0);
-                                    return (
-                                        <button
-                                            disabled={selectedSettleIds.length === 0 || isLiquidating}
-                                            onClick={() => handleSettleFundDebt(selectedSettleIds, selectedTotal)}
-                                            className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
+                                                disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                                onClick={() => handleSettleFundDebt(selectedSettleIds, selectedTotal)}
+                                                className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
                                                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                                     : 'bg-[#60855c] text-white'
-                                                }`}
-                                        >
-                                            Recuperar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
-                                        </button>
-                                    );
-                                })()}
+                                                    }`}
+                                            >
+                                                Recuperar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -703,55 +856,55 @@ export default function DashboardCouple({
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a {partnerDisplayName}</h3>
-                                <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a liquidar.</p>
-                                {/* Lista seleccionable */}
-                                <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
-                                    {expensesIOwePartner.map(expense => {
-                                        const isSelected = selectedSettleIds.includes(expense.id);
+                                    <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a {partnerDisplayName}</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a liquidar.</p>
+                                    {/* Lista seleccionable */}
+                                    <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                                        {expensesIOwePartner.map(expense => {
+                                            const isSelected = selectedSettleIds.includes(expense.id);
+                                            return (
+                                                <button
+                                                    key={expense.id}
+                                                    onClick={() => toggleSettleSelection(expense.id)}
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-slate-100 bg-white'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {/* Custom Checkbox */}
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]' : 'border-slate-300'
+                                                            }`}>
+                                                            {isSelected && <Check size={12} className="text-white" />}
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                            <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-slate-800'}`}>
+                                                        ${Number(expense.amount).toFixed(2)}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {/* Cálculo Dinámico y Botón */}
+                                    {(() => {
+                                        const selectedTotal = expensesIOwePartner
+                                            .filter(e => selectedSettleIds.includes(e.id))
+                                            .reduce((sum, e) => sum + Number(e.amount), 0);
                                         return (
                                             <button
-                                                key={expense.id}
-                                                onClick={() => toggleSettleSelection(expense.id)}
-                                                className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-slate-100 bg-white'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {/* Custom Checkbox */}
-                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]' : 'border-slate-300'
-                                                        }`}>
-                                                        {isSelected && <Check size={12} className="text-white" />}
-                                                    </div>
-                                                    <div className="text-left">
-                                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
-                                                    </div>
-                                                </div>
-                                                <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-slate-800'}`}>
-                                                    ${Number(expense.amount).toFixed(2)}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {/* Cálculo Dinámico y Botón */}
-                                {(() => {
-                                    const selectedTotal = expensesIOwePartner
-                                        .filter(e => selectedSettleIds.includes(e.id))
-                                        .reduce((sum, e) => sum + Number(e.amount), 0);
-                                    return (
-                                        <button
-                                            disabled={selectedSettleIds.length === 0 || isLiquidating}
-                                            onClick={() => handleSettleP2P(currentUserId, partnerId, selectedTotal, selectedSettleIds)}
-                                            className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
+                                                disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                                onClick={() => handleSettleP2P(currentUserId, partnerId, selectedTotal, selectedSettleIds)}
+                                                className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
                                                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                                     : 'bg-[#bb1b1b] text-white'
-                                                }`}
-                                        >
-                                            Pagar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
-                                        </button>
-                                    );
-                                })()}
+                                                    }`}
+                                            >
+                                                Pagar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -771,55 +924,55 @@ export default function DashboardCouple({
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a {partnerDisplayName}</h3>
-                                <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
-                                {/* Lista seleccionable */}
-                                <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
-                                    {expensesPartnerOwesMe.map(expense => {
-                                        const isSelected = selectedSettleIds.includes(expense.id);
+                                    <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a {partnerDisplayName}</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
+                                    {/* Lista seleccionable */}
+                                    <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+                                        {expensesPartnerOwesMe.map(expense => {
+                                            const isSelected = selectedSettleIds.includes(expense.id);
+                                            return (
+                                                <button
+                                                    key={expense.id}
+                                                    onClick={() => toggleSettleSelection(expense.id)}
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-slate-100 bg-white'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {/* Custom Checkbox */}
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]' : 'border-slate-300'
+                                                            }`}>
+                                                            {isSelected && <Check size={12} className="text-white" />}
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                            <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-slate-800'}`}>
+                                                        ${Number(expense.amount).toFixed(2)}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {/* Cálculo Dinámico y Botón */}
+                                    {(() => {
+                                        const selectedTotal = expensesPartnerOwesMe
+                                            .filter(e => selectedSettleIds.includes(e.id))
+                                            .reduce((sum, e) => sum + Number(e.amount), 0);
                                         return (
                                             <button
-                                                key={expense.id}
-                                                onClick={() => toggleSettleSelection(expense.id)}
-                                                className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-slate-100 bg-white'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {/* Custom Checkbox */}
-                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]' : 'border-slate-300'
-                                                        }`}>
-                                                        {isSelected && <Check size={12} className="text-white" />}
-                                                    </div>
-                                                    <div className="text-left">
-                                                        <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                        <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
-                                                    </div>
-                                                </div>
-                                                <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-slate-800'}`}>
-                                                    ${Number(expense.amount).toFixed(2)}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {/* Cálculo Dinámico y Botón */}
-                                {(() => {
-                                    const selectedTotal = expensesPartnerOwesMe
-                                        .filter(e => selectedSettleIds.includes(e.id))
-                                        .reduce((sum, e) => sum + Number(e.amount), 0);
-                                    return (
-                                        <button
-                                            disabled={selectedSettleIds.length === 0 || isLiquidating}
-                                            onClick={() => handleSettleP2P(partnerId, currentUserId, selectedTotal, selectedSettleIds)}
-                                            className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
+                                                disabled={selectedSettleIds.length === 0 || isLiquidating}
+                                                onClick={() => handleSettleP2P(partnerId, currentUserId, selectedTotal, selectedSettleIds)}
+                                                className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
                                                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                                     : 'bg-[#0f2d91] text-white'
-                                                }`}
-                                        >
-                                            Cobrar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
-                                        </button>
-                                    );
-                                })()}
+                                                    }`}
+                                            >
+                                                Cobrar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -842,37 +995,17 @@ export default function DashboardCouple({
                         className={`shrink-0 mb-4 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "220ms" } : undefined}
                     >
-                        <div className="flex gap-1 rounded-full bg-slate-100/80 p-1.5">
-                            <button
-                                type="button"
-                                onClick={() => setActiveFilter("compartido")}
-                                className={`flex-1 rounded-full py-2 text-xs font-bold transition-all duration-500 font-label ${activeFilter === "compartido"
-                                    ? "bg-slate-100 text-[#2B3437] shadow-sm"
-                                    : "text-on-surface-variant hover:bg-surface-container-high/50"
-                                    }`}
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-semibold text-gray-800">Actividad</h3>
+                            <select
+                                className="cursor-pointer border-none bg-transparent text-sm text-gray-500 focus:ring-0"
+                                value={currentFilter}
+                                onChange={(e) => setCurrentFilter(e.target.value as ActivityFilter)}
                             >
-                                Compartido
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setActiveFilter("mio")}
-                                className={`flex-1 rounded-full py-2 text-xs font-bold transition-all duration-500 font-label ${activeFilter === "mio"
-                                    ? "bg-slate-100 text-[#2B3437] shadow-sm"
-                                    : "text-on-surface-variant hover:bg-surface-container-high/50"
-                                    }`}
-                            >
-                                Mío
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setActiveFilter("suyo")}
-                                className={`flex-1 rounded-full py-2 text-xs font-bold transition-all duration-500 font-label ${activeFilter === "suyo"
-                                    ? "bg-slate-100 text-[#2B3437] shadow-sm"
-                                    : "text-on-surface-variant hover:bg-surface-container-high/50"
-                                    }`}
-                            >
-                                {partnerDisplayName}
-                            </button>
+                                <option value="all">Mostrar: Todos</option>
+                                <option value="mine">Mis gastos</option>
+                                <option value="shared">Compartidos</option>
+                            </select>
                         </div>
                     </div>
 
@@ -907,18 +1040,15 @@ export default function DashboardCouple({
                                     return (
                                         <div
                                             key={expense.id}
-                                            className={`relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden group ${
-                                                currentList.length >= 5 ? 'flex-1' : ''
-                                            }`}
+                                            className={`relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden group ${currentList.length >= 5 ? 'flex-1' : ''
+                                                }`}
                                         >
                                             <button
                                                 type="button"
                                                 onClick={() => toggleActions(expense.id)}
-                                                className={`flex items-center justify-between px-4 transition-all duration-300 ease-out w-full text-left ${
-                                                    currentList.length >= 5 ? 'h-full' : 'py-4'
-                                                } ${
-                                                    activeActionId === expense.id ? 'scale-[1] bg-slate-50 pr-2 inset-shadow-zinc-700' : 'scale-100 bg-white'
-                                                }`}
+                                                className={`flex items-center justify-between px-4 transition-all duration-300 ease-out w-full text-left ${currentList.length >= 5 ? 'h-full' : 'py-4'
+                                                    } ${activeActionId === expense.id ? 'scale-[1] bg-slate-50 pr-2 inset-shadow-zinc-700' : 'scale-100 bg-white'
+                                                    }`}
                                             >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 rounded-full bg-emerald-800/10 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 shadow-sm">
@@ -933,8 +1063,8 @@ export default function DashboardCouple({
                                                             </span>
                                                             {isDebt && (
                                                                 <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${expense.is_settled
-                                                                        ? 'bg-emerald-50 text-emerald-600'
-                                                                        : 'bg-orange-50 text-orange-600'
+                                                                    ? 'bg-emerald-50 text-emerald-600'
+                                                                    : 'bg-orange-50 text-orange-600'
                                                                     }`}>
                                                                     {expense.is_settled ? 'Liquidado' : 'Pendiente'}
                                                                 </span>
@@ -949,9 +1079,8 @@ export default function DashboardCouple({
                                             </button>
 
                                             <div
-                                                className={`flex flex-col border-l border-slate-100 transition-all duration-300 ease-out overflow-hidden shrink-0 ${
-                                                    activeActionId === expense.id ? 'w-14 opacity-100' : 'w-0 opacity-0 border-transparent'
-                                                }`}
+                                                className={`flex flex-col border-l border-slate-100 transition-all duration-300 ease-out overflow-hidden shrink-0 ${activeActionId === expense.id ? 'w-14 opacity-100' : 'w-0 opacity-0 border-transparent'
+                                                    }`}
                                             >
                                                 <button
                                                     type="button"
@@ -994,40 +1123,40 @@ export default function DashboardCouple({
                             <X size={18} />
                         </button>
                         <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                        <div className="mb-5 flex items-start justify-between gap-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800">Control de Presupuesto</h3>
-                                <p className="text-xs text-slate-500">Estado actual de tus bolsillos y del fondo común.</p>
-                            </div>
-                        </div>
-
-                        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
-                            <div className="p-4">
-                                <div className="mb-2 flex items-end justify-between">
-                                    <div>
-                                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">Mi Bolsillo</span>
-                                        <span className="text-base font-bold text-slate-800">${mySpent.toFixed(2)}</span>
-                                    </div>
-                                    <span className="text-[11px] font-medium text-slate-400">de ${myBudget}</span>
-                                </div>
-                                <div className="h-1.5 w-full rounded-full bg-slate-100">
-                                    <div className="h-1.5 rounded-full bg-slate-800" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }} />
+                            <div className="mb-5 flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800">Control de Presupuesto</h3>
+                                    <p className="text-xs text-slate-500">Estado actual de tus bolsillos y del fondo común.</p>
                                 </div>
                             </div>
 
-                            <div className="p-4">
-                                <div className="mb-2 flex items-end justify-between">
-                                    <div>
-                                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-[#60855c]">Fondo Común</span>
-                                        <span className="text-base font-bold text-slate-800">${fundSpent.toFixed(2)}</span>
+                            <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
+                                <div className="p-4">
+                                    <div className="mb-2 flex items-end justify-between">
+                                        <div>
+                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">Mi Bolsillo</span>
+                                            <span className="text-base font-bold text-slate-800">${mySpent.toFixed(2)}</span>
+                                        </div>
+                                        <span className="text-[11px] font-medium text-slate-400">de ${myBudget}</span>
                                     </div>
-                                    <span className="text-[11px] font-medium text-slate-400">de ${fundBudget}</span>
+                                    <div className="h-1.5 w-full rounded-full bg-slate-100">
+                                        <div className="h-1.5 rounded-full bg-slate-800" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }} />
+                                    </div>
                                 </div>
-                                <div className="h-1.5 w-full rounded-full bg-slate-100">
-                                    <div className="h-1.5 rounded-full bg-[#60855c]" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }} />
+
+                                <div className="p-4">
+                                    <div className="mb-2 flex items-end justify-between">
+                                        <div>
+                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-[#60855c]">Fondo Común</span>
+                                            <span className="text-base font-bold text-slate-800">${fundSpent.toFixed(2)}</span>
+                                        </div>
+                                        <span className="text-[11px] font-medium text-slate-400">de ${fundBudget}</span>
+                                    </div>
+                                    <div className="h-1.5 w-full rounded-full bg-slate-100">
+                                        <div className="h-1.5 rounded-full bg-[#60855c]" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }} />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
                         </div>
                     </div>
                 </div>
@@ -1044,84 +1173,84 @@ export default function DashboardCouple({
                             <X size={18} />
                         </button>
                         <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                        <div className="mb-5 flex items-start justify-between gap-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800">Saldos Pendientes</h3>
-                                <p className="text-xs text-slate-500">Gestiona aquí lo que puedes cobrar o pagar.</p>
+                            <div className="mb-5 flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800">Saldos Pendientes</h3>
+                                    <p className="text-xs text-slate-500">Gestiona aquí lo que puedes cobrar o pagar.</p>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
-                            {fundOwesMe > 0 && (
-                                <div className="flex items-center justify-between p-4">
-                                    <div>
-                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">El fondo te debe</span>
-                                        <span className="text-sm font-bold text-slate-800">${fundOwesMe.toFixed(2)}</span>
+                            <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
+                                {fundOwesMe > 0 && (
+                                    <div className="flex items-center justify-between p-4">
+                                        <div>
+                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">El fondo te debe</span>
+                                            <span className="text-sm font-bold text-slate-800">${fundOwesMe.toFixed(2)}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                closeBalancesModal(() => openSettleModal());
+                                            }}
+                                            disabled={isLiquidating || fundDebtExpenses.length === 0}
+                                            className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            COBRAR
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            closeBalancesModal(() => openSettleModal());
-                                        }}
-                                        disabled={isLiquidating || fundDebtExpenses.length === 0}
-                                        className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        COBRAR
-                                    </button>
-                                </div>
-                            )}
+                                )}
 
-                            {iOwePartner > 0 && (
-                                <div className="flex items-center justify-between p-4">
-                                    <div>
-                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#bb1b1b]">Le debes a {partnerDisplayName}</span>
-                                        <span className="text-sm font-bold text-slate-800">${iOwePartner.toFixed(2)}</span>
+                                {iOwePartner > 0 && (
+                                    <div className="flex items-center justify-between p-4">
+                                        <div>
+                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-[#bb1b1b]">Le debes a {partnerDisplayName}</span>
+                                            <span className="text-sm font-bold text-slate-800">${iOwePartner.toFixed(2)}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                closeBalancesModal(() => openPayModal());
+                                            }}
+                                            disabled={isLiquidating}
+                                            className="rounded-full bg-[#bb1b1b]/10 px-3 py-1.5 text-[10px] font-bold text-[#bb1b1b] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            PAGAR
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            closeBalancesModal(() => openPayModal());
-                                        }}
-                                        disabled={isLiquidating}
-                                        className="rounded-full bg-[#bb1b1b]/10 px-3 py-1.5 text-[10px] font-bold text-[#bb1b1b] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        PAGAR
-                                    </button>
-                                </div>
-                            )}
+                                )}
 
-                            {partnerOwesMe > 0 && (
-                                <div className="flex items-center justify-between p-4">
-                                    <div>
-                                        <span className="block text-[10px] font-bold uppercase tracking-wide text-[#0f2d91]">{partnerDisplayName} te debe</span>
-                                        <span className="text-sm font-bold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
+                                {partnerOwesMe > 0 && (
+                                    <div className="flex items-center justify-between p-4">
+                                        <div>
+                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-[#0f2d91]">{partnerDisplayName} te debe</span>
+                                            <span className="text-sm font-bold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                closeBalancesModal(() => openChargeModal());
+                                            }}
+                                            disabled={isLiquidating}
+                                            className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-[#0f2d91] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            COBRAR
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            closeBalancesModal(() => openChargeModal());
-                                        }}
-                                        disabled={isLiquidating}
-                                        className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-[#0f2d91] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        COBRAR
-                                    </button>
-                                </div>
-                            )}
+                                )}
 
-                            {!hasBalances && (
-                                <div className="p-4 text-sm font-medium text-slate-500">
-                                    No hay saldos pendientes por ahora.
-                                </div>
-                            )}
-                        </div>
+                                {!hasBalances && (
+                                    <div className="p-4 text-sm font-medium text-slate-500">
+                                        No hay saldos pendientes por ahora.
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
 
-            {isDepositModalOpen && (
+            {depositTarget && (
                 <div className="fixed inset-0 z-60 flex flex-col justify-end">
                     <div
                         className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isDepositAnimated ? "opacity-100" : "opacity-0"}`}
@@ -1138,25 +1267,25 @@ export default function DashboardCouple({
                             <X size={18} />
                         </button>
                         <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                        <div className="text-center">
-                            <h4 className="text-[10px] font-bold tracking-widest text-gray-500 font-label">
-                                APORTAR AL FONDO COMÚN
-                            </h4>
-                        </div>
+                            <div className="text-center">
+                                <h4 className="text-[10px] font-bold tracking-widest text-gray-500 font-label">
+                                    {depositTarget === "personal" ? "APORTAR A MI FONDO" : "APORTAR AL FONDO COMÚN"}
+                                </h4>
+                            </div>
 
-                        <CustomNumpad
-                            isOpen={isDepositModalOpen}
-                            embedded
-                            showDisplay
-                            initialValue={depositAmount || "0"}
-                            onClose={() => setIsDepositModalOpen(false)}
-                            onValueChange={(value) => setDepositAmount(value)}
-                            onConfirm={(value) => handleDepositConfirm(value)}
-                        />
+                            <CustomNumpad
+                                isOpen={depositTarget !== null}
+                                embedded
+                                showDisplay
+                                initialValue={depositAmount || "0"}
+                                onClose={closeDepositModal}
+                                onValueChange={(value) => setDepositAmount(value)}
+                                onConfirm={(value) => handleDepositConfirm(value)}
+                            />
 
-                        {depositError && (
-                            <p className="mt-3 text-center text-sm font-medium text-red-600">{depositError}</p>
-                        )}
+                            {depositError && (
+                                <p className="mt-3 text-center text-sm font-medium text-red-600">{depositError}</p>
+                            )}
                         </div>
 
                         {/* <button
@@ -1177,6 +1306,7 @@ export default function DashboardCouple({
                     </div>
                 </div>
             )}
+            <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
         </div>
     );
 }

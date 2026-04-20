@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CreditCard, History, Home, Plus, User, X } from "lucide-react";
+import { CreditCard, Goal, History, Home, Plus, X } from "lucide-react";
 import AddExpenseForm from "@/components/AddExpenseForm";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 
@@ -14,18 +14,24 @@ const leftNavItems = [
 
 const rightNavItems = [
   { href: "/history", label: "Historial", icon: History },
-  { href: "/profile", label: "Perfil", icon: User },
+  { href: "/budget", label: "Presupuesto", icon: Goal },
 ] as const;
 
 interface BottomNavProps {
   partnerFirstName?: string;
+  financialModel?: string;
+  user1SplitPct?: number;
 }
 
-export default function BottomNav({ partnerFirstName = "Mi pareja" }: BottomNavProps) {
+export default function BottomNav({
+  partnerFirstName = "Mi pareja",
+  financialModel = "joint_fund",
+  user1SplitPct = 50,
+}: BottomNavProps) {
   const pathname = usePathname();
   const { isExpenseModalOpen, setIsExpenseModalOpen, expenseToEdit, setExpenseToEdit } = useExpenseModal();
   const [isSheetAnimated, setIsSheetAnimated] = useState(false);
-  const shouldHideNav = ["/add-expense", "/login", "/register", "/onboarding"].includes(pathname);
+  const shouldHideNav = ["/add-expense", "/login", "/register", "/onboarding", "/profile"].includes(pathname);
 
   useEffect(() => {
     if (isExpenseModalOpen) {
@@ -61,10 +67,10 @@ export default function BottomNav({ partnerFirstName = "Mi pareja" }: BottomNavP
       <Link
         key={href}
         href={href}
-        className="flex flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-slate-400 transition-all duration-300 active:scale-95"
+        className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-full px-1 py-2 text-slate-400 transition-all duration-300 active:scale-95"
       >
-        <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} className={isActive ? "text-[#60855c]" : "text-slate-400"} />
-        <span className={`text-[10px] font-bold ${isActive ? "text-[#60855c]" : "text-slate-400"}`}>{label}</span>
+        <Icon size={18} strokeWidth={isActive ? 2.4 : 1.8} className={isActive ? "text-[#60855c]" : "text-slate-400"} />
+        <span className={`max-w-full truncate whitespace-nowrap text-[9px] font-bold ${isActive ? "text-[#60855c]" : "text-slate-400"}`}>{label}</span>
       </Link>
     );
   }
@@ -72,7 +78,7 @@ export default function BottomNav({ partnerFirstName = "Mi pareja" }: BottomNavP
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">
-        <div className="mx-auto grid max-w-md grid-cols-5 items-end rounded-4xl bg-white/85 px-2 pt-3 shadow-[0_-8px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+        <div className="mx-auto grid max-w-lg grid-cols-5 items-end rounded-4xl bg-white/85 px-2 pt-3 shadow-[0_-8px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
           {leftNavItems.map(({ href, label, icon: Icon }) => renderNavItem(href, label, Icon))}
 
           <div className="flex justify-center">
@@ -114,6 +120,8 @@ export default function BottomNav({ partnerFirstName = "Mi pareja" }: BottomNavP
                 expenseToEdit={expenseToEdit}
                 onClose={closeExpenseSheet}
                 partnerFirstName={partnerFirstName}
+                financialModel={financialModel}
+                user1SplitPct={user1SplitPct}
               />
             </div>
           </div>

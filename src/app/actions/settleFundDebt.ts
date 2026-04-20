@@ -24,22 +24,37 @@ export async function settleFundDebtAction({ expenseIds, totalAmount, currentUse
     throw new Error("Error al actualizar gastos: " + updateError.message);
   }
 
-  // 2. Insertar el retiro en el fondo
-  const { error: insertError } = await admin.from("expenses").insert({
-    family_id: familyId,
-    category: "withdrawal",
-    concept: "Liquidación de deuda",
-    amount: Number(totalAmount.toFixed(2)),
-    paid_by: currentUserId, // UUID válido
-    responsible_for: "joint_fund", // String válido
-    is_settled: true,
-    expense_date: new Date().toISOString().slice(0, 10),
-    split_type: "shared_custom",
-    payer_share_pct: 100,
-  } as never);
+  // 2. Registrar la compensación contable: salida del fondo + reembolso al usuario
+  const settlementDate = new Date().toISOString().slice(0, 10);
+  const { error: insertError } = await admin.from("expenses").insert([
+    {
+      family_id: familyId,
+      category: "withdrawal",
+      concept: "Liquidación de deuda",
+      amount: Number(totalAmount.toFixed(2)),
+      paid_by: currentUserId,
+      responsible_for: "joint_fund",
+      is_settled: true,
+      expense_date: settlementDate,
+      split_type: "shared_custom",
+      payer_share_pct: 100,
+    },
+    {
+      family_id: familyId,
+      category: "deposit",
+      concept: "Reembolso del fondo",
+      amount: Number(totalAmount.toFixed(2)),
+      paid_by: currentUserId,
+      responsible_for: currentUserId,
+      is_settled: true,
+      expense_date: settlementDate,
+      split_type: "personal",
+      payer_share_pct: 100,
+    },
+  ] as never);
 
   if (insertError) {
-    throw new Error("Error al registrar el retiro: " + insertError.message);
+    throw new Error("Error al registrar la liquidación: " + insertError.message);
   }
 
   revalidatePath("/");

@@ -189,26 +189,76 @@ export async function createDeposit({
   const payload = {
     family_id: profile.family_id,
     amount: Number(normalizedAmount.toFixed(2)),
-    concept: "Aporte al Fondo Común",
+    concept: "Aporte al fondo común",
     category: "deposit" as ExpenseCategory,
-    split_type: "fund_transfer" as ExpenseSplitType,
+    split_type: "shared_equal" as ExpenseSplitType,
     responsible_for: "joint_fund",
     paid_by: user.id,
     payer_share_pct: 100,
+    is_settled: true,
     expense_date: date ?? new Date().toISOString().slice(0, 10),
   };
 
-  let { error: insertError } = await admin.from("expenses").insert(payload as never);
+  const { error: insertError } = await admin.from("expenses").insert(payload as never);
 
-  if (insertError && /invalid input value for enum/i.test(insertError.message)) {
-    ({ error: insertError } = await admin.from("expenses").insert(
-      {
-        ...payload,
-        split_type: "shared_custom",
-        payer_share_pct: 0,
-      } as never
-    ));
+  if (insertError) {
+    throw new Error(insertError.message);
   }
+
+  revalidatePath("/");
+  revalidatePath("/history");
+
+  return { success: true };
+}
+
+export async function createPersonalDeposit({
+  amount,
+  date,
+}: {
+  amount: number;
+  date?: string;
+}) {
+  const normalizedAmount = Number(amount);
+
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    throw new Error("Ingresa un importe válido.");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const admin = getSupabaseAdminClient();
+
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("family_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profile?.family_id) {
+    throw new Error("Debes pertenecer a una familia para guardar aportes.");
+  }
+
+  const payload = {
+    family_id: profile.family_id,
+    amount: Number(normalizedAmount.toFixed(2)),
+    concept: "Aporte personal",
+    category: "deposit" as ExpenseCategory,
+    split_type: "personal" as ExpenseSplitType,
+    responsible_for: user.id,
+    paid_by: user.id,
+    payer_share_pct: 100,
+    is_settled: true,
+    expense_date: date ?? new Date().toISOString().slice(0, 10),
+  };
+
+  const { error: insertError } = await admin.from("expenses").insert(payload as never);
 
   if (insertError) {
     throw new Error(insertError.message);

@@ -1,4 +1,8 @@
+"use client";
+
 import { Bell } from "lucide-react";
+import { useState } from "react";
+import ProfileDrawer from "@/components/ProfileDrawer";
 import type { DashboardMember } from "@/lib/dashboard";
 
 interface HeaderProps {
@@ -16,7 +20,10 @@ function getInitials(name: string) {
 }
 
 export default function Header({ familyName, members }: HeaderProps) {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   return (
+    <>
     <header className="fixed top-0 z-50 flex w-full items-center justify-between bg-surface/80 px-6 py-4 backdrop-blur-md">
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary/80">
@@ -28,7 +35,7 @@ export default function Header({ familyName, members }: HeaderProps) {
       </div>
 
       <div className="flex items-center">
-        <div className="flex -space-x-3">
+        <button type="button" onClick={() => setIsProfileOpen(true)} className="flex -space-x-3 cursor-pointer">
           {members.slice(0, 2).map((member) => (
             <div
               key={member.id}
@@ -47,12 +54,14 @@ export default function Header({ familyName, members }: HeaderProps) {
               )}
             </div>
           ))}
-        </div>
+        </button>
 
         <button className="ml-4 rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container">
           <Bell size={22} strokeWidth={1.6} />
         </button>
       </div>
     </header>
+    <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+    </>
   );
 }

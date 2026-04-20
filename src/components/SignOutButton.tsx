@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
-export default function SignOutButton() {
+interface SignOutButtonProps {
+  subtle?: boolean;
+}
+
+export default function SignOutButton({ subtle = false }: SignOutButtonProps) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -18,7 +22,11 @@ export default function SignOutButton() {
     <button
       type="button"
       onClick={handleSignOut}
-      className="flex w-full items-center justify-center gap-2 rounded-full bg-sage px-4 py-3 font-semibold text-white transition hover:brightness-110"
+      className={
+        subtle
+          ? "flex w-full items-center justify-center gap-2 rounded-2xl bg-red-50/80 px-4 py-3 font-semibold text-red-600 transition hover:bg-red-100"
+          : "flex w-full items-center justify-center gap-2 rounded-full bg-sage px-4 py-3 font-semibold text-white transition hover:brightness-110"
+      }
     >
       <LogOut size={18} />
       Cerrar sesión

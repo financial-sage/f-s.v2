@@ -41,13 +41,18 @@ export default async function RootLayout({
   } = await supabase.auth.getUser();
 
   let partnerFirstName = "Mi pareja";
+  let financialModel = "joint_fund";
+  let user1SplitPct = 50;
 
   if (user) {
     const { data: family } = await supabase
       .from("families")
-      .select("user_1_id, user_2_id")
+      .select("user_1_id, user_2_id, financial_model, user_1_split_pct")
       .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
       .maybeSingle();
+
+    financialModel = family?.financial_model ?? "joint_fund";
+    user1SplitPct = Number(family?.user_1_split_pct ?? 50);
 
     const partnerId =
       family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
@@ -75,7 +80,11 @@ export default async function RootLayout({
           <main className="h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
             {children}
           </main>
-          <BottomNav partnerFirstName={partnerFirstName} />
+          <BottomNav
+            partnerFirstName={partnerFirstName}
+            financialModel={financialModel}
+            user1SplitPct={user1SplitPct}
+          />
         </ExpenseModalProvider>
       </body>
     </html>

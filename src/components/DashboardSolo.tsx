@@ -18,6 +18,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
+import ProfileDrawer from "@/components/ProfileDrawer";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
 import { createClient } from "@/utils/supabase/client";
 
@@ -66,6 +67,7 @@ export default function DashboardSolo({
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [isPartnerJoining, setIsPartnerJoining] = useState(false);
     const [transitionStep, setTransitionStep] = useState(0);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const hasCelebratedRef = useRef(false);
     const refreshTimeoutRef = useRef<number | null>(null);
     const stageTimeoutsRef = useRef<number[]>([]);
@@ -158,7 +160,11 @@ export default function DashboardSolo({
     return (
         <div className="relative">
             <header className="fixed top-0 z-50 flex w-full items-center justify-between bg-[#F8F9FA]/80 px-6 py-4 backdrop-blur-md transition-opacity duration-500">
-                <div className="flex items-center gap-3">
+                <button
+                    type="button"
+                    onClick={() => setIsProfileOpen(true)}
+                    className="flex items-center gap-3 cursor-pointer"
+                >
                     <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/20 bg-surface-container">
                         {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -178,11 +184,15 @@ export default function DashboardSolo({
                             Dashboard personal
                         </span>
                     </div>
-                </div>
+                </button>
 
-                <Link href="/profile" className="text-[#2B3437]/60 transition-opacity hover:opacity-80">
+                <button
+                    type="button"
+                    onClick={() => setIsProfileOpen(true)}
+                    className="text-[#2B3437]/60 transition-opacity hover:opacity-80"
+                >
                     <Settings size={22} />
-                </Link>
+                </button>
             </header>
 
             <main className={`mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-4 pt-20 pb-24 transition-all duration-1000 ${
@@ -412,6 +422,7 @@ export default function DashboardSolo({
                     </div>
                 </div>
             )}
+            <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
         </div>
     );
 }

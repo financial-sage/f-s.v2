@@ -5,7 +5,7 @@ import { calculateDebt } from "@/app/actions/debt";
 import DashboardCouple from "@/components/DashboardCouple";
 import DashboardSolo from "@/components/DashboardSolo";
 import FAB from "@/components/FAB";
-import { getDashboardData } from "@/lib/dashboard";
+import { filterExpensesForPrivacy, getDashboardData } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { createClient } from "@/utils/supabase/server";
 
@@ -122,7 +122,7 @@ export default async function Home() {
 
   const { data: family } = await supabase
     .from("families")
-    .select("user_1_id, user_2_id")
+    .select("user_1_id, user_2_id, financial_model")
     .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
     .maybeSingle();
 
@@ -177,7 +177,8 @@ export default async function Home() {
 
     const debtResult = await calculateDebt(familyId, user.id);
 
-    coupleExpenses = normalizeExpenses((expenses ?? []) as RawExpenseRow[]);
+    const rawCoupleExpenses = normalizeExpenses((expenses ?? []) as RawExpenseRow[]);
+    coupleExpenses = filterExpensesForPrivacy(rawCoupleExpenses, user.id);
     const partnerId = dashboard.members.find((member) => member.id !== user.id)?.id ?? null;
     mySpent = sumMemberShare(coupleExpenses, user.id);
     partnerSpent = partnerId ? sumMemberShare(coupleExpenses, partnerId) : 0;
@@ -200,6 +201,7 @@ export default async function Home() {
           partnerSpent={partnerSpent}
           fundBalance={fundBalance}
           personalBalance={personalBalance}
+          financialModel={family?.financial_model ?? "joint_fund"}
         />
       ) : (
         <DashboardSolo

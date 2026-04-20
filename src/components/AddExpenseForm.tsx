@@ -65,6 +65,8 @@ interface AddExpenseFormProps {
   partnerFirstName?: string;
   onClose?: () => void;
   expenseToEdit?: ExpenseToEdit | null;
+  financialModel?: string;
+  user1SplitPct?: number;
 }
 
 interface OptionItem<T extends string> {
@@ -81,24 +83,50 @@ interface CategoryTile {
 }
 
 type ExpenseOrigin = ExpenseActor | "both_split";
+type FinancialModel = "joint_fund" | "p2p_50_50" | "p2p_proportional";
 
 function getFirstName(value?: string | null, fallback = "Mi pareja") {
   const firstName = value?.trim().split(/\s+/)[0];
   return firstName || fallback;
 }
 
-function buildPaidByOptions(partnerLabel: string): OptionItem<ExpenseOrigin>[] {
-  return [
-    { value: "me", label: "Mi", icon: Wallet },
-    { value: "partner", label: partnerLabel, icon: Heart },
-    { value: "joint_fund", label: "Fondo Común", icon: Home },
-    { value: "both_split", label: "Ambos", icon: Users },
-  ];
+function normalizeFinancialModel(value?: string | null): FinancialModel {
+  if (value === "p2p_50_50" || value === "p2p_proportional") {
+    return value;
+  }
+
+  return "joint_fund";
 }
 
-function buildResponsibleOptions(partnerLabel: string): OptionItem<ExpenseResponsibleFor>[] {
+function buildPaidByOptions(
+  partnerLabel: string,
+  financialModel: FinancialModel
+): OptionItem<ExpenseOrigin>[] {
+  const baseOptions: OptionItem<ExpenseOrigin>[] = [
+    { value: "me", label: "Mi", icon: Wallet },
+    { value: "partner", label: partnerLabel, icon: Heart },
+  ];
+
+  if (financialModel === "joint_fund") {
+    baseOptions.push({ value: "joint_fund", label: "Fondo Común", icon: Home });
+  }
+
+  return baseOptions;
+}
+
+function buildResponsibleOptions(
+  partnerLabel: string,
+  financialModel: FinancialModel
+): OptionItem<ExpenseResponsibleFor>[] {
+  const sharedLabel =
+    financialModel === "joint_fund"
+      ? "Fondo Común"
+      : financialModel === "p2p_50_50"
+        ? "A medias (50/50)"
+        : "Proporcional";
+
   return [
-    { value: "joint_fund", label: "Fondo Común", icon: Home },
+    { value: "joint_fund", label: sharedLabel, icon: Home },
     { value: "me", label: "Mío", icon: User },
     { value: "partner", label: partnerLabel, icon: Heart },
   ];
@@ -184,6 +212,8 @@ export default function AddExpenseForm({
   partnerFirstName,
   onClose,
   expenseToEdit = null,
+  financialModel = "joint_fund",
+  user1SplitPct = 50,
 }: AddExpenseFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -193,6 +223,7 @@ export default function AddExpenseForm({
     getFirstName(partnerFirstName)
   );
   const [resolvedPartnerUserId, setResolvedPartnerUserId] = useState<string | null>(null);
+  const resolvedFinancialModel = normalizeFinancialModel(financialModel);
   const isSolo = resolvedFamilyMemberCount <= 1;
   const isCoupleMode = !isSolo;
 
@@ -365,6 +396,16 @@ export default function AddExpenseForm({
     setErrorMessage("");
   }, [expenseToEdit, isCoupleMode, resolvedCurrentUserId]);
 
+  useEffect(() => {
+    if (
+      isCoupleMode &&
+      resolvedFinancialModel !== "joint_fund" &&
+      (paidBy === "joint_fund" || paidBy === "both_split")
+    ) {
+      setPaidBy("me");
+    }
+  }, [isCoupleMode, paidBy, resolvedFinancialModel]);
+
   function openCategorySheet() {
     setIsExpanded(false);
     setIsCategorySheetOpen(true);
@@ -381,12 +422,12 @@ export default function AddExpenseForm({
 
   const displayDate = useMemo(() => formatDisplayDate(date), [date]);
   const paidByOptions = useMemo(
-    () => buildPaidByOptions(resolvedPartnerFirstName),
-    [resolvedPartnerFirstName]
+    () => buildPaidByOptions(resolvedPartnerFirstName, resolvedFinancialModel),
+    [resolvedPartnerFirstName, resolvedFinancialModel]
   );
   const responsibleOptions = useMemo(
-    () => buildResponsibleOptions(resolvedPartnerFirstName),
-    [resolvedPartnerFirstName]
+    () => buildResponsibleOptions(resolvedPartnerFirstName, resolvedFinancialModel),
+    [resolvedPartnerFirstName, resolvedFinancialModel]
   );
   const allCategories = [...topCategories, ...extraCategories];
   const selectedCategoryItem =
@@ -450,10 +491,6 @@ export default function AddExpenseForm({
           throw new Error(result.error);
         }
       } else {
-        if (paidBy === "joint_fund") {
-          throw new Error("Gastar directamente desde Fondo Común aún no está soportado en este flujo.");
-        }
-
         if (isCoupleMode && paidBy === "both_split") {
           const mine = parseDecimal(myContribution);
           const partner = parseDecimal(partnerContribution);

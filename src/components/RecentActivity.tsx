@@ -68,7 +68,7 @@ export default function RecentActivity({ transactions }: RecentActivityProps) {
                   <div>
                     <p className="font-bold text-on-surface">{tx.concept}</p>
                     <span className="font-label text-xs uppercase tracking-wider text-on-surface-variant">
-                      {tx.tag} · {tx.dateLabel}
+                      {tx.dateLabel}
                     </span>
                   </div>
                 </div>
@@ -76,11 +76,13 @@ export default function RecentActivity({ transactions }: RecentActivityProps) {
                 <div className="text-right">
                   <p className="font-bold text-on-surface">-{formatCurrency(tx.amount)}</p>
                   <span
-                    className={`text-[10px] font-bold ${
-                      tx.isShared ? "text-primary" : "text-on-surface-variant"
+                    className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${
+                      tx.isShared
+                        ? "bg-purple-100 text-purple-800"
+                        : "bg-green-100 text-green-800"
                     }`}
                   >
-                    {tx.status}
+                    {tx.isShared ? "Compartido" : "Personal"}
                   </span>
                 </div>
               </div>
