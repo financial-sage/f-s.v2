@@ -23,6 +23,9 @@ import {
     Edit,
     Trash2,
     Sparkles,
+    ChevronRight,
+    ChevronLeft,
+    SlidersHorizontal,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
@@ -35,6 +38,7 @@ import ProfileDrawer from "@/components/ProfileDrawer";
 import CustomNumpad from "@/components/CustomNumpad";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
+
 
 type CoupleExpenseIconKey = "shopping-cart" | "car" | "utensils" | "home" | "receipt" | "deposit";
 
@@ -60,7 +64,7 @@ interface CoupleDashboardExpense {
     family_id?: string;
 }
 
-type ActivityFilter = "all" | "mine" | "shared";
+type ActivityFilter = "all" | "personal" | "shared_all" | "shared_me" | "shared_partner";
 
 interface DashboardCoupleProps {
     familyId: string;
@@ -172,6 +176,8 @@ export default function DashboardCouple({
     const supabase = useMemo(() => createClient(), []);
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const [currentFilter, setCurrentFilter] = useState<ActivityFilter>("all");
+    const [showFilterModal, setShowFilterModal] = useState(false);
+    const [isFilterAnimated, setIsFilterAnimated] = useState(false);
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [depositTarget, setDepositTarget] = useState<"shared" | "personal" | null>(null);
     const [showBalances, setShowBalances] = useState(false);
@@ -226,6 +232,8 @@ export default function DashboardCouple({
     const closePayModal = () => animateOut(setShowPayModal, setIsPayAnimated, () => setSelectedSettleIds([]));
     const openChargeModal = () => animateIn(setShowChargeModal, setIsChargeAnimated);
     const closeChargeModal = () => animateOut(setShowChargeModal, setIsChargeAnimated, () => setSelectedSettleIds([]));
+    const openFilterModal = () => animateIn(setShowFilterModal, setIsFilterAnimated);
+    const closeFilterModal = () => animateOut(setShowFilterModal, setIsFilterAnimated);
     const openDepositModal = () => {
         setDepositTarget("shared");
         requestAnimationFrame(() => requestAnimationFrame(() => setIsDepositAnimated(true)));
@@ -446,16 +454,32 @@ export default function DashboardCouple({
     );
 
     const filteredExpenses = useMemo(() => {
-        if (currentFilter === "shared") {
-            return sharedExpenses;
+        switch (currentFilter) {
+            case "personal":
+                return activityExpenses.filter(
+                    (e) =>
+                        (e.responsible_for === currentUserId || e.responsible_for === "mio") &&
+                        e.category !== "deposit"
+                );
+            case "shared_all":
+                return activityExpenses.filter((e) => e.responsible_for === "joint_fund");
+            case "shared_me":
+                return activityExpenses.filter(
+                    (e) =>
+                        e.responsible_for === "joint_fund" &&
+                        (e.paid_by || e.paidBy) === currentUserId
+                );
+            case "shared_partner":
+                return activityExpenses.filter(
+                    (e) =>
+                        e.responsible_for === "joint_fund" &&
+                        (e.paid_by || e.paidBy) !== currentUserId
+                );
+            case "all":
+            default:
+                return activityExpenses;
         }
-
-        if (currentFilter === "mine") {
-            return myExpenses;
-        }
-
-        return activityExpenses;
-    }, [activityExpenses, currentFilter, myExpenses, sharedExpenses]);
+    }, [activityExpenses, currentFilter, currentUserId]);
 
     const currentList = filteredExpenses.slice(0, 5);
 
@@ -688,7 +712,7 @@ export default function DashboardCouple({
                         style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
                     >
                         {/* TARJETA 1: MI FONDO (ÍNDIGO) */}
-                        <div className="relative overflow-hidden flex flex-col justify-between min-h-[164px] rounded-3xl bg-indigo-50 border border-indigo-100 shadow-sm p-4">
+                        <div className="relative overflow-hidden flex flex-col justify-between min-h-41 rounded-3xl bg-indigo-50 border border-indigo-100 shadow-sm p-4">
                             {/* Capa de Textura Sutil */}
                             <div className="absolute inset-0 z-0 opacity-20 mix-blend-multiply pointer-events-none bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3')] bg-cover bg-center" />
 
@@ -719,7 +743,7 @@ export default function DashboardCouple({
                         </div>
 
                         {/* TARJETA 2: FONDO COMÚN (VERDE SALVIA) */}
-                        <div className="relative overflow-hidden flex flex-col justify-between min-h-[164px] rounded-3xl bg-[#60855c]/10 border border-[#60855c]/20 shadow-sm p-4">
+                        <div className="relative overflow-hidden flex flex-col justify-between min-h-41 rounded-3xl bg-[#60855c]/10 border border-[#60855c]/20 shadow-sm p-4">
                             {/* Capa de Textura Sutil */}
                             <div className="absolute inset-0 z-0 opacity-20 mix-blend-multiply pointer-events-none bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3')] bg-cover bg-center" />
 
@@ -991,22 +1015,28 @@ export default function DashboardCouple({
                         </Link>
                     </div> */}
 
-                    <div
-                        className={`shrink-0 mb-4 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
-                        style={animateSharedEntrance ? { animationDelay: "220ms" } : undefined}
-                    >
-                        <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-baseline gap-3">
                             <h3 className="text-lg font-semibold text-gray-800">Actividad</h3>
-                            <select
-                                className="cursor-pointer border-none bg-transparent text-sm text-gray-500 focus:ring-0"
-                                value={currentFilter}
-                                onChange={(e) => setCurrentFilter(e.target.value as ActivityFilter)}
+                            <Link
+                                href="/history"
+                                className="flex items-center text-[10px] font-bold tracking-widest text-[#60855c] opacity-70 hover:opacity-100 transition-opacity"
                             >
-                                <option value="all">Mostrar: Todos</option>
-                                <option value="mine">Mis gastos</option>
-                                <option value="shared">Compartidos</option>
-                            </select>
+                                Ver todo <ChevronRight size={12} className="ml-0.5" />
+                            </Link>
                         </div>
+                        <button
+                            type="button"
+                            onClick={openFilterModal}
+                            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                currentFilter !== "all"
+                                    ? "bg-[#60855c]/10 text-[#60855c]"
+                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                            }`}
+                        >
+                            <SlidersHorizontal size={13} />
+                            {currentFilter === "all" ? "Filtros" : filterLabels[currentFilter]}
+                        </button>
                     </div>
 
                     <div
@@ -1307,6 +1337,68 @@ export default function DashboardCouple({
                 </div>
             )}
             <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+
+            {/* Modal de Filtros */}
+            {showFilterModal && (
+                <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                    <div
+                        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
+                            isFilterAnimated ? "opacity-100" : "opacity-0"
+                        }`}
+                        onClick={closeFilterModal}
+                    />
+                    <div
+                        className={`relative flex max-h-[80vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                            isFilterAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+                        }`}
+                    >
+                        <div className="flex justify-center pt-4 pb-2">
+                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                        </div>
+                        <button
+                            onClick={closeFilterModal}
+                            className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                        >
+                            <X size={18} />
+                        </button>
+                        <div className="overflow-y-auto px-6 pb-8">
+                            <h3 className="mb-5 text-lg font-bold text-slate-800">Filtrar Actividad</h3>
+                            <div className="space-y-2">
+                                {([
+                                    { value: "all", label: "Todos los movimientos" },
+                                    { value: "personal", label: "Mis gastos personales" },
+                                    { value: "shared_all", label: "Fondo Común (todos)" },
+                                    { value: "shared_me", label: "Fondo Común (pagados por mí)" },
+                                    { value: "shared_partner", label: `Fondo Común (pagados por ${partnerDisplayName})` },
+                                ] as { value: ActivityFilter; label: string }[]).map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => {
+                                            setCurrentFilter(value);
+                                            closeFilterModal();
+                                        }}
+                                        className={`w-full rounded-2xl px-4 py-3.5 text-left text-sm transition-colors ${
+                                            currentFilter === value
+                                                ? "bg-[#60855c]/10 font-bold text-[#60855c]"
+                                                : "bg-slate-50 font-medium text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+
+const filterLabels: Record<Exclude<ActivityFilter, "all">, string> = {
+    personal: "Personal",
+    shared_all: "Fondo Común",
+    shared_me: "Fondo (mí)",
+    shared_partner: "Fondo (pareja)",
+};
