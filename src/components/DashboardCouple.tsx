@@ -26,10 +26,11 @@ import {
     ChevronRight,
     ChevronLeft,
     SlidersHorizontal,
+    Lock,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
-import { createDeposit, createPersonalDeposit } from "@/app/actions/expenses";
+import { createDeposit, createPersonalDeposit, deleteExpenseAction } from "@/app/actions/expenses";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
 import { settleP2PAction } from "@/app/actions/settleP2P";
 import { createClient } from "@/utils/supabase/client";
@@ -202,6 +203,10 @@ export default function DashboardCouple({
     const [highlightFundCard, setHighlightFundCard] = useState(false);
     const [animateSharedEntrance, setAnimateSharedEntrance] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, startDeletingTransition] = useTransition();
+    const [systemNotification, setSystemNotification] = useState<string | null>(null);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -234,6 +239,32 @@ export default function DashboardCouple({
     const closeChargeModal = () => animateOut(setShowChargeModal, setIsChargeAnimated, () => setSelectedSettleIds([]));
     const openFilterModal = () => animateIn(setShowFilterModal, setIsFilterAnimated);
     const closeFilterModal = () => animateOut(setShowFilterModal, setIsFilterAnimated);
+
+    const openDeleteModal = (id: string) => {
+        setExpenseToDelete(id);
+        setIsDeleteModalOpen(true);
+    };
+    const closeDeleteModal = () => {
+        setIsDeleteModalOpen(false);
+        setExpenseToDelete(null);
+    };
+    const handleDeleteConfirm = () => {
+        if (!expenseToDelete) return;
+        startDeletingTransition(async () => {
+            try {
+                await deleteExpenseAction(expenseToDelete);
+                closeDeleteModal();
+                router.refresh();
+            } catch {
+                closeDeleteModal();
+            }
+        });
+    };
+
+    const showToast = (message: string) => {
+        setSystemNotification(message);
+        window.setTimeout(() => setSystemNotification(null), 3000);
+    };
     const openDepositModal = () => {
         setDepositTarget("shared");
         requestAnimationFrame(() => requestAnimationFrame(() => setIsDepositAnimated(true)));
@@ -372,14 +403,16 @@ export default function DashboardCouple({
                 .filter(
                     (expense) =>
                         expense.responsible_for === "joint_fund" &&
+                        // Solo resta si el dinero salió físicamente del fondo (cash-flow real)
+                        (expense.paid_by === "joint_fund" || expense.paidBy === "joint_fund") &&
                         expense.category !== "deposit" &&
                         expense.category !== "withdrawal"
                 )
                 .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
         [expenses]
     );
-    // El fondo solo resta gastos reales; los withdrawals (liquidaciones) no duplican la pérdida
-    const fundLiquidity = fundIncome - fundDirectExpenses;
+    // El fondo solo resta gastos donde el dinero físicamente salió de él (contabilidad de caja)
+    const fundLiquidity = fundIncome - fundDirectExpenses - fundWithdrawals;
     const fundSpent = Math.max(fundLiquidity, 0);
     const fundBudget = Math.max(fundSpent, 1000);
     const isJointModel = financialModel === "joint_fund";
@@ -424,11 +457,15 @@ export default function DashboardCouple({
 
     const hasBalances = fundOwesMe > 0 || iOwePartner > 0 || partnerOwesMe > 0;
 
-    // Filtrar gastos de sistema (withdrawal y transfer) de la UI
+    // Filtrar gastos de sistema (withdrawal, transfer y registros internos de liquidación)
     const activityExpenses = useMemo(
         () =>
             expenses.filter(
-                (expense) => expense.category !== "withdrawal" && expense.category !== "transfer"
+                (expense) =>
+                    expense.category !== "withdrawal" &&
+                    expense.category !== "transfer" &&
+                    expense.concept !== "Reembolso del fondo" &&
+                    expense.concept !== "Liquidación de deuda"
             ),
         [expenses]
     );
@@ -630,7 +667,7 @@ export default function DashboardCouple({
                     }
 
                     if (typeof window !== "undefined") {
-                        window.alert("Configuración financiera actualizada por tu pareja.");
+                        showToast("Configuración financiera actualizada por tu pareja.");
                     }
 
                     router.refresh();
@@ -700,29 +737,29 @@ export default function DashboardCouple({
                 <section
                     className={`mb-4 shrink-0 px-2 ${animateSharedEntrance ? "animate-in slide-in-from-left-3 fade-in duration-500" : ""}`}
                 >
-                    <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">{familyName}</h1>
-                    <p className="text-sm font-medium opacity-70 text-on-surface-variant font-label">
+                    <h1 className="text-2xl font-semibold tracking-tight text-on-surface">{familyName}</h1>
+                    <p className="text-sm font-normal opacity-70 text-on-surface-variant font-label">
                         Santuario compartido • Hoy
                     </p>
                 </section>
 
                 <section className="mb-2">
                     <div
-                        className={`grid grid-cols-2 gap-4 mb-6 shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
+                        className={`grid grid-cols-2 mb-6 shrink-0 rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
                     >
                         {/* TARJETA 1: MI FONDO (ÍNDIGO) */}
-                        <div className="relative overflow-hidden flex flex-col justify-between min-h-41 rounded-3xl bg-indigo-50 border border-indigo-100 shadow-sm p-4">
-                            {/* Capa de Textura Sutil */}
-                            <div className="absolute inset-0 z-0 opacity-20 mix-blend-multiply pointer-events-none bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3')] bg-cover bg-center" />
+                        <div className="relative flex flex-col justify-between min-h-[164px] bg-indigo-50 p-4 border-r border-slate-200/50">
+                            {/* Capa de Textura de Ondas */}
+                            <div className="absolute inset-0 z-0 opacity-30 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
-                            {/* Contenido Superior (z-10 para estar sobre la textura) */}
+                            {/* Contenido Superior */}
                             <div className="relative z-10 flex flex-col">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-indigo-700 mb-2 backdrop-blur-sm shadow-sm">
                                     <User size={16} />
                                 </div>
-                                <span className="text-[10px] font-bold text-indigo-800/60 uppercase tracking-widest">Mi Fondo</span>
-                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-indigo-950">
+                                <span className="text-[10px] font-semibold text-indigo-800/60 uppercase tracking-widest">Mi Fondo</span>
+                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-indigo-800/90">
                                     {formatCurrency(myAvailableFund)}
                                 </p>
                                 <p className="mt-0.5 text-[10px] font-medium text-indigo-700/80">
@@ -743,17 +780,17 @@ export default function DashboardCouple({
                         </div>
 
                         {/* TARJETA 2: FONDO COMÚN (VERDE SALVIA) */}
-                        <div className="relative overflow-hidden flex flex-col justify-between min-h-41 rounded-3xl bg-[#60855c]/10 border border-[#60855c]/20 shadow-sm p-4">
-                            {/* Capa de Textura Sutil */}
-                            <div className="absolute inset-0 z-0 opacity-20 mix-blend-multiply pointer-events-none bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuDW6rtFa_USq8iJFAxck_vUy7fkvL4vFeNGyLjrw4v_0WmYOmtnLD2okKywR76zx-eW0TBSh0MNnzkEQPI-H1xkOB7yt-A_4D9MHNQ0s6AO7u1f2FDR757IUOe8R5QevfkwpH4LLueHmrnZvx45CaUVa51P5VAXReh-yqj0anDccMrhZNGmqh0ufqpqHtvYQHLM2ydLKfluKZhX3MXMF8g_5DUHgnJAdWxUlx-fiXWlGrNl-LxlbLSzxXSP-qgVWogOyXXuigyn49L3')] bg-cover bg-center" />
+                        <div className="relative flex flex-col justify-between min-h-[164px] bg-[#60855c]/10 p-4">
+                            {/* Capa de Textura de Ondas */}
+                            <div className="absolute inset-0 z-0 opacity-30 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
                             {/* Contenido Superior */}
                             <div className="relative z-10 flex flex-col">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-[#60855c] mb-2 backdrop-blur-sm shadow-sm">
                                     {isJointModel ? <Home size={16} /> : <Scale size={16} />}
                                 </div>
-                                <span className="text-[10px] font-bold text-[#60855c]/70 uppercase tracking-widest">{secondaryWidgetTitle}</span>
-                                <p className={`mt-0.5 text-2xl font-semibold tracking-tight ${secondaryWidgetValue < 0 ? 'text-red-600' : 'text-[#2B3437]'}`}>
+                                <span className="text-[10px] font-semibold text-[#60855c]/70 uppercase tracking-widest">{secondaryWidgetTitle}</span>
+                                <p className={`mt-0.5 text-2xl font-semibold tracking-tight ${secondaryWidgetValue < 0 ? 'text-red-600' : 'text-[#355e6b]'}`}>
                                     {secondaryWidgetValue < 0 ? '-' : ''}{formatCurrency(Math.abs(secondaryWidgetValue))}
                                 </p>
                                 {/* Espaciador invisible para igualar la altura con "Gastado: $X" de la tarjeta 1 */}
@@ -832,11 +869,11 @@ export default function DashboardCouple({
                                                             {isSelected && <Check size={12} className="text-white" />}
                                                         </div>
                                                         <div className="text-left">
-                                                            <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
+                                                            <p className="text-sm font-medium text-slate-800">{expense.concept}</p>
                                                             <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
                                                         </div>
                                                     </div>
-                                                    <span className={`font-bold ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                                    <span className={`font-medium ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
                                                         ${Number(expense.amount).toFixed(2)}
                                                     </span>
                                                 </button>
@@ -1017,7 +1054,7 @@ export default function DashboardCouple({
 
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-baseline gap-3">
-                            <h3 className="text-lg font-semibold text-gray-800">Actividad</h3>
+                            <h3 className="text-md font-semibold text-gray-800">Actividad</h3>
                             <Link
                                 href="/history"
                                 className="flex items-center text-[10px] font-bold tracking-widest text-[#60855c] opacity-70 hover:opacity-100 transition-opacity"
@@ -1028,11 +1065,10 @@ export default function DashboardCouple({
                         <button
                             type="button"
                             onClick={openFilterModal}
-                            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                                currentFilter !== "all"
+                            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${currentFilter !== "all"
                                     ? "bg-[#60855c]/10 text-[#60855c]"
                                     : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                            }`}
+                                }`}
                         >
                             <SlidersHorizontal size={13} />
                             {currentFilter === "all" ? "Filtros" : filterLabels[currentFilter]}
@@ -1066,6 +1102,10 @@ export default function DashboardCouple({
                                     const Icon = iconMap[categoryPresentation.iconKey] ?? ReceiptText;
                                     const isDeposit = expense.category === "deposit";
                                     const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
+                                    const isModifiable =
+                                        (!expense.is_settled || expense.category === 'deposit') &&
+                                        expense.concept !== 'Reembolso del fondo' &&
+                                        expense.concept !== 'Liquidación de deuda';
 
                                     return (
                                         <div
@@ -1086,13 +1126,13 @@ export default function DashboardCouple({
                                                     </div>
 
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm font-bold text-slate-800">{expense.concept}</span>
+                                                        <span className="text-sm font-semibold text-slate-800">{expense.concept}</span>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
                                                                 {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : partnerShortLabel}
                                                             </span>
                                                             {isDebt && (
-                                                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${expense.is_settled
+                                                                <span className={`text-[8px] font-medium px-2 py-0.5 rounded uppercase tracking-widest ${expense.is_settled
                                                                     ? 'bg-emerald-50 text-emerald-600'
                                                                     : 'bg-orange-50 text-orange-600'
                                                                     }`}>
@@ -1103,35 +1143,56 @@ export default function DashboardCouple({
                                                     </div>
                                                 </div>
 
-                                                <span className={`text-base font-bold shrink-0 ${isDeposit ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                                <span className={`text-base font-medium shrink-0 ${isDeposit ? 'text-[#60855c]' : 'text-slate-800'}`}>
                                                     {isDeposit ? '+' : '-'}${Number(expense.amount).toFixed(2)}
                                                 </span>
                                             </button>
 
                                             <div
-                                                className={`flex flex-col border-l border-slate-100 transition-all duration-300 ease-out overflow-hidden shrink-0 ${activeActionId === expense.id ? 'w-14 opacity-100' : 'w-0 opacity-0 border-transparent'
+                                                className={`flex flex-col border-l border-slate-100 transition-all duration-300 ease-out overflow-hidden shrink-0 ${activeActionId === expense.id ? (isModifiable ? 'w-14 opacity-100' : 'w-14 opacity-100') : 'w-0 opacity-0 border-transparent'
                                                     }`}
                                             >
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setExpenseToEdit(expense);
-                                                        setIsExpenseModalOpen(true);
-                                                        setActiveActionId(null);
-                                                    }}
-                                                    className="flex-1 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 bg-slate-50/50 transition-colors border-b border-slate-100"
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
+                                                {isModifiable ? (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setExpenseToEdit(expense);
+                                                                setIsExpenseModalOpen(true);
+                                                                setActiveActionId(null);
+                                                            }}
+                                                            className="flex-1 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 bg-slate-50/50 transition-colors border-b border-slate-100"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => { e.stopPropagation(); }}
-                                                    className="flex-1 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 bg-rose-50/30 transition-colors"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openDeleteModal(expense.id);
+                                                                setActiveActionId(null);
+                                                            }}
+                                                            className="flex-1 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 bg-rose-50/30 transition-colors"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            showToast("🔒 Movimiento bloqueado. Este gasto ya fue liquidado o es un ajuste de sistema y no se puede modificar.");
+                                                            setActiveActionId(null);
+                                                        }}
+                                                        className="flex-1 flex items-center justify-center text-slate-400 bg-slate-100 transition-colors"
+                                                        title="Movimiento bloqueado"
+                                                    >
+                                                        <Lock size={16} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -1338,19 +1399,72 @@ export default function DashboardCouple({
             )}
             <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
 
+            {/* Toast de notificación del sistema */}
+            {systemNotification && (
+                <div className="fixed top-6 left-1/2 z-200 -translate-x-1/2 animate-in slide-in-from-top-3 fade-in duration-300">
+                    <div className="rounded-2xl bg-slate-800/95 px-5 py-3 text-sm font-medium text-white shadow-xl backdrop-blur-sm">
+                        {systemNotification}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de confirmación de borrado */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        onClick={closeDeleteModal}
+                    />
+                    <div className="relative w-full max-w-xs rounded-3xl bg-white p-6 text-center shadow-2xl transition-all animate-in zoom-in-95 fade-in duration-200">
+                        {/* Icóno */}
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
+                            <Trash2 size={24} className="text-rose-500" />
+                        </div>
+                        <h3 className="mb-1 text-base font-bold text-slate-800">Eliminar Movimiento</h3>
+                        <p className="mb-6 text-sm text-slate-500">
+                            ¿Estás seguro? Esta acción no se puede deshacer y ajustará los saldos.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={closeDeleteModal}
+                                disabled={isDeleting}
+                                className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteConfirm}
+                                disabled={isDeleting}
+                                className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-600 disabled:opacity-70"
+                            >
+                                {isDeleting ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                        </svg>
+                                        Eliminando...
+                                    </span>
+                                ) : "Sí, Eliminar"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal de Filtros */}
             {showFilterModal && (
                 <div className="fixed inset-0 z-60 flex flex-col justify-end">
                     <div
-                        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
-                            isFilterAnimated ? "opacity-100" : "opacity-0"
-                        }`}
+                        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterAnimated ? "opacity-100" : "opacity-0"
+                            }`}
                         onClick={closeFilterModal}
                     />
                     <div
-                        className={`relative flex max-h-[80vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                            isFilterAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
-                        }`}
+                        className={`relative flex max-h-[80vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isFilterAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+                            }`}
                     >
                         <div className="flex justify-center pt-4 pb-2">
                             <div className="h-1.5 w-12 rounded-full bg-slate-200" />
@@ -1378,11 +1492,10 @@ export default function DashboardCouple({
                                             setCurrentFilter(value);
                                             closeFilterModal();
                                         }}
-                                        className={`w-full rounded-2xl px-4 py-3.5 text-left text-sm transition-colors ${
-                                            currentFilter === value
+                                        className={`w-full rounded-2xl px-4 py-3.5 text-left text-sm transition-colors ${currentFilter === value
                                                 ? "bg-[#60855c]/10 font-bold text-[#60855c]"
                                                 : "bg-slate-50 font-medium text-slate-700 hover:bg-slate-100"
-                                        }`}
+                                            }`}
                                     >
                                         {label}
                                     </button>

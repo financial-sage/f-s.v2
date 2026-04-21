@@ -269,3 +269,26 @@ export async function createPersonalDeposit({
 
   return { success: true };
 }
+
+export async function deleteExpenseAction(expenseId: string) {
+  if (!expenseId) throw new Error("ID de gasto requerido.");
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const admin = getSupabaseAdminClient();
+
+  const { error } = await admin
+    .from("expenses")
+    .update({ is_active: false })
+    .eq("id", expenseId)
+    .eq("paid_by", user.id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/history");
+
+  return { success: true };
+}
