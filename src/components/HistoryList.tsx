@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useExpenseStore } from "@/store/useExpenseStore";
 import {
     ChevronDown,
     Edit,
@@ -80,9 +81,14 @@ interface HistoryListProps {
     financialModel: string;
 }
 
-export default function HistoryList({ allExpenses, currentUserId, partnerName, financialModel }: HistoryListProps) {
+export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, partnerName, financialModel: ssrFinancialModel }: HistoryListProps) {
     const router = useRouter();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
+    const store = useExpenseStore();
+
+    // Use store data when hydrated (instant on navigation), fall back to SSR props
+    const allExpenses = (store.isHydrated ? store.expenses : ssrExpenses) as HistoryExpenseRow[];
+    const financialModel = store.isHydrated ? store.financialModel : ssrFinancialModel;
 
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
@@ -130,7 +136,7 @@ export default function HistoryList({ allExpenses, currentUserId, partnerName, f
     const handleDeleteConfirm = () => {
         if (!expenseToDelete) return;
         startDeletingTransition(async () => {
-            try { await deleteExpenseAction(expenseToDelete); closeDeleteModal(); router.refresh(); }
+            try { await deleteExpenseAction(expenseToDelete); closeDeleteModal(); await store.refreshData(); }
             catch { closeDeleteModal(); }
         });
     };
@@ -283,6 +289,31 @@ export default function HistoryList({ allExpenses, currentUserId, partnerName, f
             </div>
         );
     };
+
+    // Show skeleton only when there are no SSR expenses and store hasn't hydrated yet
+    if (!store.isHydrated && ssrExpenses.length === 0) {
+        return (
+            <div className="flex-1 overflow-y-auto pb-32 px-3 pt-4">
+                {/* Balance chips skeleton */}
+                <div className="flex gap-2 mb-4">
+                    <div className="flex-1 h-14 rounded-2xl bg-slate-200 animate-pulse" />
+                    <div className="flex-1 h-14 rounded-2xl bg-slate-200 animate-pulse" />
+                    <div className="h-14 w-14 rounded-2xl bg-slate-200 animate-pulse" />
+                </div>
+                {/* Row skeletons */}
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 bg-white rounded-2xl p-4 mb-2 shadow-sm animate-pulse">
+                        <div className="h-10 w-10 rounded-full bg-slate-200 shrink-0" />
+                        <div className="flex-1 space-y-2">
+                            <div className="h-3 w-3/4 rounded bg-slate-200" />
+                            <div className="h-2 w-1/2 rounded bg-slate-100" />
+                        </div>
+                        <div className="h-4 w-14 rounded bg-slate-200" />
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     return (
         <>

@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/server";
 import { filterExpensesForPrivacy } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import HistoryList, { type HistoryExpenseRow } from "@/components/HistoryList";
+import StoreHydrator from "@/components/StoreHydrator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ExpenseRow {
@@ -68,6 +69,7 @@ export default async function HistoryPage() {
 
   return (
     <div className="flex flex-col h-dvh bg-slate-50 overflow-hidden">
+      <StoreHydrator userId={user.id} />
       {/* Header */}
       <header className="shrink-0 z-10 flex items-center gap-3 bg-[#F8F9FA]/90 px-4 py-4 backdrop-blur-md border-b border-slate-100">
         <Link

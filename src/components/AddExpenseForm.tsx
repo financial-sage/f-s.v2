@@ -30,6 +30,7 @@ import CustomKeypad from "@/components/CustomNumpad";
 import type { ExpenseToEdit } from "@/components/ExpenseModalProvider";
 import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
+import { useExpenseStore } from "@/store/useExpenseStore";
 
 interface AddExpenseFormProps {
   familyMemberCount?: number;
@@ -505,14 +506,17 @@ export default function AddExpenseForm({
       setIsSheetAnimated(false);
       setIsCategorySheetOpen(false);
 
+      // Refresh store in background (Optimistic UI — no full page reload)
+      const { refreshData } = useExpenseStore.getState();
+
       if (onClose) {
         onClose();
         window.setTimeout(() => {
-          router.refresh();
+          refreshData();
         }, 460);
       } else {
         router.push("/");
-        router.refresh();
+        refreshData();
       }
     } catch (error) {
       setErrorMessage(

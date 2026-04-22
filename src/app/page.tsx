@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { calculateDebt } from "@/app/actions/debt";
 import DashboardCouple from "@/components/DashboardCouple";
 import DashboardSolo from "@/components/DashboardSolo";
+import StoreHydrator from "@/components/StoreHydrator";
 import FAB from "@/components/FAB";
 import { filterExpensesForPrivacy, getDashboardData } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
@@ -188,6 +189,7 @@ export default async function Home() {
 
   return (
     <>
+      <StoreHydrator userId={user.id} />
       {familyMemberCount >= 2 && familyId ? (
         <DashboardCouple
           familyId={familyId}
