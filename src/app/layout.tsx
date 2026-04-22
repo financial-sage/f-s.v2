@@ -3,6 +3,7 @@ import BottomNav from "@/components/BottomNav";
 import InstallPrompt from "@/components/InstallPrompt";
 import PWARegister from "@/components/PWARegister";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
+import UpdateNotifier from "@/components/UpdateNotifier";
 import { createClient } from "@/utils/supabase/server";
 import "./globals.css";
 
@@ -85,6 +86,7 @@ export default async function RootLayout({
             financialModel={financialModel}
             user1SplitPct={user1SplitPct}
           />
+          <UpdateNotifier />
         </ExpenseModalProvider>
       </body>
     </html>
