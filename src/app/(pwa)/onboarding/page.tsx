@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Copy, LoaderCircle, Sparkles, UserRound, Users } from "lucide-react";
 import { createSoloFamilyAction, getCurrentFamilyState, joinFamilyAction } from "@/app/actions/family";
+import { useExpenseStore } from "@/store/useExpenseStore";
 
 type OnboardingStep = "choose" | "solo_success" | "join_input";
 
@@ -87,8 +88,9 @@ export default function OnboardingPage() {
     startTransition(async () => {
       try {
         await joinFamilyAction(userId, inviteCode);
-        router.push("/");
         router.refresh();
+        await useExpenseStore.getState().fetchData();
+        router.push("/");
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo completar la unión.");
       }
@@ -236,9 +238,10 @@ export default function OnboardingPage() {
 
             <button
               type="button"
-              onClick={() => {
-                router.push("/");
+              onClick={async () => {
                 router.refresh();
+                await useExpenseStore.getState().fetchData();
+                router.push("/");
               }}
               className="w-full rounded-full bg-primary px-4 py-4 font-bold text-white"
             >

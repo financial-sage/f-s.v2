@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { useExpenseStore } from "@/store/useExpenseStore";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,8 +31,9 @@ export default function LoginPage() {
         throw error;
       }
 
-      router.push("/");
       router.refresh();
+      await useExpenseStore.getState().fetchData();
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ocurrió un error.");
     } finally {
