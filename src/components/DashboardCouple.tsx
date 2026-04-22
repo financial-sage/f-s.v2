@@ -1080,7 +1080,7 @@ export default function DashboardCouple({
                                             key={expense.id}
                                             className={`relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden group animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both ${currentList.length >= 5 ? 'flex-1' : ''
                                                 }`}
-                                            style={{ animationDelay: `${index * 75}ms` }}
+                                            style={{ animationDelay: `${index * 100}ms` }}
                                         >
                                             <button
                                                 type="button"
