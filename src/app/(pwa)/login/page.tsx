@@ -31,9 +31,9 @@ export default function LoginPage() {
         throw error;
       }
 
-      router.refresh();
-      await useExpenseStore.getState().fetchData();
-      router.push("/");
+      // Forzamos una redirección nativa limpia.
+      // Esto recarga la PWA, limpia la memoria y entra al dashboard con la sesión confirmada.
+      window.location.href = '/';
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ocurrió un error.");
     } finally {
