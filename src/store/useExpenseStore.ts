@@ -41,6 +41,7 @@ interface ExpenseStoreState {
   financialModel: string;
   partnerId: string | null;
   partnerName: string;
+  isPremium: boolean;
 
   // Data
   expenses: StoreExpenseRow[];
@@ -131,6 +132,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   financialModel: "joint_fund",
   partnerId: null,
   partnerName: "Pareja",
+  isPremium: false,
   expenses: [],
   myAvailableFund: 0,
   fundLiquidity: 0,
@@ -157,7 +159,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
       const [profileResult, familyResult, expensesResult] = await Promise.all([
         supabase
           .from("profiles")
-          .select("family_id, full_name, avatar_url")
+          .select("family_id, full_name, avatar_url, is_premium")
           .eq("id", userId)
           .single(),
         supabase
@@ -201,12 +203,15 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
       const expenses = filterExpensesForPrivacy(rawExpenses, userId) as StoreExpenseRow[];
       const { myAvailableFund, fundLiquidity, p2pBalance } = computeBalances(expenses, userId, financialModel);
 
+      const isPremium = (profileResult.data as { is_premium?: boolean | null } | null)?.is_premium === true;
+
       set({
         userId,
         familyId,
         financialModel,
         partnerId,
         partnerName,
+        isPremium,
         expenses,
         myAvailableFund,
         fundLiquidity,
@@ -233,6 +238,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
       financialModel: "joint_fund",
       partnerId: null,
       partnerName: "Pareja",
+      isPremium: false,
       expenses: [],
       myAvailableFund: 0,
       fundLiquidity: 0,

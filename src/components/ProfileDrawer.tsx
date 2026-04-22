@@ -3,6 +3,7 @@
 import { BellRing, ChevronRight, CircleHelp, Coins, ShieldCheck, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { joinFamilyWithCode } from "@/app/actions/family";
 import FamilySettings from "@/components/FamilySettings";
 import SignOutButton from "@/components/SignOutButton";
@@ -51,6 +52,11 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   const [inviteCode, setInviteCode] = useState("");
   const [joinMessage, setJoinMessage] = useState("");
   const [joinError, setJoinError] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -145,7 +151,9 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
     { icon: ShieldCheck, label: "Privacidad", value: "Protegida" },
   ];
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div
         className={`fixed inset-0 z-110 bg-slate-900/35 transition-opacity duration-300 ${
@@ -306,6 +314,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
           )}
         </div>
       </aside>
-    </>
+    </>,
+    document.body
   );
 }

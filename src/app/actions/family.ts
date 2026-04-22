@@ -5,6 +5,43 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
 
+// ─── Premium campaign helper ──────────────────────────────────────────────────
+
+/**
+ * If there's an active promotional campaign with remaining slots,
+ * grants is_premium=true to the user and increments current_users.
+ * Silently no-ops on any error so it never blocks onboarding.
+ */
+async function grantPremiumIfCampaignActive(userId: string): Promise<void> {
+  try {
+    const admin = getSupabaseAdminClient();
+
+    const { data: campaign } = await admin
+      .from("promotional_campaigns")
+      .select("id, current_users, max_users")
+      .eq("is_active", true)
+      .gt("ends_at", new Date().toISOString())
+      .limit(1)
+      .maybeSingle();
+
+    if (!campaign || campaign.current_users >= campaign.max_users) return;
+
+    await Promise.all([
+      admin
+        .from("profiles")
+        .update({ is_premium: true } as never)
+        .eq("id", userId),
+      admin
+        .from("promotional_campaigns")
+        .update({ current_users: campaign.current_users + 1 } as never)
+        .eq("id", campaign.id),
+    ]);
+  } catch {
+    // Never block onboarding due to premium granting errors
+  }
+}
+
+
 interface FamilyRow {
   id: string;
   user_1_id: string;
@@ -159,6 +196,8 @@ export async function completeUserRegistration({
     throw new Error(profileError.message);
   }
 
+  await grantPremiumIfCampaignActive(userId);
+
   revalidatePath("/");
   revalidatePath("/profile");
   revalidatePath("/add-expense");
@@ -219,6 +258,8 @@ export async function createSoloFamilyAction(userId: string) {
   if (profileError) {
     throw new Error(profileError.message);
   }
+
+  await grantPremiumIfCampaignActive(user.id);
 
   revalidatePath("/");
   revalidatePath("/profile");
@@ -293,6 +334,8 @@ export async function joinFamilyAction(userId: string, inviteCode: string) {
   if (profileError) {
     throw new Error(profileError.message);
   }
+
+  await grantPremiumIfCampaignActive(user.id);
 
   revalidatePath("/");
   revalidatePath("/profile");

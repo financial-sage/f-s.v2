@@ -35,6 +35,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import ProfileDrawer from "@/components/ProfileDrawer";
 import CustomNumpad from "@/components/CustomNumpad";
+import { useExpenseStore } from "@/store/useExpenseStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { getCategoryDetails } from "@/lib/categoryMap";
@@ -167,6 +168,7 @@ export default function DashboardCouple({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
+    const isPremium = useExpenseStore((s) => s.isPremium);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -661,11 +663,20 @@ export default function DashboardCouple({
                     <span className="text-lg font-bold text-[#2B3437] font-headline">SinDescuadre</span>
                 </button>
                 <div className="flex items-center gap-3">
-                    {/* Botón Premium (Visual) */}
-                    <div className="flex items-center gap-1 bg-amber-100/80 border border-amber-200/50 text-amber-700 px-1.5 py-1.5 rounded-full shadow-sm backdrop-blur-sm cursor-pointer hover:bg-amber-100 transition-colors">
-                        <Crown size={14} className="fill-amber-500 text-amber-600" />
-                        {/* <span className="text-[10px] font-extrabold uppercase tracking-widest">Premium</span> */}
-                    </div>
+                    {/* Botón Premium — condicional */}
+                    {isPremium ? (
+                        <div className="flex items-center gap-1 bg-amber-100/80 border border-amber-200/50 text-amber-700 px-1.5 py-1.5 rounded-full shadow-sm backdrop-blur-sm cursor-pointer hover:bg-amber-100 transition-colors">
+                            <Crown size={14} className="fill-amber-500 text-amber-600" />
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            className="flex items-center gap-1 bg-slate-100 border border-slate-200/50 text-slate-400 px-1.5 py-1.5 rounded-full shadow-sm cursor-pointer hover:bg-slate-200 transition-colors"
+                            aria-label="Hazte Premium"
+                        >
+                            <Lock size={13} strokeWidth={2} />
+                        </button>
+                    )}
 
                     {/* Campana de Notificaciones */}
                     <button
