@@ -131,7 +131,7 @@ export default function FamilySettings({
             </div>
             <div>
               <p className="font-semibold text-on-surface">Modelo de Reparto</p>
-              <p className="text-sm text-on-surface-variant">Gestiona cómo comparten gastos.</p>
+              <p className="text-xs text-on-surface-variant">Gestiona cómo comparten gastos.</p>
             </div>
           </div>
 

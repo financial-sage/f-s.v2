@@ -24,8 +24,8 @@ export default function SignOutButton({ subtle = false }: SignOutButtonProps) {
       onClick={handleSignOut}
       className={
         subtle
-          ? "flex w-full items-center justify-center gap-2 rounded-2xl bg-red-50/80 px-4 py-3 font-semibold text-red-600 transition hover:bg-red-100"
-          : "flex w-full items-center justify-center gap-2 rounded-full bg-sage px-4 py-3 font-semibold text-white transition hover:brightness-110"
+          ? "shadow-sm flex w-full items-center justify-center gap-2 rounded-2xl bg-red-50/80 px-4 py-3 font-semibold text-red-600 transition hover:bg-red-100"
+          : "shadow-sm flex w-full items-center justify-center gap-2 rounded-full bg-sage px-4 py-3 font-semibold text-white transition hover:brightness-110"
       }
     >
       <LogOut size={18} />

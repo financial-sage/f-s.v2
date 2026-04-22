@@ -111,10 +111,10 @@ export default async function ProfilePage() {
 
   const { data: partnerProfile } = partnerId
     ? await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", partnerId)
-        .maybeSingle()
+      .from("profiles")
+      .select("full_name")
+      .eq("id", partnerId)
+      .maybeSingle()
     : { data: null };
 
   const partnerDisplayName = getFirstName(partnerProfile?.full_name);
@@ -128,8 +128,8 @@ export default async function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-dvh bg-surface px-4 pt-6 pb-28">
-      <div className="mx-auto max-w-xl space-y-5">
+    <div className="min-h-dvh flex flex-col bg-surface px-4 pt-6">
+      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col space-y-5">
         <header className="px-2 pt-2 text-center">
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-on-surface-variant">
             Ajustes
@@ -241,7 +241,7 @@ export default async function ProfilePage() {
           </div>
         </section>
 
-        <div className="pt-1">
+        <div className="mt-auto">
           <SignOutButton subtle />
         </div>
       </div>

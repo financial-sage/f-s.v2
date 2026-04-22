@@ -5,47 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  Baby,
-  Bike,
-  Briefcase,
-  BookOpen,
   Bolt,
-  Bus,
   CalendarDays,
-  Coffee,
   CheckCircle2,
-  Dumbbell,
-  Droplets,
-  Film,
-  Gamepad2,
-  Gem,
-  Globe,
-  GraduationCap,
-  Gift,
   Heart,
   Home,
-  House,
   LoaderCircle,
-  Music,
   MoreHorizontal,
-  PawPrint,
-  PartyPopper,
   PencilLine,
-  Plane,
-  Pill,
-  Scissors,
-  ShoppingCart,
-  Shirt,
-  Smartphone,
-  Stethoscope,
-  Fuel,
-  CarFront,
-  UtensilsCrossed,
   User,
   Wallet,
-  Wifi,
   X,
-  Zap,
   type LucideIcon,
   Users,
 } from "lucide-react";
@@ -58,6 +28,7 @@ import {
 import { editExpenseAction } from "@/app/actions/editExpense";
 import CustomKeypad from "@/components/CustomNumpad";
 import type { ExpenseToEdit } from "@/components/ExpenseModalProvider";
+import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
 
 interface AddExpenseFormProps {
@@ -73,13 +44,6 @@ interface OptionItem<T extends string> {
   value: T;
   label: string;
   icon: LucideIcon;
-}
-
-interface CategoryTile {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  value: ExpenseCategory;
 }
 
 type ExpenseOrigin = ExpenseActor | "both_split";
@@ -132,41 +96,7 @@ function buildResponsibleOptions(
   ];
 }
 
-const topCategories: CategoryTile[] = [
-  { id: "super", value: "super", label: "Super", icon: ShoppingCart },
-  { id: "dining", value: "food", label: "Restaurante", icon: UtensilsCrossed },
-  { id: "transport", value: "transport", label: "Transp", icon: CarFront },
-  { id: "home", value: "home", label: "Hogar", icon: House },
-  { id: "health", value: "other", label: "Salud", icon: Pill },
-  { id: "work", value: "other", label: "Trabajo", icon: Briefcase },
-  { id: "edu", value: "other", label: "Edu", icon: GraduationCap },
-  { id: "gifts", value: "other", label: "Regalos", icon: Gift },
-  { id: "pets", value: "other", label: "Mascotas", icon: PawPrint },
-  { id: "fuel", value: "transport", label: "Gasolina", icon: Fuel }
-];
 
-const extraCategories: CategoryTile[] = [
-  { id: "gym", value: "other", label: "Gimnasio", icon: Dumbbell },
-  { id: "clothes", value: "other", label: "Ropa", icon: Shirt },
-  { id: "travel", value: "transport", label: "Viajes", icon: Plane },
-  { id: "cinema", value: "other", label: "Cine", icon: Film },
-  { id: "games", value: "other", label: "Juegos", icon: Gamepad2 },
-  { id: "music", value: "other", label: "Musica", icon: Music },
-  { id: "coffee", value: "food", label: "Cafe", icon: Coffee },
-  { id: "kids", value: "other", label: "Bebe", icon: Baby },
-  { id: "books", value: "other", label: "Libros", icon: BookOpen },
-  { id: "phone", value: "home", label: "Telefono", icon: Smartphone },
-  { id: "wifi", value: "home", label: "Internet", icon: Wifi },
-  { id: "energy", value: "home", label: "Energia", icon: Zap },
-  { id: "water", value: "home", label: "Agua", icon: Droplets },
-  { id: "bus", value: "transport", label: "Bus", icon: Bus },
-  { id: "party", value: "other", label: "Fiesta", icon: PartyPopper },
-  { id: "beauty", value: "other", label: "Belleza", icon: Scissors },
-  { id: "doctor", value: "other", label: "Doctor", icon: Stethoscope },
-  { id: "bike", value: "transport", label: "Bici", icon: Bike },
-  { id: "misc", value: "other", label: "Varios", icon: Globe },
-  { id: "luxury", value: "other", label: "Lujo", icon: Gem },
-];
 
 function getSelectorClasses(isSelected: boolean, disabled: boolean) {
   if (disabled) {
@@ -193,7 +123,8 @@ function formatDisplayDate(value: string) {
 }
 
 function getCategoryIdFromValue(category?: string | null) {
-  return [...topCategories, ...extraCategories].find((option) => option.value === category)?.id ?? "food";
+  const found = [...topCategories, ...extraCategories].find((option) => option.id === category);
+  return found?.id ?? "super";
 }
 
 function sanitizeDecimalInput(value: string | number) {
@@ -480,7 +411,7 @@ export default function AddExpenseForm({
         formData.set("id", expenseToEdit.id);
         formData.set("amount", finalAmount.toString());
         formData.set("concept", concept.trim());
-        formData.set("category", selectedCategoryValue);
+        formData.set("category", selectedCategory);
         formData.set("expense_date", date);
         formData.set("paid_by", resolvedPaidByValue);
         formData.set("responsible_for", resolvedResponsibleForValue);
@@ -513,7 +444,7 @@ export default function AddExpenseForm({
                 paidBy: "me",
                 responsibleFor,
                 payerSharePct: 100,
-                category: selectedCategoryValue,
+                category: selectedCategory,
                 date,
                 splitTypeOverride:
                   responsibleFor === "joint_fund"
@@ -533,7 +464,7 @@ export default function AddExpenseForm({
                 paidBy: "partner",
                 responsibleFor,
                 payerSharePct: 100,
-                category: selectedCategoryValue,
+                category: selectedCategory,
                 date,
                 splitTypeOverride:
                   responsibleFor === "joint_fund"
@@ -563,7 +494,7 @@ export default function AddExpenseForm({
             paidBy: singlePaidBy,
             responsibleFor: isCoupleMode ? responsibleFor : "me",
             payerSharePct: 100,
-            category: selectedCategoryValue,
+            category: selectedCategory,
             date,
             splitTypeOverride,
           });

@@ -159,7 +159,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-full flex-col overflow-y-auto bg-surface px-4 py-5 pb-28">
+        <div className="flex h-full flex-col overflow-y-auto bg-surface px-4 py-5">
           <div className="mb-4 flex items-center justify-between">
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-on-surface-variant">
               Perfil

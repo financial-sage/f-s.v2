@@ -5,7 +5,6 @@ import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     BarChart3,
-    CarFront,
     ChevronDown,
     Home,
     Plus,
@@ -13,11 +12,8 @@ import {
     ReceiptText,
     Scale,
     Settings,
-    ShoppingCart,
     House,
     User,
-    UtensilsCrossed,
-    Wrench,
     X,
     Check,
     Edit,
@@ -39,9 +35,8 @@ import ProfileDrawer from "@/components/ProfileDrawer";
 import CustomNumpad from "@/components/CustomNumpad";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
+import { getCategoryDetails } from "@/lib/categoryMap";
 
-
-type CoupleExpenseIconKey = "shopping-cart" | "car" | "utensils" | "home" | "receipt" | "deposit";
 
 interface CoupleDashboardExpense {
     id: string;
@@ -82,14 +77,6 @@ interface DashboardCoupleProps {
     financialModel?: string;
 }
 
-const iconMap: Record<CoupleExpenseIconKey, LucideIcon> = {
-    "shopping-cart": ShoppingCart,
-    car: CarFront,
-    utensils: UtensilsCrossed,
-    home: House,
-    receipt: Wrench,
-    deposit: Plus,
-};
 
 function getInitials(name: string) {
     return (
@@ -125,38 +112,9 @@ function formatExpenseDate(dateInput: string) {
         .replace(".", "");
 }
 
-function getExpenseCategoryPresentation(category?: string | null, concept?: string) {
-    switch (category) {
-        case "super":
-            return { iconKey: "shopping-cart" as CoupleExpenseIconKey, label: "Super" };
-        case "food":
-            return { iconKey: "utensils" as CoupleExpenseIconKey, label: "Comida" };
-        case "transport":
-            return { iconKey: "car" as CoupleExpenseIconKey, label: "Transporte" };
-        case "home":
-            return { iconKey: "home" as CoupleExpenseIconKey, label: "Hogar" };
-        case "deposit":
-            return { iconKey: "deposit" as CoupleExpenseIconKey, label: "Aporte" };
-        case "other":
-            return { iconKey: "receipt" as CoupleExpenseIconKey, label: "Otros" };
-        default: {
-            const normalized = (concept ?? "").toLowerCase();
-
-            if (/super|market|compra|grocery/.test(normalized)) {
-                return { iconKey: "shopping-cart" as CoupleExpenseIconKey, label: "Super" };
-            }
-
-            if (/cafe|café|coffee|comida|rest|restaurant|almuerzo|cena/.test(normalized)) {
-                return { iconKey: "utensils" as CoupleExpenseIconKey, label: "Comida" };
-            }
-
-            if (/gas|gasolina|uber|taxi|auto|car|bus|bici|viaje/.test(normalized)) {
-                return { iconKey: "car" as CoupleExpenseIconKey, label: "Transporte" };
-            }
-
-            return { iconKey: "receipt" as CoupleExpenseIconKey, label: "Otros" };
-        }
-    }
+function getExpenseCategoryPresentation(category?: string | null) {
+    const { icon, label } = getCategoryDetails(category ?? "");
+    return { icon, label };
 }
 
 export default function DashboardCouple({
@@ -749,17 +707,17 @@ export default function DashboardCouple({
                         style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
                     >
                         {/* TARJETA 1: MI FONDO (ÍNDIGO) */}
-                        <div className="relative flex flex-col justify-between min-h-[164px] bg-indigo-50 p-4 border-r border-slate-200/50">
+                        <div className="relative flex flex-col justify-between min-h-[164px] bg-[#0f2d91]/40 p-4  border-slate-200/50">
                             {/* Capa de Textura de Ondas */}
-                            <div className="absolute inset-0 z-0 opacity-30 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
+                            <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
                             {/* Contenido Superior */}
                             <div className="relative z-10 flex flex-col">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-indigo-700 mb-2 backdrop-blur-sm shadow-sm">
                                     <User size={16} />
                                 </div>
-                                <span className="text-[10px] font-semibold text-indigo-800/60 uppercase tracking-widest">Mi Fondo</span>
-                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-indigo-800/90">
+                                <span className="text-[10px] font-normal text-white uppercase tracking-widest">Mi Fondo</span>
+                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-white">
                                     {formatCurrency(myAvailableFund)}
                                 </p>
                                 <p className="mt-0.5 text-[10px] font-medium text-indigo-700/80">
@@ -772,7 +730,7 @@ export default function DashboardCouple({
                                 <button
                                     type="button"
                                     onClick={openPersonalDepositModal}
-                                    className="w-full rounded-xl bg-white/80 py-2.5 text-xs font-bold text-indigo-700 transition-all hover:bg-white shadow-sm backdrop-blur-sm"
+                                    className="w-full rounded-full bg-white/90 py-2 text-xs font-bold text-indigo-700 transition-all hover:bg-white shadow-sm backdrop-blur-sm"
                                 >
                                     Aportar
                                 </button>
@@ -780,17 +738,17 @@ export default function DashboardCouple({
                         </div>
 
                         {/* TARJETA 2: FONDO COMÚN (VERDE SALVIA) */}
-                        <div className="relative flex flex-col justify-between min-h-[164px] bg-[#60855c]/10 p-4">
+                        <div className="relative flex flex-col justify-between min-h-[164px] bg-[#5b8156]/50 p-4">
                             {/* Capa de Textura de Ondas */}
-                            <div className="absolute inset-0 z-0 opacity-30 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
+                            <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
                             {/* Contenido Superior */}
                             <div className="relative z-10 flex flex-col">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-[#60855c] mb-2 backdrop-blur-sm shadow-sm">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-[#60855c] mb-2 backdrop-blur-sm shadow-sm ">
                                     {isJointModel ? <Home size={16} /> : <Scale size={16} />}
                                 </div>
-                                <span className="text-[10px] font-semibold text-[#60855c]/70 uppercase tracking-widest">{secondaryWidgetTitle}</span>
-                                <p className={`mt-0.5 text-2xl font-semibold tracking-tight ${secondaryWidgetValue < 0 ? 'text-red-600' : 'text-[#355e6b]'}`}>
+                                <span className="text-[10px] font-normal text-white uppercase tracking-widest">{secondaryWidgetTitle}</span>
+                                <p className={`mt-0.5 text-2xl font-semibold tracking-tight ${secondaryWidgetValue < 0 ? 'text-red-600' : 'text-white'}`}>
                                     {secondaryWidgetValue < 0 ? '-' : ''}{formatCurrency(Math.abs(secondaryWidgetValue))}
                                 </p>
                                 {/* Espaciador invisible para igualar la altura con "Gastado: $X" de la tarjeta 1 */}
@@ -806,7 +764,7 @@ export default function DashboardCouple({
                                         <button
                                             type="button"
                                             onClick={openDepositModal}
-                                            className="w-full rounded-xl bg-white/80 py-2.5 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm"
+                                            className="w-full rounded-full bg-white/90 py-2 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm"
                                         >
                                             Aportar
                                         </button>
@@ -814,7 +772,7 @@ export default function DashboardCouple({
                                             <button
                                                 type="button"
                                                 onClick={openBalancesModal}
-                                                className="w-full rounded-xl bg-red-50 py-2.5 text-xs font-bold text-red-600 transition-all hover:bg-white shadow-sm border border-red-100"
+                                                className="w-full rounded-full bg-red-50 py-2 text-xs font-bold text-orange-800 transition-all hover:bg-white shadow-sm border border-red-100"
                                             >
                                                 Cobrar
                                             </button>
@@ -825,7 +783,7 @@ export default function DashboardCouple({
                                         type="button"
                                         onClick={openBalancesModal}
                                         disabled={!hasP2PBalance}
-                                        className="w-full rounded-xl bg-white/80 py-2.5 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="w-full rounded-full bg-white/90 py-2 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         Liquidar
                                     </button>
@@ -1098,8 +1056,9 @@ export default function DashboardCouple({
                         ) : (
                             <div className="flex h-full flex-col">
                                 {currentList.map((expense) => {
-                                    const categoryPresentation = getExpenseCategoryPresentation(expense.category, expense.concept);
-                                    const Icon = iconMap[categoryPresentation.iconKey] ?? ReceiptText;
+                                    console.log("Renderizando gasto:", expense); // Debug: Ver cada gasto que se renderiza
+                                    const categoryPresentation = getExpenseCategoryPresentation(expense.category);
+                                    const Icon = categoryPresentation.icon;
                                     const isDeposit = expense.category === "deposit";
                                     const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
                                     const isModifiable =

@@ -3,24 +3,18 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-    BarChart3,
-    CarFront,
     ChevronDown,
     Edit,
-    House,
     Lock,
-    Plus,
     Receipt,
     ReceiptText,
-    ShoppingCart,
     SlidersHorizontal,
     Trash2,
-    UtensilsCrossed,
-    Wrench,
     X,
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { deleteExpenseAction } from "@/app/actions/expenses";
+import { getCategoryDetails } from "@/lib/categoryMap";
 import type { ExpenseSplitType } from "@/lib/expenses";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -42,39 +36,6 @@ interface Filters {
     fundTarget: "all" | "personal" | "joint_fund";
     paidBy: "all" | "me" | "partner";
     status: "all" | "pending" | "settled";
-}
-
-// ─── Icon map ─────────────────────────────────────────────────────────────────
-type IconKey = "shopping-cart" | "car" | "utensils" | "home" | "receipt" | "deposit" | "bar-chart";
-
-const iconMap: Record<IconKey, React.FC<{ size?: number; className?: string }>> = {
-    "shopping-cart": (p) => <ShoppingCart {...p} />,
-    car: (p) => <CarFront {...p} />,
-    utensils: (p) => <UtensilsCrossed {...p} />,
-    home: (p) => <House {...p} />,
-    receipt: (p) => <Wrench {...p} />,
-    deposit: (p) => <Plus {...p} />,
-    "bar-chart": (p) => <BarChart3 {...p} />,
-};
-
-function getCategoryPresentation(
-    category?: string | null,
-    concept?: string
-): { iconKey: IconKey } {
-    switch (category) {
-        case "super": return { iconKey: "shopping-cart" };
-        case "food": return { iconKey: "utensils" };
-        case "transport": return { iconKey: "car" };
-        case "home": return { iconKey: "home" };
-        case "deposit": return { iconKey: "deposit" };
-        default: {
-            const n = (concept ?? "").toLowerCase();
-            if (/super|market|compra|grocery/.test(n)) return { iconKey: "shopping-cart" };
-            if (/cafe|café|coffee|comida|rest|restaurant|almuerzo|cena/.test(n)) return { iconKey: "utensils" };
-            if (/gas|gasolina|uber|taxi|auto|car|bus|viaje/.test(n)) return { iconKey: "car" };
-            return { iconKey: "receipt" };
-        }
-    }
 }
 
 function formatDate(dateInput: string) {
@@ -221,8 +182,7 @@ export default function HistoryList({ allExpenses, currentUserId, partnerName, f
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
 
     const renderExpenseCard = (expense: HistoryExpenseRow) => {
-        const { iconKey } = getCategoryPresentation(expense.category, expense.concept);
-        const Icon = iconMap[iconKey] ?? Receipt;
+        const { icon: Icon } = getCategoryDetails(expense.category ?? "");
         const isDeposit = expense.category === "deposit";
         const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
         const paidByMe = expense.paid_by === currentUserId;

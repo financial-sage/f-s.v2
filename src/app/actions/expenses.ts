@@ -8,7 +8,7 @@ import type { ExpenseSplitType } from "@/lib/expenses";
 
 export type ExpenseActor = "me" | "partner" | "joint_fund";
 export type ExpenseResponsibleFor = "joint_fund" | "me" | "partner";
-export type ExpenseCategory = "super" | "food" | "transport" | "home" | "other" | "deposit";
+export type ExpenseCategory = string;
 
 interface SaveExpenseInput {
   amount: number;
