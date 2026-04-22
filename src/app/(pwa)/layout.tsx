@@ -5,6 +5,7 @@ import PWARegister from "@/components/PWARegister";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
 import UpdateNotifier from "@/components/UpdateNotifier";
 import PageTransition from "@/components/PageTransition";
+import RealtimeSync from "@/components/RealtimeSync";
 import { createClient } from "@/utils/supabase/server";
 
 export const metadata: Metadata = {
@@ -71,6 +72,7 @@ export default async function PwaLayout({
 
   return (
     <ExpenseModalProvider>
+      <RealtimeSync />
       <PWARegister />
       <InstallPrompt />
       <main className="h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
