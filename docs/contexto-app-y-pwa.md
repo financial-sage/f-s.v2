@@ -1,10 +1,10 @@
-# Contexto general del proyecto Financial Sage
+# Contexto general del proyecto SinDescuadre
 
 Fecha de referencia: 16 de abril de 2026.
 
 ## 1. Visión general
 
-Financial Sage es una aplicación web progresiva enfocada en la gestión de finanzas personales y de pareja. El proyecto está construido con una arquitectura moderna basada en Next.js, TypeScript y Supabase, y actualmente ya cuenta con una experiencia funcional para navegación principal, autenticación y uso desde móvil.
+SinDescuadre es una aplicación web progresiva enfocada en la gestión de finanzas personales y de pareja. El proyecto está construido con una arquitectura moderna basada en Next.js, TypeScript y Supabase, y actualmente ya cuenta con una experiencia funcional para navegación principal, autenticación y uso desde móvil.
 
 El objetivo reciente del trabajo realizado se ha centrado en tres frentes principales:
 

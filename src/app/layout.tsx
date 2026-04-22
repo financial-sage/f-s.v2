@@ -4,17 +4,18 @@ import InstallPrompt from "@/components/InstallPrompt";
 import PWARegister from "@/components/PWARegister";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
 import UpdateNotifier from "@/components/UpdateNotifier";
+import PageTransition from "@/components/PageTransition";
 import { createClient } from "@/utils/supabase/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Financial Sage",
+  title: "SinDescuadre",
   description: "Gestión de finanzas en pareja",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Financial Sage",
+    title: "SinDescuadre",
   },
 };
 
@@ -79,7 +80,7 @@ export default async function RootLayout({
           <PWARegister />
           <InstallPrompt />
           <main className="h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
-            {children}
+            <PageTransition>{children}</PageTransition>
           </main>
           <BottomNav
             partnerFirstName={partnerFirstName}

@@ -1,4 +1,4 @@
-const CACHE_NAME = "financial-sage-v1";
+const CACHE_NAME = "sindescuadre-v1";
 const APP_SHELL = [
   "/",
   "/manifest.json",

@@ -30,7 +30,7 @@ export default function Header({ familyName, members }: HeaderProps) {
           {familyName}
         </p>
         <h1 className="font-headline text-xl font-bold tracking-tight text-on-surface">
-          Financial Sage
+          SinDescuadre
         </h1>
       </div>
 

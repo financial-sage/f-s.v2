@@ -12,6 +12,8 @@ import {
     ReceiptText,
     Scale,
     Settings,
+    Crown,
+    Bell,
     House,
     User,
     X,
@@ -656,15 +658,22 @@ export default function DashboardCouple({
                             </div>
                         )}
                     </div>
-                    <span className="text-lg font-bold text-[#2B3437] font-headline">Financial Sage</span>
+                    <span className="text-lg font-bold text-[#2B3437] font-headline">SinDescuadre</span>
                 </button>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    {/* Botón Premium (Visual) */}
+                    <div className="flex items-center gap-1 bg-amber-100/80 border border-amber-200/50 text-amber-700 px-1.5 py-1.5 rounded-full shadow-sm backdrop-blur-sm cursor-pointer hover:bg-amber-100 transition-colors">
+                        <Crown size={14} className="fill-amber-500 text-amber-600" />
+                        {/* <span className="text-[10px] font-extrabold uppercase tracking-widest">Premium</span> */}
+                    </div>
+
+                    {/* Campana de Notificaciones */}
                     <button
                         type="button"
-                        onClick={() => setIsProfileOpen(true)}
-                        className="text-[#2B3437]/60 transition-opacity hover:opacity-80"
+                        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 shadow-sm border border-slate-200/50"
                     >
-                        <Settings size={22} />
+                        <Bell size={18} />
+                        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
                     </button>
                 </div>
             </header>
@@ -707,7 +716,7 @@ export default function DashboardCouple({
                         style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
                     >
                         {/* TARJETA 1: MI FONDO (ÍNDIGO) */}
-                        <div className="relative flex flex-col justify-between min-h-[164px] bg-[#0f2d91]/40 p-4  border-slate-200/50">
+                        <div className="relative flex flex-col justify-between min-h-41 bg-[#0f2d91]/40 p-4  border-slate-200/50">
                             {/* Capa de Textura de Ondas */}
                             <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
@@ -738,7 +747,7 @@ export default function DashboardCouple({
                         </div>
 
                         {/* TARJETA 2: FONDO COMÚN (VERDE SALVIA) */}
-                        <div className="relative flex flex-col justify-between min-h-[164px] bg-[#5b8156]/50 p-4">
+                        <div className="relative flex flex-col justify-between min-h-41 bg-[#5b8156]/50 p-4">
                             {/* Capa de Textura de Ondas */}
                             <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
@@ -1055,7 +1064,7 @@ export default function DashboardCouple({
                             </div>
                         ) : (
                             <div className="flex h-full flex-col">
-                                {currentList.map((expense) => {
+                {currentList.map((expense, index) => {
                                     console.log("Renderizando gasto:", expense); // Debug: Ver cada gasto que se renderiza
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category);
                                     const Icon = categoryPresentation.icon;
@@ -1069,8 +1078,9 @@ export default function DashboardCouple({
                                     return (
                                         <div
                                             key={expense.id}
-                                            className={`relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden group ${currentList.length >= 5 ? 'flex-1' : ''
+                                            className={`relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden group animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both ${currentList.length >= 5 ? 'flex-1' : ''
                                                 }`}
+                                            style={{ animationDelay: `${index * 75}ms` }}
                                         >
                                             <button
                                                 type="button"

@@ -1,4 +1,4 @@
-# 🧪 Matriz de Pruebas Definitiva - Financial Sage
+# 🧪 Matriz de Pruebas Definitiva - SinDescuadre
 
 > **Objetivo:** Validar la estabilidad de la PWA, la precisión del motor contable inmutable y la fluidez de la interfaz de usuario en dispositivos móviles.
 

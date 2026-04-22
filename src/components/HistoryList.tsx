@@ -187,7 +187,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
 
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
 
-    const renderExpenseCard = (expense: HistoryExpenseRow) => {
+    const renderExpenseCard = (expense: HistoryExpenseRow, index: number) => {
         const { icon: Icon } = getCategoryDetails(expense.category ?? "");
         const isDeposit = expense.category === "deposit";
         const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
@@ -201,7 +201,8 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         return (
             <div
                 key={expense.id}
-                className="relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden"
+                className="relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                style={{ animationDelay: `${index * 100}ms` }}
             >
                 {/* Main row button */}
                 <button
@@ -403,7 +404,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
                             </div>
                             <div className="bg-white divide-y divide-slate-50 shadow-sm mx-3 my-2 rounded-2xl overflow-hidden">
-                                {items.map((expense) => renderExpenseCard(expense))}
+                                {items.map((expense, index) => renderExpenseCard(expense, index))}
                             </div>
                         </section>
                     ))

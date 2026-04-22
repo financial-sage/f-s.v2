@@ -3,7 +3,7 @@
 ## Estructura del proyecto con nombres de ficheros
 
 ```text
-financial-sage-pwa/
+sindescuadre-pwa/
 ├── AGENTS.md
 ├── CLAUDE.md
 ├── eslint.config.mjs

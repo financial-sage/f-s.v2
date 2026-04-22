@@ -54,7 +54,7 @@ export default function InstallPrompt() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-900">Instalar app</p>
-          <p className="text-xs text-slate-600">Añade Financial Sage a tu pantalla de inicio.</p>
+          <p className="text-xs text-slate-600">Añade SinDescuadre a tu pantalla de inicio.</p>
         </div>
         <button
           type="button"
