@@ -8,6 +8,7 @@ import { joinFamilyWithCode } from "@/app/actions/family";
 import FamilySettings from "@/components/FamilySettings";
 import SignOutButton from "@/components/SignOutButton";
 import { createClient } from "@/utils/supabase/client";
+import { ThemeToggleRow } from "@/components/ThemeToggleRow";
 
 interface ProfileDrawerProps {
   isOpen: boolean;
@@ -156,14 +157,14 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   return createPortal(
     <>
       <div
-        className={`fixed inset-0 z-110 bg-slate-900/35 transition-opacity duration-300 ${
+        className={`fixed inset-0 z-110 bg-on-surface/95/35 transition-opacity duration-300 ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={onClose}
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-120 w-screen max-w-none bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-120 w-screen max-w-none bg-surface shadow-2xl transform transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -175,7 +176,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200"
+              className="rounded-full bg-surface-low p-2 text-on-surface-variant transition hover:bg-surface-container"
             >
               <X size={18} />
             </button>
@@ -231,7 +232,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                         <button
                           type="button"
                           onClick={() => setShowJoinForm((prev) => !prev)}
-                          className="mt-3 inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-slate-200"
+                          className="mt-3 inline-flex items-center rounded-full bg-surface-low px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-surface-container"
                         >
                           Ingresar código
                         </button>
@@ -245,7 +246,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                               inputMode="text"
                               maxLength={6}
                               placeholder="Código de 6 caracteres"
-                              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center font-mono text-on-surface uppercase outline-none focus:border-sage"
+                              className="w-full rounded-2xl border border-outline-variant/30 bg-surface px-4 py-3 text-center font-mono text-on-surface uppercase outline-none focus:border-sage"
                               required
                             />
                             <button
@@ -278,11 +279,12 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                   </p>
                 </div>
 
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-outline-variant/20">
+                  <ThemeToggleRow />
                   {preferences.map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-slate-100 p-2 text-primary">
+                        <div className="rounded-full bg-surface-low p-2 text-primary">
                           <Icon size={18} />
                         </div>
                         <span className="font-semibold text-on-surface">{label}</span>

@@ -34,7 +34,7 @@ import { settleP2PAction } from "@/app/actions/settleP2P";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import ProfileDrawer from "@/components/ProfileDrawer";
-import CustomNumpad from "@/components/CustomNumpad";
+import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
@@ -643,14 +643,14 @@ export default function DashboardCouple({
     }, [familyId, router, supabase]);
 
     return (
-        <div className="flex flex-col h-dvh bg-slate-50 overflow-hidden">
-            <header className="shrink-0 z-50 flex w-full items-center justify-between bg-[#F8F9FA]/80 px-6 py-4 backdrop-blur-md">
+        <div className="flex flex-col h-dvh bg-surface overflow-hidden">
+            <header className="shrink-0 z-50 flex h-14 w-full items-center justify-between bg-surface/80 px-4 backdrop-blur-md border-b border-outline-variant/30">
                 <button
                     type="button"
                     onClick={() => setIsProfileOpen(true)}
                     className="flex items-center gap-3 cursor-pointer"
                 >
-                    <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/20">
+                    <div className="h-9 w-9 overflow-hidden rounded-full border-2 border-primary/20">
                         {members[0]?.avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img className="h-full w-full object-cover" src={members[0].avatarUrl} alt={members[0].name} />
@@ -660,18 +660,18 @@ export default function DashboardCouple({
                             </div>
                         )}
                     </div>
-                    <span className="text-lg font-bold text-[#2B3437] font-headline">SinDescuadre</span>
+                    <span className="text-base font-bold text-on-surface font-headline">SinDescuadre</span>
                 </button>
                 <div className="flex items-center gap-3">
                     {/* Botón Premium — condicional */}
                     {isPremium ? (
-                        <div className="flex items-center gap-1 bg-amber-100/80 border border-amber-200/50 text-amber-700 px-1.5 py-1.5 rounded-full shadow-sm backdrop-blur-sm cursor-pointer hover:bg-amber-100 transition-colors">
-                            <Crown size={14} className="fill-amber-500 text-amber-600" />
+                        <div className="flex items-center gap-1 bg-accent/15 border border-accent/25 text-on-surface px-1.5 py-1.5 rounded-full shadow-sm backdrop-blur-sm cursor-pointer hover:bg-accent/20 transition-colors">
+                            <Crown size={14} className="fill-accent text-accent" />
                         </div>
                     ) : (
                         <button
                             type="button"
-                            className="flex items-center gap-1 bg-slate-100 border border-slate-200/50 text-slate-400 px-1.5 py-1.5 rounded-full shadow-sm cursor-pointer hover:bg-slate-200 transition-colors"
+                            className="flex items-center gap-1 bg-surface-low border border-outline-variant/40 text-outline-variant px-1.5 py-1.5 rounded-full shadow-sm cursor-pointer hover:bg-surface-container transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                             aria-label="Hazte Premium"
                         >
                             <Lock size={13} strokeWidth={2} />
@@ -681,7 +681,7 @@ export default function DashboardCouple({
                     {/* Campana de Notificaciones */}
                     <button
                         type="button"
-                        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 shadow-sm border border-slate-200/50"
+                        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-surface-low text-on-surface-variant transition-colors hover:bg-surface-container shadow-sm border border-outline-variant/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                     >
                         <Bell size={18} />
                         <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
@@ -692,19 +692,19 @@ export default function DashboardCouple({
             <main className="mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-4">
                 {showSharedWelcome && (
                     <div className="pointer-events-none mb-3 shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
-                        <div className="overflow-hidden rounded-3xl border border-emerald-100/70 bg-white/90 p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
+                        <div className="overflow-hidden rounded-3xl border border-emerald-100/70 bg-surface-lowest/90 p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-[#60855c] shadow-sm">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-primary shadow-sm">
                                     <Sparkles size={18} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-slate-800">Espacio compartido listo</p>
-                                    <p className="text-xs text-slate-500">Todo quedó sincronizado con {partnerDisplayName}.</p>
+                                    <p className="text-sm font-bold text-on-surface">Espacio compartido listo</p>
+                                    <p className="text-xs text-on-surface-variant">Todo quedó sincronizado con {partnerDisplayName}.</p>
                                 </div>
                             </div>
                             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-50">
                                 <div
-                                    className="h-full rounded-full bg-linear-to-r from-[#60855c] to-sage transition-[width] ease-linear"
+                                    className="h-full rounded-full bg-linear-to-r from-primary to-primary-container transition-[width] ease-linear"
                                     style={{ width: `${welcomeProgress}%`, transitionDuration: "2400ms" }}
                                 />
                             </div>
@@ -723,48 +723,50 @@ export default function DashboardCouple({
 
                 <section className="mb-2">
                     <div
-                        className={`grid grid-cols-2 mb-6 shrink-0 rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
+                        className={`grid grid-cols-2 mb-6 shrink-0 rounded-3xl shadow-sm border border-outline-variant/30/60 overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
                     >
                         {/* TARJETA 1: MI FONDO (ÍNDIGO) */}
-                        <div className="relative flex flex-col justify-between min-h-41 bg-[#0f2d91]/40 p-4  border-slate-200/50">
+                        <div className="relative flex flex-col justify-between min-h-41 bg-[#0f2d91]/40 p-4  border-outline-variant/30/50">
                             {/* Capa de Textura de Ondas */}
                             <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
                             {/* Contenido Superior */}
                             <div className="relative z-10 flex flex-col">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-indigo-700 mb-2 backdrop-blur-sm shadow-sm">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-secondary mb-2 backdrop-blur-sm shadow-sm">
                                     <User size={16} />
                                 </div>
                                 <span className="text-[10px] font-normal text-white uppercase tracking-widest">Mi Fondo</span>
                                 <p className="mt-0.5 text-2xl font-semibold tracking-tight text-white">
                                     {formatCurrency(myAvailableFund)}
                                 </p>
-                                <p className="mt-0.5 text-[10px] font-medium text-indigo-700/80">
+                                <p className="mt-0.5 text-[10px] font-medium text-secondary/80">
                                     {/* Gastado: {formatCurrency(mySpent)} */}
                                 </p>
                             </div>
 
                             {/* Contenido Inferior (Botones) */}
-                            <div className="relative z-10 mt-4">
+                            <div className="relative z-10 mt-4 flex justify-end">
                                 <button
                                     type="button"
                                     onClick={openPersonalDepositModal}
-                                    className="w-full rounded-full bg-white/90 py-2 text-xs font-bold text-indigo-700 transition-all hover:bg-white shadow-sm backdrop-blur-sm"
+                                    className="group inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent/35 bg-surface-lowest/55 shadow-sm backdrop-blur-md transition-all hover:bg-surface-lowest/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                                    aria-label="Aportar a mi fondo"
+                                    title="Aportar a mi fondo"
                                 >
-                                    Aportar
+                                    <Plus size={20} className="text-accent drop-shadow-sm transition-transform group-hover:scale-110" />
                                 </button>
                             </div>
                         </div>
 
                         {/* TARJETA 2: FONDO COMÚN (VERDE SALVIA) */}
-                        <div className="relative flex flex-col justify-between min-h-41 bg-[#5b8156]/50 p-4">
+                        <div className="relative flex flex-col justify-between min-h-41 bg-primary/50 p-4">
                             {/* Capa de Textura de Ondas */}
                             <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
                             {/* Contenido Superior */}
                             <div className="relative z-10 flex flex-col">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-[#60855c] mb-2 backdrop-blur-sm shadow-sm ">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-primary mb-2 backdrop-blur-sm shadow-sm ">
                                     {isJointModel ? <Home size={16} /> : <Scale size={16} />}
                                 </div>
                                 <span className="text-[10px] font-normal text-white uppercase tracking-widest">{secondaryWidgetTitle}</span>
@@ -778,21 +780,23 @@ export default function DashboardCouple({
                             </div>
 
                             {/* Contenido Inferior (Botones) */}
-                            <div className="relative z-10 mt-4 flex gap-2">
+                            <div className="relative z-10 mt-4 flex items-center justify-end gap-2">
                                 {isJointModel ? (
                                     <>
                                         <button
                                             type="button"
                                             onClick={openDepositModal}
-                                            className="w-full rounded-full bg-white/90 py-2 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm"
+                                            className="group inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent/35 bg-surface-lowest/55 shadow-[0_10px_30px_rgba(212,175,55,0.18)] backdrop-blur-md transition-all hover:bg-surface-lowest/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                                            aria-label="Aportar al fondo común"
+                                            title="Aportar al fondo común"
                                         >
-                                            Aportar
+                                            <Plus size={20} className="text-accent drop-shadow-sm transition-transform group-hover:scale-110" />
                                         </button>
                                         {fundOwesMe > 0 && (
                                             <button
                                                 type="button"
                                                 onClick={openBalancesModal}
-                                                className="w-full rounded-full bg-red-50 py-2 text-xs font-bold text-orange-800 transition-all hover:bg-white shadow-sm border border-red-100"
+                                                className="rounded-full bg-red-50 px-3 py-2 text-xs font-bold text-orange-800 transition-all hover:bg-surface-lowest shadow-sm border border-red-100"
                                             >
                                                 Cobrar
                                             </button>
@@ -803,7 +807,7 @@ export default function DashboardCouple({
                                         type="button"
                                         onClick={openBalancesModal}
                                         disabled={!hasP2PBalance}
-                                        className="w-full rounded-full bg-white/90 py-2 text-xs font-bold text-[#60855c] transition-all hover:bg-white shadow-sm backdrop-blur-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="w-full rounded-full bg-surface-lowest/90 py-2 text-xs font-bold text-primary transition-all hover:bg-surface-lowest shadow-sm backdrop-blur-sm disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         Liquidar
                                     </button>
@@ -815,20 +819,20 @@ export default function DashboardCouple({
                     {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
                     {showSettleModal && (
                         <div className="fixed inset-0 z-60 flex flex-col justify-end">
-                            <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isSettleAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeSettleModal} />
-                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSettleAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                            <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isSettleAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeSettleModal} />
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSettleAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
-                                    <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                                    <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                                 </div>
                                 <button
                                     onClick={closeSettleModal}
-                                    className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                                    className="absolute top-4 right-6 rounded-full bg-surface p-2 text-outline-variant transition-colors hover:text-on-surface-variant"
                                 >
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                    <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar al Fondo</h3>
-                                    <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
+                                    <h3 className="text-lg font-bold text-on-surface mb-1">Cobrar al Fondo</h3>
+                                    <p className="text-xs text-on-surface-variant mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
                                     {/* Lista seleccionable */}
                                     <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
                                         {fundDebtExpenses.map(expense => {
@@ -837,21 +841,21 @@ export default function DashboardCouple({
                                                 <button
                                                     key={expense.id}
                                                     onClick={() => toggleSettleSelection(expense.id)}
-                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#60855c] bg-[#60855c]/5' : 'border-slate-100 bg-white'
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-primary bg-primary/5' : 'border-outline-variant/20 bg-surface-lowest'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         {/* Custom Checkbox */}
-                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#60855c] bg-[#60855c]' : 'border-slate-300'
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-primary bg-primary' : 'border-outline-variant/40'
                                                             }`}>
                                                             {isSelected && <Check size={12} className="text-white" />}
                                                         </div>
                                                         <div className="text-left">
-                                                            <p className="text-sm font-medium text-slate-800">{expense.concept}</p>
-                                                            <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                            <p className="text-sm font-medium text-on-surface">{expense.concept}</p>
+                                                            <p className="text-[10px] text-outline-variant">{formatExpenseDate(expense.expense_date)}</p>
                                                         </div>
                                                     </div>
-                                                    <span className={`font-medium ${isSelected ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                                    <span className={`font-medium ${isSelected ? 'text-primary' : 'text-on-surface'}`}>
                                                         ${Number(expense.amount).toFixed(2)}
                                                     </span>
                                                 </button>
@@ -868,8 +872,8 @@ export default function DashboardCouple({
                                                 disabled={selectedSettleIds.length === 0 || isLiquidating}
                                                 onClick={() => handleSettleFundDebt(selectedSettleIds, selectedTotal)}
                                                 className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
-                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                    : 'bg-[#60855c] text-white'
+                                                    ? 'bg-surface-low text-outline-variant cursor-not-allowed'
+                                                    : 'bg-primary text-white'
                                                     }`}
                                             >
                                                 Recuperar {selectedTotal > 0 ? `$${selectedTotal.toFixed(2)}` : ''}
@@ -883,20 +887,20 @@ export default function DashboardCouple({
                     {/* Modal P2P: PAGAR */}
                     {showPayModal && (
                         <div className="fixed inset-0 z-60 flex flex-col justify-end">
-                            <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isPayAnimated ? "opacity-100" : "opacity-0"}`} onClick={closePayModal} />
-                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isPayAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                            <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isPayAnimated ? "opacity-100" : "opacity-0"}`} onClick={closePayModal} />
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isPayAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
-                                    <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                                    <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                                 </div>
                                 <button
                                     onClick={closePayModal}
-                                    className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                                    className="absolute top-4 right-6 rounded-full bg-surface p-2 text-outline-variant transition-colors hover:text-on-surface-variant"
                                 >
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                    <h3 className="text-lg font-bold text-slate-800 mb-1">Pagar a {partnerDisplayName}</h3>
-                                    <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a liquidar.</p>
+                                    <h3 className="text-lg font-bold text-on-surface mb-1">Pagar a {partnerDisplayName}</h3>
+                                    <p className="text-xs text-on-surface-variant mb-4">Selecciona los gastos que vas a liquidar.</p>
                                     {/* Lista seleccionable */}
                                     <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
                                         {expensesIOwePartner.map(expense => {
@@ -905,21 +909,21 @@ export default function DashboardCouple({
                                                 <button
                                                     key={expense.id}
                                                     onClick={() => toggleSettleSelection(expense.id)}
-                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-slate-100 bg-white'
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-outline-variant/20 bg-surface-lowest'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         {/* Custom Checkbox */}
-                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]' : 'border-slate-300'
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]' : 'border-outline-variant/40'
                                                             }`}>
                                                             {isSelected && <Check size={12} className="text-white" />}
                                                         </div>
                                                         <div className="text-left">
-                                                            <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                            <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                            <p className="text-sm font-bold text-on-surface">{expense.concept}</p>
+                                                            <p className="text-[10px] text-outline-variant">{formatExpenseDate(expense.expense_date)}</p>
                                                         </div>
                                                     </div>
-                                                    <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-slate-800'}`}>
+                                                    <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-on-surface'}`}>
                                                         ${Number(expense.amount).toFixed(2)}
                                                     </span>
                                                 </button>
@@ -936,7 +940,7 @@ export default function DashboardCouple({
                                                 disabled={selectedSettleIds.length === 0 || isLiquidating}
                                                 onClick={() => handleSettleP2P(currentUserId, partnerId, selectedTotal, selectedSettleIds)}
                                                 className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
-                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                    ? 'bg-surface-low text-outline-variant cursor-not-allowed'
                                                     : 'bg-[#bb1b1b] text-white'
                                                     }`}
                                             >
@@ -951,20 +955,20 @@ export default function DashboardCouple({
                     {/* Modal P2P: COBRAR */}
                     {showChargeModal && (
                         <div className="fixed inset-0 z-60 flex flex-col justify-end">
-                            <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isChargeAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeChargeModal} />
-                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isChargeAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                            <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isChargeAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeChargeModal} />
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isChargeAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
-                                    <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                                    <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                                 </div>
                                 <button
                                     onClick={closeChargeModal}
-                                    className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                                    className="absolute top-4 right-6 rounded-full bg-surface p-2 text-outline-variant transition-colors hover:text-on-surface-variant"
                                 >
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                    <h3 className="text-lg font-bold text-slate-800 mb-1">Cobrar a {partnerDisplayName}</h3>
-                                    <p className="text-xs text-slate-500 mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
+                                    <h3 className="text-lg font-bold text-on-surface mb-1">Cobrar a {partnerDisplayName}</h3>
+                                    <p className="text-xs text-on-surface-variant mb-4">Selecciona los gastos que vas a marcar como pagados.</p>
                                     {/* Lista seleccionable */}
                                     <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
                                         {expensesPartnerOwesMe.map(expense => {
@@ -973,21 +977,21 @@ export default function DashboardCouple({
                                                 <button
                                                     key={expense.id}
                                                     onClick={() => toggleSettleSelection(expense.id)}
-                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-slate-100 bg-white'
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-outline-variant/20 bg-surface-lowest'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         {/* Custom Checkbox */}
-                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]' : 'border-slate-300'
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]' : 'border-outline-variant/40'
                                                             }`}>
                                                             {isSelected && <Check size={12} className="text-white" />}
                                                         </div>
                                                         <div className="text-left">
-                                                            <p className="text-sm font-bold text-slate-800">{expense.concept}</p>
-                                                            <p className="text-[10px] text-slate-400">{formatExpenseDate(expense.expense_date)}</p>
+                                                            <p className="text-sm font-bold text-on-surface">{expense.concept}</p>
+                                                            <p className="text-[10px] text-outline-variant">{formatExpenseDate(expense.expense_date)}</p>
                                                         </div>
                                                     </div>
-                                                    <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-slate-800'}`}>
+                                                    <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-on-surface'}`}>
                                                         ${Number(expense.amount).toFixed(2)}
                                                     </span>
                                                 </button>
@@ -1004,7 +1008,7 @@ export default function DashboardCouple({
                                                 disabled={selectedSettleIds.length === 0 || isLiquidating}
                                                 onClick={() => handleSettleP2P(partnerId, currentUserId, selectedTotal, selectedSettleIds)}
                                                 className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
-                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                    ? 'bg-surface-low text-outline-variant cursor-not-allowed'
                                                     : 'bg-[#0f2d91] text-white'
                                                     }`}
                                             >
@@ -1021,10 +1025,10 @@ export default function DashboardCouple({
 
                 <div className="flex-1 flex flex-col min-h-0  mb-24 px-2">
                     {/* <div className="shrink-0 flex justify-between items-center mb-4">
-                        <h3 className="text-base font-bold text-slate-800">Actividad Compartida</h3>
+                        <h3 className="text-base font-bold text-on-surface">Actividad Compartida</h3>
                         <Link
                             href="/history"
-                            className="text-[10px] font-bold uppercase tracking-widest text-[#60855c] transition-opacity hover:opacity-80 font-label"
+                            className="text-[10px] font-bold uppercase tracking-widest text-primary transition-opacity hover:opacity-80 font-label"
                         >
                             Ver todo
                         </Link>
@@ -1035,7 +1039,7 @@ export default function DashboardCouple({
                             <h3 className="text-md font-semibold text-gray-800">Actividad</h3>
                             <Link
                                 href="/history"
-                                className="flex items-center text-[10px] font-bold tracking-widest text-[#60855c] opacity-70 hover:opacity-100 transition-opacity"
+                                className="flex items-center text-[10px] font-bold tracking-widest text-primary opacity-70 hover:opacity-100 transition-opacity"
                             >
                                 Ver todo <ChevronRight size={12} className="ml-0.5" />
                             </Link>
@@ -1044,8 +1048,8 @@ export default function DashboardCouple({
                             type="button"
                             onClick={openFilterModal}
                             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${currentFilter !== "all"
-                                    ? "bg-[#60855c]/10 text-[#60855c]"
-                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                    ? "bg-primary/10 text-primary"
+                                    : "bg-surface-low text-on-surface-variant hover:bg-surface-container"
                                 }`}
                         >
                             <SlidersHorizontal size={13} />
@@ -1054,22 +1058,22 @@ export default function DashboardCouple({
                     </div>
 
                     <div
-                        className={`flex-1 bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
+                        className={`flex-1 bg-surface-lowest rounded-3xl shadow-sm flex flex-col overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "320ms" } : undefined}
                     >
                         {currentList.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full animate-in fade-in duration-1000">
                                 <div className="relative mb-5 flex items-center justify-center">
-                                    <div className="absolute inset-0 rounded-full bg-[#60855c] opacity-10 animate-ping duration-1000" />
-                                    <div className="absolute inset-0 rounded-full bg-[#60855c] opacity-20 animate-pulse" />
+                                    <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />
+                                    <div className="absolute inset-0 rounded-full bg-primary opacity-20 animate-pulse" />
 
-                                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-emerald-100/50 bg-emerald-50 text-[#60855c] shadow-sm">
+                                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-emerald-100/50 bg-emerald-50 text-primary shadow-sm">
                                         <Receipt size={36} strokeWidth={1.5} />
                                     </div>
                                 </div>
 
-                                <h4 className="mb-2 text-lg font-bold text-slate-700">Todo está tranquilo</h4>
-                                <p className="max-w-55 text-xs leading-relaxed text-slate-400">
+                                <h4 className="mb-2 text-lg font-bold text-on-surface">Todo está tranquilo</h4>
+                                <p className="max-w-55 text-xs leading-relaxed text-outline-variant">
                                     Aún no hay movimientos aquí. Usa el botón verde para registrar tu primer gasto.
                                 </p>
                             </div>
@@ -1089,7 +1093,7 @@ export default function DashboardCouple({
                                     return (
                                         <div
                                             key={expense.id}
-                                            className={`relative flex items-stretch border-b border-slate-50 last:border-0 bg-white overflow-hidden group animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both ${currentList.length >= 5 ? 'flex-1' : ''
+                                            className={`relative flex items-stretch border-b border-outline-variant/15 last:border-0 bg-surface-lowest overflow-hidden group animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both ${currentList.length >= 5 ? 'flex-1' : ''
                                                 }`}
                                             style={{ animationDelay: `${index * 100}ms` }}
                                         >
@@ -1097,18 +1101,18 @@ export default function DashboardCouple({
                                                 type="button"
                                                 onClick={() => toggleActions(expense.id)}
                                                 className={`flex items-center justify-between px-4 transition-all duration-300 ease-out w-full text-left ${currentList.length >= 5 ? 'h-full' : 'py-4'
-                                                    } ${activeActionId === expense.id ? 'scale-[1] bg-slate-50 pr-2 inset-shadow-zinc-700' : 'scale-100 bg-white'
+                                                    } ${activeActionId === expense.id ? 'scale-[1] bg-surface pr-2 inset-shadow-zinc-700' : 'scale-100 bg-surface-lowest'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-emerald-800/10 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 shadow-sm">
+                                                    <div className="w-10 h-10 rounded-full bg-emerald-800/10 border border-outline-variant/20 flex items-center justify-center text-on-surface-variant shrink-0 shadow-sm">
                                                         <Icon size={18} />
                                                     </div>
 
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm font-semibold text-slate-800">{expense.concept}</span>
+                                                        <span className="text-sm font-semibold text-on-surface">{expense.concept}</span>
                                                         <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+                                                            <span className="text-[10px] font-medium text-outline-variant uppercase tracking-wide">
                                                                 {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : partnerShortLabel}
                                                             </span>
                                                             {isDebt && (
@@ -1123,13 +1127,13 @@ export default function DashboardCouple({
                                                     </div>
                                                 </div>
 
-                                                <span className={`text-base font-medium shrink-0 ${isDeposit ? 'text-[#60855c]' : 'text-slate-800'}`}>
+                                                <span className={`text-base font-medium shrink-0 ${isDeposit ? 'text-primary' : 'text-on-surface'}`}>
                                                     {isDeposit ? '+' : '-'}${Number(expense.amount).toFixed(2)}
                                                 </span>
                                             </button>
 
                                             <div
-                                                className={`flex flex-col border-l border-slate-100 transition-all duration-300 ease-out overflow-hidden shrink-0 ${activeActionId === expense.id ? (isModifiable ? 'w-14 opacity-100' : 'w-14 opacity-100') : 'w-0 opacity-0 border-transparent'
+                                                className={`flex flex-col border-l border-outline-variant/20 transition-all duration-300 ease-out overflow-hidden shrink-0 ${activeActionId === expense.id ? (isModifiable ? 'w-14 opacity-100' : 'w-14 opacity-100') : 'w-0 opacity-0 border-transparent'
                                                     }`}
                                             >
                                                 {isModifiable ? (
@@ -1142,7 +1146,7 @@ export default function DashboardCouple({
                                                                 setIsExpenseModalOpen(true);
                                                                 setActiveActionId(null);
                                                             }}
-                                                            className="flex-1 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 bg-slate-50/50 transition-colors border-b border-slate-100"
+                                                            className="flex-1 flex items-center justify-center text-on-surface-variant hover:text-secondary hover:bg-secondary/10 bg-surface/50 transition-colors border-b border-outline-variant/20"
                                                         >
                                                             <Edit size={16} />
                                                         </button>
@@ -1167,7 +1171,7 @@ export default function DashboardCouple({
                                                             showToast("🔒 Movimiento bloqueado. Este gasto ya fue liquidado o es un ajuste de sistema y no se puede modificar.");
                                                             setActiveActionId(null);
                                                         }}
-                                                        className="flex-1 flex items-center justify-center text-slate-400 bg-slate-100 transition-colors"
+                                                        className="flex-1 flex items-center justify-center text-outline-variant bg-surface-low transition-colors"
                                                         title="Movimiento bloqueado"
                                                     >
                                                         <Lock size={16} />
@@ -1185,46 +1189,46 @@ export default function DashboardCouple({
 
             {showBudget && (
                 <div className="fixed inset-0 z-60 flex flex-col justify-end">
-                    <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isBudgetAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeBudgetModal} />
-                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBudgetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                    <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isBudgetAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeBudgetModal} />
+                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBudgetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                         <div className="flex justify-center pt-4 pb-2">
-                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                            <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                         </div>
-                        <button type="button" onClick={closeBudgetModal} className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600">
+                        <button type="button" onClick={closeBudgetModal} className="absolute top-4 right-6 rounded-full bg-surface p-2 text-outline-variant transition-colors hover:text-on-surface-variant">
                             <X size={18} />
                         </button>
                         <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
                             <div className="mb-5 flex items-start justify-between gap-4">
                                 <div>
-                                    <h3 className="text-lg font-bold text-slate-800">Control de Presupuesto</h3>
-                                    <p className="text-xs text-slate-500">Estado actual de tus bolsillos y del fondo común.</p>
+                                    <h3 className="text-lg font-bold text-on-surface">Control de Presupuesto</h3>
+                                    <p className="text-xs text-on-surface-variant">Estado actual de tus bolsillos y del fondo común.</p>
                                 </div>
                             </div>
 
-                            <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
+                            <div className="overflow-hidden rounded-2xl border border-outline-variant/20 bg-surface-lowest divide-y divide-outline-variant/20">
                                 <div className="p-4">
                                     <div className="mb-2 flex items-end justify-between">
                                         <div>
-                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">Mi Bolsillo</span>
-                                            <span className="text-base font-bold text-slate-800">${mySpent.toFixed(2)}</span>
+                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">Mi Bolsillo</span>
+                                            <span className="text-base font-bold text-on-surface">${mySpent.toFixed(2)}</span>
                                         </div>
-                                        <span className="text-[11px] font-medium text-slate-400">de ${myBudget}</span>
+                                        <span className="text-[11px] font-medium text-outline-variant">de ${myBudget}</span>
                                     </div>
-                                    <div className="h-1.5 w-full rounded-full bg-slate-100">
-                                        <div className="h-1.5 rounded-full bg-slate-800" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }} />
+                                    <div className="h-1.5 w-full rounded-full bg-surface-low">
+                                        <div className="h-1.5 rounded-full bg-on-surface/95" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }} />
                                     </div>
                                 </div>
 
                                 <div className="p-4">
                                     <div className="mb-2 flex items-end justify-between">
                                         <div>
-                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-[#60855c]">Fondo Común</span>
-                                            <span className="text-base font-bold text-slate-800">${fundSpent.toFixed(2)}</span>
+                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-primary">Fondo Común</span>
+                                            <span className="text-base font-bold text-on-surface">${fundSpent.toFixed(2)}</span>
                                         </div>
-                                        <span className="text-[11px] font-medium text-slate-400">de ${fundBudget}</span>
+                                        <span className="text-[11px] font-medium text-outline-variant">de ${fundBudget}</span>
                                     </div>
-                                    <div className="h-1.5 w-full rounded-full bg-slate-100">
-                                        <div className="h-1.5 rounded-full bg-[#60855c]" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }} />
+                                    <div className="h-1.5 w-full rounded-full bg-surface-low">
+                                        <div className="h-1.5 rounded-full bg-primary" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }} />
                                     </div>
                                 </div>
                             </div>
@@ -1235,28 +1239,28 @@ export default function DashboardCouple({
 
             {showBalances && (
                 <div className="fixed inset-0 z-60 flex flex-col justify-end">
-                    <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isBalancesAnimated ? "opacity-100" : "opacity-0"}`} onClick={() => closeBalancesModal()} />
-                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBalancesAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                    <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isBalancesAnimated ? "opacity-100" : "opacity-0"}`} onClick={() => closeBalancesModal()} />
+                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBalancesAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                         <div className="flex justify-center pt-4 pb-2">
-                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                            <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                         </div>
-                        <button type="button" onClick={() => closeBalancesModal()} className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600">
+                        <button type="button" onClick={() => closeBalancesModal()} className="absolute top-4 right-6 rounded-full bg-surface p-2 text-outline-variant transition-colors hover:text-on-surface-variant">
                             <X size={18} />
                         </button>
                         <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
                             <div className="mb-5 flex items-start justify-between gap-4">
                                 <div>
-                                    <h3 className="text-lg font-bold text-slate-800">Saldos Pendientes</h3>
-                                    <p className="text-xs text-slate-500">Gestiona aquí lo que puedes cobrar o pagar.</p>
+                                    <h3 className="text-lg font-bold text-on-surface">Saldos Pendientes</h3>
+                                    <p className="text-xs text-on-surface-variant">Gestiona aquí lo que puedes cobrar o pagar.</p>
                                 </div>
                             </div>
 
-                            <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white divide-y divide-slate-50">
+                            <div className="overflow-hidden rounded-2xl border border-outline-variant/20 bg-surface-lowest divide-y divide-outline-variant/20">
                                 {fundOwesMe > 0 && (
                                     <div className="flex items-center justify-between p-4">
                                         <div>
-                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">El fondo te debe</span>
-                                            <span className="text-sm font-bold text-slate-800">${fundOwesMe.toFixed(2)}</span>
+                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">El fondo te debe</span>
+                                            <span className="text-sm font-bold text-on-surface">${fundOwesMe.toFixed(2)}</span>
                                         </div>
                                         <button
                                             type="button"
@@ -1264,7 +1268,7 @@ export default function DashboardCouple({
                                                 closeBalancesModal(() => openSettleModal());
                                             }}
                                             disabled={isLiquidating || fundDebtExpenses.length === 0}
-                                            className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-full bg-surface-low px-3 py-1.5 text-[10px] font-bold text-on-surface-variant transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             COBRAR
                                         </button>
@@ -1275,7 +1279,7 @@ export default function DashboardCouple({
                                     <div className="flex items-center justify-between p-4">
                                         <div>
                                             <span className="block text-[10px] font-bold uppercase tracking-wide text-[#bb1b1b]">Le debes a {partnerDisplayName}</span>
-                                            <span className="text-sm font-bold text-slate-800">${iOwePartner.toFixed(2)}</span>
+                                            <span className="text-sm font-bold text-on-surface">${iOwePartner.toFixed(2)}</span>
                                         </div>
                                         <button
                                             type="button"
@@ -1294,7 +1298,7 @@ export default function DashboardCouple({
                                     <div className="flex items-center justify-between p-4">
                                         <div>
                                             <span className="block text-[10px] font-bold uppercase tracking-wide text-[#0f2d91]">{partnerDisplayName} te debe</span>
-                                            <span className="text-sm font-bold text-slate-800">${partnerOwesMe.toFixed(2)}</span>
+                                            <span className="text-sm font-bold text-on-surface">${partnerOwesMe.toFixed(2)}</span>
                                         </div>
                                         <button
                                             type="button"
@@ -1302,7 +1306,7 @@ export default function DashboardCouple({
                                                 closeBalancesModal(() => openChargeModal());
                                             }}
                                             disabled={isLiquidating}
-                                            className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-[#0f2d91] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-full bg-secondary/10 px-3 py-1.5 text-[10px] font-bold text-[#0f2d91] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             COBRAR
                                         </button>
@@ -1310,7 +1314,7 @@ export default function DashboardCouple({
                                 )}
 
                                 {!hasBalances && (
-                                    <div className="p-4 text-sm font-medium text-slate-500">
+                                    <div className="p-4 text-sm font-medium text-on-surface-variant">
                                         No hay saldos pendientes por ahora.
                                     </div>
                                 )}
@@ -1321,68 +1325,21 @@ export default function DashboardCouple({
             )}
 
 
-            {depositTarget && (
-                <div className="fixed inset-0 z-60 flex flex-col justify-end">
-                    <div
-                        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isDepositAnimated ? "opacity-100" : "opacity-0"}`}
-                        onClick={closeDepositModal}
-                    />
-                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isDepositAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
-                        <div className="flex justify-center pt-4 pb-2">
-                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
-                        </div>
-                        <button
-                            onClick={closeDepositModal}
-                            className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
-                        >
-                            <X size={18} />
-                        </button>
-                        <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                            <div className="text-center">
-                                <h4 className="text-[10px] font-bold tracking-widest text-gray-500 font-label">
-                                    {depositTarget === "personal" ? "APORTAR A MI FONDO" : "APORTAR AL FONDO COMÚN"}
-                                </h4>
-                            </div>
-
-                            <CustomNumpad
-                                isOpen={depositTarget !== null}
-                                embedded
-                                showDisplay
-                                initialValue={depositAmount || "0"}
-                                onClose={closeDepositModal}
-                                onValueChange={(value) => setDepositAmount(value)}
-                                onConfirm={(value) => handleDepositConfirm(value)}
-                            />
-
-                            {depositError && (
-                                <p className="mt-3 text-center text-sm font-medium text-red-600">{depositError}</p>
-                            )}
-                        </div>
-
-                        {/* <button
-                            type="button"
-                            onClick={() => handleDepositConfirm()}
-                            disabled={isDepositing}
-                            className="mt-4 w-full rounded-xl bg-[#60855c] py-4 font-bold text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            {isDepositing ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <LoaderCircle size={18} className="animate-spin" />
-                                    Guardando...
-                                </span>
-                            ) : (
-                                "Confirmar Aporte"
-                            )}
-                        </button> */}
-                    </div>
-                </div>
-            )}
+            <NumericKeypadSheet
+                isOpen={Boolean(depositTarget)}
+                title={depositTarget === "personal" ? "APORTAR A MI FONDO" : "APORTAR AL FONDO COMÚN"}
+                initialValue={depositAmount || "0"}
+                errorMessage={depositTarget ? depositError : undefined}
+                onClose={closeDepositModal}
+                onValueChange={(value) => setDepositAmount(value)}
+                onConfirm={(value) => handleDepositConfirm(value)}
+            />
             <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
 
             {/* Toast de notificación del sistema */}
             {systemNotification && (
                 <div className="fixed top-6 left-1/2 z-200 -translate-x-1/2 animate-in slide-in-from-top-3 fade-in duration-300">
-                    <div className="rounded-2xl bg-slate-800/95 px-5 py-3 text-sm font-medium text-white shadow-xl backdrop-blur-sm">
+                    <div className="rounded-2xl bg-on-surface/95/95 px-5 py-3 text-sm font-medium text-white shadow-xl backdrop-blur-sm">
                         {systemNotification}
                     </div>
                 </div>
@@ -1392,16 +1349,16 @@ export default function DashboardCouple({
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
                     <div
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        className="absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm"
                         onClick={closeDeleteModal}
                     />
-                    <div className="relative w-full max-w-xs rounded-3xl bg-white p-6 text-center shadow-2xl transition-all animate-in zoom-in-95 fade-in duration-200">
+                    <div className="relative w-full max-w-xs rounded-3xl bg-surface-lowest p-6 text-center shadow-2xl transition-all animate-in zoom-in-95 fade-in duration-200">
                         {/* Icóno */}
                         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
                             <Trash2 size={24} className="text-rose-500" />
                         </div>
-                        <h3 className="mb-1 text-base font-bold text-slate-800">Eliminar Movimiento</h3>
-                        <p className="mb-6 text-sm text-slate-500">
+                        <h3 className="mb-1 text-base font-bold text-on-surface">Eliminar Movimiento</h3>
+                        <p className="mb-6 text-sm text-on-surface-variant">
                             ¿Estás seguro? Esta acción no se puede deshacer y ajustará los saldos.
                         </p>
                         <div className="flex gap-3">
@@ -1409,7 +1366,7 @@ export default function DashboardCouple({
                                 type="button"
                                 onClick={closeDeleteModal}
                                 disabled={isDeleting}
-                                className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50"
+                                className="flex-1 rounded-xl bg-surface-low py-3 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container disabled:opacity-50"
                             >
                                 Cancelar
                             </button>
@@ -1438,25 +1395,25 @@ export default function DashboardCouple({
             {showFilterModal && (
                 <div className="fixed inset-0 z-60 flex flex-col justify-end">
                     <div
-                        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterAnimated ? "opacity-100" : "opacity-0"
+                        className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterAnimated ? "opacity-100" : "opacity-0"
                             }`}
                         onClick={closeFilterModal}
                     />
                     <div
-                        className={`relative flex max-h-[80vh] flex-col rounded-t-[2.5rem] bg-white shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isFilterAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+                        className={`relative flex max-h-[80vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isFilterAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
                             }`}
                     >
                         <div className="flex justify-center pt-4 pb-2">
-                            <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+                            <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                         </div>
                         <button
                             onClick={closeFilterModal}
-                            className="absolute top-4 right-6 rounded-full bg-slate-50 p-2 text-slate-400 transition-colors hover:text-slate-600"
+                            className="absolute top-4 right-6 rounded-full bg-surface p-2 text-outline-variant transition-colors hover:text-on-surface-variant"
                         >
                             <X size={18} />
                         </button>
                         <div className="overflow-y-auto px-6 pb-8">
-                            <h3 className="mb-5 text-lg font-bold text-slate-800">Filtrar Actividad</h3>
+                            <h3 className="mb-5 text-lg font-bold text-on-surface">Filtrar Actividad</h3>
                             <div className="space-y-2">
                                 {([
                                     { value: "all", label: "Todos los movimientos" },
@@ -1473,8 +1430,8 @@ export default function DashboardCouple({
                                             closeFilterModal();
                                         }}
                                         className={`w-full rounded-2xl px-4 py-3.5 text-left text-sm transition-colors ${currentFilter === value
-                                                ? "bg-[#60855c]/10 font-bold text-[#60855c]"
-                                                : "bg-slate-50 font-medium text-slate-700 hover:bg-slate-100"
+                                                ? "bg-primary/10 font-bold text-primary"
+                                                : "bg-surface font-medium text-on-surface hover:bg-surface-low"
                                             }`}
                                     >
                                         {label}

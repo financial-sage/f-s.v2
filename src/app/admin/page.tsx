@@ -110,8 +110,8 @@ export default async function AdminPage() {
       icon: Users,
       label: "Usuarios registrados",
       value: metrics.users,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
+      color: "text-secondary",
+      bg: "bg-secondary/10",
     },
     {
       icon: Home,
@@ -124,15 +124,15 @@ export default async function AdminPage() {
       icon: Receipt,
       label: "Gastos registrados",
       value: metrics.expenses,
-      color: "text-amber-600",
-      bg: "bg-amber-50",
+      color: "text-accent",
+      bg: "bg-accent/15",
     },
     {
       icon: Crown,
       label: "Usuarios Premium",
       value: metrics.premium,
-      color: "text-violet-600",
-      bg: "bg-violet-50",
+      color: "text-accent",
+      bg: "bg-accent/15",
     },
   ] as const;
 
@@ -164,18 +164,18 @@ export default async function AdminPage() {
 
       {/* Metric cards */}
       <section>
-        <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Métricas</h2>
+        <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-outline-variant">Métricas</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {cards.map(({ icon: Icon, label, value, color, bg }, index) => (
             <div
               key={label}
-              className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-white p-5 shadow-sm border border-slate-100"
+              className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-surface-lowest p-5 shadow-sm border border-outline-variant/20"
               style={{ animationDuration: "600ms", animationDelay: `${index * 80}ms` }}
             >
               <div className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full ${bg}`}>
                 <Icon size={22} className={color} strokeWidth={1.8} />
               </div>
-              <p className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
+              <p className="text-[11px] font-medium uppercase tracking-widest text-outline-variant">
                 {label}
               </p>
               <p className={`mt-1 text-4xl font-extrabold tracking-tight ${color}`}>
@@ -187,12 +187,12 @@ export default async function AdminPage() {
       </section>
 
       {/* Campaign panel */}
-      <section className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-white border border-slate-100 shadow-sm p-6"
+      <section className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-surface-lowest border border-outline-variant/20 shadow-sm p-6"
         style={{ animationDuration: "600ms", animationDelay: "360ms" }}>
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-base font-bold text-slate-800">Campaña de Marketing Activa</h2>
-            <p className="text-sm text-slate-500">
+            <h2 className="text-base font-bold text-on-surface">Campaña de Marketing Activa</h2>
+            <p className="text-sm text-on-surface-variant">
               Otorga Premium automáticamente a los primeros registros durante 24 h.
             </p>
           </div>
@@ -200,7 +200,7 @@ export default async function AdminPage() {
             className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${
               campaignIsActive
                 ? "bg-emerald-100 text-emerald-700"
-                : "bg-slate-100 text-slate-500"
+                : "bg-surface-low text-on-surface-variant"
             }`}
           >
             {campaignIsActive ? "Activa" : isExpired && campaign?.is_active ? "Expirada" : "Inactiva"}
@@ -212,16 +212,16 @@ export default async function AdminPage() {
           <div className="mb-6 space-y-4">
             {/* Progress bar */}
             <div>
-              <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500">
+              <div className="mb-1.5 flex items-center justify-between text-xs text-on-surface-variant">
                 <span className="flex items-center gap-1.5 font-medium">
                   <UserCheck2 size={13} />
                   Cupos usados
                 </span>
-                <span className="font-bold text-slate-700">
+                <span className="font-bold text-on-surface">
                   {campaign.current_users} / {campaign.max_users}
                 </span>
               </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-2.5 overflow-hidden rounded-full bg-surface-low">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
                     campaignProgress >= 100 ? "bg-rose-400" : "bg-emerald-400"
@@ -233,11 +233,11 @@ export default async function AdminPage() {
 
             {/* End date */}
             {campaign.ends_at && (
-              <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="flex items-center gap-2 text-sm text-on-surface-variant">
                 <CalendarClock size={14} />
                 <span>
                   {isExpired ? "Finalizó" : "Finaliza"} el{" "}
-                  <strong className={isExpired ? "text-rose-600" : "text-slate-700"}>
+                  <strong className={isExpired ? "text-rose-600" : "text-on-surface"}>
                     {new Date(campaign.ends_at).toLocaleString("es-MX", {
                       dateStyle: "medium",
                       timeStyle: "short",
@@ -248,7 +248,7 @@ export default async function AdminPage() {
             )}
           </div>
         ) : (
-          <p className="mb-6 text-sm text-slate-400">No hay campañas registradas aún.</p>
+          <p className="mb-6 text-sm text-outline-variant">No hay campañas registradas aún.</p>
         )}
 
         {/* Actions */}
@@ -261,7 +261,7 @@ export default async function AdminPage() {
               min={1}
               max={10000}
               defaultValue={100}
-              className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-400"
+              className="w-24 rounded-xl border border-outline-variant/30 bg-surface px-3 py-2 text-sm font-semibold text-on-surface outline-none focus:border-emerald-400"
               placeholder="Cupos"
             />
             <button
@@ -278,7 +278,7 @@ export default async function AdminPage() {
             <form action={deactivateCampaign}>
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-rose-50 hover:text-rose-600 active:scale-95"
+                className="flex items-center gap-2 rounded-xl bg-surface-low px-4 py-2 text-sm font-bold text-on-surface-variant transition hover:bg-rose-50 hover:text-rose-600 active:scale-95"
               >
                 <ZapOff size={14} />
                 Desactivar
@@ -289,7 +289,7 @@ export default async function AdminPage() {
       </section>
 
       {/* Footer */}
-      <p className="text-center text-[10px] text-slate-400">
+      <p className="text-center text-[10px] text-outline-variant">
         Solo visible para administradores autorizados · SinDescuadre
       </p>
     </div>

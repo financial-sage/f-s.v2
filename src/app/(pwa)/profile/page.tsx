@@ -5,6 +5,7 @@ import FamilySettings from "@/components/FamilySettings";
 import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
+import { ThemeToggleRow } from "@/components/ThemeToggleRow";
 
 async function joinFamily(formData: FormData) {
   "use server";
@@ -177,7 +178,7 @@ export default async function ProfilePage() {
 
                   <details className="mt-3 group">
                     <summary className="list-none">
-                      <span className="inline-flex cursor-pointer items-center rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-slate-200">
+                      <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-surface-container">
                         Ingresar código
                       </span>
                     </summary>
@@ -189,7 +190,7 @@ export default async function ProfilePage() {
                         inputMode="text"
                         maxLength={6}
                         placeholder="Código de 6 caracteres"
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center font-mono text-on-surface uppercase outline-none focus:border-sage"
+                        className="w-full rounded-2xl border border-outline-variant/30 bg-surface px-4 py-3 text-center font-mono text-on-surface uppercase outline-none focus:border-sage"
                         required
                       />
                       <button
@@ -222,11 +223,12 @@ export default async function ProfilePage() {
             </p>
           </div>
 
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-outline-variant/20">
+            <ThemeToggleRow />
             {preferences.map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-slate-100 p-2 text-primary">
+                  <div className="rounded-full bg-surface-low p-2 text-primary">
                     <Icon size={18} />
                   </div>
                   <span className="font-semibold text-on-surface">{label}</span>

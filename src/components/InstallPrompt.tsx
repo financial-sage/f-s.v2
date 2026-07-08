@@ -50,11 +50,11 @@ export default function InstallPrompt() {
   }
 
   return (
-    <div className="pointer-events-auto fixed inset-x-4 bottom-32 z-[70] mx-auto max-w-md rounded-2xl border border-black/5 bg-white/95 p-3 shadow-lg backdrop-blur">
+    <div className="pointer-events-auto fixed inset-x-4 bottom-32 z-[70] mx-auto max-w-md rounded-2xl border border-black/5 bg-surface-lowest/95 p-3 shadow-lg backdrop-blur">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Instalar app</p>
-          <p className="text-xs text-slate-600">Añade SinDescuadre a tu pantalla de inicio.</p>
+          <p className="text-sm font-semibold text-on-surface">Instalar app</p>
+          <p className="text-xs text-on-surface-variant">Añade SinDescuadre a tu pantalla de inicio.</p>
         </div>
         <button
           type="button"

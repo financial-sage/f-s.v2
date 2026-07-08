@@ -55,7 +55,7 @@ export default async function AddExpensePage() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-50">
+    <div className="min-h-dvh bg-surface">
       <AddExpenseForm
         familyMemberCount={familyState.familyMemberCount}
         partnerFirstName={partnerFirstName}

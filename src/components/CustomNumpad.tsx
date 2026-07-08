@@ -10,6 +10,7 @@ interface CustomNumpadProps {
   onValueChange: (value: string) => void;
   onConfirm: (value?: string) => void;
   embedded?: boolean;
+  embeddedStyle?: "card" | "flat";
   showDisplay?: boolean;
 }
 
@@ -58,6 +59,7 @@ export default function CustomNumpad({
   onValueChange,
   onConfirm,
   embedded = false,
+  embeddedStyle = "card",
   showDisplay = true,
 }: CustomNumpadProps) {
   const [expression, setExpression] = useState("");
@@ -139,21 +141,23 @@ export default function CustomNumpad({
       <div
         className={`pointer-events-auto ${
           embedded
-            ? "relative w-full rounded-2xl bg-white px-3 py-2 shadow-md"
-            : "fixed right-0 bottom-0 left-0 z-50 rounded-t-3xl bg-white px-4 pt-3 pb-10 shadow-2xl transition-transform duration-300 ease-in-out"
+            ? embeddedStyle === "flat"
+              ? "relative w-full"
+              : "relative w-full rounded-2xl bg-surface-lowest px-3 py-2 shadow-md"
+            : "fixed right-0 bottom-0 left-0 z-50 rounded-t-3xl bg-surface-lowest px-4 pt-3 pb-10 shadow-2xl transition-transform duration-300 ease-in-out"
         } ${!embedded ? (isOpen ? "translate-y-0" : "translate-y-full") : ""}`}
       >
         <div className="mx-auto w-full max-w-md">
-          {!embedded && <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-slate-300" />}
+          {!embedded && <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-surface-high" />}
 
           {showDisplay && (
             <div className={`${embedded ? "mb-3" : "mb-6"} flex flex-col items-end px-4`}>
-              <span className="mb-1 text-[0.6875rem] uppercase tracking-widest text-slate-500">
+              <span className="mb-1 text-[0.6875rem] uppercase tracking-widest text-on-surface-variant">
                 Ingrese el monto
               </span>
               <div className="flex items-baseline gap-1">
                 <span className="text-sage text-2xl font-bold">$</span>
-                <span className="text-4xl font-extrabold tracking-tight text-slate-800">
+                <span className="text-4xl font-extrabold tracking-tight text-on-surface">
                   {displayValue}
                 </span>
               </div>
@@ -164,17 +168,17 @@ export default function CustomNumpad({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-12 items-center justify-center rounded-xl bg-slate-200 font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
+              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
             >
               <X size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("7")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">7</button>
-            <button type="button" onClick={() => appendValue("8")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">8</button>
-            <button type="button" onClick={() => appendValue("9")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">9</button>
+            <button type="button" onClick={() => appendValue("7")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">7</button>
+            <button type="button" onClick={() => appendValue("8")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">8</button>
+            <button type="button" onClick={() => appendValue("9")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">9</button>
             <button
               type="button"
               onClick={handleBackspace}
-              className="row-span-1 flex h-12 items-center justify-center rounded-xl bg-white text-red-500 shadow-sm transition-all active:scale-95"
+              className="row-span-1 flex h-16 items-center justify-center rounded-lg bg-surface-lowest text-red-500 shadow-sm transition-all active:scale-95"
             >
               <Delete size={18} />
             </button>
@@ -182,16 +186,16 @@ export default function CustomNumpad({
             <button
               type="button"
               onClick={() => appendValue("÷")}
-              className="flex h-12 items-center justify-center rounded-xl bg-slate-200 font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
+              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
             >
               <Divide size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("4")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">4</button>
-            <button type="button" onClick={() => appendValue("5")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">5</button>
-            <button type="button" onClick={() => appendValue("6")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">6</button>
+            <button type="button" onClick={() => appendValue("4")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">4</button>
+            <button type="button" onClick={() => appendValue("5")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">5</button>
+            <button type="button" onClick={() => appendValue("6")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">6</button>
             {/* <button
               type="button"
-              className="flex h-12 items-center justify-center rounded-xl bg-white text-sage shadow-sm transition-all active:scale-95"
+              className="flex h-16 items-center justify-center rounded-xl bg-surface-lowest text-sage shadow-sm transition-all active:scale-95"
             >
               <CalendarDays size={18} />
             </button> */}
@@ -206,29 +210,29 @@ export default function CustomNumpad({
             <button
               type="button"
               onClick={() => appendValue("×")}
-              className="flex h-12 items-center justify-center rounded-xl bg-slate-200 font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
+              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
             >
               <X size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("1")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">1</button>
-            <button type="button" onClick={() => appendValue("2")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">2</button>
-            <button type="button" onClick={() => appendValue("3")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">3</button>
+            <button type="button" onClick={() => appendValue("1")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">1</button>
+            <button type="button" onClick={() => appendValue("2")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">2</button>
+            <button type="button" onClick={() => appendValue("3")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">3</button>
 
             <button
               type="button"
               onClick={() => appendValue("+")}
-              className="flex h-12 items-center justify-center rounded-xl bg-slate-200 font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
+              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
             >
               <Plus size={18} />
             </button>
             <button
               type="button"
-              className="flex h-12 items-center justify-center rounded-xl bg-white text-sage shadow-sm transition-all active:scale-95"
+              className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest text-sage shadow-sm transition-all active:scale-95"
             >
               <Shapes size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("0")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">0</button>
-            <button type="button" onClick={() => appendValue(",")} className="flex h-12 items-center justify-center rounded-xl bg-white font-semibold text-slate-800 shadow-sm transition-all active:scale-95">,</button>
+            <button type="button" onClick={() => appendValue("0")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">0</button>
+            <button type="button" onClick={() => appendValue(",")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">,</button>
           </div>
 
           {!embedded && <div className="h-6 w-full" />}

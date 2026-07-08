@@ -6,6 +6,8 @@ import { useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,8 +44,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-slate-50 text-on-surface">
-      <header className="fixed top-0 z-50 w-full bg-slate-50/80 px-6 py-4 backdrop-blur-md">
+    <div className="flex h-dvh flex-col overflow-hidden bg-surface text-on-surface">
+      <header className="fixed top-0 z-50 w-full bg-surface/80 px-6 py-4 backdrop-blur-md">
         <div className="flex items-center justify-end">
           <div className="hidden gap-6 md:flex">
             <span className="font-label text-sm font-medium text-on-surface">Seguridad</span>
@@ -65,7 +67,7 @@ export default function LoginPage() {
                   <p className="mt-3 text-lg text-on-surface-variant">
                     Controla tus finanzas con calma y claridad.
                   </p>
-                  <div className="mt-10 rounded-2xl bg-white/80 p-6 backdrop-blur-sm">
+                  <div className="mt-10 rounded-2xl bg-surface-lowest/80 p-6 backdrop-blur-sm">
                     <p className="font-headline text-2xl font-bold leading-tight text-on-surface">
                       "La paz financiera comienza con una conversación honesta."
                     </p>
@@ -87,21 +89,16 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              <section className="rounded-3xl bg-white p-8 shadow-sm">
+              <section className="rounded-3xl bg-surface-lowest p-8 shadow-sm">
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="ml-4 block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-                      Correo electrónico
-                    </label>
-                    <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-2xl border-none bg-surface-low px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
-                      placeholder="nombre@ejemplo.com"
-                      type="email"
-                      required
-                    />
-                  </div>
+                  <Input
+                    label="Correo electrónico"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="nombre@ejemplo.com"
+                    type="email"
+                    required
+                  />
 
                   <div className="space-y-2">
                     <div className="mx-4 flex items-center justify-between">
@@ -112,10 +109,9 @@ export default function LoginPage() {
                         ¿Olvidaste tu contraseña?
                       </span>
                     </div>
-                    <input
+                    <Input
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-2xl border-none bg-surface-low px-6 py-4 text-on-surface outline-none transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
                       placeholder="••••••••"
                       type="password"
                       required
@@ -128,14 +124,15 @@ export default function LoginPage() {
                     </div>
                   )}
 
-                  <button
+                  <Button
                     type="submit"
-                    disabled={isLoading}
-                    className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-5 text-lg font-bold text-on-primary shadow-lg shadow-primary/10 transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
+                    size="lg"
+                    className="w-full"
+                    isLoading={isLoading}
                   >
                     {isLoading && <LoaderCircle size={18} className="animate-spin" />}
                     {isLoading ? "Entrando..." : "Entrar"}
-                  </button>
+                  </Button>
                 </form>
               </section>
 

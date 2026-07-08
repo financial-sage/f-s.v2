@@ -16,22 +16,22 @@ export default function InvitePartner({ inviteCode }: InvitePartnerProps) {
   const [isPending, startTransition] = useTransition();
 
   return (
-    <section className="space-y-4 rounded-3xl bg-white p-6 shadow-sm">
+    <section className="space-y-4 rounded-3xl bg-surface-lowest p-6 shadow-sm">
       <div className="flex items-center gap-2">
         <div className="rounded-full bg-primary/10 p-2 text-primary">
           <Users size={18} />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Invita a tu pareja</h2>
-          <p className="text-sm text-slate-500">Comparte tu código o únete con otro.</p>
+          <h2 className="text-lg font-bold text-on-surface">Invita a tu pareja</h2>
+          <p className="text-sm text-on-surface-variant">Comparte tu código o únete con otro.</p>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-slate-50 p-4">
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
+      <div className="rounded-2xl bg-surface p-4">
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-on-surface-variant">
           Tu código de invitación
         </p>
-        <p className="font-mono text-3xl font-extrabold tracking-[0.3em] text-slate-800">
+        <p className="font-mono text-3xl font-extrabold tracking-[0.3em] text-on-surface">
           {inviteCode}
         </p>
       </div>
@@ -65,7 +65,7 @@ export default function InvitePartner({ inviteCode }: InvitePartnerProps) {
             setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))
           }
           placeholder="Código de 6 caracteres"
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center font-mono text-lg tracking-[0.25em] text-slate-800 uppercase outline-none focus:border-sage"
+          className="w-full rounded-2xl border border-outline-variant/30 bg-surface px-4 py-3 text-center font-mono text-lg tracking-[0.25em] text-on-surface uppercase outline-none focus:border-sage"
         />
 
         {errorMessage && (

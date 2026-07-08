@@ -1,13 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { filterExpensesForPrivacy } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import HistoryList, { type HistoryExpenseRow } from "@/components/HistoryList";
 import StoreHydrator from "@/components/StoreHydrator";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ExpenseRow {
@@ -68,18 +67,9 @@ export default async function HistoryPage() {
   ) as HistoryExpenseRow[];
 
   return (
-    <div className="flex flex-col h-dvh bg-slate-50 overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-hidden bg-surface">
       <StoreHydrator userId={user.id} />
-      {/* Header */}
-      <header className="shrink-0 z-10 flex items-center gap-3 bg-[#F8F9FA]/90 px-4 py-4 backdrop-blur-md border-b border-slate-100">
-        <Link
-          href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm text-slate-500 transition hover:text-slate-800"
-        >
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="text-lg font-bold tracking-tight text-slate-800">Historial de Movimientos</h1>
-      </header>
+      <PageHeader title="Historial de Movimientos" backHref="/" />
 
       {/* Interactive list with balance header and filters (client component) */}
       <HistoryList

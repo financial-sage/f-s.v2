@@ -6,6 +6,9 @@ import { useEffect, useState, useTransition } from "react";
 import { Copy, LoaderCircle, Sparkles, UserRound, Users } from "lucide-react";
 import { createSoloFamilyAction, getCurrentFamilyState, joinFamilyAction } from "@/app/actions/family";
 import { useExpenseStore } from "@/store/useExpenseStore";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 
 type OnboardingStep = "choose" | "solo_success" | "join_input";
 
@@ -109,8 +112,8 @@ export default function OnboardingPage() {
 
   if (isBooting) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">
-        <div className="rounded-3xl bg-white px-6 py-5 text-sm font-medium text-slate-600 shadow-sm">
+      <div className="flex min-h-dvh items-center justify-center bg-surface px-4">
+        <div className="rounded-3xl bg-surface-lowest px-6 py-5 text-sm font-medium text-on-surface-variant shadow-sm">
           Cargando onboarding...
         </div>
       </div>
@@ -118,16 +121,16 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-md rounded-4xl bg-white p-6 shadow-sm">
+    <div className="min-h-dvh bg-surface px-4 py-8">
+      <Card className="mx-auto max-w-md rounded-4xl p-6">
         <div className="mb-6">
-          <div className="mb-4 inline-flex rounded-full bg-sage/10 p-2 text-sage">
+          <div className="mb-4 inline-flex rounded-full bg-primary/10 p-2 text-primary">
             <Sparkles size={18} />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-800">
+          <h1 className="text-2xl font-extrabold tracking-tight text-on-surface">
             ¿Cómo usarás la app?
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-on-surface-variant">
             Elige la forma que mejor se adapte a tu momento.
           </p>
         </div>
@@ -144,14 +147,14 @@ export default function OnboardingPage() {
               type="button"
               onClick={handleStartSolo}
               disabled={isPending}
-              className="flex w-full items-start gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-sage/40 hover:bg-sage/5 disabled:opacity-60"
+              className="flex w-full items-start gap-4 rounded-3xl border border-outline-variant/40 bg-surface-low px-4 py-4 text-left transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
             >
-              <div className="rounded-2xl bg-white p-2 text-slate-700 shadow-sm">
+              <div className="rounded-2xl bg-surface-lowest p-2 text-on-surface shadow-sm">
                 <UserRound size={20} />
               </div>
               <div>
-                <div className="text-base font-bold text-slate-800">Cuenta Individual</div>
-                <div className="mt-1 text-sm text-slate-500">
+                <div className="text-base font-bold text-on-surface">Cuenta Individual</div>
+                <div className="mt-1 text-sm text-on-surface-variant">
                   Crea tu espacio y obtén un código para invitar después.
                 </div>
               </div>
@@ -164,21 +167,21 @@ export default function OnboardingPage() {
                 setStep("join_input");
               }}
               disabled={isPending}
-              className="flex w-full items-start gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-sage/40 hover:bg-sage/5 disabled:opacity-60"
+              className="flex w-full items-start gap-4 rounded-3xl border border-outline-variant/40 bg-surface-low px-4 py-4 text-left transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
             >
-              <div className="rounded-2xl bg-white p-2 text-slate-700 shadow-sm">
+              <div className="rounded-2xl bg-surface-lowest p-2 text-on-surface shadow-sm">
                 <Users size={20} />
               </div>
               <div>
-                <div className="text-base font-bold text-slate-800">Unirme a mi pareja</div>
-                <div className="mt-1 text-sm text-slate-500">
+                <div className="text-base font-bold text-on-surface">Unirme a mi pareja</div>
+                <div className="mt-1 text-sm text-on-surface-variant">
                   Usa un código de 6 caracteres para unirte a su espacio.
                 </div>
               </div>
             </button>
 
             {isPending && (
-              <div className="flex items-center justify-center gap-2 pt-2 text-sm text-slate-500">
+              <div className="flex items-center justify-center gap-2 pt-2 text-sm text-on-surface-variant">
                 <LoaderCircle size={16} className="animate-spin" />
                 Procesando...
               </div>
@@ -188,41 +191,43 @@ export default function OnboardingPage() {
 
         {step === "join_input" && (
           <div className="space-y-4">
-            <input
+            <Input
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
               placeholder="ABC123"
               maxLength={6}
-              className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 text-center font-mono text-2xl tracking-[0.35em] text-slate-800 uppercase outline-none focus:border-sage"
+              className="rounded-3xl border border-outline-variant/40 bg-surface-low px-4 py-4 text-center font-mono text-2xl tracking-[0.35em] text-on-surface uppercase outline-none focus:ring-0 focus:border-primary"
             />
 
-            <button
+            <Button
               type="button"
               onClick={handleJoinFamily}
               disabled={isPending || inviteCode.length !== 6}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-4 text-base font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full"
             >
               {isPending && <LoaderCircle size={16} className="animate-spin" />}
               Validar y Unirme
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
               onClick={() => setStep("choose")}
-              className="w-full text-sm font-medium text-slate-500"
+              variant="ghost"
+              size="sm"
+              className="w-full"
             >
               Volver
-            </button>
+            </Button>
           </div>
         )}
 
         {step === "solo_success" && (
           <div className="space-y-4 text-center">
-            <div className="rounded-3xl bg-sage/8 px-4 py-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="rounded-3xl bg-primary/8 px-4 py-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-on-surface-variant">
                 Tu código de invitación
               </p>
-              <p className="mt-3 font-mono text-4xl font-extrabold tracking-[0.28em] text-slate-800">
+              <p className="mt-3 font-mono text-4xl font-extrabold tracking-[0.28em] text-on-surface">
                 {generatedCode}
               </p>
             </div>
@@ -230,32 +235,32 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={handleCopy}
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-4 font-semibold text-slate-700"
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-outline-variant/40 bg-surface-lowest px-4 py-4 font-semibold text-on-surface"
             >
               <Copy size={16} />
               {copied ? "Copiado" : "Copiar"}
             </button>
 
-            <button
+            <Button
               type="button"
               onClick={async () => {
                 router.refresh();
                 await useExpenseStore.getState().fetchData();
                 router.push("/");
               }}
-              className="w-full rounded-full bg-primary px-4 py-4 font-bold text-white"
+              className="w-full"
             >
               Ir al Dashboard
-            </button>
+            </Button>
           </div>
         )}
 
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-sm text-slate-500 hover:text-primary">
+          <Link href="/login" className="text-sm text-on-surface-variant hover:text-primary">
             Salir por ahora
           </Link>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

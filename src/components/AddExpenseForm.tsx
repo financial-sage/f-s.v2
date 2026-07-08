@@ -26,7 +26,7 @@ import {
   type ExpenseResponsibleFor,
 } from "@/app/actions/expenses";
 import { editExpenseAction } from "@/app/actions/editExpense";
-import CustomKeypad from "@/components/CustomNumpad";
+import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import type { ExpenseToEdit } from "@/components/ExpenseModalProvider";
 import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
@@ -103,12 +103,12 @@ function getSelectorClasses(isSelected: boolean, disabled: boolean) {
   if (disabled) {
     return isSelected
       ? "border border-sage/20 bg-sage/20 text-[#3F593E] shadow-sm opacity-100"
-      : "border border-slate-100 bg-white/70 text-slate-400 opacity-60";
+      : "border border-outline-variant/20 bg-surface-lowest/70 text-outline-variant opacity-60";
   }
 
   return isSelected
     ? "border border-sage/20 bg-sage/20 text-[#3F593E] shadow-sm"
-    : "border border-slate-100 shadow-sm bg-white/50 text-on-surface-variant hover:bg-surface-container-lowest";
+    : "border border-outline-variant/20 shadow-sm bg-surface-lowest/50 text-on-surface-variant hover:bg-surface-container-lowest";
 }
 
 function formatDisplayDate(value: string) {
@@ -528,17 +528,17 @@ export default function AddExpenseForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex min-h-dvh flex-col bg-transparent text-slate-800">
+    <form onSubmit={handleSubmit} className="flex min-h-dvh flex-col bg-transparent text-on-surface">
       {/* <header className="sticky top-0 z-50 w-full bg-transparent">
         <div className="flex w-full items-center justify-between px-4 py-4">
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-[#4A6549] transition-colors hover:bg-slate-100"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-[#4A6549] transition-colors hover:bg-surface-low"
             >
               <ArrowLeft size={20} />
             </Link>
-            <h1 className="text-lg font-semibold tracking-tight text-slate-800">Añadir Gasto</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-on-surface">Añadir Gasto</h1>
           </div>
           <div className="w-10" />
         </div>
@@ -546,17 +546,17 @@ export default function AddExpenseForm({
 
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 bg-transparent">
         <section className="px-1 pt-2">
-          <h1 className="text-lg font-bold text-slate-800">
+          <h1 className="text-lg font-bold text-on-surface">
             {expenseToEdit ? "Editar Gasto" : "Nuevo Gasto"}
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-on-surface-variant">
             {expenseToEdit ? "Actualiza el movimiento seleccionado." : "Registra un nuevo movimiento."}
           </p>
         </section>
 
-        <section className="mt-2 flex flex-col items-center gap-4 rounded-3xl bg-white p-4 shadow-sm">
+        <section className="mt-2 flex flex-col items-center gap-4 rounded-3xl bg-surface-lowest p-4 shadow-sm">
           <div className="text-center">
-            <span className="text-xs uppercase tracking-wider text-slate-500">
+            <span className="text-xs uppercase tracking-wider text-on-surface-variant">
               Importe del gasto
             </span>
             <div className="mt-2 flex items-center justify-center">
@@ -564,10 +564,10 @@ export default function AddExpenseForm({
               <button
                 type="button"
                 onClick={() => setShowKeypad(true)}
-                className="w-full border-none bg-transparent text-center text-5xl font-extrabold text-slate-800 outline-none"
+                className="w-full border-none bg-transparent text-center text-5xl font-extrabold text-on-surface outline-none"
               >
                 {Number.isNaN(parseDecimal(amount)) || parseDecimal(amount) <= 0 ? (
-                  <span className="text-slate-300">0.00</span>
+                  <span className="text-outline-variant">0.00</span>
                 ) : (
                   parseDecimal(amount).toFixed(2)
                 )}
@@ -575,14 +575,14 @@ export default function AddExpenseForm({
             </div>
           </div>
 
-          <div className="flex w-full items-center gap-3 border-t border-slate-100 pt-4">
-            <PencilLine size={16} className="text-slate-400" />
+          <div className="flex w-full items-center gap-3 border-t border-outline-variant/20 pt-4">
+            <PencilLine size={16} className="text-outline-variant" />
             <input
               type="text"
               value={concept}
               onChange={(e) => setConcept(e.target.value)}
               placeholder="¿En qué gastaste?"
-              className="focus:outline-none w-full border-none bg-transparent text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-0"
+              className="focus:outline-none w-full border-none bg-transparent text-sm font-medium text-on-surface placeholder:text-outline-variant focus:ring-0"
             />
           </div>
         </section>
@@ -590,7 +590,7 @@ export default function AddExpenseForm({
         {!isSolo && (
           <>
             <section className="px-1 mb-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-outline-variant mb-2 block">
                 PAGADO POR
               </span>
               <div className="flex flex-wrap gap-2">
@@ -624,7 +624,7 @@ export default function AddExpenseForm({
                         type="number"
                         value={myContribution}
                         onChange={(e) => setMyContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl text-slate-800 bg-slate-200 py-2 pl-7 pr-3 outline-none border border-slate-400"
+                        className="w-full rounded-xl text-on-surface bg-surface-container py-2 pl-7 pr-3 outline-none border border-outline-variant/40"
                         placeholder="0.00"
                       />
                     </div>
@@ -637,7 +637,7 @@ export default function AddExpenseForm({
                         type="number"
                         value={partnerContribution}
                         onChange={(e) => setPartnerContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl text-slate-800 bg-slate-200 py-2 pl-7 pr-3 outline-none border border-slate-400"
+                        className="w-full rounded-xl text-on-surface bg-surface-container py-2 pl-7 pr-3 outline-none border border-outline-variant/40"
                         placeholder="0.00"
                       />
                     </div>
@@ -647,7 +647,7 @@ export default function AddExpenseForm({
             </section>
 
             <section className="px-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-outline-variant mb-2 block">
                 DESTINO DEL GASTO
               </span>
               <div className="flex flex-wrap gap-2">
@@ -674,7 +674,7 @@ export default function AddExpenseForm({
           </>
         )}
 
-        <div className="mt-4 flex flex-col rounded-2xl bg-white shadow-sm">
+        <div className="mt-4 flex flex-col rounded-2xl bg-surface-lowest shadow-sm">
           <button
             type="button"
             onClick={openCategorySheet}
@@ -687,19 +687,19 @@ export default function AddExpenseForm({
             </span>
           </button>
 
-          <div className="h-px w-full bg-slate-100" />
+          <div className="h-px w-full bg-surface-low" />
 
           <label
             htmlFor="expense-date"
             className="bg-transparent p-4 flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="text-sage flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+              <div className="text-sage flex h-9 w-9 items-center justify-center rounded-full bg-surface-low">
                 <CalendarDays size={18} />
               </div>
-              <span className="text-sm font-semibold capitalize text-slate-800">{displayDate}</span>
+              <span className="text-sm font-semibold capitalize text-on-surface">{displayDate}</span>
             </div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-[#4A6549]">
+            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant transition-colors hover:text-[#4A6549]">
               Cambiar
             </span>
           </label>
@@ -739,10 +739,10 @@ export default function AddExpenseForm({
       {isCategorySheetOpen && mounted && (
         <div className="fixed inset-0 z-90 flex flex-col justify-end">
           <div
-            className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isSheetAnimated ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isSheetAnimated ? "opacity-100" : "opacity-0"}`}
             onClick={closeCategorySheet}
           />
-          <div className={`relative bg-white rounded-t-[2.5rem] p-6 pb-10 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+          <div className={`relative bg-surface-lowest rounded-t-[2.5rem] p-6 pb-10 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
             <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-on-surface/10" />
             <span className="mb-4 block text-center text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">
               CATEGORIA
@@ -763,15 +763,15 @@ export default function AddExpenseForm({
                     <div
                       className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
                         selectedCategory === cat.id
-                          ? "bg-sage/20 text-[#60855c] border-transparent"
-                          : "bg-white border border-slate-300 text-slate-500"
+                          ? "bg-primary/20 text-primary border-transparent"
+                          : "bg-surface-lowest border border-outline-variant/40 text-on-surface-variant"
                       }`}
                     >
                       <cat.icon size={20} strokeWidth={1.5} />
                     </div>
                     <span
                       className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
-                        selectedCategory === cat.id ? "text-[#60855c] font-bold" : "text-slate-500"
+                        selectedCategory === cat.id ? "text-primary font-bold" : "text-on-surface-variant"
                       }`}
                     >
                       {cat.label}
@@ -801,15 +801,15 @@ export default function AddExpenseForm({
                         <div
                           className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
                             selectedCategory === cat.id
-                              ? "bg-sage/20 text-[#60855c] border-transparent"
-                              : "bg-white border border-slate-300 text-slate-500"
+                              ? "bg-primary/20 text-primary border-transparent"
+                              : "bg-surface-lowest border border-outline-variant/40 text-on-surface-variant"
                           }`}
                         >
                           <cat.icon size={20} strokeWidth={1.5} />
                         </div>
                         <span
                           className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
-                            selectedCategory === cat.id ? "text-[#60855c] font-bold" : "text-slate-500"
+                            selectedCategory === cat.id ? "text-primary font-bold" : "text-on-surface-variant"
                           }`}
                         >
                           {cat.label}
@@ -829,12 +829,12 @@ export default function AddExpenseForm({
                 >
                   <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isExpanded
-                      ? "bg-slate-800 text-white shadow-md rotate-90 scale-105"
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      ? "bg-on-surface/95 text-white shadow-md rotate-90 scale-105"
+                      : "bg-surface-low text-on-surface-variant hover:bg-surface-container"
                   }`}>
                     {isExpanded ? <X size={20} strokeWidth={2} /> : <MoreHorizontal size={20} strokeWidth={1.5} />}
                   </div>
-                  <span className={`text-[9px] font-medium transition-colors duration-300 ${isExpanded ? "text-slate-800 font-bold" : "text-slate-500"}`}>
+                  <span className={`text-[9px] font-medium transition-colors duration-300 ${isExpanded ? "text-on-surface font-bold" : "text-on-surface-variant"}`}>
                     {isExpanded ? "Cerrar" : "Otros"}
                   </span>
                 </button>
@@ -844,26 +844,14 @@ export default function AddExpenseForm({
         </div>
       )}
 
-      {/* Teclado Personalizado Overlay */}
-      {showKeypad && (
-        <div className="fixed inset-x-0 bottom-0 z-60 bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] animate-in slide-in-from-bottom-full duration-300">
-          <div className="flex justify-end px-6 pt-4 pb-2">
-            <button type="button" onClick={() => setShowKeypad(false)} className="text-[10px] font-bold uppercase tracking-widest text-[#60855c] bg-[#60855c]/10 px-4 py-2 rounded-full">
-              X
-            </button>
-          </div>
-          <div >
-            <CustomKeypad
-              isOpen={showKeypad}
-              embedded
-              initialValue={amount || "0"}
-              onClose={() => setShowKeypad(false)}
-              onValueChange={(value) => setAmount(sanitizeDecimalInput(value))}
-              onConfirm={() => setShowKeypad(false)}
-            />
-          </div>
-        </div>
-      )}
+      <NumericKeypadSheet
+        isOpen={showKeypad}
+        title="IMPORTE DEL GASTO"
+        initialValue={amount || "0"}
+        onClose={() => setShowKeypad(false)}
+        onValueChange={(value) => setAmount(sanitizeDecimalInput(value))}
+        onConfirm={() => setShowKeypad(false)}
+      />
     </form>
   );
 }

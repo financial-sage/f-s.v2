@@ -123,7 +123,7 @@ export default function FamilySettings({
         <button
           type="button"
           onClick={openFinancialModal}
-          className="flex w-full items-center justify-between px-4 py-4 text-left transition hover:bg-slate-50"
+          className="flex w-full items-center justify-between px-4 py-4 text-left transition hover:bg-surface"
         >
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-primary/10 p-2 text-primary">
@@ -145,7 +145,7 @@ export default function FamilySettings({
       {isFinancialModalOpen ? (
         <div className="fixed inset-0 z-80 flex flex-col justify-end">
           <div
-            className={`absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${
+            className={`absolute inset-0 bg-on-surface/95/40 backdrop-blur-sm transition-opacity duration-300 ${
               isSheetAnimated ? "opacity-100" : "opacity-0"
             }`}
             onClick={closeFinancialModal}
@@ -167,7 +167,7 @@ export default function FamilySettings({
               <button
                 type="button"
                 onClick={closeFinancialModal}
-                className="rounded-full bg-slate-100 p-2 text-slate-500"
+                className="rounded-full bg-surface-low p-2 text-on-surface-variant"
               >
                 <X size={18} />
               </button>
@@ -181,7 +181,7 @@ export default function FamilySettings({
                   <label
                     key={option.value}
                     className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
-                      isSelected ? "border-primary bg-primary/5" : "border-slate-200 bg-white"
+                      isSelected ? "border-primary bg-primary/5" : "border-outline-variant/30 bg-surface-lowest"
                     }`}
                   >
                     <input
@@ -202,7 +202,7 @@ export default function FamilySettings({
             </div>
 
             {model === "p2p_proportional" ? (
-              <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+              <div className="mt-4 rounded-2xl bg-surface p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-on-surface">
                     Tú aportas el {mySplitPct}%, y tu pareja el {partnerSplitPct}%
@@ -213,7 +213,7 @@ export default function FamilySettings({
                     max={100}
                     value={mySplitPct}
                     onChange={(e) => setMySplitPct(clampPercentage(Number(e.target.value)))}
-                    className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center font-semibold text-on-surface outline-none focus:border-sage"
+                    className="w-20 rounded-xl border border-outline-variant/30 bg-surface-lowest px-3 py-2 text-center font-semibold text-on-surface outline-none focus:border-sage"
                   />
                 </div>
 
