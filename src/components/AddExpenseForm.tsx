@@ -34,7 +34,7 @@ import { useExpenseStore } from "@/store/useExpenseStore";
 import { useCategories } from "@/hooks/useCategories";
 import { listFamilyFundsAction } from "@/app/actions/funds";
 import type { FamilyFund } from "@/lib/funds";
-import { getDefaultSharedFund } from "@/lib/funds";
+import { getDefaultSharedFund, resolveFundColor } from "@/lib/funds";
 
 interface AddExpenseFormProps {
   familyId: string;
@@ -716,16 +716,33 @@ export default function AddExpenseForm({
                   <div className="flex flex-wrap gap-2">
                     {sharedFunds.map((fund) => {
                       const isSelected = selectedFundId === fund.id;
+                      const fundColor = resolveFundColor(fund);
                       return (
                         <button
                           key={fund.id}
                           type="button"
                           onClick={() => setSelectedFundId(fund.id)}
-                          className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
-                            isSelected,
-                            false
-                          )}`}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                            isSelected
+                              ? "border border-transparent text-white shadow-sm"
+                              : "border border-outline-variant/20 bg-surface-lowest/50 text-on-surface-variant shadow-sm hover:bg-surface-container-lowest"
+                          }`}
+                          style={
+                            isSelected
+                              ? { backgroundColor: fundColor }
+                              : undefined
+                          }
                         >
+                          <span
+                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                              isSelected ? "bg-white/90 ring-1 ring-white/40" : "ring-1 ring-black/10"
+                            }`}
+                            style={
+                              isSelected
+                                ? undefined
+                                : { backgroundColor: fundColor }
+                            }
+                          />
                           {fund.name}
                         </button>
                       );
