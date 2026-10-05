@@ -31,8 +31,13 @@ import type { ExpenseToEdit } from "@/components/ExpenseModalProvider";
 import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
+import { useCategories } from "@/hooks/useCategories";
+import { listFamilyFundsAction } from "@/app/actions/funds";
+import type { FamilyFund } from "@/lib/funds";
+import { getDefaultSharedFund } from "@/lib/funds";
 
 interface AddExpenseFormProps {
+  familyId: string;
   familyMemberCount?: number;
   partnerFirstName?: string;
   onClose?: () => void;
@@ -140,6 +145,7 @@ function sanitizeDecimalInput(value: string | number) {
 }
 
 export default function AddExpenseForm({
+  familyId,
   familyMemberCount,
   partnerFirstName,
   onClose,
@@ -176,8 +182,29 @@ export default function AddExpenseForm({
   const [isSheetAnimated, setIsSheetAnimated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>([]);
+  const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const funds = await listFamilyFundsAction();
+        if (cancelled) return;
+        const shared = funds.filter((f) => f.scope === "shared" && !f.archived_at);
+        setSharedFunds(shared);
+        const defaultShared = getDefaultSharedFund(shared) ?? shared[0] ?? null;
+        setSelectedFundId((prev) => prev ?? defaultShared?.id ?? null);
+      } catch {
+        // Migration may not be applied; form still works with legacy joint_fund.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -362,6 +389,7 @@ export default function AddExpenseForm({
     [resolvedPartnerFirstName, resolvedFinancialModel]
   );
   const allCategories = [...topCategories, ...extraCategories];
+  const { activeCategories, getDisplayForCategory } = useCategories(familyId);
   const selectedCategoryItem =
     allCategories.find((option) => option.id === selectedCategory) ?? topCategories[0];
   const selectedCategoryValue = selectedCategoryItem.value;
@@ -447,6 +475,8 @@ export default function AddExpenseForm({
                 payerSharePct: 100,
                 category: selectedCategory,
                 date,
+                fundId: responsibleFor === "joint_fund" ? selectedFundId : null,
+                paidFromFund: false,
                 splitTypeOverride:
                   responsibleFor === "joint_fund"
                     ? "fund_transfer"
@@ -467,6 +497,8 @@ export default function AddExpenseForm({
                 payerSharePct: 100,
                 category: selectedCategory,
                 date,
+                fundId: responsibleFor === "joint_fund" ? selectedFundId : null,
+                paidFromFund: false,
                 splitTypeOverride:
                   responsibleFor === "joint_fund"
                     ? "fund_transfer"
@@ -498,6 +530,11 @@ export default function AddExpenseForm({
             category: selectedCategory,
             date,
             splitTypeOverride,
+            fundId:
+              (isCoupleMode ? responsibleFor : "me") === "joint_fund"
+                ? selectedFundId
+                : null,
+            paidFromFund: singlePaidBy === "joint_fund",
           });
         }
       }
@@ -670,6 +707,32 @@ export default function AddExpenseForm({
                   );
                 })}
               </div>
+
+              {responsibleFor === "joint_fund" && sharedFunds.length > 0 && (
+                <div className="mt-3">
+                  <span className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-outline-variant">
+                    Bolsillo / fondo
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {sharedFunds.map((fund) => {
+                      const isSelected = selectedFundId === fund.id;
+                      return (
+                        <button
+                          key={fund.id}
+                          type="button"
+                          onClick={() => setSelectedFundId(fund.id)}
+                          className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
+                            isSelected,
+                            false
+                          )}`}
+                        >
+                          {fund.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </section>
           </>
         )}
@@ -748,9 +811,12 @@ export default function AddExpenseForm({
               CATEGORIA
             </span>
             <div className="mt-4 flex flex-col gap-6">
-              {/* Top categories */}
+              {/* Categorías activas */}
               <div className="grid grid-cols-5 gap-y-6 gap-x-2">
-                {topCategories.map((cat) => (
+                {activeCategories.slice(0, 10).map((cat) => {
+                  const display = getDisplayForCategory(cat.id);
+                  const Icon = display.icon;
+                  return (
                   <button
                     key={cat.id}
                     type="button"
@@ -767,20 +833,21 @@ export default function AddExpenseForm({
                           : "bg-surface-lowest border border-outline-variant/40 text-on-surface-variant"
                       }`}
                     >
-                      <cat.icon size={20} strokeWidth={1.5} />
+                      <Icon size={20} strokeWidth={1.5} />
                     </div>
                     <span
                       className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
                         selectedCategory === cat.id ? "text-primary font-bold" : "text-on-surface-variant"
                       }`}
                     >
-                      {cat.label}
+                      {display.label}
                     </span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
 
-              {/* Extra categories — smooth height + opacity transition */}
+              {/* Más categorías (activas) — smooth height + opacity transition */}
               <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
               }`}>
@@ -788,7 +855,10 @@ export default function AddExpenseForm({
                   <div className={`grid grid-cols-5 gap-y-6 gap-x-2 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isExpanded ? "translate-y-0 scale-100" : "-translate-y-2 scale-[0.98]"
                   }`}>
-                    {extraCategories.map((cat) => (
+                    {activeCategories.slice(10).map((cat) => {
+                      const display = getDisplayForCategory(cat.id);
+                      const Icon = display.icon;
+                      return (
                       <button
                         key={cat.id}
                         type="button"
@@ -805,17 +875,18 @@ export default function AddExpenseForm({
                               : "bg-surface-lowest border border-outline-variant/40 text-on-surface-variant"
                           }`}
                         >
-                          <cat.icon size={20} strokeWidth={1.5} />
+                          <Icon size={20} strokeWidth={1.5} />
                         </div>
                         <span
                           className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
                             selectedCategory === cat.id ? "text-primary font-bold" : "text-on-surface-variant"
                           }`}
                         >
-                          {cat.label}
+                          {display.label}
                         </span>
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

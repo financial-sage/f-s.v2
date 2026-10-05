@@ -17,10 +17,30 @@ CREATE TABLE public.expenses (
   is_settled boolean DEFAULT false,
   parent_id uuid,
   is_active boolean DEFAULT true,
+  fund_id uuid,
+  paid_from_fund boolean DEFAULT false,
+  transfer_group_id uuid,
   CONSTRAINT expenses_pkey PRIMARY KEY (id),
   CONSTRAINT expenses_family_id_fkey FOREIGN KEY (family_id) REFERENCES public.families(id),
   CONSTRAINT expenses_paid_by_fkey FOREIGN KEY (paid_by) REFERENCES public.profiles(id),
-  CONSTRAINT expenses_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.expenses(id)
+  CONSTRAINT expenses_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.expenses(id),
+  CONSTRAINT expenses_fund_id_fkey FOREIGN KEY (fund_id) REFERENCES public.family_funds(id)
+);
+CREATE TABLE public.family_funds (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  family_id uuid NOT NULL,
+  name text NOT NULL,
+  scope text NOT NULL CHECK (scope IN ('shared', 'personal')),
+  owner_profile_id uuid,
+  is_default boolean NOT NULL DEFAULT false,
+  is_system boolean NOT NULL DEFAULT false,
+  sort_order integer NOT NULL DEFAULT 0,
+  archived_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT family_funds_pkey PRIMARY KEY (id),
+  CONSTRAINT family_funds_family_id_fkey FOREIGN KEY (family_id) REFERENCES public.families(id),
+  CONSTRAINT family_funds_owner_profile_id_fkey FOREIGN KEY (owner_profile_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.families (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

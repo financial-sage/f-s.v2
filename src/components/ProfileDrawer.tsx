@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BellRing, ChevronRight, CircleHelp, Coins, ShieldCheck, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -281,6 +282,23 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
                 <div className="divide-y divide-outline-variant/20">
                   <ThemeToggleRow />
+                  <Link
+                    href="/categories"
+                    onClick={onClose}
+                    className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-surface-low p-2 text-primary">
+                        <Coins size={18} />
+                      </div>
+                      <span className="font-semibold text-on-surface">Categorías</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+                      <span>Administrar</span>
+                      <ChevronRight size={16} />
+                    </div>
+                  </Link>
                   {preferences.map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-3">

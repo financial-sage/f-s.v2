@@ -19,12 +19,14 @@ const rightNavItems = [
 ] as const;
 
 interface BottomNavProps {
+  familyId?: string;
   partnerFirstName?: string;
   financialModel?: string;
   user1SplitPct?: number;
 }
 
 export default function BottomNav({
+  familyId,
   partnerFirstName = "Mi pareja",
   financialModel = "joint_fund",
   user1SplitPct = 50,
@@ -34,6 +36,10 @@ export default function BottomNav({
   const shouldHideNav = ["/add-expense", "/login", "/register", "/onboarding", "/profile"].includes(pathname);
 
   if (shouldHideNav) {
+    return null;
+  }
+
+  if (!familyId) {
     return null;
   }
 
@@ -91,6 +97,7 @@ export default function BottomNav({
 
       <Sheet open={isExpenseModalOpen} onClose={closeExpenseSheet} title="Agregar gasto">
         <AddExpenseForm
+          familyId={familyId ?? "unknown"}
           expenseToEdit={expenseToEdit}
           onClose={closeExpenseSheet}
           partnerFirstName={partnerFirstName}

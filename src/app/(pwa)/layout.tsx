@@ -42,6 +42,7 @@ export default async function PwaLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
+  let familyId: string | null = null;
   let partnerFirstName = "Mi pareja";
   let financialModel = "joint_fund";
   let user1SplitPct = 50;
@@ -49,10 +50,11 @@ export default async function PwaLayout({
   if (user) {
     const { data: family } = await supabase
       .from("families")
-      .select("user_1_id, user_2_id, financial_model, user_1_split_pct")
+      .select("id, user_1_id, user_2_id, financial_model, user_1_split_pct")
       .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
       .maybeSingle();
 
+    familyId = family?.id ?? null;
     financialModel = family?.financial_model ?? "joint_fund";
     user1SplitPct = Number(family?.user_1_split_pct ?? 50);
 
@@ -79,6 +81,7 @@ export default async function PwaLayout({
         <PageTransition>{children}</PageTransition>
       </main>
       <BottomNav
+        familyId={familyId ?? undefined}
         partnerFirstName={partnerFirstName}
         financialModel={financialModel}
         user1SplitPct={user1SplitPct}

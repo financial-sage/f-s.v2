@@ -19,6 +19,9 @@ export interface StoreExpenseRow {
     is_settled: boolean;
     is_active: boolean;
     family_id: string;
+    fund_id?: string | null;
+    paid_from_fund?: boolean | null;
+    transfer_group_id?: string | null;
 }
 
 export interface UserProfile {
@@ -107,15 +110,39 @@ function computeBalances(
 
     const fundLiquidity = (() => {
         const income = expenses
-            .filter((e) => e.category === "deposit" && e.responsible_for === "joint_fund")
+            .filter(
+                (e) =>
+                    e.category === "deposit" &&
+                    !e.transfer_group_id &&
+                    (e.responsible_for === "joint_fund" || !!e.fund_id)
+            )
+            .filter((e) => e.responsible_for === "joint_fund" || e.paid_from_fund === false)
+            .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+        // Prefer shared-legacy deposits only for default common fund liquidity widget
+        const sharedIncome = expenses
+            .filter((e) => e.category === "deposit" && e.responsible_for === "joint_fund" && !e.transfer_group_id)
             .reduce((s, e) => s + Number(e.amount || 0), 0);
         const direct = expenses
-            .filter((e) => e.responsible_for === "joint_fund" && e.paid_by === "joint_fund" && e.category !== "deposit" && e.category !== "withdrawal")
+            .filter(
+                (e) =>
+                    e.responsible_for === "joint_fund" &&
+                    (e.paid_by === "joint_fund" || e.paid_from_fund === true) &&
+                    e.category !== "deposit" &&
+                    e.category !== "withdrawal" &&
+                    !e.transfer_group_id
+            )
             .reduce((s, e) => s + Number(e.amount || 0), 0);
         const withdrawals = expenses
-            .filter((e) => e.category === "withdrawal" && e.responsible_for === "joint_fund")
+            .filter(
+                (e) =>
+                    e.category === "withdrawal" &&
+                    e.responsible_for === "joint_fund" &&
+                    !e.transfer_group_id
+            )
             .reduce((s, e) => s + Number(e.amount || 0), 0);
-        return income - direct - withdrawals;
+        void income;
+        return sharedIncome - direct - withdrawals;
     })();
 
     const p2pBalance = (() => {
@@ -194,7 +221,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                     : Promise.resolve({ data: null }),
                 supabase
                     .from("expenses")
-                    .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id")
+                    .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, transfer_group_id")
                     .eq("family_id", familyId)
                     .eq("is_active", true)
                     .order("expense_date", { ascending: false })

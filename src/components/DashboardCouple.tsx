@@ -25,10 +25,12 @@ import {
     ChevronLeft,
     SlidersHorizontal,
     Lock,
+    WalletCards,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
 import { createDeposit, createPersonalDeposit, deleteExpenseAction } from "@/app/actions/expenses";
+import { createFundAction, getFundsOverviewAction } from "@/app/actions/funds";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
 import { settleP2PAction } from "@/app/actions/settleP2P";
 import { createClient } from "@/utils/supabase/client";
@@ -39,6 +41,14 @@ import { useExpenseStore } from "@/store/useExpenseStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { getCategoryDetails } from "@/lib/categoryMap";
+import {
+    calculateFundCashBalance,
+    FUND_COLOR_OPTIONS,
+    DEFAULT_SHARED_FUND_COLOR,
+    getDefaultSharedFund,
+    resolveFundColor,
+    type FamilyFund,
+} from "@/lib/funds";
 
 
 interface CoupleDashboardExpense {
@@ -61,6 +71,9 @@ interface CoupleDashboardExpense {
     full_name?: string | null;
     is_settled?: boolean;
     family_id?: string;
+    fund_id?: string | null;
+    paid_from_fund?: boolean | null;
+    transfer_group_id?: string | null;
 }
 
 type ActivityFilter = "all" | "personal" | "shared_all" | "shared_me" | "shared_partner";
@@ -169,6 +182,15 @@ export default function DashboardCouple({
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
     const isPremium = useExpenseStore((s) => s.isPremium);
+    const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>([]);
+    const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
+    const [showFundsMenu, setShowFundsMenu] = useState(false);
+    const [showCreateFundModal, setShowCreateFundModal] = useState(false);
+    const [isCreateFundAnimated, setIsCreateFundAnimated] = useState(false);
+    const [newFundName, setNewFundName] = useState("");
+    const [newFundColor, setNewFundColor] = useState<string>(DEFAULT_SHARED_FUND_COLOR);
+    const [fundActionError, setFundActionError] = useState("");
+    const [isCreatingFund, startCreateFundTransition] = useTransition();
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -374,13 +396,29 @@ export default function DashboardCouple({
         [expenses]
     );
     // El fondo solo resta gastos donde el dinero físicamente salió de él (contabilidad de caja)
-    const fundLiquidity = fundIncome - fundDirectExpenses - fundWithdrawals;
-    const fundSpent = Math.max(fundLiquidity, 0);
+    const legacyFundLiquidity = fundIncome - fundDirectExpenses - fundWithdrawals;
+    const fundSpent = Math.max(legacyFundLiquidity, 0);
     const fundBudget = Math.max(fundSpent, 1000);
     const isJointModel = financialModel === "joint_fund";
     const hasP2PBalance = iOwePartner > 0 || partnerOwesMe > 0;
-    const secondaryWidgetTitle = isJointModel ? "Fondo Común" : "Balance P2P";
-    const secondaryWidgetValue = isJointModel ? fundLiquidity : personalBalance;
+
+    const selectedFund =
+        sharedFunds.find((f) => f.id === selectedFundId) ??
+        getDefaultSharedFund(sharedFunds) ??
+        sharedFunds[0] ??
+        null;
+
+    const selectedFundBalance = useMemo(() => {
+        if (!selectedFund) return legacyFundLiquidity;
+        return calculateFundCashBalance(expenses, selectedFund.id, {
+            treatLegacyJointAsFundId: getDefaultSharedFund(sharedFunds)?.id ?? null,
+        });
+    }, [expenses, legacyFundLiquidity, selectedFund, sharedFunds]);
+
+    const secondaryWidgetTitle = isJointModel
+        ? selectedFund?.name ?? "Fondo Común"
+        : "Balance P2P";
+    const secondaryWidgetValue = isJointModel ? selectedFundBalance : personalBalance;
     const secondaryWidgetHint = isJointModel
         ? ""
         : hasP2PBalance
@@ -388,6 +426,78 @@ export default function DashboardCouple({
                 ? "A tu favor"
                 : "Por pagar"
             : "Sin deuda";
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const overview = await getFundsOverviewAction();
+                if (cancelled) return;
+                const shared = overview.funds.filter(
+                    (f) => f.scope === "shared" && !f.archived_at
+                );
+                setSharedFunds(shared);
+                setSelectedFundId((prev) => {
+                    if (prev && shared.some((f) => f.id === prev)) return prev;
+                    return overview.sharedDefaultFundId ?? shared[0]?.id ?? null;
+                });
+            } catch {
+                // Migration/table may be unavailable; keep legacy green card.
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const openCreateFundModal = () => {
+        setFundActionError("");
+        setNewFundName("");
+        setNewFundColor(DEFAULT_SHARED_FUND_COLOR);
+        setShowFundsMenu(false);
+        animateIn(setShowCreateFundModal, setIsCreateFundAnimated);
+    };
+    const closeCreateFundModal = () =>
+        animateOut(setShowCreateFundModal, setIsCreateFundAnimated, () => {
+            setNewFundName("");
+            setNewFundColor(DEFAULT_SHARED_FUND_COLOR);
+            setFundActionError("");
+        });
+
+    const handleSelectFund = (fundId: string) => {
+        setSelectedFundId(fundId);
+        setShowFundsMenu(false);
+    };
+
+    const handleCreateFund = () => {
+        const name = newFundName.trim();
+        if (!name) {
+            setFundActionError("Escribe un nombre para el fondo.");
+            return;
+        }
+        setFundActionError("");
+        startCreateFundTransition(async () => {
+            try {
+                const created = await createFundAction({
+                    name,
+                    scope: "shared",
+                    color: newFundColor,
+                });
+                const overview = await getFundsOverviewAction();
+                const shared = overview.funds.filter(
+                    (f) => f.scope === "shared" && !f.archived_at
+                );
+                setSharedFunds(shared);
+                setSelectedFundId(created.id);
+                closeCreateFundModal();
+                router.refresh();
+            } catch (err) {
+                setFundActionError(
+                    err instanceof Error ? err.message : "No se pudo crear el fondo."
+                );
+            }
+        });
+    };
 
 
     // Préstamos personales al fondo aún no recuperados (calculado directamente)
@@ -496,7 +606,10 @@ export default function DashboardCouple({
             if (depositTarget === "personal") {
                 await createPersonalDeposit({ amount: normalizedAmount });
             } else {
-                await createDeposit({ amount: normalizedAmount });
+                await createDeposit({
+                    amount: normalizedAmount,
+                    fundId: selectedFundId ?? undefined,
+                });
             }
 
             setDepositAmount("");
@@ -713,12 +826,95 @@ export default function DashboardCouple({
                 )}
 
                 <section
-                    className={`mb-4 shrink-0 px-2 ${animateSharedEntrance ? "animate-in slide-in-from-left-3 fade-in duration-500" : ""}`}
+                    className={`relative mb-4 shrink-0 px-2 ${animateSharedEntrance ? "animate-in slide-in-from-left-3 fade-in duration-500" : ""}`}
                 >
-                    <h1 className="text-2xl font-semibold tracking-tight text-on-surface">{familyName}</h1>
-                    <p className="text-sm font-normal opacity-70 text-on-surface-variant font-label">
-                        Santuario compartido • Hoy
-                    </p>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl font-semibold tracking-tight text-on-surface">{familyName}</h1>
+                            <p className="text-sm font-normal opacity-70 text-on-surface-variant font-label">
+                                Santuario compartido • Hoy
+                            </p>
+                        </div>
+                        {isJointModel && (
+                            <button
+                                type="button"
+                                onClick={() => setShowFundsMenu((open) => !open)}
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-lowest px-3 py-1.5 text-xs font-semibold text-on-surface shadow-sm transition-colors hover:bg-surface"
+                            >
+                                <WalletCards size={14} />
+                                Ver fondos
+                            </button>
+                        )}
+                    </div>
+
+                    {isJointModel && showFundsMenu && (
+                        <>
+                            <button
+                                type="button"
+                                aria-label="Cerrar lista de fondos"
+                                className="fixed inset-0 z-40 cursor-default"
+                                onClick={() => setShowFundsMenu(false)}
+                            />
+                            <div className="absolute right-2 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-lowest shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="max-h-64 overflow-y-auto p-2">
+                                    {sharedFunds.length === 0 ? (
+                                        <p className="px-3 py-2 text-xs text-on-surface-variant">
+                                            Aún no hay fondos.
+                                        </p>
+                                    ) : (
+                                        sharedFunds.map((fund) => {
+                                            const balance = calculateFundCashBalance(
+                                                expenses,
+                                                fund.id,
+                                                {
+                                                    treatLegacyJointAsFundId:
+                                                        getDefaultSharedFund(sharedFunds)?.id ?? null,
+                                                }
+                                            );
+                                            const isActive = selectedFund?.id === fund.id;
+                                            return (
+                                                <button
+                                                    key={fund.id}
+                                                    type="button"
+                                                    onClick={() => handleSelectFund(fund.id)}
+                                                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                                                        isActive
+                                                            ? "bg-primary/10 text-primary"
+                                                            : "text-on-surface hover:bg-surface"
+                                                    }`}
+                                                >
+                                                    <span className="flex min-w-0 items-center gap-2">
+                                                        <span
+                                                            className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/10"
+                                                            style={{
+                                                                backgroundColor: resolveFundColor(fund),
+                                                            }}
+                                                        />
+                                                        <span className="truncate text-sm font-semibold">
+                                                            {fund.name}
+                                                        </span>
+                                                    </span>
+                                                    <span className="shrink-0 text-xs font-medium opacity-80">
+                                                        {formatCurrency(balance)}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                <div className="border-t border-outline-variant/20 p-2">
+                                    <button
+                                        type="button"
+                                        onClick={openCreateFundModal}
+                                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-on-primary"
+                                    >
+                                        <Plus size={16} />
+                                        Crear fondo
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </section>
 
                 <section className="mb-2">
@@ -759,14 +955,23 @@ export default function DashboardCouple({
                             </div>
                         </div>
 
-                        {/* TARJETA 2: FONDO COMÚN (VERDE SALVIA) */}
-                        <div className="relative flex flex-col justify-between min-h-41 bg-primary/50 p-4">
+                        {/* TARJETA 2: FONDO SELECCIONADO */}
+                        <div
+                            className={`relative flex min-h-41 flex-col justify-between p-4 transition-colors duration-300 ${
+                                isJointModel ? "" : "bg-primary/50"
+                            }`}
+                            style={
+                                isJointModel
+                                    ? { backgroundColor: resolveFundColor(selectedFund) }
+                                    : undefined
+                            }
+                        >
                             {/* Capa de Textura de Ondas */}
                             <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
 
                             {/* Contenido Superior */}
                             <div className="relative z-10 flex flex-col">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-primary mb-2 backdrop-blur-sm shadow-sm ">
+                                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-primary shadow-sm backdrop-blur-sm">
                                     {isJointModel ? <Home size={16} /> : <Scale size={16} />}
                                 </div>
                                 <span className="text-[10px] font-normal text-white uppercase tracking-widest">{secondaryWidgetTitle}</span>
@@ -787,8 +992,8 @@ export default function DashboardCouple({
                                             type="button"
                                             onClick={openDepositModal}
                                             className="group inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent/35 bg-surface-lowest/55 shadow-[0_10px_30px_rgba(212,175,55,0.18)] backdrop-blur-md transition-all hover:bg-surface-lowest/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
-                                            aria-label="Aportar al fondo común"
-                                            title="Aportar al fondo común"
+                                            aria-label={`Aportar a ${secondaryWidgetTitle}`}
+                                            title={`Aportar a ${secondaryWidgetTitle}`}
                                         >
                                             <Plus size={20} className="text-accent drop-shadow-sm transition-transform group-hover:scale-110" />
                                         </button>
@@ -1325,9 +1530,104 @@ export default function DashboardCouple({
             )}
 
 
+            {showCreateFundModal && (
+                <div className="fixed inset-0 z-70 flex items-end justify-center sm:items-center">
+                    <div
+                        className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm transition-opacity duration-300 ${
+                            isCreateFundAnimated ? "opacity-100" : "opacity-0"
+                        }`}
+                        onClick={closeCreateFundModal}
+                    />
+                    <div
+                        className={`relative m-4 w-full max-w-sm rounded-3xl bg-surface-lowest p-6 shadow-2xl transition-all duration-300 ${
+                            isCreateFundAnimated
+                                ? "translate-y-0 opacity-100"
+                                : "translate-y-6 opacity-0"
+                        }`}
+                    >
+                        <button
+                            type="button"
+                            onClick={closeCreateFundModal}
+                            className="absolute right-4 top-4 rounded-full bg-surface p-2 text-outline-variant"
+                            aria-label="Cerrar"
+                        >
+                            <X size={16} />
+                        </button>
+                        <h3 className="pr-8 text-lg font-bold text-on-surface">Crear fondo</h3>
+                        <p className="mt-1 text-xs text-on-surface-variant">
+                            Elige nombre y color para el bolsillo.
+                        </p>
+                        <label className="mt-4 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                            Nombre
+                        </label>
+                        <input
+                            autoFocus
+                            value={newFundName}
+                            onChange={(e) => setNewFundName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") handleCreateFund();
+                            }}
+                            placeholder="Ej. Gasolina, Restaurantes..."
+                            className="mt-1.5 w-full rounded-2xl border border-outline-variant/40 bg-surface px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                        <label className="mt-4 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                            Color
+                        </label>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {FUND_COLOR_OPTIONS.map((option) => {
+                                const isSelected = newFundColor === option.value;
+                                return (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => setNewFundColor(option.value)}
+                                        title={option.label}
+                                        aria-label={option.label}
+                                        className={`h-9 w-9 rounded-full transition-transform ${
+                                            isSelected
+                                                ? "scale-110 ring-2 ring-offset-2 ring-on-surface"
+                                                : "hover:scale-105"
+                                        }`}
+                                        style={{ backgroundColor: option.value }}
+                                    />
+                                );
+                            })}
+                        </div>
+                        <div
+                            className="mt-4 overflow-hidden rounded-2xl p-4 text-white shadow-sm"
+                            style={{ backgroundColor: newFundColor }}
+                        >
+                            <p className="text-[10px] font-normal uppercase tracking-widest opacity-90">
+                                Vista previa
+                            </p>
+                            <p className="mt-1 text-lg font-semibold tracking-tight">
+                                {newFundName.trim() || "Nuevo fondo"}
+                            </p>
+                        </div>
+                        {fundActionError && (
+                            <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
+                                {fundActionError}
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            disabled={isCreatingFund}
+                            onClick={handleCreateFund}
+                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-semibold text-on-primary disabled:opacity-60"
+                        >
+                            {isCreatingFund ? "Guardando..." : "Guardar"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <NumericKeypadSheet
                 isOpen={Boolean(depositTarget)}
-                title={depositTarget === "personal" ? "APORTAR A MI FONDO" : "APORTAR AL FONDO COMÚN"}
+                title={
+                    depositTarget === "personal"
+                        ? "APORTAR A MI FONDO"
+                        : `APORTAR A ${(selectedFund?.name ?? "FONDO").toUpperCase()}`
+                }
                 initialValue={depositAmount || "0"}
                 errorMessage={depositTarget ? depositError : undefined}
                 onClose={closeDepositModal}

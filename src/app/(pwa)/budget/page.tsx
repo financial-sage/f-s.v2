@@ -1,46 +1,55 @@
-import Link from "next/link";
-import { PiggyBank } from "lucide-react";
-import { PageHeader } from "@/components/ui/PageHeader";
+export const dynamic = "force-dynamic";
 
-export default function BudgetPage() {
+import { redirect } from "next/navigation";
+import { createClient } from "@/utils/supabase/server";
+import { filterExpensesForPrivacy } from "@/lib/dashboard";
+import BudgetManager from "@/components/BudgetManager";
+import StoreHydrator from "@/components/StoreHydrator";
+import type { BudgetExpenseRow } from "@/lib/budgetSpending";
+
+interface ExpenseRow {
+  amount: number;
+  category?: string | null;
+  expense_date?: string | null;
+  created_at: string;
+  concept?: string | null;
+  paid_by: string;
+  responsible_for?: string | null;
+}
+
+export default async function BudgetPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("family_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.family_id) redirect("/onboarding");
+
+  const { data: rawExpenses } = await supabase
+    .from("expenses")
+    .select("amount, category, expense_date, created_at, concept, paid_by, responsible_for")
+    .eq("family_id", profile.family_id)
+    .eq("is_active", true)
+    .order("expense_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const visibleExpenses = filterExpensesForPrivacy(
+    (rawExpenses ?? []) as ExpenseRow[],
+    user.id,
+  ) as BudgetExpenseRow[];
+
   return (
-    <div className="min-h-dvh bg-surface">
-      <PageHeader title="Presupuesto" subtitle="Control mensual" backHref="/" />
-      <div className="mx-auto w-full max-w-md px-4 pt-6 pb-28">
-        <div className="px-2 text-center">
-          <p className="text-sm text-on-surface-variant">
-            Próximamente podrás definir metas y límites por bolsillo y fondo común.
-          </p>
-        </div>
-
-        <div className="mt-8 rounded-4xl bg-surface-lowest p-6 shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <PiggyBank size={28} />
-          </div>
-
-          <h2 className="text-center text-lg font-bold text-on-surface">
-            En construcción
-          </h2>
-          <p className="mt-2 text-center text-sm text-on-surface-variant">
-            Mientras tanto, puedes revisar tu actividad y saldos desde el dashboard.
-          </p>
-
-          <div className="mt-6 space-y-3">
-            <Link
-              href="/"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-base font-semibold text-on-primary shadow-lg shadow-primary/10 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
-            >
-              Volver al Dashboard
-            </Link>
-            <Link
-              href="/history"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-outline-variant/40 bg-surface-lowest px-4 text-base font-semibold text-on-surface transition-all active:scale-[0.98] hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
-            >
-              Ver historial
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
+    <>
+      <StoreHydrator userId={user.id} />
+      <BudgetManager familyId={profile.family_id} initialExpenses={visibleExpenses} />
+    </>
   );
 }

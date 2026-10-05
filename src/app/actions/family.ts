@@ -198,6 +198,13 @@ export async function completeUserRegistration({
 
   await grantPremiumIfCampaignActive(userId);
 
+  try {
+    const { ensureFamilyFunds } = await import("@/app/actions/funds");
+    await ensureFamilyFunds(familyId);
+  } catch {
+    // Migration may not be applied yet; funds will be ensured on next dashboard load.
+  }
+
   revalidatePath("/");
   revalidatePath("/profile");
   revalidatePath("/add-expense");
@@ -260,6 +267,13 @@ export async function createSoloFamilyAction(userId: string) {
   }
 
   await grantPremiumIfCampaignActive(user.id);
+
+  try {
+    const { ensureFamilyFunds } = await import("@/app/actions/funds");
+    await ensureFamilyFunds(createdFamily.id);
+  } catch {
+    // Migration may not be applied yet.
+  }
 
   revalidatePath("/");
   revalidatePath("/profile");
@@ -336,6 +350,13 @@ export async function joinFamilyAction(userId: string, inviteCode: string) {
   }
 
   await grantPremiumIfCampaignActive(user.id);
+
+  try {
+    const { ensureFamilyFunds } = await import("@/app/actions/funds");
+    await ensureFamilyFunds(family.id);
+  } catch {
+    // Migration may not be applied yet.
+  }
 
   revalidatePath("/");
   revalidatePath("/profile");
