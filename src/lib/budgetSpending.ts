@@ -29,7 +29,7 @@ function isBudgetExpense(expense: BudgetExpenseRow) {
   const category = String(expense.category ?? "").toLowerCase();
   if (EXCLUDED_CATEGORIES.has(category)) return false;
   if (expense.concept === "Reembolso del fondo") return false;
-  if (expense.concept === "Liquidación de deuda") return false;
+  if (String(expense.concept ?? "").startsWith("Liquidación de deuda")) return false;
   return true;
 }
 

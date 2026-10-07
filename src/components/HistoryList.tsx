@@ -14,9 +14,20 @@ import {
     X,
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
+import {
+    ExpenseDebtStatus,
+    isFundSettlementConcept,
+} from "@/components/ExpenseDebtStatus";
 import { deleteExpenseAction } from "@/app/actions/expenses";
+import { listFamilyFundsAction } from "@/app/actions/funds";
 import { getCategoryDetails } from "@/lib/categoryMap";
 import type { ExpenseSplitType } from "@/lib/expenses";
+import {
+    getDefaultSharedFund,
+    isSharedLegacyResponsible,
+    resolveFundColor,
+    type FamilyFund,
+} from "@/lib/funds";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,6 +42,7 @@ export interface HistoryExpenseRow {
     expense_date: string;
     created_at: string;
     is_settled?: boolean;
+    fund_id?: string | null;
 }
 
 interface Filters {
@@ -97,6 +109,22 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
     const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
+    const [funds, setFunds] = useState<FamilyFund[]>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const rows = await listFamilyFundsAction();
+                if (!cancelled) setFunds(rows.filter((f) => !f.archived_at));
+            } catch {
+                // Funds optional for history badges
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     // Filter states
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -191,7 +219,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const filteredExpenses = useMemo(() => {
         const now = new Date();
         return allExpenses.filter((e) => {
-            if (e.concept === "Reembolso del fondo" || e.concept === "Liquidación de deuda") return false;
+            if (e.concept === "Reembolso del fondo" || isFundSettlementConcept(e.concept)) return false;
             if (effectiveFilters.timeRange !== "all") {
                 const d = new Date(e.expense_date || e.created_at);
                 if (effectiveFilters.timeRange === "this_month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
@@ -219,7 +247,12 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         const isModifiable =
             (!expense.is_settled || expense.category === 'deposit') &&
             expense.concept !== 'Reembolso del fondo' &&
-            expense.concept !== 'Liquidación de deuda';
+            !isFundSettlementConcept(expense.concept);
+        const debtFund =
+            funds.find((f) => f.id === expense.fund_id) ??
+            (isSharedLegacyResponsible(expense.responsible_for)
+                ? getDefaultSharedFund(funds)
+                : null);
 
         return (
             <div
@@ -244,12 +277,11 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                     {formatDate(expense.expense_date || expense.created_at)} • {paidByLabel}
                                 </span>
                                 {isDebt && (
-                                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${expense.is_settled
-                                        ? "bg-emerald-50 text-emerald-600"
-                                        : "bg-orange-50 text-orange-600"
-                                        }`}>
-                                        {expense.is_settled ? "Liquidado" : "Pendiente"}
-                                    </span>
+                                    <ExpenseDebtStatus
+                                        isSettled={!!expense.is_settled}
+                                        fundColor={debtFund ? resolveFundColor(debtFund) : null}
+                                        fundName={debtFund?.name}
+                                    />
                                 )}
                             </div>
                         </div>

@@ -35,6 +35,10 @@ import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
 import { settleP2PAction } from "@/app/actions/settleP2P";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
+import {
+    ExpenseDebtStatus,
+    isFundSettlementConcept,
+} from "@/components/ExpenseDebtStatus";
 import ProfileDrawer from "@/components/ProfileDrawer";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -545,7 +549,7 @@ export default function DashboardCouple({
                     expense.category !== "withdrawal" &&
                     expense.category !== "transfer" &&
                     expense.concept !== "Reembolso del fondo" &&
-                    expense.concept !== "Liquidación de deuda"
+                    !isFundSettlementConcept(expense.concept)
             ),
         [expenses]
     );
@@ -1313,7 +1317,12 @@ export default function DashboardCouple({
                                     const isModifiable =
                                         (!expense.is_settled || expense.category === 'deposit') &&
                                         expense.concept !== 'Reembolso del fondo' &&
-                                        expense.concept !== 'Liquidación de deuda';
+                                        !isFundSettlementConcept(expense.concept);
+                                    const debtFund =
+                                        sharedFunds.find((f) => f.id === expense.fund_id) ??
+                                        (isSharedLegacyResponsible(expense.responsible_for)
+                                            ? getDefaultSharedFund(sharedFunds)
+                                            : null);
 
                                     return (
                                         <div
@@ -1341,12 +1350,15 @@ export default function DashboardCouple({
                                                                 {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : partnerShortLabel}
                                                             </span>
                                                             {isDebt && (
-                                                                <span className={`text-[8px] font-medium px-2 py-0.5 rounded uppercase tracking-widest ${expense.is_settled
-                                                                    ? 'bg-emerald-50 text-emerald-600'
-                                                                    : 'bg-orange-50 text-orange-600'
-                                                                    }`}>
-                                                                    {expense.is_settled ? 'Liquidado' : 'Pendiente'}
-                                                                </span>
+                                                                <ExpenseDebtStatus
+                                                                    isSettled={!!expense.is_settled}
+                                                                    fundColor={
+                                                                        debtFund
+                                                                            ? resolveFundColor(debtFund)
+                                                                            : null
+                                                                    }
+                                                                    fundName={debtFund?.name}
+                                                                />
                                                             )}
                                                         </div>
                                                     </div>

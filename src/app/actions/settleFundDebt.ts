@@ -80,7 +80,7 @@ export async function settleFundDebtAction({
     {
       family_id: familyId,
       category: "withdrawal",
-      concept: `Liquidación de deuda (${sharedFund.name})`,
+      concept: "Liquidación de deuda",
       amount,
       paid_by: currentUserId,
       responsible_for: "joint_fund",
