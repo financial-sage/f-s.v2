@@ -43,9 +43,11 @@ import type { ExpenseSplitType } from "@/lib/expenses";
 import { getCategoryDetails } from "@/lib/categoryMap";
 import {
     calculateFundCashBalance,
+    calculateFundOwesUser,
     FUND_COLOR_OPTIONS,
     DEFAULT_SHARED_FUND_COLOR,
     getDefaultSharedFund,
+    isSharedLegacyResponsible,
     resolveFundColor,
     type FamilyFund,
 } from "@/lib/funds";
@@ -500,30 +502,34 @@ export default function DashboardCouple({
     };
 
 
-    // Préstamos personales al fondo aún no recuperados (calculado directamente)
+    const expenseBelongsToSelectedFund = (expense: CoupleDashboardExpense) => {
+        if (!selectedFund) return false;
+        if (expense.fund_id) return expense.fund_id === selectedFund.id;
+        return isSharedLegacyResponsible(expense.responsible_for) && selectedFund.is_default;
+    };
+
+    // Préstamos personales al bolsillo seleccionado aún no recuperados
     const fundOwesMe = useMemo(
         () =>
-            expenses
-                .filter(
-                    (expense) =>
-                        (expense.paid_by || expense.paidBy) === currentUserId &&
-                        expense.responsible_for === "joint_fund" &&
-                        expense.is_settled === false
-                )
-                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
-        [currentUserId, expenses]
+            selectedFund
+                ? calculateFundOwesUser(expenses, selectedFund, currentUserId)
+                : 0,
+        [currentUserId, expenses, selectedFund]
     );
 
-    // Extraer la lista exacta de esos gastos para mostrarlos en el modal
-    const fundDebtExpenses = useMemo(() =>
-        expenses.filter(
-            (expense) =>
-                (expense.paid_by || expense.paidBy) === currentUserId &&
-                expense.responsible_for === "joint_fund" &&
-                expense.category !== "deposit" &&
-                !expense.is_settled
-        ),
-        [currentUserId, expenses]
+    // Lista de gastos a recuperar del bolsillo seleccionado
+    const fundDebtExpenses = useMemo(
+        () =>
+            expenses.filter((expense) => {
+                if ((expense.paid_by || expense.paidBy) !== currentUserId) return false;
+                if (expense.is_settled) return false;
+                if (expense.category === "deposit" || expense.category === "withdrawal") {
+                    return false;
+                }
+                if (expense.paid_from_fund) return false;
+                return expenseBelongsToSelectedFund(expense);
+            }),
+        [currentUserId, expenses, selectedFund]
     );
 
 
@@ -624,12 +630,14 @@ export default function DashboardCouple({
 
     function handleSettleFundDebt(selectedIds: string[], selectedTotal: number) {
         if (selectedIds.length === 0 || selectedTotal <= 0) return;
+        if (!selectedFund?.id) return;
         startLiquidatingTransition(async () => {
             await settleFundDebtAction({
                 expenseIds: selectedIds,
                 totalAmount: selectedTotal,
                 currentUserId,
                 familyId,
+                fundId: selectedFund.id,
             });
             setIsSettleAnimated(false);
             setShowSettleModal(false);
@@ -1036,8 +1044,12 @@ export default function DashboardCouple({
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                    <h3 className="text-lg font-bold text-on-surface mb-1">Cobrar al Fondo</h3>
-                                    <p className="text-xs text-on-surface-variant mb-4">Selecciona los gastos que vas a recuperar del fondo común.</p>
+                                    <h3 className="text-lg font-bold text-on-surface mb-1">
+                                        Cobrar a {selectedFund?.name ?? "Fondo"}
+                                    </h3>
+                                    <p className="text-xs text-on-surface-variant mb-4">
+                                        Selecciona los gastos que vas a recuperar de este bolsillo.
+                                    </p>
                                     {/* Lista seleccionable */}
                                     <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
                                         {fundDebtExpenses.map(expense => {
@@ -1464,7 +1476,9 @@ export default function DashboardCouple({
                                 {fundOwesMe > 0 && (
                                     <div className="flex items-center justify-between p-4">
                                         <div>
-                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">El fondo te debe</span>
+                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+                                                {selectedFund?.name ?? "El fondo"} te debe
+                                            </span>
                                             <span className="text-sm font-bold text-on-surface">${fundOwesMe.toFixed(2)}</span>
                                         </div>
                                         <button

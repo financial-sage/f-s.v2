@@ -10,7 +10,7 @@ interface SettleFundDebtInput {
   totalAmount: number;
   currentUserId: string;
   familyId: string;
-  fundId?: string;
+  fundId: string;
 }
 
 export async function settleFundDebtAction({
@@ -22,12 +22,46 @@ export async function settleFundDebtAction({
 }: SettleFundDebtInput) {
   const admin = getSupabaseAdminClient();
   const funds = await ensureFamilyFunds(familyId);
-  const sharedFund =
-    (fundId ? funds.find((f) => f.id === fundId) : null) ?? getDefaultSharedFund(funds);
   const personalFund = getPersonalFund(funds, currentUserId);
 
-  if (!sharedFund || sharedFund.scope !== "shared") {
+  if (!fundId) {
+    throw new Error("Debes indicar el bolsillo a cobrar.");
+  }
+
+  const sharedFund = funds.find((f) => f.id === fundId && f.scope === "shared" && !f.archived_at);
+  if (!sharedFund) {
     throw new Error("Fondo compartido no encontrado.");
+  }
+
+  const { data: targetExpenses, error: loadError } = await admin
+    .from("expenses")
+    .select("id, fund_id, responsible_for, paid_by, is_settled, paid_from_fund, category")
+    .eq("family_id", familyId)
+    .in("id", expenseIds);
+
+  if (loadError) {
+    throw new Error("Error al cargar gastos: " + loadError.message);
+  }
+
+  const defaultShared = getDefaultSharedFund(funds);
+  const invalid = (targetExpenses ?? []).some((expense) => {
+    if (expense.paid_by !== currentUserId) return true;
+    if (expense.is_settled) return true;
+    if (expense.paid_from_fund) return true;
+    if (expense.category === "deposit" || expense.category === "withdrawal") return true;
+    if (expense.fund_id) return expense.fund_id !== sharedFund.id;
+    // Legacy rows without fund_id only settle against the default shared fund
+    return !(
+      sharedFund.id === defaultShared?.id &&
+      (expense.responsible_for === "joint_fund" ||
+        expense.responsible_for === "fondo_comun" ||
+        expense.responsible_for === "shared" ||
+        expense.responsible_for === "compartido")
+    );
+  });
+
+  if (invalid || (targetExpenses ?? []).length !== expenseIds.length) {
+    throw new Error("Hay gastos que no pertenecen a este bolsillo.");
   }
 
   const { error: updateError } = await admin
