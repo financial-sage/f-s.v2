@@ -113,10 +113,12 @@ function getFirstName(value?: string | null, fallback = "Mi pareja") {
 }
 
 function formatCurrency(value: number) {
+    const rounded = Math.round((Number(value) || 0) * 100) / 100;
+    const normalized = Object.is(rounded, -0) || Math.abs(rounded) < 0.005 ? 0 : rounded;
     return new Intl.NumberFormat("es-MX", {
         style: "currency",
         currency: "MXN",
-    }).format(value);
+    }).format(normalized);
 }
 
 function formatExpenseDate(dateInput: string) {
@@ -983,8 +985,14 @@ export default function DashboardCouple({
                                     {isJointModel ? <Home size={16} /> : <Scale size={16} />}
                                 </div>
                                 <span className="text-[10px] font-normal text-white uppercase tracking-widest">{secondaryWidgetTitle}</span>
-                                <p className={`mt-0.5 text-2xl font-semibold tracking-tight ${secondaryWidgetValue < 0 ? 'text-red-600' : 'text-white'}`}>
-                                    {secondaryWidgetValue < 0 ? '-' : ''}{formatCurrency(Math.abs(secondaryWidgetValue))}
+                                <p
+                                    className={`mt-0.5 text-2xl font-semibold tracking-tight ${
+                                        Math.round((secondaryWidgetValue || 0) * 100) / 100 < 0
+                                            ? "text-red-600"
+                                            : "text-white"
+                                    }`}
+                                >
+                                    {formatCurrency(secondaryWidgetValue)}
                                 </p>
                                 {/* Espaciador invisible para igualar la altura con "Gastado: $X" de la tarjeta 1 */}
                                 <p className="mt-0.5 text-[10px] font-medium opacity-0 select-none">
