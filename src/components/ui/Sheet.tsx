@@ -47,7 +47,7 @@ export function Sheet({
       <div
         aria-hidden
         className={cn(
-          "absolute inset-0 bg-on-surface/50 backdrop-blur-sm transition-opacity duration-300",
+          "absolute inset-0 bg-on-surface/45 backdrop-blur-sm transition-opacity duration-300",
           isAnimated ? "opacity-100" : "opacity-0",
           closeOnBackdrop ? "cursor-pointer" : "cursor-default",
         )}
@@ -56,18 +56,18 @@ export function Sheet({
 
       <div
         className={cn(
-          "relative flex flex-col overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "relative flex flex-col overflow-hidden rounded-t-[2rem] border border-white/55 bg-white/55 shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
           heightClassName,
           isAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0",
           contentClassName,
         )}
       >
         <div className="relative flex shrink-0 items-center justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-outline-variant/40" />
+          <div className="h-1 w-10 rounded-full bg-outline-variant/35" />
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-3 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
+            className="absolute top-3 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/50 bg-white/60 text-on-surface-variant shadow-sm backdrop-blur-md transition-colors hover:bg-white/80"
             aria-label={title ? `Cerrar ${title}` : "Cerrar"}
           >
             <X size={16} />

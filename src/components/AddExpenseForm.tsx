@@ -793,8 +793,11 @@ export default function AddExpenseForm({
         <button
           type="submit"
           disabled={isSaving}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl font-semibold text-white shadow-[0_10px_24px_rgba(43,52,55,0.16)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-          style={{ backgroundColor: amountAccent }}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-[#f3f5f0] shadow-[0_10px_22px_rgba(43,52,55,0.28)] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            backgroundImage:
+              "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
+          }}
         >
           {isSaving ? (
             <LoaderCircle size={17} className="animate-spin" />
