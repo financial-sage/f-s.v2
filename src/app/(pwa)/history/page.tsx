@@ -20,6 +20,7 @@ interface ExpenseRow {
   expense_date: string;
   created_at: string;
   is_settled?: boolean;
+  fund_id?: string | null;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ export default async function HistoryPage() {
       .maybeSingle(),
     supabase
       .from("expenses")
-      .select("id, amount, concept, paid_by, responsible_for, category, split_type, expense_date, created_at, is_settled")
+      .select("id, amount, concept, paid_by, responsible_for, category, split_type, expense_date, created_at, is_settled, fund_id")
       .eq("family_id", profile.family_id)
       .eq("is_active", true)
       .order("expense_date", { ascending: false })
@@ -67,18 +68,25 @@ export default async function HistoryPage() {
   ) as HistoryExpenseRow[];
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-surface">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
       <StoreHydrator userId={user.id} />
-      <PageHeader title="Historial de Movimientos" backHref="/" />
-
-      {/* Interactive list with balance header and filters (client component) */}
-      <HistoryList
-        allExpenses={allVisibleExpenses}
-        currentUserId={user.id}
-        partnerName={partnerName}
-        partnerId={partnerId}
-        financialModel={financialModel}
+      <PageHeader
+        title="Historial"
+        subtitle="Todos tus movimientos"
+        backHref="/"
+        className="relative z-20 border-b-0 bg-transparent backdrop-blur-0"
       />
+
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <HistoryList
+          allExpenses={allVisibleExpenses}
+          currentUserId={user.id}
+          partnerName={partnerName}
+          partnerId={partnerId}
+          financialModel={financialModel}
+        />
+      </div>
     </div>
   );
 }

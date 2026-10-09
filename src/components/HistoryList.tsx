@@ -52,14 +52,11 @@ interface Filters {
     status: "all" | "pending" | "settled";
 }
 
-function formatDate(dateInput: string) {
-    return new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" })
-        .format(new Date(dateInput))
-        .replace(".", "");
-}
-
 function formatCurrency(value: number) {
-    return `$${Math.abs(value).toFixed(2)}`;
+    const rounded = Math.round((Number(value) || 0) * 100) / 100;
+    const normalized = Object.is(rounded, -0) || Math.abs(rounded) < 0.005 ? 0 : rounded;
+    const sign = normalized < 0 ? "-" : "";
+    return `${sign}$${Math.abs(normalized).toFixed(2)}`;
 }
 
 function groupByDate(expenses: HistoryExpenseRow[]): { label: string; items: HistoryExpenseRow[] }[] {
@@ -257,24 +254,27 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         return (
             <div
                 key={expense.id}
-                className="relative flex items-stretch border-b border-outline-variant/20 last:border-0 bg-surface-lowest overflow-hidden animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
-                style={{ animationDelay: `${index * 100}ms` }}
+                className="group relative flex items-stretch overflow-hidden border-b border-outline-variant/15 last:border-0 bg-surface-lowest animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
             >
-                {/* Main row button */}
                 <button
                     type="button"
-                    onClick={() => setActiveActionId((prev) => prev === expense.id ? null : expense.id)}
-                    className={`flex items-center justify-between px-4 py-3.5 transition-all duration-300 ease-out w-full text-left ${activeActionId === expense.id ? "bg-surface-low pr-2" : "bg-surface-lowest"}`}
+                    onClick={() => setActiveActionId((prev) => (prev === expense.id ? null : expense.id))}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left transition-all duration-300 ease-out ${
+                        activeActionId === expense.id ? "bg-surface pr-2" : "bg-surface-lowest"
+                    }`}
                 >
-                    <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 border border-outline-variant/20 flex items-center justify-center text-on-surface-variant shrink-0 shadow-sm">
-                            <Icon size={18} />
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-outline-variant/20 bg-emerald-800/10 text-on-surface-variant shadow-sm">
+                            <Icon size={14} />
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-bold text-on-surface leading-tight">{expense.concept}</span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] font-medium text-outline-variant uppercase tracking-wide">
-                                    {formatDate(expense.expense_date || expense.created_at)} • {paidByLabel}
+                        <div className="flex min-w-0 flex-col">
+                            <span className="truncate text-[13px] font-medium text-on-surface">
+                                {expense.concept}
+                            </span>
+                            <div className="mt-0.5 flex items-center gap-1.5">
+                                <span className="text-[9px] font-medium uppercase tracking-wide text-outline-variant">
+                                    {paidByLabel}
                                 </span>
                                 {isDebt && (
                                     <ExpenseDebtStatus
@@ -287,7 +287,11 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                         </div>
                     </div>
 
-                    <span className={`text-base font-medium shrink-0 ${isDeposit ? "text-primary" : "text-on-surface"}`}>
+                    <span
+                        className={`shrink-0 text-sm font-medium ${
+                            isDeposit ? "text-primary" : "text-on-surface"
+                        }`}
+                    >
                         {isDeposit ? "+" : "-"}${Number(expense.amount).toFixed(2)}
                     </span>
                 </button>
@@ -373,60 +377,69 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
 
     return (
         <>
-            {/* Balance chips header */}
-            <div className="sticky top-0 z-40 backdrop-blur-md bg-surface/90 px-4 py-3 border-b border-outline-variant/30">
-                <div className="flex items-center">
-
-                    {/* Contenedor Unificado de Saldos */}
-                    <div className="flex-1 flex overflow-hidden rounded-2xl shadow-sm border border-outline-variant/30 bg-surface-lowest">
-
-                        {/* Mi Fondo chip (Mitad Izquierda) */}
-                        <div className={`relative flex-1 flex flex-col items-center bg-surface-low px-3 py-2 ${hasPartner ? "border-r border-outline-variant/30" : ""}`}>
-                            <div className="absolute inset-0 z-0 opacity-15 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
-                            <div className="relative z-10 flex flex-col items-center">
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">Mi Fondo</span>
-                                <span className={`text-sm font-bold ${myAvailableFund >= 0 ? "text-on-surface" : "text-rose-600"}`}>
-                                    {formatCurrency(myAvailableFund)}
-                                </span>
-                            </div>
+            <div className="sticky top-0 z-40 px-4 pb-2 pt-1">
+                <div className="flex items-center gap-2">
+                    <div className="flex flex-1 overflow-hidden rounded-[1.25rem] border border-white/60 bg-surface-lowest/70 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-xl">
+                        <div
+                            className={`flex flex-1 flex-col items-center px-3 py-2.5 ${
+                                hasPartner ? "border-r border-outline-variant/20" : ""
+                            }`}
+                        >
+                            <span className="text-[10px] font-light text-on-surface-variant">
+                                Mi fondo
+                            </span>
+                            <span
+                                className={`text-[15px] font-light tracking-tight ${
+                                    myAvailableFund >= 0 ? "text-on-surface" : "text-rose-600"
+                                }`}
+                            >
+                                {formatCurrency(myAvailableFund)}
+                            </span>
                         </div>
 
-                        {/* Dynamic chip (Mitad Derecha) */}
                         {hasPartner ? (
                             isJointModel ? (
-                                <div className="relative flex-1 flex flex-col items-center bg-primary/10 px-3 py-2">
-                                    <div className="absolute inset-0 z-0 opacity-15 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
-                                    <div className="relative z-10 flex flex-col items-center">
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Fondo Común</span>
-                                        <span className={`text-sm font-bold ${fundLiquidity >= 0 ? "text-primary" : "text-rose-600"}`}>
-                                            {formatCurrency(fundLiquidity)}
-                                        </span>
-                                    </div>
+                                <div className="flex flex-1 flex-col items-center px-3 py-2.5">
+                                    <span className="text-[10px] font-light text-on-surface-variant">
+                                        Bolsillos
+                                    </span>
+                                    <span
+                                        className={`text-[15px] font-light tracking-tight ${
+                                            fundLiquidity >= 0 ? "text-on-surface" : "text-rose-600"
+                                        }`}
+                                    >
+                                        {formatCurrency(fundLiquidity)}
+                                    </span>
                                 </div>
                             ) : (
-                                <div className="relative flex-1 flex flex-col items-center bg-primary/10 px-3 py-2">
-                                    <div className="absolute inset-0 z-0 opacity-15 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
-                                    <div className="relative z-10 flex flex-col items-center">
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Balance P2P</span>
-                                        <span className={`text-sm font-bold ${p2pBalance >= 0 ? "text-primary" : "text-rose-600"}`}>
-                                            {formatCurrency(p2pBalance)}
-                                        </span>
-                                    </div>
+                                <div className="flex flex-1 flex-col items-center px-3 py-2.5">
+                                    <span className="text-[10px] font-light text-on-surface-variant">
+                                        Balance P2P
+                                    </span>
+                                    <span
+                                        className={`text-[15px] font-light tracking-tight ${
+                                            p2pBalance >= 0 ? "text-on-surface" : "text-rose-600"
+                                        }`}
+                                    >
+                                        {formatCurrency(p2pBalance)}
+                                    </span>
                                 </div>
                             )
                         ) : null}
-
                     </div>
 
-                    {/* Filter button (Se mantiene intacto y separado) */}
                     <button
                         type="button"
                         onClick={openFilterModal}
-                        className="relative h-8 w-8 ml-2 flex items-center justify-center rounded-lg bg-surface-lowest border border-outline-variant/30 text-on-surface-variant shrink-0 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                        className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                            activeFilterCount > 0
+                                ? "border-primary/30 bg-primary/10 text-primary"
+                                : "border-outline-variant/30 bg-surface-lowest/80 text-on-surface-variant"
+                        }`}
                     >
-                        <SlidersHorizontal size={16} />
+                        <SlidersHorizontal size={15} />
                         {activeFilterCount > 0 && (
-                            <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-on-surface text-[9px] font-bold text-on-primary">
+                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-on-surface text-[9px] font-bold text-surface-lowest">
                                 {activeFilterCount}
                             </span>
                         )}
@@ -434,21 +447,29 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                 </div>
             </div>
 
-            {/* Main list */}
-            <main className="flex-1 overflow-y-auto pb-32">
+            <main className="flex-1 overflow-y-auto px-4 pb-32">
                 {groups.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full gap-3 px-8 text-center pt-20">
-                        <div className="h-14 w-14 rounded-full bg-surface-low flex items-center justify-center">
-                            <ReceiptText size={24} className="text-outline-variant" />
+                    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pt-20 text-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-lowest/80 shadow-sm">
+                            <ReceiptText size={22} className="text-outline-variant" />
                         </div>
                         <p className="text-sm font-medium text-on-surface-variant">
-                            {activeFilterCount > 0 ? "Sin resultados para estos filtros." : "Aún no hay movimientos registrados."}
+                            {activeFilterCount > 0
+                                ? "Sin resultados para estos filtros."
+                                : "Aún no hay movimientos registrados."}
                         </p>
                         {activeFilterCount > 0 && (
                             <button
                                 type="button"
-                                onClick={() => setFilters({ timeRange: "all", fundTarget: "all", paidBy: "all", status: "all" })}
-                                className="text-xs font-semibold text-on-surface underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 rounded"
+                                onClick={() =>
+                                    setFilters({
+                                        timeRange: "all",
+                                        fundTarget: "all",
+                                        paidBy: "all",
+                                        status: "all",
+                                    })
+                                }
+                                className="rounded text-xs font-medium text-on-surface underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                             >
                                 Limpiar filtros
                             </button>
@@ -456,11 +477,13 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                     </div>
                 ) : (
                     groups.map(({ label, items }) => (
-                        <section key={label}>
-                            <div className="sticky top-0 z-10 bg-surface/90 backdrop-blur-sm px-4 py-2 border-b border-outline-variant/30">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-outline-variant">{label}</span>
+                        <section key={label} className="mb-2">
+                            <div className="sticky top-0 z-10 px-1 py-1">
+                                <span className="text-[11px] font-medium tracking-wide text-on-surface">
+                                    {label}
+                                </span>
                             </div>
-                            <div className="bg-surface-lowest divide-y divide-outline-variant/20 shadow-sm mx-3 my-2 rounded-2xl overflow-hidden">
+                            <div className="overflow-hidden rounded-3xl border border-outline-variant/15 bg-surface-lowest/75 shadow-[0_10px_24px_rgba(43,52,55,0.05)] backdrop-blur-md">
                                 {items.map((expense, index) => renderExpenseCard(expense, index))}
                             </div>
                         </section>

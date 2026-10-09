@@ -4,28 +4,34 @@ import Link from "next/link";
 import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
+    ArrowUpRight,
     BarChart3,
+    Bell,
+    Check,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Crown,
+    Edit,
+    Eye,
+    EyeOff,
+    HandCoins,
     Home,
+    House,
+    Lock,
     Plus,
     Receipt,
     ReceiptText,
     Scale,
+    Send,
     Settings,
-    Crown,
-    Bell,
-    House,
-    User,
-    X,
-    Check,
-    Edit,
-    Trash2,
-    Sparkles,
-    ChevronRight,
-    ChevronLeft,
     SlidersHorizontal,
-    Lock,
+    Sparkles,
+    Trash2,
+    User,
+    Wallet,
     WalletCards,
+    X,
     type LucideIcon,
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
@@ -170,6 +176,7 @@ export default function DashboardCouple({
     const [isDepositing, startDepositTransition] = useTransition();
     const [isLiquidating, startLiquidatingTransition] = useTransition();
     const [showSettleModal, setShowSettleModal] = useState(false);
+    const [settleScopeFundId, setSettleScopeFundId] = useState<string | "all" | null>(null);
     const [showPayModal, setShowPayModal] = useState(false);
     const [showChargeModal, setShowChargeModal] = useState(false);
     // Estado de selección múltiple para liquidación
@@ -199,6 +206,7 @@ export default function DashboardCouple({
     const [newFundColor, setNewFundColor] = useState<string>(DEFAULT_SHARED_FUND_COLOR);
     const [fundActionError, setFundActionError] = useState("");
     const [isCreatingFund, startCreateFundTransition] = useTransition();
+    const [balanceVisible, setBalanceVisible] = useState(true);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -223,8 +231,16 @@ export default function DashboardCouple({
     const closeBudgetModal = () => animateOut(setShowBudget, setIsBudgetAnimated);
     const openBalancesModal = () => animateIn(setShowBalances, setIsBalancesAnimated);
     const closeBalancesModal = (onAfterClose?: () => void) => animateOut(setShowBalances, setIsBalancesAnimated, onAfterClose);
-    const openSettleModal = () => animateIn(setShowSettleModal, setIsSettleAnimated);
-    const closeSettleModal = () => animateOut(setShowSettleModal, setIsSettleAnimated, () => setSelectedSettleIds([]));
+    const openSettleModal = (scope: string | "all") => {
+        setSettleScopeFundId(scope);
+        setSelectedSettleIds([]);
+        animateIn(setShowSettleModal, setIsSettleAnimated);
+    };
+    const closeSettleModal = () =>
+        animateOut(setShowSettleModal, setIsSettleAnimated, () => {
+            setSelectedSettleIds([]);
+            setSettleScopeFundId(null);
+        });
     const openPayModal = () => animateIn(setShowPayModal, setIsPayAnimated);
     const closePayModal = () => animateOut(setShowPayModal, setIsPayAnimated, () => setSelectedSettleIds([]));
     const openChargeModal = () => animateIn(setShowChargeModal, setIsChargeAnimated);
@@ -423,10 +439,6 @@ export default function DashboardCouple({
         });
     }, [expenses, legacyFundLiquidity, selectedFund, sharedFunds]);
 
-    const secondaryWidgetTitle = isJointModel
-        ? selectedFund?.name ?? "Fondo Común"
-        : "Balance P2P";
-    const secondaryWidgetValue = isJointModel ? selectedFundBalance : personalBalance;
     const secondaryWidgetHint = isJointModel
         ? ""
         : hasP2PBalance
@@ -508,36 +520,63 @@ export default function DashboardCouple({
     };
 
 
-    const expenseBelongsToSelectedFund = (expense: CoupleDashboardExpense) => {
-        if (!selectedFund) return false;
-        if (expense.fund_id) return expense.fund_id === selectedFund.id;
-        return isSharedLegacyResponsible(expense.responsible_for) && selectedFund.is_default;
+    const expenseBelongsToFund = (expense: CoupleDashboardExpense, fund: FamilyFund) => {
+        if (expense.fund_id) return expense.fund_id === fund.id;
+        return isSharedLegacyResponsible(expense.responsible_for) && fund.is_default;
     };
 
-    // Préstamos personales al bolsillo seleccionado aún no recuperados
+    const isRecoverableFundDebt = (expense: CoupleDashboardExpense) => {
+        if ((expense.paid_by || expense.paidBy) !== currentUserId) return false;
+        if (expense.is_settled) return false;
+        if (expense.category === "deposit" || expense.category === "withdrawal") return false;
+        if (expense.paid_from_fund) return false;
+        return true;
+    };
+
+    // Deudas por cada bolsillo compartido
+    const fundDebts = useMemo(
+        () =>
+            sharedFunds
+                .map((fund) => {
+                    const debtExpenses = expenses.filter(
+                        (expense) =>
+                            isRecoverableFundDebt(expense) && expenseBelongsToFund(expense, fund)
+                    );
+                    const amount = calculateFundOwesUser(expenses, fund, currentUserId);
+                    return { fund, amount, expenses: debtExpenses };
+                })
+                .filter((row) => row.amount > 0.009 && row.expenses.length > 0),
+        [currentUserId, expenses, sharedFunds]
+    );
+
     const fundOwesMe = useMemo(
-        () =>
-            selectedFund
-                ? calculateFundOwesUser(expenses, selectedFund, currentUserId)
-                : 0,
-        [currentUserId, expenses, selectedFund]
+        () => fundDebts.reduce((sum, row) => sum + row.amount, 0),
+        [fundDebts]
     );
 
-    // Lista de gastos a recuperar del bolsillo seleccionado
-    const fundDebtExpenses = useMemo(
-        () =>
-            expenses.filter((expense) => {
-                if ((expense.paid_by || expense.paidBy) !== currentUserId) return false;
-                if (expense.is_settled) return false;
-                if (expense.category === "deposit" || expense.category === "withdrawal") {
-                    return false;
-                }
-                if (expense.paid_from_fund) return false;
-                return expenseBelongsToSelectedFund(expense);
-            }),
-        [currentUserId, expenses, selectedFund]
-    );
+    const settleScopeFund =
+        settleScopeFundId && settleScopeFundId !== "all"
+            ? sharedFunds.find((f) => f.id === settleScopeFundId) ?? null
+            : null;
 
+    // Lista de gastos a recuperar según el alcance (un bolsillo o todos)
+    const fundDebtExpenses = useMemo(() => {
+        if (settleScopeFundId === "all") {
+            return fundDebts.flatMap((row) => row.expenses);
+        }
+        if (settleScopeFund) {
+            return (
+                fundDebts.find((row) => row.fund.id === settleScopeFund.id)?.expenses ?? []
+            );
+        }
+        return [];
+    }, [fundDebts, settleScopeFund, settleScopeFundId]);
+
+    const resolveExpenseFund = (expense: CoupleDashboardExpense) =>
+        sharedFunds.find((f) => expenseBelongsToFund(expense, f)) ??
+        (isSharedLegacyResponsible(expense.responsible_for)
+            ? getDefaultSharedFund(sharedFunds)
+            : null);
 
     const hasBalances = fundOwesMe > 0 || iOwePartner > 0 || partnerOwesMe > 0;
 
@@ -631,23 +670,37 @@ export default function DashboardCouple({
     }
 
     function handleLiquidate() {
-        openSettleModal();
+        openSettleModal(selectedFund?.id ?? "all");
     }
 
     function handleSettleFundDebt(selectedIds: string[], selectedTotal: number) {
         if (selectedIds.length === 0 || selectedTotal <= 0) return;
-        if (!selectedFund?.id) return;
+
+        const selectedExpenses = fundDebtExpenses.filter((e) => selectedIds.includes(e.id));
+        const groups = new Map<string, { expenseIds: string[]; total: number }>();
+
+        for (const expense of selectedExpenses) {
+            const fund = resolveExpenseFund(expense);
+            if (!fund) continue;
+            const current = groups.get(fund.id) ?? { expenseIds: [], total: 0 };
+            current.expenseIds.push(expense.id);
+            current.total += Number(expense.amount || 0);
+            groups.set(fund.id, current);
+        }
+
+        if (groups.size === 0) return;
+
         startLiquidatingTransition(async () => {
-            await settleFundDebtAction({
-                expenseIds: selectedIds,
-                totalAmount: selectedTotal,
-                currentUserId,
-                familyId,
-                fundId: selectedFund.id,
-            });
-            setIsSettleAnimated(false);
-            setShowSettleModal(false);
-            setSelectedSettleIds([]);
+            for (const [fundId, group] of groups) {
+                await settleFundDebtAction({
+                    expenseIds: group.expenseIds,
+                    totalAmount: Math.round(group.total * 100) / 100,
+                    currentUserId,
+                    familyId,
+                    fundId,
+                });
+            }
+            closeSettleModal();
             router.refresh();
         });
     }
@@ -769,54 +822,75 @@ export default function DashboardCouple({
         };
     }, [familyId, router, supabase]);
 
+    const heroBalance = isJointModel ? selectedFundBalance : personalBalance;
+    const heroLabel = isJointModel
+        ? selectedFund?.name ?? "Bolsillo"
+        : "Balance P2P";
+    const heroColor = isJointModel
+        ? resolveFundColor(selectedFund)
+        : "#0F2D91";
+    const currentMember =
+        members.find((member) => member.id === currentUserId) ?? members[0] ?? null;
+
     return (
-        <div className="flex flex-col h-dvh bg-surface overflow-hidden">
-            <header className="shrink-0 z-50 flex h-14 w-full items-center justify-between bg-surface/80 px-4 backdrop-blur-md border-b border-outline-variant/30">
+        <div className="relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0]">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
+
+            <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
                 <button
                     type="button"
                     onClick={() => setIsProfileOpen(true)}
-                    className="flex items-center gap-3 cursor-pointer"
+                    className="flex min-w-0 items-center gap-2.5 text-left"
                 >
-                    <div className="h-9 w-9 overflow-hidden rounded-full border-2 border-primary/20">
-                        {members[0]?.avatarUrl ? (
+                    <div className="h-9 w-9 overflow-hidden rounded-full border border-outline-variant/30 bg-surface-lowest shadow-sm">
+                        {currentMember?.avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img className="h-full w-full object-cover" src={members[0].avatarUrl} alt={members[0].name} />
+                            <img
+                                className="h-full w-full object-cover"
+                                src={currentMember.avatarUrl}
+                                alt={currentUserName}
+                            />
                         ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-primary-container text-sm font-bold text-on-primary-container">
+                            <div className="flex h-full w-full items-center justify-center bg-primary-container text-xs font-medium text-on-primary-container">
                                 {getInitials(currentUserName)}
                             </div>
                         )}
                     </div>
-                    <span className="text-base font-bold text-on-surface font-headline">SinDescuadre</span>
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-light text-on-surface-variant">
+                            Hola de nuevo · {familyName}
+                        </p>
+                        <p className="truncate text-[15px] font-medium tracking-tight text-on-surface">
+                            {getFirstName(currentUserName, "Tú")}
+                        </p>
+                    </div>
                 </button>
-                <div className="flex items-center gap-3">
-                    {/* Botón Premium — condicional */}
+                <div className="flex items-center gap-1.5">
                     {isPremium ? (
-                        <div className="flex items-center gap-1 bg-accent/15 border border-accent/25 text-on-surface px-1.5 py-1.5 rounded-full shadow-sm backdrop-blur-sm cursor-pointer hover:bg-accent/20 transition-colors">
-                            <Crown size={14} className="fill-accent text-accent" />
+                        <div className="flex items-center rounded-full border border-accent/25 bg-accent/15 px-1.5 py-1 shadow-sm">
+                            <Crown size={12} className="fill-accent text-accent" />
                         </div>
                     ) : (
                         <button
                             type="button"
-                            className="flex items-center gap-1 bg-surface-low border border-outline-variant/40 text-outline-variant px-1.5 py-1.5 rounded-full shadow-sm cursor-pointer hover:bg-surface-container transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                            className="rounded-full border border-outline-variant/40 bg-surface-lowest/80 p-1.5 text-outline-variant shadow-sm backdrop-blur-sm"
                             aria-label="Hazte Premium"
                         >
                             <Lock size={13} strokeWidth={2} />
                         </button>
                     )}
-
-                    {/* Campana de Notificaciones */}
                     <button
                         type="button"
-                        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-surface-low text-on-surface-variant transition-colors hover:bg-surface-container shadow-sm border border-outline-variant/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                        className="relative rounded-full border border-outline-variant/30 bg-surface-lowest/80 p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
+                        aria-label="Notificaciones"
                     >
-                        <Bell size={18} />
-                        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+                        <Bell size={16} />
+                        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-white" />
                     </button>
                 </div>
             </header>
 
-            <main className="mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-4">
+            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
                 {showSharedWelcome && (
                     <div className="pointer-events-none mb-3 shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
                         <div className="overflow-hidden rounded-3xl border border-emerald-100/70 bg-surface-lowest/90 p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
@@ -840,25 +914,103 @@ export default function DashboardCouple({
                 )}
 
                 <section
-                    className={`relative mb-4 shrink-0 px-2 ${animateSharedEntrance ? "animate-in slide-in-from-left-3 fade-in duration-500" : ""}`}
+                    className={`relative mb-3 shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
+                    style={animateSharedEntrance ? { animationDelay: "80ms" } : undefined}
                 >
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <h1 className="text-2xl font-semibold tracking-tight text-on-surface">{familyName}</h1>
-                            <p className="text-sm font-normal opacity-70 text-on-surface-variant font-label">
-                                Santuario compartido • Hoy
-                            </p>
+                    <div className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-surface-lowest/40 p-5 shadow-[0_14px_32px_rgba(43,52,55,0.07)] backdrop-blur-2xl">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <div
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                                    style={{ backgroundColor: `${heroColor}22`, color: heroColor }}
+                                >
+                                    <Wallet size={18} />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[11px] font-light text-on-surface-variant">
+                                        Saldo disponible
+                                    </p>
+                                    <p className="truncate text-[15px] font-medium text-on-surface">
+                                        {heroLabel}
+                                    </p>
+                                </div>
+                            </div>
+                            {isJointModel ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFundsMenu((open) => !open)}
+                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-on-surface text-surface-lowest shadow-sm transition-transform active:scale-95"
+                                    aria-label="Ver fondos"
+                                    title="Ver fondos"
+                                >
+                                    <ArrowUpRight size={17} />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={openBalancesModal}
+                                    disabled={!hasP2PBalance}
+                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-on-surface text-surface-lowest shadow-sm transition-transform active:scale-95 disabled:opacity-40"
+                                    aria-label="Ver saldos"
+                                >
+                                    <ArrowUpRight size={17} />
+                                </button>
+                            )}
                         </div>
-                        {isJointModel && (
+
+                        <div className="mt-5 flex items-center gap-2.5">
+                            <p
+                                className={`text-[2.35rem] font-light leading-none tracking-tight ${
+                                    Math.round((heroBalance || 0) * 100) / 100 < 0
+                                        ? "text-red-600"
+                                        : "text-on-surface"
+                                }`}
+                            >
+                                {balanceVisible ? formatCurrency(heroBalance) : "••••••"}
+                            </p>
                             <button
                                 type="button"
-                                onClick={() => setShowFundsMenu((open) => !open)}
-                                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-lowest px-3 py-1.5 text-xs font-semibold text-on-surface shadow-sm transition-colors hover:bg-surface"
+                                onClick={() => setBalanceVisible((v) => !v)}
+                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-surface-low"
+                                aria-label={balanceVisible ? "Ocultar saldo" : "Mostrar saldo"}
                             >
-                                <WalletCards size={14} />
-                                Ver fondos
+                                {balanceVisible ? <Eye size={17} /> : <EyeOff size={17} />}
                             </button>
-                        )}
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={openPersonalDepositModal}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+                            >
+                                <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: "#0F2D91" }}
+                                />
+                                Mi fondo · {balanceVisible ? formatCurrency(myAvailableFund) : "••••"}
+                            </button>
+                            {isJointModel && fundOwesMe > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={openBalancesModal}
+                                    className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700"
+                                >
+                                    Cobrar {formatCurrency(fundOwesMe)}
+                                    <ChevronRight size={12} />
+                                </button>
+                            )}
+                            {!isJointModel && hasP2PBalance && (
+                                <button
+                                    type="button"
+                                    onClick={openBalancesModal}
+                                    className="inline-flex items-center gap-1 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface"
+                                >
+                                    {secondaryWidgetHint || "Saldos"}
+                                    <ChevronRight size={12} />
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {isJointModel && showFundsMenu && (
@@ -869,7 +1021,7 @@ export default function DashboardCouple({
                                 className="fixed inset-0 z-40 cursor-default"
                                 onClick={() => setShowFundsMenu(false)}
                             />
-                            <div className="absolute right-2 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-lowest shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="absolute right-0 top-14 z-50 w-72 overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-lowest shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="max-h-64 overflow-y-auto p-2">
                                     {sharedFunds.length === 0 ? (
                                         <p className="px-3 py-2 text-xs text-on-surface-variant">
@@ -931,115 +1083,54 @@ export default function DashboardCouple({
                     )}
                 </section>
 
-                <section className="mb-2">
-                    <div
-                        className={`grid grid-cols-2 mb-6 shrink-0 rounded-3xl shadow-sm border border-outline-variant/30/60 overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
-                        style={animateSharedEntrance ? { animationDelay: "120ms" } : undefined}
-                    >
-                        {/* TARJETA 1: MI FONDO (ÍNDIGO) */}
-                        <div className="relative flex flex-col justify-between min-h-41 bg-[#0f2d91]/40 p-4  border-outline-variant/30/50">
-                            {/* Capa de Textura de Ondas */}
-                            <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
-
-                            {/* Contenido Superior */}
-                            <div className="relative z-10 flex flex-col">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-secondary mb-2 backdrop-blur-sm shadow-sm">
-                                    <User size={16} />
-                                </div>
-                                <span className="text-[10px] font-normal text-white uppercase tracking-widest">Mi Fondo</span>
-                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-white">
-                                    {formatCurrency(myAvailableFund)}
-                                </p>
-                                <p className="mt-0.5 text-[10px] font-medium text-secondary/80">
-                                    {/* Gastado: {formatCurrency(mySpent)} */}
-                                </p>
-                            </div>
-
-                            {/* Contenido Inferior (Botones) */}
-                            <div className="relative z-10 mt-4 flex justify-end">
-                                <button
-                                    type="button"
-                                    onClick={openPersonalDepositModal}
-                                    className="group inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent/35 bg-surface-lowest/55 shadow-sm backdrop-blur-md transition-all hover:bg-surface-lowest/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
-                                    aria-label="Aportar a mi fondo"
-                                    title="Aportar a mi fondo"
-                                >
-                                    <Plus size={20} className="text-accent drop-shadow-sm transition-transform group-hover:scale-110" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* TARJETA 2: FONDO SELECCIONADO */}
-                        <div
-                            className={`relative flex min-h-41 flex-col justify-between p-4 transition-colors duration-300 ${
-                                isJointModel ? "" : "bg-primary/50"
-                            }`}
-                            style={
-                                isJointModel
-                                    ? { backgroundColor: resolveFundColor(selectedFund) }
-                                    : undefined
-                            }
-                        >
-                            {/* Capa de Textura de Ondas */}
-                            <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
-
-                            {/* Contenido Superior */}
-                            <div className="relative z-10 flex flex-col">
-                                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-primary shadow-sm backdrop-blur-sm">
-                                    {isJointModel ? <Home size={16} /> : <Scale size={16} />}
-                                </div>
-                                <span className="text-[10px] font-normal text-white uppercase tracking-widest">{secondaryWidgetTitle}</span>
-                                <p
-                                    className={`mt-0.5 text-2xl font-semibold tracking-tight ${
-                                        Math.round((secondaryWidgetValue || 0) * 100) / 100 < 0
-                                            ? "text-red-600"
-                                            : "text-white"
-                                    }`}
-                                >
-                                    {formatCurrency(secondaryWidgetValue)}
-                                </p>
-                                {/* Espaciador invisible para igualar la altura con "Gastado: $X" de la tarjeta 1 */}
-                                <p className="mt-0.5 text-[10px] font-medium opacity-0 select-none">
-                                    Espaciador
-                                </p>
-                            </div>
-
-                            {/* Contenido Inferior (Botones) */}
-                            <div className="relative z-10 mt-4 flex items-center justify-end gap-2">
-                                {isJointModel ? (
-                                    <>
-                                        <button
-                                            type="button"
-                                            onClick={openDepositModal}
-                                            className="group inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent/35 bg-surface-lowest/55 shadow-[0_10px_30px_rgba(212,175,55,0.18)] backdrop-blur-md transition-all hover:bg-surface-lowest/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
-                                            aria-label={`Aportar a ${secondaryWidgetTitle}`}
-                                            title={`Aportar a ${secondaryWidgetTitle}`}
-                                        >
-                                            <Plus size={20} className="text-accent drop-shadow-sm transition-transform group-hover:scale-110" />
-                                        </button>
-                                        {fundOwesMe > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={openBalancesModal}
-                                                className="rounded-full bg-red-50 px-3 py-2 text-xs font-bold text-orange-800 transition-all hover:bg-surface-lowest shadow-sm border border-red-100"
-                                            >
-                                                Cobrar
-                                            </button>
-                                        )}
-                                    </>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={openBalancesModal}
-                                        disabled={!hasP2PBalance}
-                                        className="w-full rounded-full bg-surface-lowest/90 py-2 text-xs font-bold text-primary transition-all hover:bg-surface-lowest shadow-sm backdrop-blur-sm disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        Liquidar
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+                <section
+                    className={`mb-3 shrink-0 ${animateSharedEntrance ? "animate-in fade-in slide-in-from-bottom-3 duration-700" : ""}`}
+                    style={animateSharedEntrance ? { animationDelay: "160ms" } : undefined}
+                >
+                    <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
+                    <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                            {
+                                key: "personal",
+                                label: "Mi fondo",
+                                icon: Plus,
+                                onClick: openPersonalDepositModal,
+                            },
+                            {
+                                key: "shared",
+                                label: isJointModel ? "Aportar" : "Liquidar",
+                                icon: isJointModel ? Send : Scale,
+                                onClick: isJointModel ? openDepositModal : openBalancesModal,
+                            },
+                            {
+                                key: "collect",
+                                label: fundOwesMe > 0 || hasP2PBalance ? "Cobrar" : "Saldos",
+                                icon: HandCoins,
+                                onClick: openBalancesModal,
+                            },
+                            {
+                                key: "funds",
+                                label: isJointModel ? "Fondos" : "Filtros",
+                                icon: isJointModel ? WalletCards : SlidersHorizontal,
+                                onClick: isJointModel
+                                    ? () => setShowFundsMenu((open) => !open)
+                                    : openFilterModal,
+                            },
+                        ].map(({ key, label, icon: Icon, onClick }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={onClick}
+                                className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
+                            >
+                                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/25 bg-surface-lowest/80 text-on-surface shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md">
+                                    <Icon size={17} strokeWidth={1.7} />
+                                </span>
+                                <span className="text-[10px] font-medium text-on-surface">{label}</span>
+                            </button>
+                        ))}
                     </div>
+                </section>
 
                     {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
                     {showSettleModal && (
@@ -1056,35 +1147,75 @@ export default function DashboardCouple({
                                     <X size={18} />
                                 </button>
                                 <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                                    <h3 className="text-lg font-bold text-on-surface mb-1">
-                                        Cobrar a {selectedFund?.name ?? "Fondo"}
+                                    <h3 className="mb-1 text-lg font-bold text-on-surface">
+                                        {settleScopeFundId === "all"
+                                            ? "Cobrar a bolsillos"
+                                            : `Cobrar a ${settleScopeFund?.name ?? "Fondo"}`}
                                     </h3>
-                                    <p className="text-xs text-on-surface-variant mb-4">
-                                        Selecciona los gastos que vas a recuperar de este bolsillo.
+                                    <p className="mb-4 text-xs text-on-surface-variant">
+                                        {settleScopeFundId === "all"
+                                            ? "Selecciona gastos de uno o varios bolsillos."
+                                            : "Selecciona los gastos que vas a recuperar de este bolsillo."}
                                     </p>
                                     {/* Lista seleccionable */}
-                                    <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
-                                        {fundDebtExpenses.map(expense => {
+                                    <div className="mb-6 max-h-[40vh] space-y-3 overflow-y-auto pr-2">
+                                        {fundDebtExpenses.map((expense) => {
                                             const isSelected = selectedSettleIds.includes(expense.id);
+                                            const expenseFund = resolveExpenseFund(expense);
                                             return (
                                                 <button
                                                     key={expense.id}
+                                                    type="button"
                                                     onClick={() => toggleSettleSelection(expense.id)}
-                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-primary bg-primary/5' : 'border-outline-variant/20 bg-surface-lowest'
-                                                        }`}
+                                                    className={`flex w-full items-center justify-between rounded-2xl border p-4 transition-all duration-500 ${
+                                                        isSelected
+                                                            ? "border-primary bg-primary/5"
+                                                            : "border-outline-variant/20 bg-surface-lowest"
+                                                    }`}
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        {/* Custom Checkbox */}
-                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-primary bg-primary' : 'border-outline-variant/40'
-                                                            }`}>
-                                                            {isSelected && <Check size={12} className="text-white" />}
+                                                        <div
+                                                            className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                                                                isSelected
+                                                                    ? "border-primary bg-primary"
+                                                                    : "border-outline-variant/40"
+                                                            }`}
+                                                        >
+                                                            {isSelected && (
+                                                                <Check size={12} className="text-white" />
+                                                            )}
                                                         </div>
                                                         <div className="text-left">
-                                                            <p className="text-sm font-medium text-on-surface">{expense.concept}</p>
-                                                            <p className="text-[10px] text-outline-variant">{formatExpenseDate(expense.expense_date)}</p>
+                                                            <p className="text-sm font-medium text-on-surface">
+                                                                {expense.concept}
+                                                            </p>
+                                                            <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-outline-variant">
+                                                                {formatExpenseDate(expense.expense_date)}
+                                                                {settleScopeFundId === "all" && expenseFund && (
+                                                                    <>
+                                                                        <span>·</span>
+                                                                        <span
+                                                                            className="inline-flex items-center gap-1 font-semibold text-on-surface-variant"
+                                                                        >
+                                                                            <span
+                                                                                className="h-2 w-2 rounded-full"
+                                                                                style={{
+                                                                                    backgroundColor:
+                                                                                        resolveFundColor(expenseFund),
+                                                                                }}
+                                                                            />
+                                                                            {expenseFund.name}
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                    <span className={`font-medium ${isSelected ? 'text-primary' : 'text-on-surface'}`}>
+                                                    <span
+                                                        className={`font-medium ${
+                                                            isSelected ? "text-primary" : "text-on-surface"
+                                                        }`}
+                                                    >
                                                         ${Number(expense.amount).toFixed(2)}
                                                     </span>
                                                 </button>
@@ -1249,46 +1380,34 @@ export default function DashboardCouple({
                             </div>
                         </div>
                     )}
-                </section>
 
-
-                <div className="flex-1 flex flex-col min-h-0  mb-24 px-2">
-                    {/* <div className="shrink-0 flex justify-between items-center mb-4">
-                        <h3 className="text-base font-bold text-on-surface">Actividad Compartida</h3>
-                        <Link
-                            href="/history"
-                            className="text-[10px] font-bold uppercase tracking-widest text-primary transition-opacity hover:opacity-80 font-label"
-                        >
-                            Ver todo
-                        </Link>
-                    </div> */}
-
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-baseline gap-3">
-                            <h3 className="text-md font-semibold text-gray-800">Actividad</h3>
+                <div className="mb-24 flex min-h-0 flex-1 flex-col">
+                    <div className="mb-2 flex items-center justify-between px-1">
+                        <div className="flex items-baseline gap-2.5">
+                            <h3 className="text-xs font-medium text-on-surface">Movimientos recientes</h3>
                             <Link
                                 href="/history"
-                                className="flex items-center text-[10px] font-bold tracking-widest text-primary opacity-70 hover:opacity-100 transition-opacity"
+                                className="text-[11px] font-light text-on-surface-variant transition-colors hover:text-on-surface"
                             >
-                                Ver todo <ChevronRight size={12} className="ml-0.5" />
+                                Ver todo
                             </Link>
                         </div>
                         <button
                             type="button"
                             onClick={openFilterModal}
-                            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${currentFilter !== "all"
+                            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors ${currentFilter !== "all"
                                     ? "bg-primary/10 text-primary"
-                                    : "bg-surface-low text-on-surface-variant hover:bg-surface-container"
+                                    : "bg-surface-lowest/80 text-on-surface-variant shadow-sm backdrop-blur-sm"
                                 }`}
                         >
-                            <SlidersHorizontal size={13} />
+                            <SlidersHorizontal size={12} />
                             {currentFilter === "all" ? "Filtros" : filterLabels[currentFilter]}
                         </button>
                     </div>
 
                     <div
-                        className={`flex-1 bg-surface-lowest rounded-3xl shadow-sm flex flex-col overflow-hidden ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
-                        style={animateSharedEntrance ? { animationDelay: "320ms" } : undefined}
+                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-outline-variant/15 bg-surface-lowest/50 shadow-[0_10px_24px_rgba(43,52,55,0.05)] backdrop-blur-md ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
+                        style={animateSharedEntrance ? { animationDelay: "240ms" } : undefined}
                     >
                         {currentList.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full animate-in fade-in duration-1000">
@@ -1309,7 +1428,6 @@ export default function DashboardCouple({
                         ) : (
                             <div className="flex h-full flex-col">
                 {currentList.map((expense, index) => {
-                                    console.log("Renderizando gasto:", expense); // Debug: Ver cada gasto que se renderiza
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category);
                                     const Icon = categoryPresentation.icon;
                                     const isDeposit = expense.category === "deposit";
@@ -1327,26 +1445,28 @@ export default function DashboardCouple({
                                     return (
                                         <div
                                             key={expense.id}
-                                            className={`relative flex items-stretch border-b border-outline-variant/15 last:border-0 bg-surface-lowest overflow-hidden group animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both ${currentList.length >= 5 ? 'flex-1' : ''
+                                            className={`relative flex items-stretch overflow-hidden border-b border-outline-variant/15 last:border-0 bg-surface-lowest group animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both ${currentList.length >= 5 ? "flex-1" : ""
                                                 }`}
                                             style={{ animationDelay: `${index * 100}ms` }}
                                         >
                                             <button
                                                 type="button"
                                                 onClick={() => toggleActions(expense.id)}
-                                                className={`flex items-center justify-between px-4 transition-all duration-300 ease-out w-full text-left ${currentList.length >= 5 ? 'h-full' : 'py-4'
-                                                    } ${activeActionId === expense.id ? 'scale-[1] bg-surface pr-2 inset-shadow-zinc-700' : 'scale-100 bg-surface-lowest'
+                                                className={`flex w-full items-center justify-between px-3 text-left transition-all duration-300 ease-out ${currentList.length >= 5 ? "h-full" : "py-2"
+                                                    } ${activeActionId === expense.id ? "scale-[1] bg-surface pr-2 inset-shadow-zinc-700" : "scale-100 bg-surface-lowest"
                                                     }`}
                                             >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-emerald-800/10 border border-outline-variant/20 flex items-center justify-center text-on-surface-variant shrink-0 shadow-sm">
-                                                        <Icon size={18} />
+                                                <div className="flex min-w-0 items-center gap-2.5">
+                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-outline-variant/20 bg-emerald-800/10 text-on-surface-variant shadow-sm">
+                                                        <Icon size={14} />
                                                     </div>
 
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-semibold text-on-surface">{expense.concept}</span>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[10px] font-medium text-outline-variant uppercase tracking-wide">
+                                                    <div className="flex min-w-0 flex-col">
+                                                        <span className="truncate text-[13px] font-medium text-on-surface">
+                                                            {expense.concept}
+                                                        </span>
+                                                        <div className="mt-0.5 flex items-center gap-1.5">
+                                                            <span className="text-[9px] font-medium uppercase tracking-wide text-outline-variant">
                                                                 {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : partnerShortLabel}
                                                             </span>
                                                             {isDebt && (
@@ -1364,8 +1484,8 @@ export default function DashboardCouple({
                                                     </div>
                                                 </div>
 
-                                                <span className={`text-base font-medium shrink-0 ${isDeposit ? 'text-primary' : 'text-on-surface'}`}>
-                                                    {isDeposit ? '+' : '-'}${Number(expense.amount).toFixed(2)}
+                                                <span className={`shrink-0 text-sm font-medium ${isDeposit ? "text-primary" : "text-on-surface"}`}>
+                                                    {isDeposit ? "+" : "-"}${Number(expense.amount).toFixed(2)}
                                                 </span>
                                             </button>
 
@@ -1493,23 +1613,52 @@ export default function DashboardCouple({
                             </div>
 
                             <div className="overflow-hidden rounded-2xl border border-outline-variant/20 bg-surface-lowest divide-y divide-outline-variant/20">
-                                {fundOwesMe > 0 && (
-                                    <div className="flex items-center justify-between p-4">
-                                        <div>
-                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
-                                                {selectedFund?.name ?? "El fondo"} te debe
+                                {fundDebts.map(({ fund, amount }) => (
+                                    <div key={fund.id} className="flex items-center justify-between gap-3 p-4">
+                                        <div className="min-w-0">
+                                            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+                                                <span
+                                                    className="h-2 w-2 shrink-0 rounded-full"
+                                                    style={{ backgroundColor: resolveFundColor(fund) }}
+                                                />
+                                                {fund.name} te debe
                                             </span>
-                                            <span className="text-sm font-bold text-on-surface">${fundOwesMe.toFixed(2)}</span>
+                                            <span className="text-sm font-bold text-on-surface">
+                                                ${amount.toFixed(2)}
+                                            </span>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                closeBalancesModal(() => openSettleModal());
+                                                closeBalancesModal(() => openSettleModal(fund.id));
                                             }}
-                                            disabled={isLiquidating || fundDebtExpenses.length === 0}
-                                            className="rounded-full bg-surface-low px-3 py-1.5 text-[10px] font-bold text-on-surface-variant transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                            disabled={isLiquidating}
+                                            className="shrink-0 rounded-full bg-surface-low px-3 py-1.5 text-[10px] font-bold text-on-surface-variant transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             COBRAR
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {fundDebts.length > 1 && (
+                                    <div className="flex items-center justify-between gap-3 bg-primary/5 p-4">
+                                        <div>
+                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-primary">
+                                                Total bolsillos
+                                            </span>
+                                            <span className="text-sm font-bold text-on-surface">
+                                                ${fundOwesMe.toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                closeBalancesModal(() => openSettleModal("all"));
+                                            }}
+                                            disabled={isLiquidating}
+                                            className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[10px] font-bold text-on-primary transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            COBRAR TODO
                                         </button>
                                     </div>
                                 )}

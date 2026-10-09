@@ -74,15 +74,15 @@ export default function BottomNav({
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">
-        <div className="mx-auto grid max-w-lg grid-cols-5 items-end rounded-4xl bg-surface-lowest/85 px-2 pt-3 shadow-[0_-8px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+      <nav className="fixed inset-x-0 bottom-0 z-50 px-5 pb-5">
+        <div className="mx-auto grid max-w-lg grid-cols-5 items-end rounded-full border border-outline-variant/20 bg-surface-lowest/90 px-3 pt-3 pb-2 shadow-[0_12px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl">
           {leftNavItems.map(({ href, label, icon: Icon }) => renderNavItem(href, label, Icon))}
 
           <div className="flex justify-center">
             <button
               type="button"
               onClick={openExpenseSheet}
-              className={`-mt-7 mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-[0_12px_24px_rgba(74,101,73,0.35)] transition-all duration-300 active:scale-95 ${
+              className={`-mt-8 mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-on-surface text-surface-lowest shadow-[0_12px_28px_rgba(43,52,55,0.28)] transition-all duration-300 active:scale-95 ${
                 isExpenseModalOpen ? "pointer-events-none scale-95 opacity-80" : "scale-100 opacity-100"
               }`}
               aria-label="Agregar gasto"

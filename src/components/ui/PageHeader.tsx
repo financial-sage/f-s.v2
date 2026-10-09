@@ -35,12 +35,14 @@ export function PageHeader({ title, subtitle, backHref, right, className }: Page
         </div>
 
         <div className="min-w-0">
-          <h1 className="truncate text-base font-bold leading-tight tracking-tight text-on-surface">
+          <h1 className="truncate text-base font-medium leading-tight tracking-tight text-on-surface">
             {title}
           </h1>
-          <p className="truncate text-[11px] font-medium leading-tight text-on-surface-variant">
-            {subtitle ?? ""}
-          </p>
+          {subtitle ? (
+            <p className="truncate text-[11px] font-light leading-tight text-on-surface-variant">
+              {subtitle}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex h-9 w-9 items-center justify-center justify-self-end">

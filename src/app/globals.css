@@ -48,10 +48,11 @@
   --color-sage-dark: #3f593e;
   --color-sage-light: #ccebc7;
 
-  /* Fonts */
-  --font-headline: var(--font-sans);
-  --font-body: var(--font-sans);
-  --font-label: var(--font-sans);
+  /* Fonts — Helvetica Neue (system on Apple; falls back elsewhere) */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-headline: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-label: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
 }
@@ -60,10 +61,23 @@ html,
 body {
   background: var(--color-surface);
   color: var(--color-on-surface);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
-    "Noto Sans", "Liberation Sans", sans-serif;
+  font-family: var(--font-body);
+  font-weight: 400;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+}
+
+.font-headline {
+  font-family: var(--font-headline);
+  font-weight: 300;
+}
+
+.font-label {
+  font-family: var(--font-label);
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 
 html {

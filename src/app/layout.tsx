@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeScript } from "@/components/ThemeScript";
 
@@ -8,19 +7,13 @@ export const metadata: Metadata = {
   description: "Gestión de finanzas en pareja",
 };
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-sans",
-});
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${inter.variable} antialiased`} suppressHydrationWarning>
+    <html lang="es" className="antialiased" suppressHydrationWarning>
       <head>
         <ThemeScript />
       </head>
