@@ -1087,15 +1087,10 @@ export default function DashboardCouple({
                                 className="fixed inset-0 z-40 cursor-default"
                                 onClick={() => setShowFundsMenu(false)}
                             />
-                            <div className="absolute right-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/90 shadow-[0_16px_40px_rgba(43,52,55,0.16)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="border-b border-white/50 px-3.5 py-2.5">
-                                    <p className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">
-                                        Seleccionar fondo
-                                    </p>
-                                </div>
-                                <div className="max-h-64 overflow-y-auto p-2">
+                            <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-2xl border border-white/45 bg-white/40 shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="max-h-52 overflow-y-auto p-1.5">
                                     {sharedFunds.length === 0 ? (
-                                        <p className="px-3 py-2 text-xs text-on-surface-variant">
+                                        <p className="px-2.5 py-2 text-[11px] text-on-surface-variant">
                                             Aún no hay fondos.
                                         </p>
                                     ) : (
@@ -1115,46 +1110,33 @@ export default function DashboardCouple({
                                                     key={fund.id}
                                                     type="button"
                                                     onClick={() => handleSelectFund(fund.id)}
-                                                    className={`flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-left transition-colors ${
+                                                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-left transition-colors ${
                                                         isActive
-                                                            ? "bg-white/70 shadow-sm ring-1 ring-black/5"
-                                                            : "text-on-surface hover:bg-white/45"
+                                                            ? "bg-white/55 shadow-sm"
+                                                            : "text-on-surface hover:bg-white/35"
                                                     }`}
                                                     style={
                                                         isActive
                                                             ? {
-                                                                  backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.85) 0%, ${fundColor}18 100%)`,
+                                                                  backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.55) 0%, ${fundColor}14 100%)`,
                                                               }
                                                             : undefined
                                                     }
                                                 >
-                                                    <span className="flex min-w-0 items-center gap-2.5">
+                                                    <span className="flex min-w-0 items-center gap-2">
                                                         <span
-                                                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md"
-                                                            style={{
-                                                                backgroundColor: `${fundColor}18`,
-                                                                borderColor: `${fundColor}35`,
-                                                                color: fundColor,
-                                                            }}
-                                                        >
-                                                            <span
-                                                                className="h-2.5 w-2.5 rounded-full"
-                                                                style={{ backgroundColor: fundColor }}
-                                                            />
-                                                        </span>
+                                                            className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+                                                            style={{ backgroundColor: fundColor }}
+                                                        />
                                                         <span
-                                                            className={`truncate text-sm ${
+                                                            className={`truncate text-[13px] ${
                                                                 isActive ? "font-semibold text-on-surface" : "font-medium"
                                                             }`}
                                                         >
                                                             {fund.name}
                                                         </span>
                                                     </span>
-                                                    <span
-                                                        className={`shrink-0 text-xs font-medium ${
-                                                            isActive ? "text-on-surface" : "text-on-surface-variant"
-                                                        }`}
-                                                    >
+                                                    <span className="shrink-0 text-[11px] font-medium text-on-surface-variant">
                                                         {formatCurrency(balance)}
                                                     </span>
                                                 </button>
@@ -1162,17 +1144,17 @@ export default function DashboardCouple({
                                         })
                                     )}
                                 </div>
-                                <div className="border-t border-white/50 p-2">
+                                <div className="border-t border-white/40 p-1.5">
                                     <button
                                         type="button"
                                         onClick={openCreateFundModal}
-                                        className="flex w-full items-center justify-center gap-1.5 rounded-2xl px-3 py-2.5 text-sm font-semibold text-[#f3f5f0] shadow-[0_10px_22px_rgba(43,52,55,0.28)] transition-transform active:scale-[0.98]"
+                                        className="flex w-full items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold text-[#f3f5f0] shadow-[0_8px_18px_rgba(43,52,55,0.22)] transition-transform active:scale-[0.98]"
                                         style={{
                                             backgroundImage:
                                                 "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
                                         }}
                                     >
-                                        <Plus size={16} strokeWidth={2.2} />
+                                        <Plus size={14} strokeWidth={2.2} />
                                         Crear fondo
                                     </button>
                                 </div>
@@ -1797,13 +1779,13 @@ export default function DashboardCouple({
             {showCreateFundModal && (
                 <div className="fixed inset-0 z-70 flex items-end justify-center sm:items-center">
                     <div
-                        className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm transition-opacity duration-300 ${
+                        className={`absolute inset-0 bg-on-surface/45 backdrop-blur-sm transition-opacity duration-300 ${
                             isCreateFundAnimated ? "opacity-100" : "opacity-0"
                         }`}
                         onClick={closeCreateFundModal}
                     />
                     <div
-                        className={`relative m-4 w-full max-w-sm rounded-3xl bg-surface-lowest p-6 shadow-2xl transition-all duration-300 ${
+                        className={`relative m-4 w-full max-w-sm overflow-hidden rounded-[1.75rem] border border-white/55 bg-white/55 p-5 shadow-[0_20px_50px_rgba(43,52,55,0.18)] backdrop-blur-2xl transition-all duration-300 ${
                             isCreateFundAnimated
                                 ? "translate-y-0 opacity-100"
                                 : "translate-y-6 opacity-0"
@@ -1812,16 +1794,18 @@ export default function DashboardCouple({
                         <button
                             type="button"
                             onClick={closeCreateFundModal}
-                            className="absolute right-4 top-4 rounded-full bg-surface p-2 text-outline-variant"
+                            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-white/60 text-on-surface-variant shadow-sm backdrop-blur-md"
                             aria-label="Cerrar"
                         >
-                            <X size={16} />
+                            <X size={14} />
                         </button>
-                        <h3 className="pr-8 text-lg font-bold text-on-surface">Crear fondo</h3>
-                        <p className="mt-1 text-xs text-on-surface-variant">
-                            Elige nombre y color para el bolsillo.
+                        <h3 className="pr-8 text-base font-semibold tracking-tight text-on-surface">
+                            Crear fondo
+                        </h3>
+                        <p className="mt-0.5 text-xs text-on-surface-variant">
+                            Nombre y color del bolsillo compartido.
                         </p>
-                        <label className="mt-4 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                        <label className="mt-4 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
                             Nombre
                         </label>
                         <input
@@ -1832,12 +1816,12 @@ export default function DashboardCouple({
                                 if (e.key === "Enter") handleCreateFund();
                             }}
                             placeholder="Ej. Gasolina, Restaurantes..."
-                            className="mt-1.5 w-full rounded-2xl border border-outline-variant/40 bg-surface px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/25"
+                            className="mt-1.5 w-full rounded-2xl border border-white/60 bg-white/50 px-3.5 py-2.5 text-sm text-on-surface outline-none backdrop-blur-md placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
                         />
-                        <label className="mt-4 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                        <label className="mt-3.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
                             Color
                         </label>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-2 grid grid-cols-6 gap-2">
                             {FUND_COLOR_OPTIONS.map((option) => {
                                 const isSelected = newFundColor === option.value;
                                 return (
@@ -1847,9 +1831,9 @@ export default function DashboardCouple({
                                         onClick={() => setNewFundColor(option.value)}
                                         title={option.label}
                                         aria-label={option.label}
-                                        className={`h-9 w-9 rounded-full transition-transform ${
+                                        className={`mx-auto h-8 w-8 rounded-full shadow-sm transition-transform ${
                                             isSelected
-                                                ? "scale-110 ring-2 ring-offset-2 ring-on-surface"
+                                                ? "scale-110 ring-2 ring-on-surface/80 ring-offset-2 ring-offset-white/70"
                                                 : "hover:scale-105"
                                         }`}
                                         style={{ backgroundColor: option.value }}
@@ -1858,18 +1842,20 @@ export default function DashboardCouple({
                             })}
                         </div>
                         <div
-                            className="mt-4 overflow-hidden rounded-2xl p-4 text-white shadow-sm"
-                            style={{ backgroundColor: newFundColor }}
+                            className="mt-4 overflow-hidden rounded-2xl border border-white/40 p-3.5 text-white shadow-sm backdrop-blur-md"
+                            style={{
+                                backgroundImage: `linear-gradient(145deg, ${newFundColor}cc 0%, ${newFundColor} 100%)`,
+                            }}
                         >
-                            <p className="text-[10px] font-normal uppercase tracking-widest opacity-90">
+                            <p className="text-[10px] font-medium uppercase tracking-wider opacity-90">
                                 Vista previa
                             </p>
-                            <p className="mt-1 text-lg font-semibold tracking-tight">
+                            <p className="mt-1 text-base font-semibold tracking-tight">
                                 {newFundName.trim() || "Nuevo fondo"}
                             </p>
                         </div>
                         {fundActionError && (
-                            <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
+                            <p className="mt-2 rounded-xl border border-rose-100 bg-rose-50/90 px-3 py-2 text-xs text-rose-700">
                                 {fundActionError}
                             </p>
                         )}
@@ -1877,7 +1863,11 @@ export default function DashboardCouple({
                             type="button"
                             disabled={isCreatingFund}
                             onClick={handleCreateFund}
-                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-semibold text-on-primary disabled:opacity-60"
+                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-2.5 text-sm font-semibold text-[#f3f5f0] shadow-[0_10px_22px_rgba(43,52,55,0.28)] transition-transform active:scale-[0.98] disabled:opacity-60"
+                            style={{
+                                backgroundImage:
+                                    "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
+                            }}
                         >
                             {isCreatingFund ? "Guardando..." : "Guardar"}
                         </button>

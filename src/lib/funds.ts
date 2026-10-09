@@ -3,13 +3,23 @@ export type FundScope = "shared" | "personal";
 /** Default palette for shared funds (works with white text overlays). */
 export const FUND_COLOR_OPTIONS = [
   { id: "sage", label: "Salvia", value: "#4A6549" },
+  { id: "forest", label: "Bosque", value: "#166534" },
   { id: "teal", label: "Verde mar", value: "#0F766E" },
+  { id: "cyan", label: "Cian", value: "#0E7490" },
   { id: "sky", label: "Azul cielo", value: "#0369A1" },
+  { id: "navy", label: "Navy", value: "#1E3A8A" },
   { id: "indigo", label: "Índigo", value: "#4338CA" },
   { id: "violet", label: "Violeta", value: "#7C3AED" },
+  { id: "fuchsia", label: "Fucsia", value: "#A21CAF" },
   { id: "rose", label: "Rosa", value: "#BE123C" },
-  { id: "orange", label: "Naranja", value: "#C2410C" },
+  { id: "crimson", label: "Carmesí", value: "#9F1239" },
+  { id: "coral", label: "Coral", value: "#C2410C" },
+  { id: "orange", label: "Naranja", value: "#EA580C" },
   { id: "amber", label: "Ámbar", value: "#B45309" },
+  { id: "gold", label: "Oro", value: "#A16207" },
+  { id: "stone", label: "Piedra", value: "#57534E" },
+  { id: "slate", label: "Pizarra", value: "#475569" },
+  { id: "graphite", label: "Grafito", value: "#2B3437" },
 ] as const;
 
 export const DEFAULT_SHARED_FUND_COLOR = FUND_COLOR_OPTIONS[0].value;
