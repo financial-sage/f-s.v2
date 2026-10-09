@@ -716,18 +716,24 @@ export default function AddExpenseForm({
                         key={fund.id}
                         type="button"
                         onClick={() => setSelectedFundId(fund.id)}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
                           isSelected
-                            ? "border border-transparent text-white shadow-sm"
-                            : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                            ? "text-on-surface"
+                            : "border-white/60 bg-white/55 text-on-surface-variant hover:bg-white/80"
                         }`}
-                        style={isSelected ? { backgroundColor: fundColor } : undefined}
+                        style={
+                          isSelected
+                            ? {
+                                backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.88) 0%, ${fundColor}28 100%)`,
+                                borderColor: `${fundColor}55`,
+                                color: fundColor,
+                              }
+                            : undefined
+                        }
                       >
                         <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${
-                            isSelected ? "bg-white/90 ring-1 ring-white/40" : "ring-1 ring-black/10"
-                          }`}
-                          style={isSelected ? undefined : { backgroundColor: fundColor }}
+                          className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: fundColor }}
                         />
                         {fund.name}
                       </button>

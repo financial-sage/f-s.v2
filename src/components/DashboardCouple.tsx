@@ -1087,7 +1087,12 @@ export default function DashboardCouple({
                                 className="fixed inset-0 z-40 cursor-default"
                                 onClick={() => setShowFundsMenu(false)}
                             />
-                            <div className="absolute right-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-lowest shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="absolute right-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/90 shadow-[0_16px_40px_rgba(43,52,55,0.16)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="border-b border-white/50 px-3.5 py-2.5">
+                                    <p className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">
+                                        Seleccionar fondo
+                                    </p>
+                                </div>
                                 <div className="max-h-64 overflow-y-auto p-2">
                                     {sharedFunds.length === 0 ? (
                                         <p className="px-3 py-2 text-xs text-on-surface-variant">
@@ -1104,29 +1109,52 @@ export default function DashboardCouple({
                                                 }
                                             );
                                             const isActive = selectedFund?.id === fund.id;
+                                            const fundColor = resolveFundColor(fund);
                                             return (
                                                 <button
                                                     key={fund.id}
                                                     type="button"
                                                     onClick={() => handleSelectFund(fund.id)}
-                                                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                                                    className={`flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-left transition-colors ${
                                                         isActive
-                                                            ? "bg-primary/10 text-primary"
-                                                            : "text-on-surface hover:bg-surface"
+                                                            ? "bg-white/70 shadow-sm ring-1 ring-black/5"
+                                                            : "text-on-surface hover:bg-white/45"
                                                     }`}
+                                                    style={
+                                                        isActive
+                                                            ? {
+                                                                  backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.85) 0%, ${fundColor}18 100%)`,
+                                                              }
+                                                            : undefined
+                                                    }
                                                 >
-                                                    <span className="flex min-w-0 items-center gap-2">
+                                                    <span className="flex min-w-0 items-center gap-2.5">
                                                         <span
-                                                            className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/10"
+                                                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md"
                                                             style={{
-                                                                backgroundColor: resolveFundColor(fund),
+                                                                backgroundColor: `${fundColor}18`,
+                                                                borderColor: `${fundColor}35`,
+                                                                color: fundColor,
                                                             }}
-                                                        />
-                                                        <span className="truncate text-sm font-semibold">
+                                                        >
+                                                            <span
+                                                                className="h-2.5 w-2.5 rounded-full"
+                                                                style={{ backgroundColor: fundColor }}
+                                                            />
+                                                        </span>
+                                                        <span
+                                                            className={`truncate text-sm ${
+                                                                isActive ? "font-semibold text-on-surface" : "font-medium"
+                                                            }`}
+                                                        >
                                                             {fund.name}
                                                         </span>
                                                     </span>
-                                                    <span className="shrink-0 text-xs font-medium opacity-80">
+                                                    <span
+                                                        className={`shrink-0 text-xs font-medium ${
+                                                            isActive ? "text-on-surface" : "text-on-surface-variant"
+                                                        }`}
+                                                    >
                                                         {formatCurrency(balance)}
                                                     </span>
                                                 </button>
@@ -1134,13 +1162,17 @@ export default function DashboardCouple({
                                         })
                                     )}
                                 </div>
-                                <div className="border-t border-outline-variant/20 p-2">
+                                <div className="border-t border-white/50 p-2">
                                     <button
                                         type="button"
                                         onClick={openCreateFundModal}
-                                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-on-primary"
+                                        className="flex w-full items-center justify-center gap-1.5 rounded-2xl px-3 py-2.5 text-sm font-semibold text-[#f3f5f0] shadow-[0_10px_22px_rgba(43,52,55,0.28)] transition-transform active:scale-[0.98]"
+                                        style={{
+                                            backgroundImage:
+                                                "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
+                                        }}
                                     >
-                                        <Plus size={16} />
+                                        <Plus size={16} strokeWidth={2.2} />
                                         Crear fondo
                                     </button>
                                 </div>
