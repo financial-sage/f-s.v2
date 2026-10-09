@@ -3,7 +3,6 @@ import FamilyNavProvider from "@/components/FamilyNavProvider";
 import InstallPrompt from "@/components/InstallPrompt";
 import PWARegister from "@/components/PWARegister";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
-import UpdateNotifier from "@/components/UpdateNotifier";
 import PageTransition from "@/components/PageTransition";
 import RealtimeSync from "@/components/RealtimeSync";
 
@@ -40,7 +39,6 @@ export default function PwaLayout({
         <PageTransition>{children}</PageTransition>
       </main>
       <FamilyNavProvider />
-      <UpdateNotifier />
     </ExpenseModalProvider>
   );
 }

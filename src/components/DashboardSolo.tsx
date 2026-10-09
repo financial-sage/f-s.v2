@@ -2,26 +2,36 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
+    BarChart3,
+    Bell,
     Bolt,
     CarFront,
+    CheckCircle2,
     Coffee,
     Edit,
-    CheckCircle2,
-    ChevronRight,
+    Eye,
+    EyeOff,
+    History,
     LoaderCircle,
+    Plus,
+    Receipt,
     ReceiptText,
-    Settings,
     ShoppingBag,
     Sparkles,
     Trash2,
+    Wallet,
     type LucideIcon,
 } from "lucide-react";
+import { createPersonalDeposit } from "@/app/actions/expenses";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
+import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import ProfileDrawer from "@/components/ProfileDrawer";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
 import { createClient } from "@/utils/supabase/client";
+import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
+import { useExpenseStore } from "@/store/useExpenseStore";
 
 interface DashboardSoloProps {
     currentUserId: string;
@@ -30,6 +40,7 @@ interface DashboardSoloProps {
     avatarUrl?: string | null;
     budget: DashboardBudget;
     transactions: DashboardTransaction[];
+    pocketBalance: number;
 }
 
 const iconMap: Record<DashboardTransaction["iconKey"], LucideIcon> = {
@@ -40,15 +51,29 @@ const iconMap: Record<DashboardTransaction["iconKey"], LucideIcon> = {
     receipt: Bolt,
 };
 
-function getInitial(name: string) {
-    return name.trim().charAt(0).toUpperCase() || "T";
+function getInitials(name: string) {
+    return (
+        name
+            .split(" ")
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase() ?? "")
+            .join("") || "FS"
+    );
+}
+
+function getFirstName(value?: string | null, fallback = "Tú") {
+    const firstName = value?.trim().split(/\s+/)[0];
+    return firstName || fallback;
 }
 
 function formatCurrency(value: number) {
+    const rounded = Math.round((Number(value) || 0) * 100) / 100;
+    const normalized = Object.is(rounded, -0) || Math.abs(rounded) < 0.005 ? 0 : rounded;
     return new Intl.NumberFormat("es-MX", {
         style: "currency",
         currency: "MXN",
-    }).format(value);
+    }).format(normalized);
 }
 
 export default function DashboardSolo({
@@ -58,16 +83,28 @@ export default function DashboardSolo({
     avatarUrl,
     budget,
     transactions,
+    pocketBalance,
 }: DashboardSoloProps) {
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
-    const displayName = userName?.trim() || "Tomás García";
-    const displayBalance = budget.available;
+    const isHydrated = useExpenseStore((s) => s.isHydrated);
+    const storePocket = useExpenseStore((s) => s.myAvailableFund);
+    const refreshData = useExpenseStore((s) => s.refreshData);
+    const displayName = userName?.trim() || "Usuario";
+    // Real pocket cash — never the hardcoded monthly budget remaining.
+    const displayBalance = isHydrated ? storePocket : pocketBalance;
     const percent = budget.budget > 0 ? Math.min(100, Math.round((budget.spent / budget.budget) * 100)) : 0;
     const budgetSpent = Math.round(Number(budget.spent || 0) * 100) / 100;
     const budgetTarget = Math.max(0, Math.round(Number(budget.budget || 0) * 100) / 100);
+    const budgetRemaining = Math.max(0, Math.round((budgetTarget - budgetSpent) * 100) / 100);
+    const heroColor = DEFAULT_PERSONAL_FUND_COLOR;
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
+    const [balanceVisible, setBalanceVisible] = useState(true);
+    const [showDeposit, setShowDeposit] = useState(false);
+    const [depositAmount, setDepositAmount] = useState("");
+    const [depositError, setDepositError] = useState("");
+    const [, startDepositTransition] = useTransition();
     const [isPartnerJoining, setIsPartnerJoining] = useState(false);
     const [transitionStep, setTransitionStep] = useState(0);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -165,183 +202,313 @@ export default function DashboardSolo({
         setIsExpenseModalOpen(true);
     }
 
+    function openDepositModal() {
+        setDepositError("");
+        setDepositAmount("");
+        setShowDeposit(true);
+    }
+
+    function closeDepositModal() {
+        setShowDeposit(false);
+        setDepositAmount("");
+        setDepositError("");
+    }
+
+    function handleDepositConfirm(nextValue?: string) {
+        const normalizedAmount = Number((nextValue ?? depositAmount).replace(/,/g, ".").trim());
+
+        if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+            setDepositError("Ingresa un monto válido.");
+            return;
+        }
+
+        setDepositError("");
+        startDepositTransition(async () => {
+            try {
+                await createPersonalDeposit({ amount: normalizedAmount });
+                closeDepositModal();
+                await refreshData();
+                router.refresh();
+            } catch (err) {
+                setDepositError(err instanceof Error ? err.message : "No se pudo registrar el aporte.");
+            }
+        });
+    }
+
     return (
-        <div className="relative">
-            <header className="fixed top-0 z-50 flex h-14 w-full items-center justify-between bg-surface/80 px-4 backdrop-blur-md transition-opacity duration-500 border-b border-outline-variant/30">
+        <div
+            className={`relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0] transition-all duration-1000 ${
+                isPartnerJoining ? "scale-[0.97] opacity-25 blur-[2px] saturate-50" : "scale-100 opacity-100"
+            }`}
+        >
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
+
+            <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
                 <button
                     type="button"
                     onClick={() => setIsProfileOpen(true)}
-                    className="flex items-center gap-3 cursor-pointer"
+                    className="flex min-w-0 items-center gap-2.5 text-left"
                 >
-                    <div className="h-9 w-9 overflow-hidden rounded-full border-2 border-primary/20 bg-surface-container">
+                    <div className="h-9 w-9 overflow-hidden rounded-full border border-outline-variant/30 bg-surface-lowest shadow-sm">
                         {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img alt={displayName} className="h-full w-full object-cover" src={avatarUrl} />
+                            <img className="h-full w-full object-cover" src={avatarUrl} alt={displayName} />
                         ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-primary-container text-sm font-bold text-on-primary-container">
-                                {getInitial(displayName)}
+                            <div className="flex h-full w-full items-center justify-center bg-primary-container text-xs font-medium text-on-primary-container">
+                                {getInitials(displayName)}
                             </div>
                         )}
                     </div>
-
-                    <span className="text-base font-bold text-on-surface font-headline">SinDescuadre</span>
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-light text-on-surface-variant">
+                            Hola de nuevo · Santuario personal
+                        </p>
+                        <p className="truncate text-[15px] font-medium tracking-tight text-on-surface">
+                            {getFirstName(displayName)}
+                        </p>
+                    </div>
                 </button>
-
-                <button
-                    type="button"
-                    onClick={() => setIsProfileOpen(true)}
-                    className="text-on-surface/60 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 rounded-full p-1"
-                >
-                    <Settings size={22} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        className="relative rounded-full border border-outline-variant/30 bg-surface-lowest/80 p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
+                        aria-label="Notificaciones"
+                    >
+                        <Bell size={16} />
+                    </button>
+                </div>
             </header>
 
-            <main className={`mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-4 pt-20 pb-24 transition-all duration-1000 ${
-                isPartnerJoining ? "scale-[0.97] opacity-25 blur-[2px] saturate-50" : "scale-100 opacity-100"
-            }`}>
-                <section className="mb-4 shrink-0 px-2">
-                    <h1 className="text-2xl font-semibold tracking-tight text-on-surface">{displayName}</h1>
-                    <p className="text-sm font-normal opacity-70 text-on-surface-variant font-label">
-                        Santuario personal • Hoy
-                    </p>
-                </section>
-
-                <section className="mb-2">
-                    <div className="grid grid-cols-2 mb-6 shrink-0 rounded-3xl shadow-sm border border-outline-variant/30 overflow-hidden">
-                        {/* TARJETA 1: MI BOLSILLO (SECONDARY) */}
-                        <div className="relative flex flex-col justify-between min-h-41 bg-secondary/40 p-4 border-r border-outline-variant/30">
-                            <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
-                            <div className="relative z-10 flex flex-col">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-secondary mb-2 backdrop-blur-sm shadow-sm">
-                                    <ReceiptText size={16} />
-                                </div>
-                                <span className="text-[10px] font-normal text-white uppercase tracking-widest">Mi bolsillo</span>
-                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-white">
-                                    {formatCurrency(displayBalance)}
-                                </p>
-                                <p className="mt-0.5 text-[10px] font-medium text-secondary/80">
-                                    Libre este mes
-                                </p>
+            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
+                <section className="relative mb-3 shrink-0">
+                    <div
+                        className="relative overflow-hidden rounded-[1.85rem] p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl transition-[background] duration-500"
+                        style={{
+                            backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                        }}
+                    >
+                        <div className="relative z-10 flex min-w-0 items-center gap-3">
+                            <div
+                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                                style={{ backgroundColor: `${heroColor}28`, color: heroColor }}
+                            >
+                                <Wallet size={20} />
                             </div>
-
-                            <div className="relative z-10 mt-4">
-                                <button
-                                    type="button"
-                                    onClick={openNewExpense}
-                                    className="w-full rounded-full bg-surface-lowest/90 py-2 text-xs font-bold text-secondary transition-all hover:bg-surface-lowest shadow-sm backdrop-blur-sm"
-                                >
-                                    Registrar gasto
-                                </button>
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-light text-on-surface-variant">
+                                    Saldo disponible
+                                </p>
+                                <p className="truncate text-base font-medium text-on-surface">
+                                    Mi bolsillo
+                                </p>
                             </div>
                         </div>
 
-                        {/* TARJETA 2: PRESUPUESTO (PRIMARY) */}
-                        <div className="relative flex flex-col justify-between min-h-41 bg-primary/50 p-4">
-                            <div className="absolute inset-0 z-0 opacity-60 mix-blend-multiply pointer-events-none bg-[url('/waves3.svg')] bg-cover bg-center" />
-                            <div className="relative z-10 flex flex-col">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/70 text-primary mb-2 backdrop-blur-sm shadow-sm">
-                                    <Sparkles size={16} />
-                                </div>
-                                <span className="text-[10px] font-normal text-white uppercase tracking-widest">Presupuesto</span>
-                                <p className="mt-0.5 text-2xl font-semibold tracking-tight text-white">
-                                    {percent}%
-                                </p>
-                                <p className="mt-0.5 text-[10px] font-medium text-outline-variant">
-                                    {formatCurrency(budgetSpent)} / {formatCurrency(budgetTarget)}
-                                </p>
-                            </div>
+                        <div className="relative z-10 mt-4 flex items-center gap-2.5">
+                            <p
+                                className={`text-[2.65rem] font-light leading-none tracking-tight ${
+                                    Math.round((displayBalance || 0) * 100) / 100 < 0
+                                        ? "text-red-600"
+                                        : "text-on-surface"
+                                }`}
+                            >
+                                {balanceVisible ? formatCurrency(displayBalance) : "••••••"}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setBalanceVisible((v) => !v)}
+                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-white/40"
+                                aria-label={balanceVisible ? "Ocultar saldo" : "Mostrar saldo"}
+                            >
+                                {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
+                            </button>
+                        </div>
 
-                            <div className="relative z-10 mt-4">
-                                <Link
-                                    href="/budget"
-                                    className="block w-full rounded-full bg-surface-lowest/90 py-2 text-center text-xs font-bold text-primary transition-all hover:bg-surface-lowest shadow-sm backdrop-blur-sm"
-                                >
-                                    Ver detalle
-                                </Link>
-                            </div>
+                        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={openDepositModal}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+                            >
+                                <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: heroColor }}
+                                />
+                                Mi fondo · {balanceVisible ? formatCurrency(displayBalance) : "••••"}
+                            </button>
+                            <Link
+                                href="/budget"
+                                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+                            >
+                                Presupuesto · {percent}%
+                                {balanceVisible ? ` · queda ${formatCurrency(budgetRemaining)}` : ""}
+                            </Link>
                         </div>
                     </div>
                 </section>
 
-                <div className="flex-1 flex flex-col min-h-0 mb-24 px-2">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-baseline gap-3">
-                            <h3 className="text-md font-semibold text-on-surface">Actividad</h3>
+                <section className="relative mb-3 shrink-0">
+                    <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
+                    <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                            {
+                                key: "deposit",
+                                label: "Aportar",
+                                icon: Wallet,
+                                onClick: openDepositModal,
+                                highlight: true,
+                            },
+                            {
+                                key: "expense",
+                                label: "Gasto",
+                                icon: Plus,
+                                onClick: openNewExpense,
+                            },
+                            {
+                                key: "budget",
+                                label: "Presupuesto",
+                                icon: BarChart3,
+                                href: "/budget",
+                            },
+                            {
+                                key: "history",
+                                label: "Historial",
+                                icon: History,
+                                href: "/history",
+                            },
+                        ].map(({ key, label, icon: Icon, onClick, href, highlight }) => {
+                            const inner = (
+                                <>
+                                    <span
+                                        className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md ${
+                                            highlight
+                                                ? ""
+                                                : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface-variant"
+                                        }`}
+                                        style={
+                                            highlight
+                                                ? {
+                                                      backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                                                      color: heroColor,
+                                                      border: `1px solid ${heroColor}40`,
+                                                  }
+                                                : undefined
+                                        }
+                                    >
+                                        <Icon size={18} />
+                                    </span>
+                                    <span className="text-[10px] font-medium text-on-surface-variant">{label}</span>
+                                </>
+                            );
+
+                            if (href) {
+                                return (
+                                    <Link
+                                        key={key}
+                                        href={href}
+                                        className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
+                                    >
+                                        {inner}
+                                    </Link>
+                                );
+                            }
+
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={onClick}
+                                    className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
+                                >
+                                    {inner}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </section>
+
+                <div className="mb-24 flex min-h-0 flex-1 flex-col">
+                    <div className="mb-2 flex items-center justify-between px-1">
+                        <div className="flex items-baseline gap-2.5">
+                            <h3 className="text-xs font-medium text-on-surface">Movimientos recientes</h3>
                             <Link
                                 href="/history"
-                                className="flex items-center text-[10px] font-bold tracking-widest text-primary opacity-70 hover:opacity-100 transition-opacity"
+                                className="text-[11px] font-light text-on-surface-variant transition-colors hover:text-on-surface"
                             >
-                                Ver todo <ChevronRight size={12} className="ml-0.5" />
+                                Ver todo
                             </Link>
                         </div>
                     </div>
 
-                    <div className="flex-1 bg-surface-lowest rounded-3xl shadow-sm flex flex-col overflow-hidden">
+                    <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/40 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-2xl">
                         {currentList.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full animate-in fade-in duration-1000">
-                                <div className="relative mb-5 flex items-center justify-center">
+                            <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
+                                <div className="relative mb-4 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />
-                                    <div className="absolute inset-0 rounded-full bg-primary opacity-20 animate-pulse" />
-
-                                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-emerald-100/50 bg-emerald-50 text-primary shadow-sm">
-                                        <ReceiptText size={36} strokeWidth={1.5} />
+                                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-emerald-100/50 bg-white/50 text-primary shadow-sm backdrop-blur-md">
+                                        <Receipt size={28} strokeWidth={1.5} />
                                     </div>
                                 </div>
 
-                                <h4 className="mb-2 text-lg font-bold text-on-surface">Todo está tranquilo</h4>
+                                <h4 className="mb-1 text-base font-medium text-on-surface">Todo está tranquilo</h4>
                                 <p className="max-w-55 text-xs leading-relaxed text-outline-variant">
-                                    Aún no hay movimientos aquí. Usa el botón verde para registrar tu primer gasto.
+                                    Aún no hay movimientos aquí. Usa el botón + para registrar tu primer gasto.
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex h-full flex-col">
-                                {currentList.map((tx) => {
+                            <div className="flex h-full min-h-0 flex-1 flex-col">
+                                {currentList.map((tx, index) => {
                                     const Icon = iconMap[tx.iconKey] ?? ReceiptText;
 
                                     return (
                                         <div
                                             key={tx.id}
-                                            className={`relative flex items-stretch border-b border-outline-variant/15 last:border-0 bg-surface-lowest overflow-hidden group ${
-                                                currentList.length >= 5 ? 'flex-1' : ''
-                                            }`}
+                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-white/40 last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                                            style={{ animationDelay: `${index * 60}ms` }}
                                         >
                                             <button
                                                 type="button"
-                                                onClick={() => setActiveActionId((prev) => (prev === tx.id ? null : tx.id))}
-                                                className={`flex items-center justify-between px-4 transition-all duration-300 ease-out w-full text-left ${
-                                                    currentList.length >= 5 ? 'h-full' : 'py-4'
-                                                } ${
-                                                    activeActionId === tx.id ? 'scale-[1] bg-surface pr-2 inset-shadow-zinc-700' : 'scale-100 bg-surface-lowest'
+                                                onClick={() =>
+                                                    setActiveActionId((prev) => (prev === tx.id ? null : tx.id))
+                                                }
+                                                className={`flex h-full w-full items-center justify-between gap-2.5 px-3.5 text-left transition-colors duration-200 ${
+                                                    activeActionId === tx.id ? "bg-white/40 pr-2" : "bg-transparent"
                                                 }`}
                                             >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-emerald-800/10 border border-outline-variant/20 flex items-center justify-center text-on-surface-variant shrink-0 shadow-sm">
-                                                        <Icon size={18} />
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <div
+                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md"
+                                                        style={{
+                                                            backgroundColor: `${heroColor}18`,
+                                                            borderColor: `${heroColor}35`,
+                                                            color: heroColor,
+                                                        }}
+                                                    >
+                                                        <Icon size={15} />
                                                     </div>
 
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-bold text-on-surface">{tx.concept}</span>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[10px] font-medium text-outline-variant uppercase tracking-wide">
-                                                                {tx.tag} • {tx.dateLabel}
-                                                            </span>
-                                                            <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${
-                                                                tx.isShared ? 'bg-secondary/10 text-secondary' : 'bg-emerald-50 text-emerald-600'
-                                                            }`}>
-                                                                {tx.status}
+                                                    <div className="flex min-w-0 flex-col justify-center gap-0.5">
+                                                        <span className="truncate text-[15px] font-medium leading-tight text-on-surface">
+                                                            {tx.concept}
+                                                        </span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-outline-variant">
+                                                                {tx.tag} · {tx.dateLabel}
                                                             </span>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <span className="text-base font-bold shrink-0 text-on-surface">
+                                                <span className="shrink-0 text-[15px] font-medium text-on-surface">
                                                     -{formatCurrency(tx.amount)}
                                                 </span>
                                             </button>
 
                                             <div
                                                 className={`flex flex-col border-l border-outline-variant/20 transition-all duration-300 ease-out overflow-hidden shrink-0 ${
-                                                    activeActionId === tx.id ? 'w-14 opacity-100' : 'w-0 opacity-0 border-transparent'
+                                                    activeActionId === tx.id
+                                                        ? "w-14 opacity-100"
+                                                        : "w-0 opacity-0 border-transparent"
                                                 }`}
                                             >
                                                 <button
@@ -421,7 +588,10 @@ export default function DashboardSolo({
                                                 : "bg-surface-low text-outline-variant"
                                         }`}
                                     >
-                                        {stage.replace("Tu pareja se ha unido", "Unión").replace("Sincronizando movimientos", "Sync").replace("Preparando tablero compartido", "Switch")}
+                                        {stage
+                                            .replace("Tu pareja se ha unido", "Unión")
+                                            .replace("Sincronizando movimientos", "Sync")
+                                            .replace("Preparando tablero compartido", "Switch")}
                                     </div>
                                 ))}
                             </div>
@@ -434,6 +604,17 @@ export default function DashboardSolo({
                     </div>
                 </div>
             )}
+            <NumericKeypadSheet
+                isOpen={showDeposit}
+                title="Aportar a mi fondo"
+                subtitle="Mi fondo"
+                accentColor={DEFAULT_PERSONAL_FUND_COLOR}
+                initialValue={depositAmount || "0"}
+                errorMessage={showDeposit ? depositError : undefined}
+                onClose={closeDepositModal}
+                onValueChange={(value) => setDepositAmount(value)}
+                onConfirm={(value) => handleDepositConfirm(value)}
+            />
             <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
         </div>
     );

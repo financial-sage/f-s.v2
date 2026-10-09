@@ -11,7 +11,13 @@
     "prod": "next start --hostname 0.0.0.0 --port 3002",
     "preview:mobile": "npm run build && concurrently -k -s first \"next start --hostname 0.0.0.0 --port 3000\" \"node scripts/tunnel.js\"",
     "lint": "eslint",
-    "public": "cloudflared tunnel --url http://localhost:3002"
+    "public": "cloudflared tunnel --url http://localhost:3002",
+    "supabase:start": "npx supabase start",
+    "supabase:stop": "npx supabase stop",
+    "supabase:status": "npx supabase status",
+    "supabase:studio": "npx supabase status",
+    "env:use-local": "node -e \"require('fs').copyFileSync('.env.local.template','.env.local'); console.log('Using local Supabase (.env.local.template)')\"",
+    "env:use-cloud": "node -e \"require('fs').copyFileSync('.env.cloud.local','.env.local'); console.log('Using cloud Supabase (.env.cloud.local)')\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",

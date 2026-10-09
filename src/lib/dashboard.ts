@@ -333,6 +333,39 @@ export interface HomePageData {
   partnerSpent: number;
   fundBalance: number;
   personalBalance: number;
+  /** Real personal pocket cash (deposits − spends), not budget remaining. */
+  pocketBalance: number;
+}
+
+/** Same rules as Zustand `myAvailableFund`: personal deposits − paid spends. */
+export function calculatePersonalPocketBalance(
+  expenses: Array<{
+    amount: number;
+    paid_by: string;
+    category?: string | null;
+    responsible_for?: string | null;
+  }>,
+  userId: string,
+) {
+  const income = expenses
+    .filter(
+      (e) =>
+        (e.category === "deposit" &&
+          (e.responsible_for === userId || e.responsible_for === "mio")) ||
+        (e.paid_by === userId && e.category === "withdrawal"),
+    )
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const out = expenses
+    .filter(
+      (e) =>
+        e.paid_by === userId &&
+        e.category !== "deposit" &&
+        e.category !== "withdrawal",
+    )
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  return round2(income - out);
 }
 
 function sumMemberShare(expenses: HomeExpenseRow[], memberId: string) {
@@ -556,6 +589,7 @@ export async function getHomePageData(): Promise<
     partnerId && familyMemberCount >= 2
       ? calculateFundAndPersonalBalances(coupleExpenses, user.id, partnerId)
       : { fundBalance: 0, personalBalance: 0 };
+  const pocketBalance = calculatePersonalPocketBalance(coupleExpenses, user.id);
 
   const currentMember = members.find((member) => member.id === user.id);
 
@@ -580,6 +614,7 @@ export async function getHomePageData(): Promise<
       partnerSpent,
       fundBalance,
       personalBalance,
+      pocketBalance,
     },
   };
 }

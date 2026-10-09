@@ -27,6 +27,7 @@ export default async function Home() {
     partnerSpent,
     fundBalance,
     personalBalance,
+    pocketBalance,
   } = home.data;
 
   return (
@@ -55,6 +56,7 @@ export default async function Home() {
           avatarUrl={avatarUrl}
           budget={dashboard.budget}
           transactions={dashboard.transactions}
+          pocketBalance={pocketBalance}
         />
       )}
     </>

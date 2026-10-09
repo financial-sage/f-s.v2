@@ -1010,10 +1010,14 @@ export default function DashboardCouple({
                     <div className="grid grid-cols-4 gap-1.5">
                         {[
                             {
-                                key: "personal",
-                                label: "Mi fondo",
+                                key: "expense",
+                                label: "Gasto",
                                 icon: Plus,
-                                onClick: openPersonalDepositModal,
+                                onClick: () => {
+                                    setExpenseToEdit(null);
+                                    setIsExpenseModalOpen(true);
+                                },
+                                darkFab: true,
                             },
                             {
                                 key: "shared",
@@ -1035,7 +1039,7 @@ export default function DashboardCouple({
                                     ? () => setShowFundsMenu((open) => !open)
                                     : openFilterModal,
                             },
-                        ].map(({ key, label, icon: Icon, onClick }) => {
+                        ].map(({ key, label, icon: Icon, onClick, darkFab }) => {
                             const isAportar = key === "shared" && isJointModel;
                             return (
                                 <button
@@ -1046,21 +1050,28 @@ export default function DashboardCouple({
                                 >
                                     <span
                                         className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md transition-[background] duration-500 ${
-                                            isAportar
+                                            darkFab || isAportar
                                                 ? ""
                                                 : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface"
                                         }`}
                                         style={
-                                            isAportar
+                                            darkFab
                                                 ? {
-                                                      backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
-                                                      color: heroColor,
-                                                      borderColor: heroColor,
+                                                      backgroundImage:
+                                                          "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
+                                                      color: "#f3f5f0",
+                                                      boxShadow: "0 10px 22px rgba(43,52,55,0.32)",
                                                   }
-                                                : undefined
+                                                : isAportar
+                                                  ? {
+                                                        backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                                                        color: heroColor,
+                                                        borderColor: heroColor,
+                                                    }
+                                                  : undefined
                                         }
                                     >
-                                        <Icon size={17} strokeWidth={1.7} />
+                                        <Icon size={17} strokeWidth={darkFab ? 2.2 : 1.7} />
                                     </span>
                                     <span className="text-[10px] font-medium text-on-surface">{label}</span>
                                 </button>
