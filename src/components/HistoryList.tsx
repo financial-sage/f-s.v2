@@ -144,11 +144,14 @@ interface HistoryListProps {
 export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, partnerName, partnerId, financialModel: ssrFinancialModel }: HistoryListProps) {
     const router = useRouter();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
-    const store = useExpenseStore();
+    const isHydrated = useExpenseStore((s) => s.isHydrated);
+    const storeExpenses = useExpenseStore((s) => s.expenses);
+    const storeFinancialModel = useExpenseStore((s) => s.financialModel);
+    const refreshData = useExpenseStore((s) => s.refreshData);
 
     // Use store data when hydrated (instant on navigation), fall back to SSR props
-    const allExpenses = (store.isHydrated ? store.expenses : ssrExpenses) as HistoryExpenseRow[];
-    const financialModel = store.isHydrated ? store.financialModel : ssrFinancialModel;
+    const allExpenses = (isHydrated ? storeExpenses : ssrExpenses) as HistoryExpenseRow[];
+    const financialModel = isHydrated ? storeFinancialModel : ssrFinancialModel;
 
     const [mounted, setMounted] = useState(false);
     const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null);
@@ -219,7 +222,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const handleDeleteConfirm = () => {
         if (!expenseToDelete) return;
         startDeletingTransition(async () => {
-            try { await deleteExpenseAction(expenseToDelete); closeDeleteModal(); await store.refreshData(); }
+            try { await deleteExpenseAction(expenseToDelete); closeDeleteModal(); await refreshData(); }
             catch { closeDeleteModal(); }
         });
     };
@@ -469,7 +472,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     };
 
     // Show skeleton only when there are no SSR expenses and store hasn't hydrated yet
-    if (!store.isHydrated && ssrExpenses.length === 0) {
+    if (!isHydrated && ssrExpenses.length === 0) {
         return (
             <div className="flex-1 overflow-y-auto pb-32 px-3 pt-4">
                 {/* Balance chips skeleton */}

@@ -9,7 +9,8 @@ import { useExpenseStore } from "@/store/useExpenseStore";
  * between pages are instant (data already cached).
  */
 export default function StoreHydrator({ userId }: { userId: string }) {
-  const { isHydrated, fetchData } = useExpenseStore();
+  const isHydrated = useExpenseStore((s) => s.isHydrated);
+  const fetchData = useExpenseStore((s) => s.fetchData);
 
   useEffect(() => {
     if (!isHydrated) {

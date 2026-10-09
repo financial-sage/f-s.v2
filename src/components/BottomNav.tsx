@@ -1,12 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import { CreditCard, Goal, History, Home, Plus } from "lucide-react";
-import AddExpenseForm from "@/components/AddExpenseForm";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { Sheet } from "@/components/ui/Sheet";
+
+const AddExpenseForm = dynamic(() => import("@/components/AddExpenseForm"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-40 items-center justify-center text-sm text-on-surface-variant">
+      Cargando…
+    </div>
+  ),
+});
 
 const leftNavItems = [
   { href: "/", label: "Inicio", icon: Home },
@@ -101,14 +109,16 @@ export default function BottomNav({
         title="Agregar gasto"
         closeOnBackdrop={false}
       >
-        <AddExpenseForm
-          familyId={familyId ?? "unknown"}
-          expenseToEdit={expenseToEdit}
-          onClose={closeExpenseSheet}
-          partnerFirstName={partnerFirstName}
-          financialModel={financialModel}
-          user1SplitPct={user1SplitPct}
-        />
+        {isExpenseModalOpen ? (
+          <AddExpenseForm
+            familyId={familyId ?? "unknown"}
+            expenseToEdit={expenseToEdit}
+            onClose={closeExpenseSheet}
+            partnerFirstName={partnerFirstName}
+            financialModel={financialModel}
+            user1SplitPct={user1SplitPct}
+          />
+        ) : null}
       </Sheet>
     </>
   );

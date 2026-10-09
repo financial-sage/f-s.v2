@@ -15,6 +15,7 @@ import {
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useExpenseStore } from "@/store/useExpenseStore";
 
 interface BudgetManagerProps {
@@ -35,8 +36,8 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
   const isHydrated = useExpenseStore((s) => s.isHydrated);
 
   const expenses = useMemo(() => {
-    if (!isHydrated || storeExpenses.length === 0) return initialExpenses;
-    return storeExpenses as BudgetExpenseRow[];
+    if (isHydrated) return storeExpenses as BudgetExpenseRow[];
+    return initialExpenses;
   }, [initialExpenses, isHydrated, storeExpenses]);
 
   const { activeCategories, getDisplayForCategory } = useCategories(familyId);
@@ -120,6 +121,21 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
   const editingCategory = editingCategoryId
     ? getDisplayForCategory(editingCategoryId)
     : null;
+
+  if (!isHydrated && initialExpenses.length === 0) {
+    return (
+      <div className="min-h-dvh bg-surface">
+        <PageHeader title="Presupuesto" subtitle={formatMonthLabel(monthKey)} backHref="/" />
+        <div className="mx-auto w-full max-w-md space-y-4 px-4 pb-28 pt-4">
+          <Skeleton className="h-24 rounded-4xl" />
+          <Skeleton className="h-12 rounded-4xl" />
+          <Skeleton className="h-16 rounded-3xl" />
+          <Skeleton className="h-16 rounded-3xl" />
+          <Skeleton className="h-16 rounded-3xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-surface">

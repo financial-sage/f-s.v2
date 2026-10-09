@@ -1,12 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import BottomNav from "@/components/BottomNav";
+import FamilyNavProvider from "@/components/FamilyNavProvider";
 import InstallPrompt from "@/components/InstallPrompt";
 import PWARegister from "@/components/PWARegister";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
 import UpdateNotifier from "@/components/UpdateNotifier";
 import PageTransition from "@/components/PageTransition";
 import RealtimeSync from "@/components/RealtimeSync";
-import { createClient } from "@/utils/supabase/server";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
@@ -27,51 +26,11 @@ export const viewport: Viewport = {
   themeColor: "#4a6549",
 };
 
-function getFirstName(value?: string | null, fallback = "Mi pareja") {
-  const firstName = value?.trim().split(/\s+/)[0];
-  return firstName || fallback;
-}
-
-export default async function PwaLayout({
+export default function PwaLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let familyId: string | null = null;
-  let partnerFirstName = "Mi pareja";
-  let financialModel = "joint_fund";
-  let user1SplitPct = 50;
-
-  if (user) {
-    const { data: family } = await supabase
-      .from("families")
-      .select("id, user_1_id, user_2_id, financial_model, user_1_split_pct")
-      .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
-      .maybeSingle();
-
-    familyId = family?.id ?? null;
-    financialModel = family?.financial_model ?? "joint_fund";
-    user1SplitPct = Number(family?.user_1_split_pct ?? 50);
-
-    const partnerId =
-      family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
-
-    if (partnerId) {
-      const { data: partnerProfile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", partnerId)
-        .maybeSingle();
-
-      partnerFirstName = getFirstName(partnerProfile?.full_name);
-    }
-  }
-
   return (
     <ExpenseModalProvider>
       <RealtimeSync />
@@ -80,12 +39,7 @@ export default async function PwaLayout({
       <main className="h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
         <PageTransition>{children}</PageTransition>
       </main>
-      <BottomNav
-        familyId={familyId ?? undefined}
-        partnerFirstName={partnerFirstName}
-        financialModel={financialModel}
-        user1SplitPct={user1SplitPct}
-      />
+      <FamilyNavProvider />
       <UpdateNotifier />
     </ExpenseModalProvider>
   );

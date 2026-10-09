@@ -2,31 +2,15 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import { filterExpensesForPrivacy } from "@/lib/dashboard";
-import type { ExpenseSplitType } from "@/lib/expenses";
-import HistoryList, { type HistoryExpenseRow } from "@/components/HistoryList";
+import HistoryList from "@/components/HistoryList";
 import StoreHydrator from "@/components/StoreHydrator";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface ExpenseRow {
-  id: string;
-  amount: number;
-  concept: string;
-  paid_by: string;
-  responsible_for?: string | null;
-  category?: string | null;
-  split_type: ExpenseSplitType;
-  expense_date: string;
-  created_at: string;
-  is_settled?: boolean;
-  fund_id?: string | null;
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default async function HistoryPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
@@ -37,7 +21,7 @@ export default async function HistoryPage() {
 
   if (!profile?.family_id) redirect("/onboarding");
 
-  const [familyProfilesResult, familyResult, rawExpensesResult] = await Promise.all([
+  const [familyProfilesResult, familyResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, full_name")
@@ -47,13 +31,6 @@ export default async function HistoryPage() {
       .select("financial_model")
       .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
       .maybeSingle(),
-    supabase
-      .from("expenses")
-      .select("id, amount, concept, paid_by, responsible_for, category, split_type, expense_date, created_at, is_settled, fund_id")
-      .eq("family_id", profile.family_id)
-      .eq("is_active", true)
-      .order("expense_date", { ascending: false })
-      .order("created_at", { ascending: false }),
   ]);
 
   const familyProfiles = familyProfilesResult.data ?? [];
@@ -61,11 +38,6 @@ export default async function HistoryPage() {
   const partner = familyProfiles.find((p) => p.id !== user.id);
   const partnerName = partner?.full_name?.trim().split(/\s+/)[0] ?? "Pareja";
   const partnerId = partner?.id ?? null;
-
-  const allVisibleExpenses = filterExpensesForPrivacy(
-    (rawExpensesResult.data ?? []) as ExpenseRow[],
-    user.id
-  ) as HistoryExpenseRow[];
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0]">
@@ -80,7 +52,7 @@ export default async function HistoryPage() {
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <HistoryList
-          allExpenses={allVisibleExpenses}
+          allExpenses={[]}
           currentUserId={user.id}
           partnerName={partnerName}
           partnerId={partnerId}

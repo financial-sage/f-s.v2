@@ -286,69 +286,308 @@ function getFallbackData(): DashboardData {
   };
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+interface BalanceExpenseRow {
+  amount: number;
+  paid_by: string;
+  split_type: string;
+  responsible_for?: string | null;
+  payer_share_pct?: number;
+  category?: string | null;
+  concept?: string;
+}
 
-    if (!user) {
-      return getFallbackData();
+export interface HomeExpenseRow {
+  id: string;
+  amount: number;
+  concept: string;
+  paid_by: string;
+  family_id: string;
+  split_type: ExpenseSplitType;
+  responsible_for?: string | null;
+  category?: string | null;
+  payer_share_pct: number;
+  profiles: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
+  expense_date: string;
+  created_at: string;
+  is_settled?: boolean;
+  fund_id?: string | null;
+  paid_from_fund?: boolean | null;
+  transfer_group_id?: string | null;
+}
+
+export interface HomePageData {
+  userId: string;
+  userEmail: string | null;
+  familyId: string;
+  familyMemberCount: number;
+  financialModel: string;
+  currentUserName: string;
+  partnerFirstName: string;
+  avatarUrl: string | null;
+  dashboard: DashboardData;
+  coupleExpenses: HomeExpenseRow[];
+  mySpent: number;
+  partnerSpent: number;
+  fundBalance: number;
+  personalBalance: number;
+}
+
+function sumMemberShare(expenses: HomeExpenseRow[], memberId: string) {
+  const total = expenses.reduce((sum, expense) => {
+    const amount = Number(expense.amount);
+    const splitType = expense.split_type ?? "";
+
+    if (splitType === "settlement") {
+      return sum;
     }
 
-    const { data: family, error: familyError } = await supabase
+    if (splitType === "personal") {
+      return expense.paid_by === memberId ? sum + amount : sum;
+    }
+
+    if (splitType.includes("shared")) {
+      const payerPct = Number(expense.payer_share_pct ?? 50);
+      const payerShare = amount * (payerPct / 100);
+      const partnerShare = amount - payerShare;
+      return expense.paid_by === memberId ? sum + payerShare : sum + partnerShare;
+    }
+
+    return sum;
+  }, 0);
+
+  return Math.round(total * 100) / 100;
+}
+
+function calculateFundAndPersonalBalances(
+  rows: BalanceExpenseRow[],
+  currentUserId: string,
+  partnerId: string,
+) {
+  const fundBalance = rows.reduce((sum, row) => {
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return sum;
+    }
+
+    if (row.split_type.includes("shared")) {
+      const payerSharePct = Number(row.payer_share_pct ?? 50);
+      const fundCredit = amount * ((100 - payerSharePct) / 100);
+
+      if (row.paid_by === currentUserId) {
+        return sum + fundCredit;
+      }
+
+      if (row.paid_by === partnerId) {
+        return sum - fundCredit;
+      }
+
+      return sum;
+    }
+
+    if (row.split_type === "fund_transfer") {
+      if (row.paid_by === currentUserId) {
+        return sum + amount;
+      }
+
+      if (row.paid_by === partnerId) {
+        return sum - amount;
+      }
+    }
+
+    return sum;
+  }, 0);
+
+  const personalBalance = rows.reduce((sum, row) => {
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return sum;
+    }
+
+    if (row.responsible_for === partnerId && row.paid_by === currentUserId) {
+      return sum + amount;
+    }
+
+    if (row.responsible_for === currentUserId && row.paid_by === partnerId) {
+      return sum - amount;
+    }
+
+    return sum;
+  }, 0);
+
+  return {
+    fundBalance: Math.round(fundBalance * 100) / 100,
+    personalBalance: Math.round(personalBalance * 100) / 100,
+  };
+}
+
+function getFirstName(value?: string | null, fallback = "Mi pareja") {
+  const firstName = value?.trim().split(/\s+/)[0];
+  return firstName || fallback;
+}
+
+function buildDashboardFromParts(
+  family: FamilyRow,
+  userId: string,
+  members: DashboardMember[],
+  visibleExpenses: ExpenseRow[],
+): DashboardData {
+  const membersById = Object.fromEntries(
+    members.map((member) => [member.id, member]),
+  ) as Record<string, DashboardMember>;
+
+  const partnerUserId = members.find((member) => member.id !== userId)?.id ?? userId;
+
+  return {
+    familyName: family.name?.trim() || "Nuestra familia",
+    members,
+    debt: calculateDebtSummary(visibleExpenses, userId, partnerUserId, membersById),
+    budget: calculateBudget(visibleExpenses),
+    transactions: mapTransactions(visibleExpenses, userId),
+  };
+}
+
+/** Single home data path: one auth, one family, one expenses fetch. */
+export async function getHomePageData(): Promise<
+  | { ok: true; data: HomePageData }
+  | { ok: false; reason: "unauthenticated" | "no_family" }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, reason: "unauthenticated" };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("family_id, full_name, avatar_url")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.family_id) {
+    return { ok: false, reason: "no_family" };
+  }
+
+  const familyId = profile.family_id;
+
+  const [familyResult, membersResult, expensesResult] = await Promise.all([
+    supabase
       .from("families")
-      .select("id, name, user_1_id, user_2_id")
+      .select("id, name, user_1_id, user_2_id, financial_model")
       .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
-      .maybeSingle();
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .eq("family_id", familyId),
+    supabase
+      .from("expenses")
+      .select(
+        "id, amount, concept, paid_by, family_id, split_type, responsible_for, category, payer_share_pct, expense_date, created_at, is_settled, fund_id, paid_from_fund, transfer_group_id, profiles!expenses_paid_by_fkey(full_name, avatar_url)",
+      )
+      .eq("family_id", familyId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false }),
+  ]);
 
-    if (familyError || !family?.id) {
-      return getFallbackData();
-    }
+  const family = familyResult.data as (FamilyRow & { financial_model?: string | null }) | null;
+  if (!family?.id) {
+    return { ok: false, reason: "no_family" };
+  }
 
-    const memberIds = [family.user_1_id, family.user_2_id].filter(Boolean) as string[];
-
-    const [membersResult, expensesResult] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", memberIds),
-      supabase
-        .from("expenses")
-        .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at")
-        .eq("family_id", family.id)
-        .eq("is_active", true)
-        .order("expense_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-    ]);
-
-    if (membersResult.error || expensesResult.error) {
-      return getFallbackData();
-    }
-
-    const members = ((membersResult.data ?? []) as UserRow[]).map((member) => ({
+  const memberIds = new Set(
+    [family.user_1_id, family.user_2_id].filter(Boolean) as string[],
+  );
+  const members = ((membersResult.data ?? []) as UserRow[])
+    .filter((member) => memberIds.has(member.id))
+    .map((member) => ({
       id: member.id,
       name: member.full_name?.trim() || "Sin nombre",
       avatarUrl: member.avatar_url,
     }));
 
-    const membersById = Object.fromEntries(
-      members.map((member) => [member.id, member])
-    ) as Record<string, DashboardMember>;
+  type RawHomeExpense = Omit<HomeExpenseRow, "profiles"> & {
+    profiles:
+      | { full_name: string | null; avatar_url: string | null }
+      | { full_name: string | null; avatar_url: string | null }[]
+      | null;
+  };
 
-    const partnerUserId = members.find((member) => member.id !== user.id)?.id ?? user.id;
-    const safeExpenses = (expensesResult.data ?? []) as ExpenseRow[];
-    const visibleExpenses = filterExpensesForPrivacy(safeExpenses, user.id);
+  const rawExpenses = (expensesResult.data ?? []) as RawHomeExpense[];
+  const normalizedExpenses: HomeExpenseRow[] = rawExpenses.map((row) => ({
+    ...row,
+    profiles: Array.isArray(row.profiles) ? (row.profiles[0] ?? null) : row.profiles,
+  }));
 
-    return {
-      familyName: family.name?.trim() || "Nuestra familia",
-      members,
-      debt: calculateDebtSummary(visibleExpenses, user.id, partnerUserId, membersById),
-      budget: calculateBudget(visibleExpenses),
-      transactions: mapTransactions(visibleExpenses, user.id),
-    };
-  } catch {
+  const coupleExpenses = filterExpensesForPrivacy(normalizedExpenses, user.id);
+  const expenseRowsForDashboard = coupleExpenses.map((expense) => ({
+    id: expense.id,
+    amount: expense.amount,
+    concept: expense.concept,
+    paid_by: expense.paid_by,
+    split_type: expense.split_type,
+    payer_share_pct: expense.payer_share_pct,
+    expense_date: expense.expense_date,
+    created_at: expense.created_at,
+    responsible_for: expense.responsible_for,
+    category: expense.category,
+  })) as ExpenseRow[];
+
+  const dashboard = buildDashboardFromParts(
+    family,
+    user.id,
+    members,
+    expenseRowsForDashboard,
+  );
+
+  const partnerId = members.find((member) => member.id !== user.id)?.id ?? null;
+  const partnerMember = partnerId
+    ? members.find((member) => member.id === partnerId)
+    : null;
+  const familyMemberCount = membersResult.data?.length ?? members.length;
+  const mySpent = sumMemberShare(coupleExpenses, user.id);
+  const partnerSpent = partnerId ? sumMemberShare(coupleExpenses, partnerId) : 0;
+  const { fundBalance, personalBalance } =
+    partnerId && familyMemberCount >= 2
+      ? calculateFundAndPersonalBalances(coupleExpenses, user.id, partnerId)
+      : { fundBalance: 0, personalBalance: 0 };
+
+  const currentMember = members.find((member) => member.id === user.id);
+
+  return {
+    ok: true,
+    data: {
+      userId: user.id,
+      userEmail: user.email ?? null,
+      familyId,
+      familyMemberCount,
+      financialModel: family.financial_model ?? "joint_fund",
+      currentUserName:
+        profile.full_name?.trim() ||
+        currentMember?.name ||
+        user.email?.split("@")[0] ||
+        "Usuario",
+      partnerFirstName: getFirstName(partnerMember?.name, "Mi pareja"),
+      avatarUrl: profile.avatar_url ?? currentMember?.avatarUrl ?? null,
+      dashboard,
+      coupleExpenses,
+      mySpent,
+      partnerSpent,
+      fundBalance,
+      personalBalance,
+    },
+  };
+}
+
+export async function getDashboardData(): Promise<DashboardData> {
+  const home = await getHomePageData();
+  if (!home.ok) {
     return getFallbackData();
   }
+  return home.data.dashboard;
 }
