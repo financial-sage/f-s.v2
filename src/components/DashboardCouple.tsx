@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-    ArrowUpRight,
     BarChart3,
     Bell,
     Check,
@@ -917,50 +916,32 @@ export default function DashboardCouple({
                     className={`relative mb-3 shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
                     style={animateSharedEntrance ? { animationDelay: "80ms" } : undefined}
                 >
-                    <div className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-surface-lowest/40 p-5 shadow-[0_14px_32px_rgba(43,52,55,0.07)] backdrop-blur-2xl">
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-3">
-                                <div
-                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-                                    style={{ backgroundColor: `${heroColor}22`, color: heroColor }}
-                                >
-                                    <Wallet size={18} />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[11px] font-light text-on-surface-variant">
-                                        Saldo disponible
-                                    </p>
-                                    <p className="truncate text-[15px] font-medium text-on-surface">
-                                        {heroLabel}
-                                    </p>
-                                </div>
+                    <div
+                        className="relative overflow-hidden rounded-[1.85rem] p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl transition-[background] duration-500"
+                        style={{
+                            backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                        }}
+                    >
+                        <div className="relative z-10 flex min-w-0 items-center gap-3">
+                            <div
+                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                                style={{ backgroundColor: `${heroColor}28`, color: heroColor }}
+                            >
+                                <Wallet size={20} />
                             </div>
-                            {isJointModel ? (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowFundsMenu((open) => !open)}
-                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-on-surface text-surface-lowest shadow-sm transition-transform active:scale-95"
-                                    aria-label="Ver fondos"
-                                    title="Ver fondos"
-                                >
-                                    <ArrowUpRight size={17} />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={openBalancesModal}
-                                    disabled={!hasP2PBalance}
-                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-on-surface text-surface-lowest shadow-sm transition-transform active:scale-95 disabled:opacity-40"
-                                    aria-label="Ver saldos"
-                                >
-                                    <ArrowUpRight size={17} />
-                                </button>
-                            )}
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-light text-on-surface-variant">
+                                    Saldo disponible
+                                </p>
+                                <p className="truncate text-base font-medium text-on-surface">
+                                    {heroLabel}
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="mt-5 flex items-center gap-2.5">
+                        <div className="relative z-10 mt-4 flex items-center gap-2.5">
                             <p
-                                className={`text-[2.35rem] font-light leading-none tracking-tight ${
+                                className={`text-[2.65rem] font-light leading-none tracking-tight ${
                                     Math.round((heroBalance || 0) * 100) / 100 < 0
                                         ? "text-red-600"
                                         : "text-on-surface"
@@ -971,14 +952,14 @@ export default function DashboardCouple({
                             <button
                                 type="button"
                                 onClick={() => setBalanceVisible((v) => !v)}
-                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-surface-low"
+                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-white/40"
                                 aria-label={balanceVisible ? "Ocultar saldo" : "Mostrar saldo"}
                             >
-                                {balanceVisible ? <Eye size={17} /> : <EyeOff size={17} />}
+                                {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
                             </button>
                         </div>
 
-                        <div className="mt-5 flex flex-wrap items-center gap-2">
+                        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
                                 onClick={openPersonalDepositModal}
@@ -1012,6 +993,55 @@ export default function DashboardCouple({
                             )}
                         </div>
                     </div>
+                </section>
+
+                <section
+                    className={`relative mb-3 shrink-0 ${animateSharedEntrance ? "animate-in fade-in slide-in-from-bottom-3 duration-700" : ""}`}
+                    style={animateSharedEntrance ? { animationDelay: "160ms" } : undefined}
+                >
+                    <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
+                    <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                            {
+                                key: "personal",
+                                label: "Mi fondo",
+                                icon: Plus,
+                                onClick: openPersonalDepositModal,
+                            },
+                            {
+                                key: "shared",
+                                label: isJointModel ? "Aportar" : "Liquidar",
+                                icon: isJointModel ? Send : Scale,
+                                onClick: isJointModel ? openDepositModal : openBalancesModal,
+                            },
+                            {
+                                key: "collect",
+                                label: fundOwesMe > 0 || hasP2PBalance ? "Cobrar" : "Saldos",
+                                icon: HandCoins,
+                                onClick: openBalancesModal,
+                            },
+                            {
+                                key: "funds",
+                                label: isJointModel ? "Fondos" : "Filtros",
+                                icon: isJointModel ? WalletCards : SlidersHorizontal,
+                                onClick: isJointModel
+                                    ? () => setShowFundsMenu((open) => !open)
+                                    : openFilterModal,
+                            },
+                        ].map(({ key, label, icon: Icon, onClick }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={onClick}
+                                className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
+                            >
+                                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/25 bg-surface-lowest/80 text-on-surface shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md">
+                                    <Icon size={17} strokeWidth={1.7} />
+                                </span>
+                                <span className="text-[10px] font-medium text-on-surface">{label}</span>
+                            </button>
+                        ))}
+                    </div>
 
                     {isJointModel && showFundsMenu && (
                         <>
@@ -1021,7 +1051,7 @@ export default function DashboardCouple({
                                 className="fixed inset-0 z-40 cursor-default"
                                 onClick={() => setShowFundsMenu(false)}
                             />
-                            <div className="absolute right-0 top-14 z-50 w-72 overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-lowest shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="absolute right-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-lowest shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="max-h-64 overflow-y-auto p-2">
                                     {sharedFunds.length === 0 ? (
                                         <p className="px-3 py-2 text-xs text-on-surface-variant">
@@ -1081,55 +1111,6 @@ export default function DashboardCouple({
                             </div>
                         </>
                     )}
-                </section>
-
-                <section
-                    className={`mb-3 shrink-0 ${animateSharedEntrance ? "animate-in fade-in slide-in-from-bottom-3 duration-700" : ""}`}
-                    style={animateSharedEntrance ? { animationDelay: "160ms" } : undefined}
-                >
-                    <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
-                    <div className="grid grid-cols-4 gap-1.5">
-                        {[
-                            {
-                                key: "personal",
-                                label: "Mi fondo",
-                                icon: Plus,
-                                onClick: openPersonalDepositModal,
-                            },
-                            {
-                                key: "shared",
-                                label: isJointModel ? "Aportar" : "Liquidar",
-                                icon: isJointModel ? Send : Scale,
-                                onClick: isJointModel ? openDepositModal : openBalancesModal,
-                            },
-                            {
-                                key: "collect",
-                                label: fundOwesMe > 0 || hasP2PBalance ? "Cobrar" : "Saldos",
-                                icon: HandCoins,
-                                onClick: openBalancesModal,
-                            },
-                            {
-                                key: "funds",
-                                label: isJointModel ? "Fondos" : "Filtros",
-                                icon: isJointModel ? WalletCards : SlidersHorizontal,
-                                onClick: isJointModel
-                                    ? () => setShowFundsMenu((open) => !open)
-                                    : openFilterModal,
-                            },
-                        ].map(({ key, label, icon: Icon, onClick }) => (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={onClick}
-                                className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
-                            >
-                                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/25 bg-surface-lowest/80 text-on-surface shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md">
-                                    <Icon size={17} strokeWidth={1.7} />
-                                </span>
-                                <span className="text-[10px] font-medium text-on-surface">{label}</span>
-                            </button>
-                        ))}
-                    </div>
                 </section>
 
                     {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
@@ -1406,28 +1387,26 @@ export default function DashboardCouple({
                     </div>
 
                     <div
-                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-outline-variant/15 bg-surface-lowest/50 shadow-[0_10px_24px_rgba(43,52,55,0.05)] backdrop-blur-md ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
+                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/40 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-2xl ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "240ms" } : undefined}
                     >
                         {currentList.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full animate-in fade-in duration-1000">
-                                <div className="relative mb-5 flex items-center justify-center">
+                            <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
+                                <div className="relative mb-4 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />
-                                    <div className="absolute inset-0 rounded-full bg-primary opacity-20 animate-pulse" />
-
-                                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-emerald-100/50 bg-emerald-50 text-primary shadow-sm">
-                                        <Receipt size={36} strokeWidth={1.5} />
+                                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-emerald-100/50 bg-white/50 text-primary shadow-sm backdrop-blur-md">
+                                        <Receipt size={28} strokeWidth={1.5} />
                                     </div>
                                 </div>
 
-                                <h4 className="mb-2 text-lg font-bold text-on-surface">Todo está tranquilo</h4>
+                                <h4 className="mb-1 text-base font-medium text-on-surface">Todo está tranquilo</h4>
                                 <p className="max-w-55 text-xs leading-relaxed text-outline-variant">
-                                    Aún no hay movimientos aquí. Usa el botón verde para registrar tu primer gasto.
+                                    Aún no hay movimientos aquí. Usa el botón + para registrar tu primer gasto.
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex h-full flex-col">
-                {currentList.map((expense, index) => {
+                            <div className="flex h-full min-h-0 flex-1 flex-col">
+                                {currentList.map((expense, index) => {
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category);
                                     const Icon = categoryPresentation.icon;
                                     const isDeposit = expense.category === "deposit";
@@ -1445,29 +1424,28 @@ export default function DashboardCouple({
                                     return (
                                         <div
                                             key={expense.id}
-                                            className={`relative flex items-stretch overflow-hidden border-b border-outline-variant/15 last:border-0 bg-surface-lowest group animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both ${currentList.length >= 5 ? "flex-1" : ""
-                                                }`}
-                                            style={{ animationDelay: `${index * 100}ms` }}
+                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-white/40 last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                                            style={{ animationDelay: `${index * 60}ms` }}
                                         >
                                             <button
                                                 type="button"
                                                 onClick={() => toggleActions(expense.id)}
-                                                className={`flex w-full items-center justify-between px-3 text-left transition-all duration-300 ease-out ${currentList.length >= 5 ? "h-full" : "py-2"
-                                                    } ${activeActionId === expense.id ? "scale-[1] bg-surface pr-2 inset-shadow-zinc-700" : "scale-100 bg-surface-lowest"
-                                                    }`}
+                                                className={`flex h-full w-full items-center justify-between gap-2.5 px-3.5 text-left transition-colors duration-200 ${
+                                                    activeActionId === expense.id ? "bg-white/40 pr-2" : "bg-transparent"
+                                                }`}
                                             >
-                                                <div className="flex min-w-0 items-center gap-2.5">
-                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-outline-variant/20 bg-emerald-800/10 text-on-surface-variant shadow-sm">
-                                                        <Icon size={14} />
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/50 bg-white/40 text-on-surface-variant shadow-sm backdrop-blur-md">
+                                                        <Icon size={15} />
                                                     </div>
 
-                                                    <div className="flex min-w-0 flex-col">
-                                                        <span className="truncate text-[13px] font-medium text-on-surface">
+                                                    <div className="flex min-w-0 flex-col justify-center gap-0.5">
+                                                        <span className="truncate text-[15px] font-medium leading-tight text-on-surface">
                                                             {expense.concept}
                                                         </span>
-                                                        <div className="mt-0.5 flex items-center gap-1.5">
-                                                            <span className="text-[9px] font-medium uppercase tracking-wide text-outline-variant">
-                                                                {formatExpenseDate(expense.expense_date || expense.created_at)} • {expense.paid_by === currentUserId ? 'TÚ' : partnerShortLabel}
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-outline-variant">
+                                                                {formatExpenseDate(expense.expense_date || expense.created_at)} · {expense.paid_by === currentUserId ? "TÚ" : partnerShortLabel}
                                                             </span>
                                                             {isDebt && (
                                                                 <ExpenseDebtStatus
@@ -1484,7 +1462,7 @@ export default function DashboardCouple({
                                                     </div>
                                                 </div>
 
-                                                <span className={`shrink-0 text-sm font-medium ${isDeposit ? "text-primary" : "text-on-surface"}`}>
+                                                <span className={`shrink-0 text-[15px] font-medium ${isDeposit ? "text-primary" : "text-on-surface"}`}>
                                                     {isDeposit ? "+" : "-"}${Number(expense.amount).toFixed(2)}
                                                 </span>
                                             </button>

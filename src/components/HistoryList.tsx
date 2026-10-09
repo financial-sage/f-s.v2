@@ -254,14 +254,14 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         return (
             <div
                 key={expense.id}
-                className="group relative flex items-stretch overflow-hidden border-b border-outline-variant/15 last:border-0 bg-surface-lowest animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                className="group relative flex items-stretch overflow-hidden border-b border-white/40 last:border-0 bg-transparent animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
             >
                 <button
                     type="button"
                     onClick={() => setActiveActionId((prev) => (prev === expense.id ? null : expense.id))}
                     className={`flex w-full items-center justify-between px-3 py-2 text-left transition-all duration-300 ease-out ${
-                        activeActionId === expense.id ? "bg-surface pr-2" : "bg-surface-lowest"
+                        activeActionId === expense.id ? "bg-white/40 pr-2" : "bg-transparent"
                     }`}
                 >
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -483,7 +483,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                     {label}
                                 </span>
                             </div>
-                            <div className="overflow-hidden rounded-3xl border border-outline-variant/15 bg-surface-lowest/75 shadow-[0_10px_24px_rgba(43,52,55,0.05)] backdrop-blur-md">
+                            <div className="overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/45 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-2xl">
                                 {items.map((expense, index) => renderExpenseCard(expense, index))}
                             </div>
                         </section>
