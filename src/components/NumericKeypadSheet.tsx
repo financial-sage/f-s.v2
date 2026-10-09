@@ -40,11 +40,11 @@ export function NumericKeypadSheet({
 
   return createPortal(
     <div className="fixed inset-0 z-[200]">
-      <div className="absolute inset-0 bg-on-surface/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-[201] overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] animate-in slide-in-from-bottom-full duration-300">
+      <div className="absolute inset-0 bg-on-surface/45 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-[201] overflow-hidden rounded-t-[2rem] border border-white/55 bg-white/55 shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl animate-in slide-in-from-bottom-full duration-300">
         <div className="mx-auto flex w-full max-w-md flex-col">
           <div className="flex justify-center pt-3 pb-1">
-            <div className="h-1 w-10 rounded-full bg-outline-variant/40" />
+            <div className="h-1 w-10 rounded-full bg-outline-variant/35" />
           </div>
 
           <div className="relative flex items-start justify-between gap-3 px-5 pb-2 pt-1">
@@ -53,7 +53,7 @@ export function NumericKeypadSheet({
                 <h4 className="text-base font-medium tracking-tight text-on-surface">{title}</h4>
               ) : null}
               {subtitle ? (
-                <div className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/60 bg-white/55 px-2.5 py-1 shadow-sm backdrop-blur-md">
+                <div className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/60 bg-white/45 px-2.5 py-1 shadow-sm backdrop-blur-md">
                   <span
                     className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
                     style={{ backgroundColor: accentColor }}
@@ -71,7 +71,7 @@ export function NumericKeypadSheet({
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-4 top-1 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+              className="absolute right-4 top-1 flex h-9 w-9 items-center justify-center rounded-full border border-white/50 bg-white/60 text-on-surface-variant shadow-sm backdrop-blur-md transition-colors hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
               aria-label="Cerrar"
             >
               <X size={16} />

@@ -56,7 +56,7 @@ function keyClass(kind: "digit" | "op" | "danger" = "digit") {
   if (kind === "danger") {
     return `${base} bg-white/55 text-rose-500 backdrop-blur-sm`;
   }
-  return `${base} bg-white/80 text-on-surface backdrop-blur-sm`;
+  return `${base} bg-white/50 text-on-surface backdrop-blur-md`;
 }
 
 export default function CustomNumpad({
