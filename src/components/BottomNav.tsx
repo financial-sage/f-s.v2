@@ -95,7 +95,12 @@ export default function BottomNav({
         </div>
       </nav>
 
-      <Sheet open={isExpenseModalOpen} onClose={closeExpenseSheet} title="Agregar gasto">
+      <Sheet
+        open={isExpenseModalOpen}
+        onClose={closeExpenseSheet}
+        title="Agregar gasto"
+        closeOnBackdrop={false}
+      >
         <AddExpenseForm
           familyId={familyId ?? "unknown"}
           expenseToEdit={expenseToEdit}

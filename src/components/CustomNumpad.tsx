@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, Delete, Divide, Equal, Plus, Shapes, X } from "lucide-react";
+import { Check, Delete, Divide, Equal, Plus, Shapes, X } from "lucide-react";
 
 interface CustomNumpadProps {
   isOpen: boolean;
@@ -12,13 +12,8 @@ interface CustomNumpadProps {
   embedded?: boolean;
   embeddedStyle?: "card" | "flat";
   showDisplay?: boolean;
+  accentColor?: string;
 }
-
-const operatorMap: Record<string, string> = {
-  "×": "*",
-  "÷": "/",
-  ",": ".",
-};
 
 function normalizeExpression(expression: string) {
   return expression
@@ -52,6 +47,18 @@ function safeEvaluate(expression: string) {
   return String(Number(result.toFixed(2)));
 }
 
+function keyClass(kind: "digit" | "op" | "danger" = "digit") {
+  const base =
+    "flex h-[3.6rem] items-center justify-center rounded-2xl text-[1.35rem] font-medium shadow-[0_4px_12px_rgba(43,52,55,0.05)] transition-all active:scale-95";
+  if (kind === "op") {
+    return `${base} bg-white/55 text-primary backdrop-blur-sm`;
+  }
+  if (kind === "danger") {
+    return `${base} bg-white/55 text-rose-500 backdrop-blur-sm`;
+  }
+  return `${base} bg-white/80 text-on-surface backdrop-blur-sm`;
+}
+
 export default function CustomNumpad({
   isOpen,
   initialValue,
@@ -61,6 +68,7 @@ export default function CustomNumpad({
   embedded = false,
   embeddedStyle = "card",
   showDisplay = true,
+  accentColor = "#4A6549",
 }: CustomNumpadProps) {
   const [expression, setExpression] = useState("");
 
@@ -151,88 +159,84 @@ export default function CustomNumpad({
           {!embedded && <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-surface-high" />}
 
           {showDisplay && (
-            <div className={`${embedded ? "mb-3" : "mb-6"} flex flex-col items-end px-4`}>
-              <span className="mb-1 text-[0.6875rem] uppercase tracking-widest text-on-surface-variant">
-                Ingrese el monto
+            <div className={`${embedded ? "mb-4" : "mb-6"} flex flex-col items-center justify-center px-6 text-center`}>
+              <span className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-on-surface-variant">
+                Monto
               </span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-sage text-2xl font-bold">$</span>
-                <span className="text-4xl font-extrabold tracking-tight text-on-surface">
+              <div className="flex min-h-[3.5rem] items-baseline justify-center gap-1.5">
+                <span className="text-2xl font-light" style={{ color: accentColor }}>
+                  $
+                </span>
+                <span className="text-[2.75rem] font-light leading-none tracking-tight text-on-surface">
                   {displayValue}
                 </span>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-5 gap-1 p-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
-            >
+          <div className="grid grid-cols-5 gap-2 px-3 pb-5 pt-1">
+            <button type="button" onClick={onClose} className={keyClass("op")}>
               <X size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("7")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">7</button>
-            <button type="button" onClick={() => appendValue("8")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">8</button>
-            <button type="button" onClick={() => appendValue("9")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">9</button>
-            <button
-              type="button"
-              onClick={handleBackspace}
-              className="row-span-1 flex h-16 items-center justify-center rounded-lg bg-surface-lowest text-red-500 shadow-sm transition-all active:scale-95"
-            >
+            <button type="button" onClick={() => appendValue("7")} className={keyClass()}>
+              7
+            </button>
+            <button type="button" onClick={() => appendValue("8")} className={keyClass()}>
+              8
+            </button>
+            <button type="button" onClick={() => appendValue("9")} className={keyClass()}>
+              9
+            </button>
+            <button type="button" onClick={handleBackspace} className={keyClass("danger")}>
               <Delete size={18} />
             </button>
 
-            <button
-              type="button"
-              onClick={() => appendValue("÷")}
-              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
-            >
+            <button type="button" onClick={() => appendValue("÷")} className={keyClass("op")}>
               <Divide size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("4")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">4</button>
-            <button type="button" onClick={() => appendValue("5")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">5</button>
-            <button type="button" onClick={() => appendValue("6")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">6</button>
-            {/* <button
-              type="button"
-              className="flex h-16 items-center justify-center rounded-xl bg-surface-lowest text-sage shadow-sm transition-all active:scale-95"
-            >
-              <CalendarDays size={18} />
-            </button> */}
+            <button type="button" onClick={() => appendValue("4")} className={keyClass()}>
+              4
+            </button>
+            <button type="button" onClick={() => appendValue("5")} className={keyClass()}>
+              5
+            </button>
+            <button type="button" onClick={() => appendValue("6")} className={keyClass()}>
+              6
+            </button>
 
             <button
               type="button"
               onClick={handleConfirm}
-              className="row-span-3 flex items-center justify-center rounded-xl bg-[#C1E1C1] text-[#4A6549] shadow-lg transition-all active:scale-95"
+              className="row-span-3 flex items-center justify-center rounded-2xl text-white shadow-[0_10px_24px_rgba(43,52,55,0.16)] transition-all active:scale-95"
+              style={{ backgroundColor: accentColor }}
             >
-              {hasPendingOperation ? <Equal size={30} /> : <Check size={30} />}
+              {hasPendingOperation ? <Equal size={28} /> : <Check size={28} />}
             </button>
-            <button
-              type="button"
-              onClick={() => appendValue("×")}
-              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
-            >
+            <button type="button" onClick={() => appendValue("×")} className={keyClass("op")}>
               <X size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("1")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">1</button>
-            <button type="button" onClick={() => appendValue("2")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">2</button>
-            <button type="button" onClick={() => appendValue("3")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">3</button>
+            <button type="button" onClick={() => appendValue("1")} className={keyClass()}>
+              1
+            </button>
+            <button type="button" onClick={() => appendValue("2")} className={keyClass()}>
+              2
+            </button>
+            <button type="button" onClick={() => appendValue("3")} className={keyClass()}>
+              3
+            </button>
 
-            <button
-              type="button"
-              onClick={() => appendValue("+")}
-              className="flex h-16 items-center justify-center rounded-lg bg-surface-container font-bold text-[#4A6549] shadow-sm transition-all active:scale-95"
-            >
+            <button type="button" onClick={() => appendValue("+")} className={keyClass("op")}>
               <Plus size={18} />
             </button>
-            <button
-              type="button"
-              className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest text-sage shadow-sm transition-all active:scale-95"
-            >
+            <button type="button" className={keyClass("op")}>
               <Shapes size={18} />
             </button>
-            <button type="button" onClick={() => appendValue("0")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">0</button>
-            <button type="button" onClick={() => appendValue(",")} className="flex h-16 items-center justify-center rounded-lg bg-surface-lowest font-semibold text-on-surface shadow-sm transition-all active:scale-95">,</button>
+            <button type="button" onClick={() => appendValue("0")} className={keyClass()}>
+              0
+            </button>
+            <button type="button" onClick={() => appendValue(",")} className={keyClass()}>
+              ,
+            </button>
           </div>
 
           {!embedded && <div className="h-6 w-full" />}

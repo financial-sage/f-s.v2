@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import {
@@ -23,9 +24,10 @@ import { listFamilyFundsAction } from "@/app/actions/funds";
 import { getCategoryDetails } from "@/lib/categoryMap";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import {
-    getDefaultSharedFund,
-    isSharedLegacyResponsible,
+    DEFAULT_PERSONAL_FUND_COLOR,
+    getPersonalFund,
     resolveFundColor,
+    resolveFundIdForExpense,
     type FamilyFund,
 } from "@/lib/funds";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -47,16 +49,64 @@ export interface HistoryExpenseRow {
 
 interface Filters {
     timeRange: "all" | "this_month" | "last_month" | "this_year";
-    fundTarget: "all" | "personal" | "joint_fund";
+    /** Empty = all. Values are fund uuids or "personal". */
+    fundIds: string[];
     paidBy: "all" | "me" | "partner";
     status: "all" | "pending" | "settled";
+    movementType: "all" | "deposits" | "expenses";
 }
+
+const DEFAULT_FILTERS: Filters = {
+    timeRange: "all",
+    fundIds: [],
+    paidBy: "all",
+    status: "all",
+    movementType: "all",
+};
 
 function formatCurrency(value: number) {
     const rounded = Math.round((Number(value) || 0) * 100) / 100;
     const normalized = Object.is(rounded, -0) || Math.abs(rounded) < 0.005 ? 0 : rounded;
     const sign = normalized < 0 ? "-" : "";
     return `${sign}$${Math.abs(normalized).toFixed(2)}`;
+}
+
+function StickyDayLabel({
+    label,
+    scrollRoot,
+}: {
+    label: string;
+    scrollRoot: HTMLElement | null;
+}) {
+    const sentinelRef = useRef<HTMLDivElement>(null);
+    const [stuck, setStuck] = useState(false);
+
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel || !scrollRoot) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => setStuck(!entry.isIntersecting),
+            { root: scrollRoot, threshold: 0 }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [scrollRoot, label]);
+
+    return (
+        <>
+            <div ref={sentinelRef} className="h-px w-full" aria-hidden />
+            <div
+                className={`sticky top-0 z-10 py-1.5 transition-[background-color] duration-150 ${
+                    stuck ? "-mx-4 bg-[#e8ede4] px-5" : "bg-transparent px-1"
+                }`}
+            >
+                <span className="text-[11px] font-medium tracking-wide text-on-surface">
+                    {label}
+                </span>
+            </div>
+        </>
+    );
 }
 
 function groupByDate(expenses: HistoryExpenseRow[]): { label: string; items: HistoryExpenseRow[] }[] {
@@ -100,6 +150,8 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const allExpenses = (store.isHydrated ? store.expenses : ssrExpenses) as HistoryExpenseRow[];
     const financialModel = store.isHydrated ? store.financialModel : ssrFinancialModel;
 
+    const [mounted, setMounted] = useState(false);
+    const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null);
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -107,6 +159,10 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
     const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
     const [funds, setFunds] = useState<FamilyFund[]>([]);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -126,8 +182,8 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     // Filter states
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isFilterAnimated, setIsFilterAnimated] = useState(false);
-    const [filters, setFilters] = useState<Filters>({ timeRange: "all", fundTarget: "all", paidBy: "all", status: "all" });
-    const [pendingFilters, setPendingFilters] = useState<Filters>({ timeRange: "all", fundTarget: "all", paidBy: "all", status: "all" });
+    const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+    const [pendingFilters, setPendingFilters] = useState<Filters>(DEFAULT_FILTERS);
 
     const openFilterModal = () => {
         setPendingFilters({ ...filters });
@@ -140,8 +196,9 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     };
     const applyFilters = () => { setFilters({ ...pendingFilters }); closeFilterModal(); };
     const clearFilters = () => {
-        const reset: Filters = { timeRange: "all", fundTarget: "all", paidBy: "all", status: "all" };
-        setPendingFilters(reset); setFilters(reset); closeFilterModal();
+        setPendingFilters(DEFAULT_FILTERS);
+        setFilters(DEFAULT_FILTERS);
+        closeFilterModal();
     };
 
     const toggleAccordion = (label: string) => {
@@ -174,7 +231,6 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         if (!hasPartner) {
             return {
                 ...filters,
-                fundTarget: "personal" as const,
                 paidBy: "me" as const,
                 status: "all" as const,
             };
@@ -184,12 +240,18 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     }, [filters, hasPartner]);
 
     const activeFilterCount = useMemo(() => {
-        if (!hasPartner) {
-            // In solo mode, some filters are forced for correctness but not selectable by the user.
-            return [filters.timeRange, filters.status].filter((v) => v !== "all").length;
+        let count = 0;
+        if (filters.timeRange !== "all") count += 1;
+        if (filters.fundIds.length > 0) count += 1;
+        if (filters.movementType !== "all") count += 1;
+        if (hasPartner) {
+            if (filters.paidBy !== "all") count += 1;
+            if (filters.status !== "all") count += 1;
+        } else if (filters.status !== "all") {
+            // Solo: status forced off in effective, but still count if somehow set
+            count += 0;
         }
-
-        return Object.values(filters).filter((v) => v !== "all").length;
+        return count;
     }, [filters, hasPartner]);
 
     // Balance calculations (cash-flow)
@@ -223,17 +285,67 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                 if (effectiveFilters.timeRange === "last_month") { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); if (d.getMonth() !== lm.getMonth() || d.getFullYear() !== lm.getFullYear()) return false; }
                 if (effectiveFilters.timeRange === "this_year" && d.getFullYear() !== now.getFullYear()) return false;
             }
-            if (effectiveFilters.fundTarget === "personal" && e.responsible_for === "joint_fund") return false;
-            if (effectiveFilters.fundTarget === "joint_fund" && e.responsible_for !== "joint_fund") return false;
+            if (effectiveFilters.fundIds.length > 0) {
+                const resolvedFundId = resolveFundIdForExpense(e, funds, currentUserId);
+                const personalFund = getPersonalFund(funds, currentUserId);
+                const matchesSelected = effectiveFilters.fundIds.some((selectedId) => {
+                    if (selectedId === "personal") {
+                        if (personalFund) return resolvedFundId === personalFund.id;
+                        const matched = resolvedFundId
+                            ? funds.find((f) => f.id === resolvedFundId)
+                            : null;
+                        return !matched || matched.scope !== "shared";
+                    }
+                    return resolvedFundId === selectedId;
+                });
+                if (!matchesSelected) return false;
+            }
             if (effectiveFilters.paidBy === "me" && e.paid_by !== currentUserId) return false;
             if (effectiveFilters.paidBy === "partner" && (e.paid_by === currentUserId || e.paid_by === "joint_fund")) return false;
             if (effectiveFilters.status === "pending" && e.is_settled) return false;
             if (effectiveFilters.status === "settled" && !e.is_settled) return false;
+            if (effectiveFilters.movementType === "deposits" && e.category !== "deposit") return false;
+            if (effectiveFilters.movementType === "expenses" && e.category === "deposit") return false;
             return true;
         });
-    }, [allExpenses, effectiveFilters, currentUserId]);
+    }, [allExpenses, effectiveFilters, currentUserId, funds]);
 
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
+
+    const sharedFunds = useMemo(
+        () => funds.filter((f) => f.scope === "shared").sort((a, b) => a.sort_order - b.sort_order),
+        [funds]
+    );
+    const personalFund = useMemo(
+        () => getPersonalFund(funds, currentUserId),
+        [funds, currentUserId]
+    );
+
+    const fundFilterOptions = useMemo(() => {
+        const options: { v: string; l: string; color: string | null }[] = [];
+        for (const fund of sharedFunds) {
+            options.push({
+                v: fund.id,
+                l: fund.name,
+                color: resolveFundColor(fund),
+            });
+        }
+        options.push({
+            v: personalFund?.id ?? "personal",
+            l: "Mi fondo",
+            color: personalFund ? resolveFundColor(personalFund) : DEFAULT_PERSONAL_FUND_COLOR,
+        });
+        return options;
+    }, [sharedFunds, personalFund]);
+
+    const toggleFundFilter = (fundId: string) => {
+        setPendingFilters((prev) => {
+            const selected = prev.fundIds.includes(fundId)
+                ? prev.fundIds.filter((id) => id !== fundId)
+                : [...prev.fundIds, fundId];
+            return { ...prev, fundIds: selected };
+        });
+    };
 
     const renderExpenseCard = (expense: HistoryExpenseRow, index: number) => {
         const { icon: Icon } = getCategoryDetails(expense.category ?? "");
@@ -245,11 +357,13 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
             (!expense.is_settled || expense.category === 'deposit') &&
             expense.concept !== 'Reembolso del fondo' &&
             !isFundSettlementConcept(expense.concept);
-        const debtFund =
-            funds.find((f) => f.id === expense.fund_id) ??
-            (isSharedLegacyResponsible(expense.responsible_for)
-                ? getDefaultSharedFund(funds)
-                : null);
+        const expenseFundId = resolveFundIdForExpense(expense, funds, currentUserId);
+        const expenseFund = expenseFundId
+            ? funds.find((f) => f.id === expenseFundId) ?? null
+            : null;
+        const iconColor = expenseFund
+            ? resolveFundColor(expenseFund)
+            : DEFAULT_PERSONAL_FUND_COLOR;
 
         return (
             <div
@@ -265,7 +379,15 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                     }`}
                 >
                     <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-outline-variant/20 bg-emerald-800/10 text-on-surface-variant shadow-sm">
+                        <div
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm"
+                            style={{
+                                backgroundColor: `${iconColor}18`,
+                                borderColor: `${iconColor}35`,
+                                color: iconColor,
+                            }}
+                            title={expenseFund?.name ?? "Mi fondo"}
+                        >
                             <Icon size={14} />
                         </div>
                         <div className="flex min-w-0 flex-col">
@@ -277,11 +399,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                     {paidByLabel}
                                 </span>
                                 {isDebt && (
-                                    <ExpenseDebtStatus
-                                        isSettled={!!expense.is_settled}
-                                        fundColor={debtFund ? resolveFundColor(debtFund) : null}
-                                        fundName={debtFund?.name}
-                                    />
+                                    <ExpenseDebtStatus isSettled={!!expense.is_settled} />
                                 )}
                             </div>
                         </div>
@@ -447,7 +565,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                 </div>
             </div>
 
-            <main className="flex-1 overflow-y-auto px-4 pb-32">
+            <main ref={setScrollRoot} className="flex-1 overflow-y-auto px-4 pb-32">
                 {groups.length === 0 ? (
                     <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pt-20 text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-lowest/80 shadow-sm">
@@ -461,14 +579,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                         {activeFilterCount > 0 && (
                             <button
                                 type="button"
-                                onClick={() =>
-                                    setFilters({
-                                        timeRange: "all",
-                                        fundTarget: "all",
-                                        paidBy: "all",
-                                        status: "all",
-                                    })
-                                }
+                                onClick={() => setFilters(DEFAULT_FILTERS)}
                                 className="rounded text-xs font-medium text-on-surface underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                             >
                                 Limpiar filtros
@@ -478,11 +589,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                 ) : (
                     groups.map(({ label, items }) => (
                         <section key={label} className="mb-2">
-                            <div className="sticky top-0 z-10 px-1 py-1">
-                                <span className="text-[11px] font-medium tracking-wide text-on-surface">
-                                    {label}
-                                </span>
-                            </div>
+                            <StickyDayLabel label={label} scrollRoot={scrollRoot} />
                             <div className="overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/45 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-2xl">
                                 {items.map((expense, index) => renderExpenseCard(expense, index))}
                             </div>
@@ -491,137 +598,312 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                 )}
             </main>
 
-            {/* Filter Bottom Sheet */}
-            {isFilterModalOpen && (
-                <div className="fixed inset-0 z-100 flex items-end justify-center">
-                    <div
-                        className={`absolute inset-0 bg-on-surface/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterAnimated ? "opacity-100" : "opacity-0"}`}
-                        onClick={closeFilterModal}
-                    />
-                    <div className={`relative w-full max-w-lg rounded-t-3xl bg-surface-lowest px-5 pt-4 pb-8 shadow-2xl transition-transform duration-300 ease-out ${isFilterAnimated ? "translate-y-0" : "translate-y-full"}`}>
-                        {/* Handle */}
-                        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-surface-container" />
-                        <div className="flex items-center justify-between mb-5">
-                            <h2 className="text-base font-bold text-on-surface">Filtros</h2>
-                            <button type="button" onClick={closeFilterModal} className="text-outline-variant hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 rounded-full p-1">
-                                <X size={20} />
-                            </button>
-                        </div>
+            {mounted &&
+                createPortal(
+                    <>
+                        {/* Filter Bottom Sheet */}
+                        {isFilterModalOpen && (
+                            <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+                                <div
+                                    className={`absolute inset-0 bg-on-surface/50 backdrop-blur-sm transition-opacity duration-300 ${
+                                        isFilterAnimated ? "opacity-100" : "opacity-0"
+                                    }`}
+                                    onClick={closeFilterModal}
+                                />
+                                <div
+                                    className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                        isFilterAnimated
+                                            ? "translate-y-0 opacity-100"
+                                            : "translate-y-full opacity-0"
+                                    }`}
+                                >
+                                    <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-outline-variant/40" />
 
-                        <div className="space-y-5 overflow-y-auto max-h-96">
-                            {/* Período */}
-                            <div>
-                                <p className="text-xs font-normal uppercase tracking-widest text-outline-variant mb-2">Período</p>
-                                <div className="ml-1 flex flex-wrap gap-2">
-                                    {[{ v: "all", l: "Todo" }, { v: "this_month", l: "Este mes" }, { v: "last_month", l: "Mes pasado" }, { v: "this_year", l: "Este año" }].map(({ v, l }) => (
-                                        <button key={v} type="button"
-                                            onClick={() => setPendingFilters((f) => ({ ...f, timeRange: v as Filters["timeRange"] }))}
-                                            className={`px-3 py-1.5 rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${pendingFilters.timeRange === v ? "bg-primary/70 text-on-primary font-bold shadow-md ring-2 ring-primary/20 ring-offset-1" : "bg-surface-low border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container"}`}
-                                        >{l}</button>
-                                    ))}
-                                </div>
-                            </div>
+                                    <div className="relative flex shrink-0 items-center justify-center px-5 pb-2 pt-3">
+                                        <h2 className="text-base font-medium tracking-tight text-on-surface">
+                                            Filtros
+                                        </h2>
+                                        <button
+                                            type="button"
+                                            onClick={closeFilterModal}
+                                            className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                                            aria-label="Cerrar"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
 
-                            {/* Bolsillo destino */}
-                            <div>
-                                <p className="text-xs font-normal uppercase tracking-widest text-outline-variant mb-2">Bolsillo</p>
-                                <div className="ml-1 flex flex-wrap gap-2">
-                                    {[
-                                        { v: "all", l: "Todos" },
-                                        { v: "personal", l: hasPartner ? "Personal" : "Mi fondo" },
-                                        ...(hasPartner ? [{ v: "joint_fund", l: "Fondo Común" }] : []),
-                                    ].map(({ v, l }) => (
-                                        <button key={v} type="button"
-                                            onClick={() => setPendingFilters((f) => ({ ...f, fundTarget: v as Filters["fundTarget"] }))}
-                                            className={`px-3 py-1.5 rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${pendingFilters.fundTarget === v ? "bg-primary/70 text-on-primary font-bold shadow-md ring-2 ring-primary/20 ring-offset-1" : "bg-surface-low border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container"}`}
-                                        >{l}</button>
-                                    ))}
-                                </div>
-                            </div>
+                                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-3">
+                                        <div>
+                                            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                                                Tipo
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {[
+                                                    { v: "all", l: "Todos" },
+                                                    { v: "expenses", l: "Gastos" },
+                                                    { v: "deposits", l: "Aportes" },
+                                                ].map(({ v, l }) => {
+                                                    const isActive = pendingFilters.movementType === v;
+                                                    return (
+                                                        <button
+                                                            key={v}
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setPendingFilters((f) => ({
+                                                                    ...f,
+                                                                    movementType: v as Filters["movementType"],
+                                                                }))
+                                                            }
+                                                            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                                                                isActive
+                                                                    ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
+                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                            }`}
+                                                        >
+                                                            {l}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
 
-                            {/* Pagado por */}
-                            {hasPartner ? (
-                                <div>
-                                    <p className="text-xs font-normal uppercase tracking-widest text-outline-variant mb-2">Pagado por</p>
-                                    <div className="ml-1 flex flex-wrap gap-2">
-                                        {[{ v: "all", l: "Cualquiera" }, { v: "me", l: "Yo" }, { v: "partner", l: partnerName }].map(({ v, l }) => (
-                                            <button key={v} type="button"
-                                                onClick={() => setPendingFilters((f) => ({ ...f, paidBy: v as Filters["paidBy"] }))}
-                                                className={`px-3 py-1.5 rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${pendingFilters.paidBy === v ? "bg-primary/70 text-on-primary font-bold shadow-md ring-2 ring-primary/20 ring-offset-1" : "bg-surface-low border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container"}`}
-                                            >{l}</button>
-                                        ))}
+                                        <div>
+                                            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                                                Período
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {[
+                                                    { v: "all", l: "Todo" },
+                                                    { v: "this_month", l: "Este mes" },
+                                                    { v: "last_month", l: "Mes pasado" },
+                                                    { v: "this_year", l: "Este año" },
+                                                ].map(({ v, l }) => {
+                                                    const isActive = pendingFilters.timeRange === v;
+                                                    return (
+                                                        <button
+                                                            key={v}
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setPendingFilters((f) => ({
+                                                                    ...f,
+                                                                    timeRange: v as Filters["timeRange"],
+                                                                }))
+                                                            }
+                                                            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                                                                isActive
+                                                                    ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
+                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                            }`}
+                                                        >
+                                                            {l}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                                                Bolsillo
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setPendingFilters((f) => ({
+                                                            ...f,
+                                                            fundIds: [],
+                                                        }))
+                                                    }
+                                                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                                                        pendingFilters.fundIds.length === 0
+                                                            ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
+                                                            : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                    }`}
+                                                >
+                                                    Todos
+                                                </button>
+                                                {fundFilterOptions.map(({ v, l, color }) => {
+                                                    const isActive = pendingFilters.fundIds.includes(v);
+                                                    return (
+                                                        <button
+                                                            key={v}
+                                                            type="button"
+                                                            onClick={() => toggleFundFilter(v)}
+                                                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                                                                isActive
+                                                                    ? "border border-transparent text-white shadow-sm"
+                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                            }`}
+                                                            style={
+                                                                isActive && color
+                                                                    ? { backgroundColor: color }
+                                                                    : undefined
+                                                            }
+                                                        >
+                                                            {color && !isActive ? (
+                                                                <span
+                                                                    className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
+                                                                    style={{ backgroundColor: color }}
+                                                                    aria-hidden
+                                                                />
+                                                            ) : null}
+                                                            {color && isActive ? (
+                                                                <span
+                                                                    className="h-2 w-2 shrink-0 rounded-full bg-white/90 ring-1 ring-white/40"
+                                                                    aria-hidden
+                                                                />
+                                                            ) : null}
+                                                            {l}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            {pendingFilters.fundIds.length > 0 ? (
+                                                <p className="mt-1.5 text-[10px] text-on-surface-variant">
+                                                    {pendingFilters.fundIds.length} seleccionado
+                                                    {pendingFilters.fundIds.length === 1 ? "" : "s"}
+                                                </p>
+                                            ) : null}
+                                        </div>
+
+                                        {hasPartner ? (
+                                            <div>
+                                                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                                                    Pagado por
+                                                </p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {[
+                                                        { v: "all", l: "Cualquiera" },
+                                                        { v: "me", l: "Yo" },
+                                                        { v: "partner", l: partnerName },
+                                                    ].map(({ v, l }) => {
+                                                        const isActive = pendingFilters.paidBy === v;
+                                                        return (
+                                                            <button
+                                                                key={v}
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setPendingFilters((f) => ({
+                                                                        ...f,
+                                                                        paidBy: v as Filters["paidBy"],
+                                                                    }))
+                                                                }
+                                                                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                                                                    isActive
+                                                                        ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
+                                                                        : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                                }`}
+                                                            >
+                                                                {l}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ) : null}
+
+                                        <div>
+                                            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                                                Estado
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {[
+                                                    { v: "all", l: "Todos" },
+                                                    { v: "pending", l: "Pendiente" },
+                                                    { v: "settled", l: "Liquidado" },
+                                                ].map(({ v, l }) => {
+                                                    const isActive = pendingFilters.status === v;
+                                                    return (
+                                                        <button
+                                                            key={v}
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setPendingFilters((f) => ({
+                                                                    ...f,
+                                                                    status: v as Filters["status"],
+                                                                }))
+                                                            }
+                                                            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                                                                isActive
+                                                                    ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
+                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                            }`}
+                                                        >
+                                                            {l}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex shrink-0 gap-2.5 px-5 pb-6 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={clearFilters}
+                                            className="flex-1 rounded-2xl border border-outline-variant/20 bg-white/70 py-2.5 text-sm font-semibold text-on-surface-variant shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                                        >
+                                            Limpiar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={applyFilters}
+                                            className="flex-1 rounded-2xl bg-primary py-2.5 text-sm font-semibold text-on-primary shadow-[0_10px_24px_rgba(43,52,55,0.16)] transition-colors hover:brightness-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                                        >
+                                            Aplicar
+                                        </button>
                                     </div>
                                 </div>
-                            ) : null}
+                            </div>
+                        )}
 
-                            {/* Estado */}
-                            <div>
-                                <p className="text-xs font-normal uppercase tracking-widest text-outline-variant mb-2">Estado</p>
-                                <div className="ml-1 mb-1 flex flex-wrap gap-2">
-                                    {[{ v: "all", l: "Todos" }, { v: "pending", l: "Pendiente" }, { v: "settled", l: "Liquidado" }].map(({ v, l }) => (
-                                        <button key={v} type="button"
-                                            onClick={() => setPendingFilters((f) => ({ ...f, status: v as Filters["status"] }))}
-                                            className={`px-3 py-1.5 rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${pendingFilters.status === v ? "bg-primary/70 text-on-primary font-bold shadow-md ring-2 ring-primary/20 ring-offset-1" : "bg-surface-low border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container"}`}
-                                        >{l}</button>
-                                    ))}
+                        {/* Toast */}
+                        {systemNotification && (
+                            <div className="fixed top-6 left-1/2 z-[110] -translate-x-1/2 animate-in fade-in slide-in-from-top-3 duration-300">
+                                <div className="rounded-2xl bg-on-surface/95 px-5 py-3 text-sm font-medium text-on-primary shadow-xl backdrop-blur-sm">
+                                    {systemNotification}
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        <div className="flex gap-3 mt-6">
-                            <button type="button" onClick={clearFilters} className="flex-1 rounded-xl bg-surface-low py-3 text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25">
-                                Limpiar
-                            </button>
-                            <button type="button" onClick={applyFilters} className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-on-primary hover:brightness-[1.02] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25">
-                                Aplicar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Toast */}
-            {systemNotification && (
-                <div className="fixed top-6 left-1/2 z-200 -translate-x-1/2 animate-in slide-in-from-top-3 fade-in duration-300">
-                    <div className="rounded-2xl bg-on-surface/95 px-5 py-3 text-sm font-medium text-on-primary shadow-xl backdrop-blur-sm">
-                        {systemNotification}
-                    </div>
-                </div>
-            )}
-
-            {/* Delete modal */}
-            {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm" onClick={closeDeleteModal} />
-                    <div className="relative w-full max-w-xs rounded-3xl bg-surface-lowest p-6 text-center shadow-2xl animate-in zoom-in-95 fade-in duration-200">
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
-                            <Trash2 size={24} className="text-rose-500" />
-                        </div>
-                        <h3 className="mb-1 text-base font-bold text-on-surface">Eliminar Movimiento</h3>
-                        <p className="mb-6 text-sm text-on-surface-variant">
-                            ¿Estás seguro? Esta acción no se puede deshacer y ajustará los saldos.
-                        </p>
-                        <div className="flex gap-3">
-                            <button type="button" onClick={closeDeleteModal} disabled={isDeleting}
-                                className="flex-1 rounded-xl bg-surface-low py-3 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-50">
-                                Cancelar
-                            </button>
-                            <button type="button" onClick={handleDeleteConfirm} disabled={isDeleting}
-                                className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-70">
-                                {isDeleting ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                                        </svg>
-                                        Eliminando...
-                                    </span>
-                                ) : "Sí, Eliminar"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                        {/* Delete modal */}
+                        {isDeleteModalOpen && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                <div className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm" onClick={closeDeleteModal} />
+                                <div className="relative z-[1] w-full max-w-xs rounded-3xl bg-surface-lowest p-6 text-center shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
+                                        <Trash2 size={24} className="text-rose-500" />
+                                    </div>
+                                    <h3 className="mb-1 text-base font-bold text-on-surface">Eliminar Movimiento</h3>
+                                    <p className="mb-6 text-sm text-on-surface-variant">
+                                        ¿Estás seguro? Esta acción no se puede deshacer y ajustará los saldos.
+                                    </p>
+                                    <div className="flex gap-3">
+                                        <button type="button" onClick={closeDeleteModal} disabled={isDeleting}
+                                            className="flex-1 rounded-xl bg-surface-low py-3 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-50">
+                                            Cancelar
+                                        </button>
+                                        <button type="button" onClick={handleDeleteConfirm} disabled={isDeleting}
+                                            className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-70">
+                                            {isDeleting ? (
+                                                <span className="flex items-center justify-center gap-2">
+                                                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                                    </svg>
+                                                    Eliminando...
+                                                </span>
+                                            ) : "Sí, Eliminar"}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>,
+                    document.body
+                )}
         </>
     );
 }

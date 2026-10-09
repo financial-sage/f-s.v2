@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
-  ArrowLeft,
-  Bolt,
   CalendarDays,
   CheckCircle2,
   Heart,
@@ -17,7 +15,6 @@ import {
   Wallet,
   X,
   type LucideIcon,
-  Users,
 } from "lucide-react";
 import {
   saveExpenseAction,
@@ -107,24 +104,23 @@ function buildResponsibleOptions(
 function getSelectorClasses(isSelected: boolean, disabled: boolean) {
   if (disabled) {
     return isSelected
-      ? "border border-sage/20 bg-sage/20 text-[#3F593E] shadow-sm opacity-100"
-      : "border border-outline-variant/20 bg-surface-lowest/70 text-outline-variant opacity-60";
+      ? "border border-primary/25 bg-primary/15 text-primary shadow-sm opacity-100"
+      : "border border-outline-variant/20 bg-white/40 text-outline-variant opacity-60";
   }
 
   return isSelected
-    ? "border border-sage/20 bg-sage/20 text-[#3F593E] shadow-sm"
-    : "border border-outline-variant/20 shadow-sm bg-surface-lowest/50 text-on-surface-variant hover:bg-surface-container-lowest";
+    ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
+    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80";
 }
 
 function formatDisplayDate(value: string) {
   if (!value) {
-    return "Selecciona una fecha";
+    return "Fecha";
   }
 
   return new Intl.DateTimeFormat("es-MX", {
-    weekday: "long",
     day: "numeric",
-    month: "long",
+    month: "short",
   }).format(new Date(`${value}T12:00:00`));
 }
 
@@ -564,73 +560,75 @@ export default function AddExpenseForm({
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="flex min-h-dvh flex-col bg-transparent text-on-surface">
-      {/* <header className="sticky top-0 z-50 w-full bg-transparent">
-        <div className="flex w-full items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-[#4A6549] transition-colors hover:bg-surface-low"
-            >
-              <ArrowLeft size={20} />
-            </Link>
-            <h1 className="text-lg font-semibold tracking-tight text-on-surface">Añadir Gasto</h1>
-          </div>
-          <div className="w-10" />
-        </div>
-      </header> */}
+  const selectedFund =
+    sharedFunds.find((fund) => fund.id === selectedFundId) ??
+    getDefaultSharedFund(sharedFunds) ??
+    sharedFunds[0] ??
+    null;
+  const amountAccent =
+    !isSolo && responsibleFor === "joint_fund"
+      ? resolveFundColor(selectedFund)
+      : "#4A6549";
 
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 bg-transparent">
-        <section className="px-1 pt-2">
-          <h1 className="text-lg font-bold text-on-surface">
-            {expenseToEdit ? "Editar Gasto" : "Nuevo Gasto"}
+  return (
+    <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col text-on-surface">
+      <main className="mx-auto flex w-full max-w-lg min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
+        <section className="px-0.5">
+          <h1 className="text-base font-medium tracking-tight text-on-surface">
+            {expenseToEdit ? "Editar gasto" : "Nuevo gasto"}
           </h1>
-          <p className="text-sm text-on-surface-variant">
-            {expenseToEdit ? "Actualiza el movimiento seleccionado." : "Registra un nuevo movimiento."}
+          <p className="text-xs text-on-surface-variant">
+            {expenseToEdit ? "Actualiza el movimiento." : "Registra un nuevo movimiento."}
           </p>
         </section>
 
-        <section className="mt-2 flex flex-col items-center gap-4 rounded-3xl bg-surface-lowest p-4 shadow-sm">
-          <div className="text-center">
-            <span className="text-xs uppercase tracking-wider text-on-surface-variant">
-              Importe del gasto
+        <section
+          className="flex flex-col items-center gap-2.5 rounded-[1.35rem] border border-white/60 p-3.5 shadow-[0_10px_28px_rgba(43,52,55,0.08)] backdrop-blur-md"
+          style={{
+            backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.78) 0%, ${amountAccent}14 55%, ${amountAccent}22 100%)`,
+          }}
+        >
+          <div className="flex w-full flex-col items-center text-center">
+            <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-on-surface-variant">
+              Importe
             </span>
-            <div className="mt-2 flex items-center justify-center">
-              <span className="text-sage text-4xl font-extrabold">$</span>
-              <button
-                type="button"
-                onClick={() => setShowKeypad(true)}
-                className="w-full border-none bg-transparent text-center text-5xl font-extrabold text-on-surface outline-none"
-              >
+            <button
+              type="button"
+              onClick={() => setShowKeypad(true)}
+              className="mt-1 flex items-baseline justify-center gap-1 border-none bg-transparent outline-none"
+            >
+              <span className="text-2xl font-light" style={{ color: amountAccent }}>
+                $
+              </span>
+              <span className="text-[2.55rem] font-light leading-none tracking-tight text-on-surface">
                 {Number.isNaN(parseDecimal(amount)) || parseDecimal(amount) <= 0 ? (
-                  <span className="text-outline-variant">0.00</span>
+                  <span className="text-outline-variant">0,00</span>
                 ) : (
                   parseDecimal(amount).toFixed(2)
                 )}
-              </button>
-            </div>
+              </span>
+            </button>
           </div>
 
-          <div className="flex w-full items-center gap-3 border-t border-outline-variant/20 pt-4">
-            <PencilLine size={16} className="text-outline-variant" />
+          <div className="flex w-full items-center gap-2 border-t border-white/50 pt-2.5">
+            <PencilLine size={15} className="shrink-0 text-outline-variant" />
             <input
               type="text"
               value={concept}
               onChange={(e) => setConcept(e.target.value)}
               placeholder="¿En qué gastaste?"
-              className="focus:outline-none w-full border-none bg-transparent text-sm font-medium text-on-surface placeholder:text-outline-variant focus:ring-0"
+              className="w-full border-none bg-transparent text-sm font-medium text-on-surface outline-none placeholder:text-outline-variant focus:ring-0"
             />
           </div>
         </section>
 
         {!isSolo && (
           <>
-            <section className="px-1 mb-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-outline-variant mb-2 block">
-                PAGADO POR
+            <section className="px-0.5">
+              <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                Pagado por
               </span>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {paidByOptions.map(({ value, label, icon: Icon }) => {
                   const isSelected = paidBy === value;
 
@@ -639,12 +637,12 @@ export default function AddExpenseForm({
                       key={value}
                       type="button"
                       onClick={() => setPaidBy(value)}
-                      className={`flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
+                      className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
                         isSelected,
                         false
                       )}`}
                     >
-                      <Icon size={14} />
+                      <Icon size={13} />
                       {label}
                     </button>
                   );
@@ -652,29 +650,29 @@ export default function AddExpenseForm({
               </div>
 
               {paidBy === "both_split" && (
-                <div className="mt-3 flex gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="mt-2 flex gap-2 animate-in fade-in slide-in-from-top-2">
                   <div className="flex-1">
-                    <label className="text-[10px] font-bold uppercase text-on-surface-variant">Tú pusiste</label>
-                    <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
+                    <label className="text-[10px] font-medium uppercase text-on-surface-variant">Tú</label>
+                    <div className="relative mt-0.5">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">$</span>
                       <input
                         type="number"
                         value={myContribution}
                         onChange={(e) => setMyContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl text-on-surface bg-surface-container py-2 pl-7 pr-3 outline-none border border-outline-variant/40"
+                        className="w-full rounded-xl border border-outline-variant/30 bg-white/70 py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
                         placeholder="0.00"
                       />
                     </div>
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-bold uppercase text-on-surface-variant">{resolvedPartnerFirstName} puso</label>
-                    <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
+                    <label className="text-[10px] font-medium uppercase text-on-surface-variant">{resolvedPartnerFirstName}</label>
+                    <div className="relative mt-0.5">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">$</span>
                       <input
                         type="number"
                         value={partnerContribution}
                         onChange={(e) => setPartnerContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl text-on-surface bg-surface-container py-2 pl-7 pr-3 outline-none border border-outline-variant/40"
+                        className="w-full rounded-xl border border-outline-variant/30 bg-white/70 py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
                         placeholder="0.00"
                       />
                     </div>
@@ -683,11 +681,11 @@ export default function AddExpenseForm({
               )}
             </section>
 
-            <section className="px-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-outline-variant mb-2 block">
-                DESTINO DEL GASTO
+            <section className="px-0.5">
+              <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                Destino
               </span>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {responsibleOptions.map(({ value, label, icon: Icon }) => {
                   const isSelected = responsibleFor === value;
 
@@ -696,12 +694,12 @@ export default function AddExpenseForm({
                       key={value}
                       type="button"
                       onClick={() => setResponsibleFor(value)}
-                      className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
+                      className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
                         isSelected,
                         false
                       )}`}
                     >
-                      <Icon size={14} />
+                      <Icon size={13} />
                       {label}
                     </button>
                   );
@@ -709,78 +707,64 @@ export default function AddExpenseForm({
               </div>
 
               {responsibleFor === "joint_fund" && sharedFunds.length > 0 && (
-                <div className="mt-3">
-                  <span className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-outline-variant">
-                    Bolsillo / fondo
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {sharedFunds.map((fund) => {
-                      const isSelected = selectedFundId === fund.id;
-                      const fundColor = resolveFundColor(fund);
-                      return (
-                        <button
-                          key={fund.id}
-                          type="button"
-                          onClick={() => setSelectedFundId(fund.id)}
-                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                            isSelected
-                              ? "border border-transparent text-white shadow-sm"
-                              : "border border-outline-variant/20 bg-surface-lowest/50 text-on-surface-variant shadow-sm hover:bg-surface-container-lowest"
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {sharedFunds.map((fund) => {
+                    const isSelected = selectedFundId === fund.id;
+                    const fundColor = resolveFundColor(fund);
+                    return (
+                      <button
+                        key={fund.id}
+                        type="button"
+                        onClick={() => setSelectedFundId(fund.id)}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+                          isSelected
+                            ? "border border-transparent text-white shadow-sm"
+                            : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                        }`}
+                        style={isSelected ? { backgroundColor: fundColor } : undefined}
+                      >
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${
+                            isSelected ? "bg-white/90 ring-1 ring-white/40" : "ring-1 ring-black/10"
                           }`}
-                          style={
-                            isSelected
-                              ? { backgroundColor: fundColor }
-                              : undefined
-                          }
-                        >
-                          <span
-                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                              isSelected ? "bg-white/90 ring-1 ring-white/40" : "ring-1 ring-black/10"
-                            }`}
-                            style={
-                              isSelected
-                                ? undefined
-                                : { backgroundColor: fundColor }
-                            }
-                          />
-                          {fund.name}
-                        </button>
-                      );
-                    })}
-                  </div>
+                          style={isSelected ? undefined : { backgroundColor: fundColor }}
+                        />
+                        {fund.name}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </section>
           </>
         )}
 
-        <div className="mt-4 flex flex-col rounded-2xl bg-surface-lowest shadow-sm">
+        <div className="flex overflow-hidden rounded-2xl border border-white/60 bg-white/55 shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md">
           <button
             type="button"
             onClick={openCategorySheet}
-            className="bg-transparent p-4 flex items-center justify-between text-left"
+            className="flex flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left"
           >
-            <span className="text-sm font-semibold text-on-surface">Categoria</span>
-            <span className="flex items-center gap-2 text-sm font-semibold text-on-surface">
-              <SelectedCategoryIcon size={18} className="text-primary" />
-              {selectedCategoryItem.label}
+            <span className="text-[11px] font-medium uppercase tracking-wide text-outline-variant">
+              Categoría
+            </span>
+            <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-on-surface">
+              <SelectedCategoryIcon size={15} style={{ color: amountAccent }} />
+              <span className="truncate">{selectedCategoryItem.label}</span>
             </span>
           </button>
 
-          <div className="h-px w-full bg-surface-low" />
+          <div className="w-px self-stretch bg-outline-variant/20" />
 
           <label
             htmlFor="expense-date"
-            className="bg-transparent p-4 flex items-center justify-between cursor-pointer"
+            className="flex flex-1 cursor-pointer items-center justify-between gap-2 px-3 py-2.5"
           >
-            <div className="flex items-center gap-3">
-              <div className="text-sage flex h-9 w-9 items-center justify-center rounded-full bg-surface-low">
-                <CalendarDays size={18} />
-              </div>
-              <span className="text-sm font-semibold capitalize text-on-surface">{displayDate}</span>
-            </div>
-            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant transition-colors hover:text-[#4A6549]">
-              Cambiar
+            <span className="flex min-w-0 items-center gap-1.5">
+              <CalendarDays size={14} className="shrink-0 text-outline-variant" />
+              <span className="truncate text-sm font-medium capitalize text-on-surface">
+                {displayDate}
+              </span>
             </span>
           </label>
           <input
@@ -792,149 +776,200 @@ export default function AddExpenseForm({
           />
         </div>
 
-       
-
         {errorMessage && (
-          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {errorMessage}
           </div>
         )}
       </main>
 
-      <footer className="sticky bottom-0 bg-transparent p-4 backdrop-blur-md">
+      <footer className="mt-3 shrink-0">
         <button
           type="submit"
           disabled={isSaving}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-sage font-bold text-white shadow-lg transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl font-semibold text-white shadow-[0_10px_24px_rgba(43,52,55,0.16)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+          style={{ backgroundColor: amountAccent }}
         >
           {isSaving ? (
-            <LoaderCircle size={18} className="animate-spin" />
+            <LoaderCircle size={17} className="animate-spin" />
           ) : (
-            <CheckCircle2 size={18} />
+            <CheckCircle2 size={17} />
           )}
-          {isSaving ? (expenseToEdit ? "Actualizando..." : "Guardando...") : (expenseToEdit ? "Actualizar" : "Guardar")}
+          {isSaving
+            ? expenseToEdit
+              ? "Actualizando..."
+              : "Guardando..."
+            : expenseToEdit
+              ? "Actualizar"
+              : "Guardar"}
         </button>
       </footer>
 
-      {isCategorySheetOpen && mounted && (
-        <div className="fixed inset-0 z-90 flex flex-col justify-end">
-          <div
-            className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isSheetAnimated ? "opacity-100" : "opacity-0"}`}
-            onClick={closeCategorySheet}
-          />
-          <div className={`relative bg-surface-lowest rounded-t-[2.5rem] p-6 pb-10 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
-            <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-on-surface/10" />
-            <span className="mb-4 block text-center text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">
-              CATEGORIA
-            </span>
-            <div className="mt-4 flex flex-col gap-6">
-              {/* Categorías activas */}
-              <div className="grid grid-cols-5 gap-y-6 gap-x-2">
-                {activeCategories.slice(0, 10).map((cat) => {
-                  const display = getDisplayForCategory(cat.id);
-                  const Icon = display.icon;
-                  return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategory(cat.id);
-                      closeCategorySheet();
-                    }}
-                    className="flex flex-col items-center gap-2"
-                  >
-                    <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                        selectedCategory === cat.id
-                          ? "bg-primary/20 text-primary border-transparent"
-                          : "bg-surface-lowest border border-outline-variant/40 text-on-surface-variant"
-                      }`}
-                    >
-                      <Icon size={20} strokeWidth={1.5} />
-                    </div>
-                    <span
-                      className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
-                        selectedCategory === cat.id ? "text-primary font-bold" : "text-on-surface-variant"
-                      }`}
-                    >
-                      {display.label}
-                    </span>
-                  </button>
-                  );
-                })}
+      {mounted &&
+        isCategorySheetOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[120] flex flex-col justify-end">
+            <button
+              type="button"
+              aria-label="Cerrar categorías"
+              className={`absolute inset-0 bg-on-surface/50 backdrop-blur-sm transition-opacity duration-300 ${
+                isSheetAnimated ? "opacity-100" : "opacity-0"
+              }`}
+              onClick={closeCategorySheet}
+            />
+            <div
+              className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+              }`}
+            >
+              <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-outline-variant/40" />
+
+              <div className="relative flex shrink-0 items-center justify-center px-5 pb-2 pt-3">
+                <p className="text-base font-medium tracking-tight text-on-surface">Categoría</p>
+                <button
+                  type="button"
+                  onClick={closeCategorySheet}
+                  className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm"
+                  aria-label="Cerrar"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
-              {/* Más categorías (activas) — smooth height + opacity transition */}
-              <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-              }`}>
-                <div className="overflow-hidden">
-                  <div className={`grid grid-cols-5 gap-y-6 gap-x-2 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                    isExpanded ? "translate-y-0 scale-100" : "-translate-y-2 scale-[0.98]"
-                  }`}>
-                    {activeCategories.slice(10).map((cat) => {
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-5 gap-x-2 gap-y-3">
+                    {activeCategories.slice(0, 10).map((cat) => {
                       const display = getDisplayForCategory(cat.id);
                       const Icon = display.icon;
+                      const isSelected = selectedCategory === cat.id;
                       return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedCategory(cat.id);
-                          closeCategorySheet();
-                        }}
-                        className="flex flex-col items-center gap-2"
-                      >
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                            selectedCategory === cat.id
-                              ? "bg-primary/20 text-primary border-transparent"
-                              : "bg-surface-lowest border border-outline-variant/40 text-on-surface-variant"
-                          }`}
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategory(cat.id);
+                            closeCategorySheet();
+                          }}
+                          className="flex flex-col items-center gap-1.5"
                         >
-                          <Icon size={20} strokeWidth={1.5} />
-                        </div>
-                        <span
-                          className={`text-[9px] font-medium tracking-wide truncate w-full text-center ${
-                            selectedCategory === cat.id ? "text-primary font-bold" : "text-on-surface-variant"
-                          }`}
-                        >
-                          {display.label}
-                        </span>
-                      </button>
+                          <div
+                            className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
+                              isSelected
+                                ? "border-transparent text-white shadow-md"
+                                : "border-white/60 bg-white/70 text-on-surface-variant"
+                            }`}
+                            style={isSelected ? { backgroundColor: amountAccent } : undefined}
+                          >
+                            <Icon size={18} strokeWidth={1.6} />
+                          </div>
+                          <span
+                            className={`w-full truncate text-center text-[10px] font-medium tracking-wide ${
+                              isSelected ? "font-semibold text-on-surface" : "text-on-surface-variant"
+                            }`}
+                          >
+                            {display.label}
+                          </span>
+                        </button>
                       );
                     })}
                   </div>
+
+                  <div
+                    className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div
+                        className={`grid grid-cols-5 gap-x-2 gap-y-3 pt-1 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                          isExpanded ? "translate-y-0 scale-100" : "-translate-y-2 scale-[0.98]"
+                        }`}
+                      >
+                        {activeCategories.slice(10).map((cat) => {
+                          const display = getDisplayForCategory(cat.id);
+                          const Icon = display.icon;
+                          const isSelected = selectedCategory === cat.id;
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCategory(cat.id);
+                                closeCategorySheet();
+                              }}
+                              className="flex flex-col items-center gap-1.5"
+                            >
+                              <div
+                                className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
+                                  isSelected
+                                    ? "border-transparent text-white shadow-md"
+                                    : "border-white/60 bg-white/70 text-on-surface-variant"
+                                }`}
+                                style={isSelected ? { backgroundColor: amountAccent } : undefined}
+                              >
+                                <Icon size={18} strokeWidth={1.6} />
+                              </div>
+                              <span
+                                className={`w-full truncate text-center text-[10px] font-medium tracking-wide ${
+                                  isSelected ? "font-semibold text-on-surface" : "text-on-surface-variant"
+                                }`}
+                              >
+                                {display.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {activeCategories.length > 10 && (
+                    <div className="flex justify-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsExpanded((open) => !open)}
+                        className="flex flex-col items-center gap-1.5"
+                      >
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                            isExpanded
+                              ? "rotate-90 scale-105 border-transparent bg-on-surface text-white shadow-md"
+                              : "border-white/60 bg-white/70 text-on-surface-variant"
+                          }`}
+                        >
+                          {isExpanded ? (
+                            <X size={18} strokeWidth={2} />
+                          ) : (
+                            <MoreHorizontal size={18} strokeWidth={1.5} />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[10px] font-medium transition-colors duration-300 ${
+                            isExpanded ? "font-semibold text-on-surface" : "text-on-surface-variant"
+                          }`}
+                        >
+                          {isExpanded ? "Cerrar" : "Más"}
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* "Otros" toggle — always at the bottom */}
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="flex flex-col items-center gap-2"
-                >
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                    isExpanded
-                      ? "bg-on-surface/95 text-white shadow-md rotate-90 scale-105"
-                      : "bg-surface-low text-on-surface-variant hover:bg-surface-container"
-                  }`}>
-                    {isExpanded ? <X size={20} strokeWidth={2} /> : <MoreHorizontal size={20} strokeWidth={1.5} />}
-                  </div>
-                  <span className={`text-[9px] font-medium transition-colors duration-300 ${isExpanded ? "text-on-surface font-bold" : "text-on-surface-variant"}`}>
-                    {isExpanded ? "Cerrar" : "Otros"}
-                  </span>
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       <NumericKeypadSheet
         isOpen={showKeypad}
-        title="IMPORTE DEL GASTO"
+        title="Importe del gasto"
+        subtitle={
+          !isSolo && responsibleFor === "joint_fund"
+            ? selectedFund?.name ?? "Bolsillo"
+            : undefined
+        }
+        accentColor={amountAccent}
         initialValue={amount || "0"}
         onClose={() => setShowKeypad(false)}
         onValueChange={(value) => setAmount(sanitizeDecimalInput(value))}

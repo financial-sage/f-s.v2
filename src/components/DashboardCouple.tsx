@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
     BarChart3,
@@ -54,6 +55,7 @@ import {
     calculateFundCashBalance,
     calculateFundOwesUser,
     FUND_COLOR_OPTIONS,
+    DEFAULT_PERSONAL_FUND_COLOR,
     DEFAULT_SHARED_FUND_COLOR,
     getDefaultSharedFund,
     isSharedLegacyResponsible,
@@ -206,6 +208,11 @@ export default function DashboardCouple({
     const [fundActionError, setFundActionError] = useState("");
     const [isCreatingFund, startCreateFundTransition] = useTransition();
     const [balanceVisible, setBalanceVisible] = useState(true);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -1028,19 +1035,37 @@ export default function DashboardCouple({
                                     ? () => setShowFundsMenu((open) => !open)
                                     : openFilterModal,
                             },
-                        ].map(({ key, label, icon: Icon, onClick }) => (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={onClick}
-                                className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
-                            >
-                                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/25 bg-surface-lowest/80 text-on-surface shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md">
-                                    <Icon size={17} strokeWidth={1.7} />
-                                </span>
-                                <span className="text-[10px] font-medium text-on-surface">{label}</span>
-                            </button>
-                        ))}
+                        ].map(({ key, label, icon: Icon, onClick }) => {
+                            const isAportar = key === "shared" && isJointModel;
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={onClick}
+                                    className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
+                                >
+                                    <span
+                                        className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md transition-[background] duration-500 ${
+                                            isAportar
+                                                ? ""
+                                                : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface"
+                                        }`}
+                                        style={
+                                            isAportar
+                                                ? {
+                                                      backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                                                      color: heroColor,
+                                                      borderColor: heroColor,
+                                                  }
+                                                : undefined
+                                        }
+                                    >
+                                        <Icon size={17} strokeWidth={1.7} />
+                                    </span>
+                                    <span className="text-[10px] font-medium text-on-surface">{label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
 
                     {isJointModel && showFundsMenu && (
@@ -1415,11 +1440,14 @@ export default function DashboardCouple({
                                         (!expense.is_settled || expense.category === 'deposit') &&
                                         expense.concept !== 'Reembolso del fondo' &&
                                         !isFundSettlementConcept(expense.concept);
-                                    const debtFund =
+                                    const expenseFund =
                                         sharedFunds.find((f) => f.id === expense.fund_id) ??
                                         (isSharedLegacyResponsible(expense.responsible_for)
                                             ? getDefaultSharedFund(sharedFunds)
                                             : null);
+                                    const iconColor = expenseFund
+                                        ? resolveFundColor(expenseFund)
+                                        : DEFAULT_PERSONAL_FUND_COLOR;
 
                                     return (
                                         <div
@@ -1435,7 +1463,15 @@ export default function DashboardCouple({
                                                 }`}
                                             >
                                                 <div className="flex min-w-0 items-center gap-3">
-                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/50 bg-white/40 text-on-surface-variant shadow-sm backdrop-blur-md">
+                                                    <div
+                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md"
+                                                        style={{
+                                                            backgroundColor: `${iconColor}18`,
+                                                            borderColor: `${iconColor}35`,
+                                                            color: iconColor,
+                                                        }}
+                                                        title={expenseFund?.name ?? "Mi fondo"}
+                                                    >
                                                         <Icon size={15} />
                                                     </div>
 
@@ -1448,15 +1484,7 @@ export default function DashboardCouple({
                                                                 {formatExpenseDate(expense.expense_date || expense.created_at)} · {expense.paid_by === currentUserId ? "TÚ" : partnerShortLabel}
                                                             </span>
                                                             {isDebt && (
-                                                                <ExpenseDebtStatus
-                                                                    isSettled={!!expense.is_settled}
-                                                                    fundColor={
-                                                                        debtFund
-                                                                            ? resolveFundColor(debtFund)
-                                                                            : null
-                                                                    }
-                                                                    fundName={debtFund?.name}
-                                                                />
+                                                                <ExpenseDebtStatus isSettled={!!expense.is_settled} />
                                                             )}
                                                         </div>
                                                     </div>
@@ -1572,123 +1600,155 @@ export default function DashboardCouple({
                 </div>
             )}
 
-            {showBalances && (
-                <div className="fixed inset-0 z-60 flex flex-col justify-end">
-                    <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isBalancesAnimated ? "opacity-100" : "opacity-0"}`} onClick={() => closeBalancesModal()} />
-                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBalancesAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
-                        <div className="flex justify-center pt-4 pb-2">
-                            <div className="h-1.5 w-12 rounded-full bg-surface-container" />
-                        </div>
-                        <button type="button" onClick={() => closeBalancesModal()} className="absolute top-4 right-6 rounded-full bg-surface p-2 text-outline-variant transition-colors hover:text-on-surface-variant">
-                            <X size={18} />
-                        </button>
-                        <div className="hide-scrollbar overflow-y-auto px-6 pb-8">
-                            <div className="mb-5 flex items-start justify-between gap-4">
-                                <div>
-                                    <h3 className="text-lg font-bold text-on-surface">Saldos Pendientes</h3>
-                                    <p className="text-xs text-on-surface-variant">Gestiona aquí lo que puedes cobrar o pagar.</p>
+            {mounted &&
+                showBalances &&
+                createPortal(
+                    <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+                        <div
+                            className={`absolute inset-0 bg-on-surface/50 backdrop-blur-sm transition-opacity duration-300 ${
+                                isBalancesAnimated ? "opacity-100" : "opacity-0"
+                            }`}
+                            onClick={() => closeBalancesModal()}
+                        />
+                        <div
+                            className={`relative flex max-h-[88dvh] flex-col overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                isBalancesAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+                            }`}
+                        >
+                            <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-outline-variant/40" />
+
+                            <div className="relative flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-3">
+                                <div className="min-w-0 pr-10">
+                                    <h3 className="text-base font-medium tracking-tight text-on-surface">
+                                        Saldos pendientes
+                                    </h3>
+                                    <p className="mt-0.5 text-xs text-on-surface-variant">
+                                        Cobra o paga lo que tengas pendiente.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => closeBalancesModal()}
+                                    className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
+                                    aria-label="Cerrar"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+                                <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/55 shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md divide-y divide-outline-variant/15">
+                                    {fundDebts.map(({ fund, amount }) => {
+                                        const fundColor = resolveFundColor(fund);
+                                        return (
+                                            <div key={fund.id} className="flex items-center justify-between gap-3 px-3.5 py-3">
+                                                <div className="min-w-0">
+                                                    <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-on-surface-variant">
+                                                        <span
+                                                            className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
+                                                            style={{ backgroundColor: fundColor }}
+                                                        />
+                                                        {fund.name} te debe
+                                                    </span>
+                                                    <span className="text-[15px] font-medium text-on-surface">
+                                                        ${amount.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        closeBalancesModal(() => openSettleModal(fund.id));
+                                                    }}
+                                                    disabled={isLiquidating}
+                                                    className="shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold text-white shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                                    style={{ backgroundColor: fundColor }}
+                                                >
+                                                    Cobrar
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {fundDebts.length > 1 && (
+                                        <div className="flex items-center justify-between gap-3 bg-primary/8 px-3.5 py-3">
+                                            <div>
+                                                <span className="block text-[10px] font-medium uppercase tracking-wide text-primary">
+                                                    Total bolsillos
+                                                </span>
+                                                <span className="text-[15px] font-medium text-on-surface">
+                                                    ${fundOwesMe.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    closeBalancesModal(() => openSettleModal("all"));
+                                                }}
+                                                disabled={isLiquidating}
+                                                className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[10px] font-semibold text-on-primary shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                Cobrar todo
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {iOwePartner > 0 && (
+                                        <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                                            <div>
+                                                <span className="block text-[10px] font-medium uppercase tracking-wide text-[#bb1b1b]">
+                                                    Le debes a {partnerDisplayName}
+                                                </span>
+                                                <span className="text-[15px] font-medium text-on-surface">
+                                                    ${iOwePartner.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    closeBalancesModal(() => openPayModal());
+                                                }}
+                                                disabled={isLiquidating}
+                                                className="rounded-full bg-[#bb1b1b] px-3 py-1.5 text-[10px] font-semibold text-white shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                Pagar
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {partnerOwesMe > 0 && (
+                                        <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                                            <div>
+                                                <span className="block text-[10px] font-medium uppercase tracking-wide text-[#0f2d91]">
+                                                    {partnerDisplayName} te debe
+                                                </span>
+                                                <span className="text-[15px] font-medium text-on-surface">
+                                                    ${partnerOwesMe.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    closeBalancesModal(() => openChargeModal());
+                                                }}
+                                                disabled={isLiquidating}
+                                                className="rounded-full bg-[#0f2d91] px-3 py-1.5 text-[10px] font-semibold text-white shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                Cobrar
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {!hasBalances && (
+                                        <div className="px-3.5 py-4 text-sm font-medium text-on-surface-variant">
+                                            No hay saldos pendientes por ahora.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-
-                            <div className="overflow-hidden rounded-2xl border border-outline-variant/20 bg-surface-lowest divide-y divide-outline-variant/20">
-                                {fundDebts.map(({ fund, amount }) => (
-                                    <div key={fund.id} className="flex items-center justify-between gap-3 p-4">
-                                        <div className="min-w-0">
-                                            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
-                                                <span
-                                                    className="h-2 w-2 shrink-0 rounded-full"
-                                                    style={{ backgroundColor: resolveFundColor(fund) }}
-                                                />
-                                                {fund.name} te debe
-                                            </span>
-                                            <span className="text-sm font-bold text-on-surface">
-                                                ${amount.toFixed(2)}
-                                            </span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                closeBalancesModal(() => openSettleModal(fund.id));
-                                            }}
-                                            disabled={isLiquidating}
-                                            className="shrink-0 rounded-full bg-surface-low px-3 py-1.5 text-[10px] font-bold text-on-surface-variant transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            COBRAR
-                                        </button>
-                                    </div>
-                                ))}
-
-                                {fundDebts.length > 1 && (
-                                    <div className="flex items-center justify-between gap-3 bg-primary/5 p-4">
-                                        <div>
-                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-primary">
-                                                Total bolsillos
-                                            </span>
-                                            <span className="text-sm font-bold text-on-surface">
-                                                ${fundOwesMe.toFixed(2)}
-                                            </span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                closeBalancesModal(() => openSettleModal("all"));
-                                            }}
-                                            disabled={isLiquidating}
-                                            className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[10px] font-bold text-on-primary transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            COBRAR TODO
-                                        </button>
-                                    </div>
-                                )}
-
-                                {iOwePartner > 0 && (
-                                    <div className="flex items-center justify-between p-4">
-                                        <div>
-                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-[#bb1b1b]">Le debes a {partnerDisplayName}</span>
-                                            <span className="text-sm font-bold text-on-surface">${iOwePartner.toFixed(2)}</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                closeBalancesModal(() => openPayModal());
-                                            }}
-                                            disabled={isLiquidating}
-                                            className="rounded-full bg-[#bb1b1b]/10 px-3 py-1.5 text-[10px] font-bold text-[#bb1b1b] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            PAGAR
-                                        </button>
-                                    </div>
-                                )}
-
-                                {partnerOwesMe > 0 && (
-                                    <div className="flex items-center justify-between p-4">
-                                        <div>
-                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-[#0f2d91]">{partnerDisplayName} te debe</span>
-                                            <span className="text-sm font-bold text-on-surface">${partnerOwesMe.toFixed(2)}</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                closeBalancesModal(() => openChargeModal());
-                                            }}
-                                            disabled={isLiquidating}
-                                            className="rounded-full bg-secondary/10 px-3 py-1.5 text-[10px] font-bold text-[#0f2d91] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            COBRAR
-                                        </button>
-                                    </div>
-                                )}
-
-                                {!hasBalances && (
-                                    <div className="p-4 text-sm font-medium text-on-surface-variant">
-                                        No hay saldos pendientes por ahora.
-                                    </div>
-                                )}
-                            </div>
                         </div>
-                    </div>
-                </div>
-            )}
+                    </div>,
+                    document.body
+                )}
 
 
             {showCreateFundModal && (
@@ -1784,10 +1844,16 @@ export default function DashboardCouple({
 
             <NumericKeypadSheet
                 isOpen={Boolean(depositTarget)}
-                title={
+                title={depositTarget === "personal" ? "Aportar a mi fondo" : "Aportar al bolsillo"}
+                subtitle={
                     depositTarget === "personal"
-                        ? "APORTAR A MI FONDO"
-                        : `APORTAR A ${(selectedFund?.name ?? "FONDO").toUpperCase()}`
+                        ? "Mi fondo"
+                        : selectedFund?.name ?? "Bolsillo"
+                }
+                accentColor={
+                    depositTarget === "personal"
+                        ? DEFAULT_PERSONAL_FUND_COLOR
+                        : heroColor
                 }
                 initialValue={depositAmount || "0"}
                 errorMessage={depositTarget ? depositError : undefined}
