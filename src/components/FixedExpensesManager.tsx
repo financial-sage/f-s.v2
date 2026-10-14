@@ -534,7 +534,7 @@ export default function FixedExpensesManager() {
         onClose={() => setFormBaseKeypadOpen(false)}
         onValueChange={setFormBase}
         onConfirm={(value) => {
-          setFormBase(value);
+          setFormBase(value ?? formBase);
           setFormBaseKeypadOpen(false);
         }}
       />
