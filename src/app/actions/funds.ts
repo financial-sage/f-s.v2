@@ -520,6 +520,22 @@ export async function transferBetweenFundsAction(input: {
   return { success: true, transferGroupId };
 }
 
+/** Lightweight fund list — no expense scan. Prefer this when balances aren't needed. */
+export async function listFamilyFundsAction() {
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+  const funds = await ensureFamilyFunds(familyId);
+  const defaultShared = getDefaultSharedFund(funds);
+  const fixedFund = getFixedExpensesFund(funds);
+
+  return {
+    funds,
+    personalFundId: getPersonalFund(funds, user.id)?.id ?? null,
+    sharedDefaultFundId: defaultShared?.id ?? null,
+    fixedExpensesFundId: fixedFund?.id ?? null,
+  };
+}
+
 export async function getFundsOverviewAction() {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);

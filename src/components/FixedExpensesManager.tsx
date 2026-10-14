@@ -68,7 +68,8 @@ export default function FixedExpensesManager() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
-  const [formBase, setFormBase] = useState("");
+  const [formBase, setFormBase] = useState("0");
+  const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -142,7 +143,8 @@ export default function FixedExpensesManager() {
   function openCreateForm() {
     setEditingId(null);
     setFormName("");
-    setFormBase("");
+    setFormBase("0");
+    setFormBaseKeypadOpen(false);
     setFormError("");
     setFormOpen(true);
   }
@@ -152,6 +154,7 @@ export default function FixedExpensesManager() {
     setEditingId(item.template.id);
     setFormName(item.template.name);
     setFormBase(String(item.template.base_value));
+    setFormBaseKeypadOpen(false);
     setFormError("");
     setFormOpen(true);
   }
@@ -522,6 +525,20 @@ export default function FixedExpensesManager() {
         onConfirm={(value) => void confirmDeposit(value)}
       />
 
+      <NumericKeypadSheet
+        isOpen={formOpen && formBaseKeypadOpen}
+        title="Valor base"
+        subtitle="Previsión mensual de este gasto"
+        accentColor={ACCENT}
+        initialValue={formBase || "0"}
+        onClose={() => setFormBaseKeypadOpen(false)}
+        onValueChange={setFormBase}
+        onConfirm={(value) => {
+          setFormBase(value);
+          setFormBaseKeypadOpen(false);
+        }}
+      />
+
       {formOpen ? (
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-on-surface/40 backdrop-blur-sm sm:items-center">
           <div className="w-full max-w-md rounded-t-[2rem] border border-white/50 bg-white/90 p-5 shadow-2xl backdrop-blur-xl sm:rounded-[1.85rem]">
@@ -540,14 +557,25 @@ export default function FixedExpensesManager() {
                 placeholder="Luz, agua, gimnasio…"
                 required
               />
-              <Input
-                label="Valor base"
-                value={formBase}
-                onChange={(e) => setFormBase(e.target.value.replace(/[^\d.,]/g, ""))}
-                placeholder="0.00"
-                inputMode="decimal"
-                required
-              />
+              <div className="space-y-2">
+                <p className="ml-1 text-[11px] font-light text-on-surface-variant">Valor base</p>
+                <button
+                  type="button"
+                  onClick={() => setFormBaseKeypadOpen(true)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-outline-variant/30 bg-white/55 px-5 py-3.5 text-left shadow-sm backdrop-blur-sm transition-all hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15"
+                >
+                  <span
+                    className={`text-[15px] font-medium tracking-tight tabular-nums ${
+                      !formBase || formBase === "0"
+                        ? "font-light text-outline-variant"
+                        : "text-on-surface"
+                    }`}
+                  >
+                    {formatCurrency(Number(formBase.replace(",", ".") || 0))}
+                  </span>
+                  <span className="text-[11px] font-medium text-on-surface-variant">Editar</span>
+                </button>
+              </div>
 
               {formError ? (
                 <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700">
@@ -569,7 +597,15 @@ export default function FixedExpensesManager() {
                     Archivar
                   </Button>
                 ) : null}
-                <Button type="button" variant="ghost" className="flex-1" onClick={() => setFormOpen(false)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => {
+                    setFormBaseKeypadOpen(false);
+                    setFormOpen(false);
+                  }}
+                >
                   Cancelar
                 </Button>
                 <Button type="submit" className="flex-1" isLoading={isSaving}>

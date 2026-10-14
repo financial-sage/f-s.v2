@@ -1,9 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { depositToFundAction, ensureFamilyFunds } from "@/app/actions/funds";
-import { calculateFundCashBalance, getFixedExpensesFund } from "@/lib/funds";
+import { ensureFamilyFunds } from "@/app/actions/funds";
+import {
+  calculateFundCashBalance,
+  getFixedExpensesFund,
+  type FamilyFund,
+} from "@/lib/funds";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type {
   FixedExpenseMonthItem,
@@ -122,15 +125,12 @@ async function ensureMonthPayments(
     .filter((p): p is FixedExpensePayment => Boolean(p));
 }
 
-export async function loadFixedExpensesMonthAction(
-  monthKey: string
+async function buildMonthSnapshot(
+  familyId: string,
+  monthKey: string,
+  funds: FamilyFund[]
 ): Promise<FixedExpenseMonthSnapshot> {
-  assertMonthKey(monthKey);
-  const user = await requireUser();
-  const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
-
-  const funds = await ensureFamilyFunds(familyId);
   const fixedFund = getFixedExpensesFund(funds);
 
   const { data: templateRows, error: templateError } = await admin
@@ -193,14 +193,27 @@ export async function loadFixedExpensesMonthAction(
   };
 }
 
+export async function loadFixedExpensesMonthAction(
+  monthKey: string
+): Promise<FixedExpenseMonthSnapshot> {
+  assertMonthKey(monthKey);
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+  const funds = await ensureFamilyFunds(familyId);
+  return buildMonthSnapshot(familyId, monthKey, funds);
+}
+
 export async function createFixedExpenseAction(input: {
   name: string;
   baseValue: number;
   dueDay?: number | null;
-}): Promise<FixedExpenseTemplate> {
+  monthKey: string;
+}): Promise<FixedExpenseMonthSnapshot> {
+  assertMonthKey(input.monthKey);
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
+  const funds = await ensureFamilyFunds(familyId);
 
   const name = input.name.trim();
   const baseValue = Number(input.baseValue);
@@ -215,7 +228,7 @@ export async function createFixedExpenseAction(input: {
       ? null
       : Math.min(28, Math.max(1, Math.round(Number(input.dueDay))));
 
-  const { data, error } = await admin
+  const { error } = await admin
     .from("fixed_expenses")
     .insert({
       family_id: familyId,
@@ -224,14 +237,11 @@ export async function createFixedExpenseAction(input: {
       due_day: dueDay,
       is_active: true,
       sort_order: 100,
-    } as never)
-    .select("*")
-    .single();
+    } as never);
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/fixed-expenses");
-  return mapTemplate(data as Record<string, unknown>);
+  return buildMonthSnapshot(familyId, input.monthKey, funds);
 }
 
 export async function updateFixedExpenseAction(input: {
@@ -239,10 +249,13 @@ export async function updateFixedExpenseAction(input: {
   name: string;
   baseValue: number;
   dueDay?: number | null;
-}): Promise<FixedExpenseTemplate> {
+  monthKey: string;
+}): Promise<FixedExpenseMonthSnapshot> {
+  assertMonthKey(input.monthKey);
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
+  const funds = await ensureFamilyFunds(familyId);
 
   const name = input.name.trim();
   const baseValue = Number(input.baseValue);
@@ -257,7 +270,7 @@ export async function updateFixedExpenseAction(input: {
       ? null
       : Math.min(28, Math.max(1, Math.round(Number(input.dueDay))));
 
-  const { data, error } = await admin
+  const { error } = await admin
     .from("fixed_expenses")
     .update({
       name,
@@ -266,20 +279,34 @@ export async function updateFixedExpenseAction(input: {
       updated_at: new Date().toISOString(),
     } as never)
     .eq("id", input.id)
-    .eq("family_id", familyId)
-    .select("*")
-    .single();
+    .eq("family_id", familyId);
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/fixed-expenses");
-  return mapTemplate(data as Record<string, unknown>);
+  // Keep current-month payment snapshot in sync with the new base when still pending.
+  await admin
+    .from("fixed_expense_payments")
+    .update({
+      base_value_snapshot: baseValue,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq("fixed_expense_id", input.id)
+    .eq("family_id", familyId)
+    .eq("month_key", input.monthKey)
+    .eq("status", "pending");
+
+  return buildMonthSnapshot(familyId, input.monthKey, funds);
 }
 
-export async function deactivateFixedExpenseAction(id: string) {
+export async function deactivateFixedExpenseAction(input: {
+  id: string;
+  monthKey: string;
+}): Promise<FixedExpenseMonthSnapshot> {
+  assertMonthKey(input.monthKey);
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
+  const funds = await ensureFamilyFunds(familyId);
 
   const { error } = await admin
     .from("fixed_expenses")
@@ -287,16 +314,20 @@ export async function deactivateFixedExpenseAction(id: string) {
       is_active: false,
       updated_at: new Date().toISOString(),
     } as never)
-    .eq("id", id)
+    .eq("id", input.id)
     .eq("family_id", familyId);
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/fixed-expenses");
+  return buildMonthSnapshot(familyId, input.monthKey, funds);
 }
 
 /** Real aporte to the fixed-expenses pocket (same as any other fund). */
-export async function depositToFixedExpensesFundAction(amount: number) {
+export async function depositToFixedExpensesFundAction(input: {
+  amount: number;
+  monthKey: string;
+}): Promise<FixedExpenseMonthSnapshot> {
+  assertMonthKey(input.monthKey);
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const funds = await ensureFamilyFunds(familyId);
@@ -307,9 +338,30 @@ export async function depositToFixedExpensesFundAction(amount: number) {
     );
   }
 
-  await depositToFundAction({ fundId: fixedFund.id, amount });
-  revalidatePath("/fixed-expenses");
-  return { success: true as const, fundId: fixedFund.id };
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Ingresa un importe válido.");
+  }
+
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin.from("expenses").insert({
+    family_id: familyId,
+    amount: Number(amount.toFixed(2)),
+    concept: `Aporte a ${fixedFund.name}`,
+    category: "deposit",
+    split_type: "shared_equal",
+    responsible_for: "joint_fund",
+    paid_by: user.id,
+    payer_share_pct: 100,
+    is_settled: true,
+    fund_id: fixedFund.id,
+    paid_from_fund: false,
+    expense_date: new Date().toISOString().slice(0, 10),
+  } as never);
+
+  if (error) throw new Error(error.message);
+
+  return buildMonthSnapshot(familyId, input.monthKey, funds);
 }
 
 export async function markFixedExpensePaidAction(input: {
@@ -393,11 +445,7 @@ export async function markFixedExpensePaidAction(input: {
 
   if (updateError) throw new Error(updateError.message);
 
-  revalidatePath("/fixed-expenses");
-  revalidatePath("/");
-  revalidatePath("/history");
-
-  return loadFixedExpensesMonthAction(input.monthKey);
+  return buildMonthSnapshot(familyId, input.monthKey, funds);
 }
 
 export async function unmarkFixedExpensePaidAction(input: {
@@ -408,6 +456,7 @@ export async function unmarkFixedExpensePaidAction(input: {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
+  const funds = await ensureFamilyFunds(familyId);
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("fixed_expense_payments")
@@ -445,9 +494,5 @@ export async function unmarkFixedExpensePaidAction(input: {
 
   if (updateError) throw new Error(updateError.message);
 
-  revalidatePath("/fixed-expenses");
-  revalidatePath("/");
-  revalidatePath("/history");
-
-  return loadFixedExpensesMonthAction(input.monthKey);
+  return buildMonthSnapshot(familyId, input.monthKey, funds);
 }

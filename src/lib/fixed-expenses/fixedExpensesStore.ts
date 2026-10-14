@@ -88,7 +88,17 @@ export const fixedExpensesStore = {
     return () => subscription.unsubscribe();
   },
 
-  async loadMonth(monthKey: string) {
+  async loadMonth(monthKey: string, options?: { force?: boolean }) {
+    const current = state$.value;
+    if (
+      !options?.force &&
+      current.monthKey === monthKey &&
+      current.snapshot &&
+      !current.isLoading
+    ) {
+      return;
+    }
+
     patch({ monthKey, isLoading: true, error: null });
     try {
       const snapshot = await loadFixedExpensesMonthAction(monthKey);
@@ -104,9 +114,11 @@ export const fixedExpensesStore = {
   async createTemplate(input: { name: string; baseValue: number; dueDay?: number | null }) {
     patch({ isSaving: true, error: null });
     try {
-      await createFixedExpenseAction(input);
-      await this.loadMonth(state$.value.monthKey);
-      patch({ isSaving: false });
+      const snapshot = await createFixedExpenseAction({
+        ...input,
+        monthKey: state$.value.monthKey,
+      });
+      patch({ snapshot, isSaving: false, error: null });
     } catch (err) {
       patch({
         isSaving: false,
@@ -124,9 +136,11 @@ export const fixedExpensesStore = {
   }) {
     patch({ isSaving: true, error: null });
     try {
-      await updateFixedExpenseAction(input);
-      await this.loadMonth(state$.value.monthKey);
-      patch({ isSaving: false });
+      const snapshot = await updateFixedExpenseAction({
+        ...input,
+        monthKey: state$.value.monthKey,
+      });
+      patch({ snapshot, isSaving: false, error: null });
     } catch (err) {
       patch({
         isSaving: false,
@@ -139,9 +153,11 @@ export const fixedExpensesStore = {
   async deactivateTemplate(id: string) {
     patch({ isSaving: true, error: null });
     try {
-      await deactivateFixedExpenseAction(id);
-      await this.loadMonth(state$.value.monthKey);
-      patch({ isSaving: false });
+      const snapshot = await deactivateFixedExpenseAction({
+        id,
+        monthKey: state$.value.monthKey,
+      });
+      patch({ snapshot, isSaving: false, error: null });
     } catch (err) {
       patch({
         isSaving: false,
@@ -154,9 +170,11 @@ export const fixedExpensesStore = {
   async deposit(amount: number) {
     patch({ isSaving: true, error: null });
     try {
-      await depositToFixedExpensesFundAction(amount);
-      await this.loadMonth(state$.value.monthKey);
-      patch({ isSaving: false });
+      const snapshot = await depositToFixedExpensesFundAction({
+        amount,
+        monthKey: state$.value.monthKey,
+      });
+      patch({ snapshot, isSaving: false, error: null });
     } catch (err) {
       patch({
         isSaving: false,

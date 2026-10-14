@@ -38,7 +38,7 @@ import { settleDebt } from "@/app/actions/debt";
 import { createDeposit, createPersonalDeposit, deleteExpenseAction } from "@/app/actions/expenses";
 import {
     createFundAction,
-    getFundsOverviewAction,
+    listFamilyFundsAction,
     updateFundAction,
 } from "@/app/actions/funds";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
@@ -466,7 +466,7 @@ export default function DashboardCouple({
         let cancelled = false;
         (async () => {
             try {
-                const overview = await getFundsOverviewAction();
+                const overview = await listFamilyFundsAction();
                 if (cancelled) return;
                 const shared = listDashboardSharedFunds(overview.funds);
                 setSharedFunds(shared);
@@ -544,7 +544,7 @@ export default function DashboardCouple({
                         name,
                         color: newFundColor,
                     });
-                    const overview = await getFundsOverviewAction();
+                    const overview = await listFamilyFundsAction();
                     const shared = listDashboardSharedFunds(overview.funds);
                     setSharedFunds(shared);
                     if (selectedFundId === updated.id) {
@@ -556,7 +556,7 @@ export default function DashboardCouple({
                         scope: "shared",
                         color: newFundColor,
                     });
-                    const overview = await getFundsOverviewAction();
+                    const overview = await listFamilyFundsAction();
                     const shared = listDashboardSharedFunds(overview.funds);
                     setSharedFunds(shared);
                     setSelectedFundId(created.id);

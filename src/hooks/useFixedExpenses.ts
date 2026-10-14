@@ -30,6 +30,7 @@ export function useFixedExpenses(monthKey: string = getMonthKey()) {
       setTotals(nextTotals);
     });
 
+    // Reuse cached snapshot when bouncing tabs; force only when month changes.
     void fixedExpensesStore.loadMonth(monthKey);
 
     return unsubscribe;
