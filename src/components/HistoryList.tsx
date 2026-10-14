@@ -33,6 +33,7 @@ import {
     type FamilyFund,
 } from "@/lib/funds";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useCurrency } from "@/hooks/useCurrency";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface HistoryExpenseRow {
@@ -65,13 +66,6 @@ const DEFAULT_FILTERS: Filters = {
     status: "all",
     movementType: "all",
 };
-
-function formatCurrency(value: number) {
-    const rounded = Math.round((Number(value) || 0) * 100) / 100;
-    const normalized = Object.is(rounded, -0) || Math.abs(rounded) < 0.005 ? 0 : rounded;
-    const sign = normalized < 0 ? "-" : "";
-    return `${sign}$${Math.abs(normalized).toFixed(2)}`;
-}
 
 function StickyDayLabel({
     label,
@@ -145,6 +139,7 @@ interface HistoryListProps {
 
 export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, partnerName, partnerId, financialModel: ssrFinancialModel }: HistoryListProps) {
     const router = useRouter();
+    const { format: formatCurrency } = useCurrency();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
@@ -435,7 +430,8 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                             isDeposit ? "text-primary" : "text-on-surface"
                         }`}
                     >
-                        {isDeposit ? "+" : "-"}${Number(expense.amount).toFixed(2)}
+                        {isDeposit ? "+" : "-"}
+                        {formatCurrency(Number(expense.amount))}
                     </span>
                 </button>
 

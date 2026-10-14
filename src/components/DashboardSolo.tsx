@@ -28,6 +28,7 @@ import { createPersonalDeposit } from "@/app/actions/expenses";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import ProfileDrawer from "@/components/ProfileDrawer";
+import { useCurrency } from "@/hooks/useCurrency";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
 import { createClient } from "@/utils/supabase/client";
 import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
@@ -67,15 +68,6 @@ function getFirstName(value?: string | null, fallback = "Tú") {
     return firstName || fallback;
 }
 
-function formatCurrency(value: number) {
-    const rounded = Math.round((Number(value) || 0) * 100) / 100;
-    const normalized = Object.is(rounded, -0) || Math.abs(rounded) < 0.005 ? 0 : rounded;
-    return new Intl.NumberFormat("es-MX", {
-        style: "currency",
-        currency: "MXN",
-    }).format(normalized);
-}
-
 export default function DashboardSolo({
     currentUserId,
     familyId,
@@ -87,6 +79,7 @@ export default function DashboardSolo({
 }: DashboardSoloProps) {
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
+    const { format: formatCurrency } = useCurrency();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storePocket = useExpenseStore((s) => s.myAvailableFund);

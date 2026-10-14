@@ -27,12 +27,7 @@ export function formatMonthLabel(monthKey: string) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(value);
-}
+export { formatCurrency } from "@/lib/currency";
 
 export function budgetStorageKey(familyId: string) {
   return `fsage:budget:v1:${familyId}`;

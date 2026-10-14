@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { CurrencySelectRow } from "@/components/CurrencySelectRow";
 import FamilySettings from "@/components/FamilySettings";
 import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -133,7 +134,6 @@ export default async function ProfilePage() {
 
   const preferences = [
     { icon: BellRing, label: "Notificaciones", value: "Activadas" },
-    { icon: Coins, label: "Moneda", value: "MXN ($)" },
     { icon: CircleHelp, label: "Soporte", value: "Disponible" },
     { icon: ShieldCheck, label: "Privacidad", value: "Protegida" },
   ];
@@ -254,6 +254,7 @@ export default async function ProfilePage() {
 
           <div className="divide-y divide-outline-variant/15">
             <ThemeToggleRow />
+            <CurrencySelectRow />
             <Link
               href="/fixed-expenses"
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"

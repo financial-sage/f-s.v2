@@ -5,9 +5,9 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Copy, PencilLine, PiggyBank } from "lucide-react";
 import { useCategories } from "@/hooks/useCategories";
 import { useBudget } from "@/hooks/useBudget";
+import { useCurrency } from "@/hooks/useCurrency";
 import { computeSpendingByCategory, type BudgetExpenseRow } from "@/lib/budgetSpending";
 import {
-  formatCurrency,
   formatMonthLabel,
   getMonthKey,
   shiftMonthKey,
@@ -32,6 +32,7 @@ function getProgressState(spent: number, limit: number) {
 }
 
 export default function BudgetManager({ familyId, initialExpenses }: BudgetManagerProps) {
+  const { format: formatCurrency } = useCurrency();
   const storeExpenses = useExpenseStore((s) => s.expenses);
   const isHydrated = useExpenseStore((s) => s.isHydrated);
 

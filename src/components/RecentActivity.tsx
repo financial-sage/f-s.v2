@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { DashboardTransaction } from "@/lib/dashboard";
+import { formatCurrency } from "@/lib/currency";
 
 interface RecentActivityProps {
   transactions: DashboardTransaction[];
@@ -20,13 +21,6 @@ const iconMap: Record<DashboardTransaction["iconKey"], LucideIcon> = {
   utensils: UtensilsCrossed,
   receipt: ReceiptText,
 };
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-}
 
 export default function RecentActivity({ transactions }: RecentActivityProps) {
   return (

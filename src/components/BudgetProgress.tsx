@@ -1,16 +1,11 @@
+import { formatCurrency } from "@/lib/currency";
+
 interface BudgetProgressProps {
   spent: number;
   budget: number;
   available: number;
   dailyAverage: number;
   monthLabel: string;
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
 }
 
 export default function BudgetProgress({

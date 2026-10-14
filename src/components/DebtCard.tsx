@@ -1,13 +1,7 @@
 import { calculateDebt } from "@/app/actions/debt";
 import LiquidateButton from "@/components/LiquidateButton";
+import { formatCurrency } from "@/lib/currency";
 import { createClient } from "@/utils/supabase/server";
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-}
 
 export default async function DebtCard() {
   const supabase = await createClient();

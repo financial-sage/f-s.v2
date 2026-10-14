@@ -12,14 +12,7 @@ import {
 } from "@/app/actions/funds";
 import type { FamilyFund } from "@/lib/funds";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface FundsPanelProps {
   currentUserId: string;
@@ -27,6 +20,7 @@ interface FundsPanelProps {
 
 export default function FundsPanel({ currentUserId }: FundsPanelProps) {
   const router = useRouter();
+  const { format: formatCurrency } = useCurrency();
   const [funds, setFunds] = useState<FamilyFund[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [error, setError] = useState("");

@@ -13,9 +13,9 @@ import {
   SquarePen,
 } from "lucide-react";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useFixedExpenses } from "@/hooks/useFixedExpenses";
 import {
-  formatCurrency,
   formatMonthLabel,
   getMonthKey,
   shiftMonthKey,
@@ -33,6 +33,7 @@ function progressRatio(spent: number, budget: number) {
 }
 
 export default function FixedExpensesManager() {
+  const { format: formatCurrency } = useCurrency();
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const {
     items,

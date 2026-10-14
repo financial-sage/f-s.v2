@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { joinFamilyWithCode } from "@/app/actions/family";
+import { CurrencySelectRow } from "@/components/CurrencySelectRow";
 import FamilySettings from "@/components/FamilySettings";
 import SignOutButton from "@/components/SignOutButton";
 import { createClient } from "@/utils/supabase/client";
@@ -148,7 +149,6 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
   const preferences = [
     { icon: BellRing, label: "Notificaciones", value: "Activadas" },
-    { icon: Coins, label: "Moneda", value: "MXN ($)" },
     { icon: CircleHelp, label: "Soporte", value: "Disponible" },
     { icon: ShieldCheck, label: "Privacidad", value: "Protegida" },
   ];
@@ -282,6 +282,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
                 <div className="divide-y divide-outline-variant/20">
                   <ThemeToggleRow />
+                  <CurrencySelectRow />
                   <Link
                     href="/categories"
                     onClick={onClose}
