@@ -374,7 +374,7 @@ export default function FixedExpensesManager() {
                     </button>
 
                     <div className="flex shrink-0 items-center gap-1">
-                      {variance > 0 ? (
+                      {isPaid && variance > 0 ? (
                         <ArrowUp
                           size={12}
                           strokeWidth={2.5}
@@ -382,13 +382,21 @@ export default function FixedExpensesManager() {
                           aria-label="Pagado por encima de la base"
                         />
                       ) : null}
-                      {variance < 0 ? (
+                      {isPaid && variance < 0 ? (
                         <ArrowDown
                           size={12}
                           strokeWidth={2.5}
                           className="text-emerald-600"
                           aria-label="Pagado por debajo de la base"
                         />
+                      ) : null}
+                      {isPaid && variance === 0 ? (
+                        <span
+                          className="text-[12px] font-semibold leading-none text-on-surface"
+                          aria-label="Pagado igual a la base"
+                        >
+                          =
+                        </span>
                       ) : null}
                       <span
                         className={`text-[13px] font-light tabular-nums tracking-tight ${

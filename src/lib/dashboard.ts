@@ -1,4 +1,5 @@
 import type { ExpenseSplitType } from "@/lib/expenses";
+import { isPersonalPocketCashOut } from "@/lib/funds";
 import { createClient } from "@/utils/supabase/server";
 
 interface UserRow {
@@ -344,8 +345,11 @@ export function calculatePersonalPocketBalance(
     paid_by: string;
     category?: string | null;
     responsible_for?: string | null;
+    paid_from_fund?: boolean | null;
+    fund_id?: string | null;
   }>,
   userId: string,
+  sharedFundIds?: ReadonlySet<string> | readonly string[],
 ) {
   const income = expenses
     .filter(
@@ -357,12 +361,7 @@ export function calculatePersonalPocketBalance(
     .reduce((s, e) => s + Number(e.amount || 0), 0);
 
   const out = expenses
-    .filter(
-      (e) =>
-        e.paid_by === userId &&
-        e.category !== "deposit" &&
-        e.category !== "withdrawal",
-    )
+    .filter((e) => isPersonalPocketCashOut(e, userId, sharedFundIds))
     .reduce((s, e) => s + Number(e.amount || 0), 0);
 
   return round2(income - out);

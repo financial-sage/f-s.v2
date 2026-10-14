@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createClient } from "@/utils/supabase/client";
+import { isPersonalPocketCashOut } from "@/lib/funds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -100,9 +101,9 @@ function computeBalances(
             )
             .reduce((s, e) => s + Number(e.amount || 0), 0);
 
-        // 2. Salidas de MI fondo: Todos los gastos que yo pagué (que no sean depósitos ni liquidaciones)
+        // 2. Salidas de MI bolsillo personal (no cajas compartidas / gastos fijos)
         const out = expenses
-            .filter((e) => e.paid_by === userId && e.category !== "deposit" && e.category !== "withdrawal")
+            .filter((e) => isPersonalPocketCashOut(e, userId))
             .reduce((s, e) => s + Number(e.amount || 0), 0);
 
         return income - out;

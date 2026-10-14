@@ -58,6 +58,7 @@ import { getCategoryDetails } from "@/lib/categoryMap";
 import {
     calculateFundCashBalance,
     calculateFundOwesUser,
+    isPersonalPocketCashOut,
     FUND_COLOR_OPTIONS,
     DEFAULT_PERSONAL_FUND_COLOR,
     DEFAULT_SHARED_FUND_COLOR,
@@ -373,18 +374,20 @@ export default function DashboardCouple({
                 .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
         [currentUserId, expenses]
     );
-    // Todo el dinero que salió físicamente del bolsillo del usuario (excluye movimientos internos de sistema)
+    const sharedFundIds = useMemo(
+        () => new Set(sharedFunds.map((fund) => fund.id)),
+        [sharedFunds]
+    );
+
+    // Dinero que salió del bolsillo personal (no de cajas compartidas / gastos fijos)
     const moneyOutFromMe = useMemo(
         () =>
             expenses
-                .filter(
-                    (expense) =>
-                        (expense.paid_by || expense.paidBy) === currentUserId &&
-                        expense.category !== "deposit" &&
-                        expense.category !== "withdrawal"
+                .filter((expense) =>
+                    isPersonalPocketCashOut(expense, currentUserId, sharedFundIds)
                 )
                 .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
-        [currentUserId, expenses]
+        [currentUserId, expenses, sharedFundIds]
     );
     // mySpent: solo gastos donde el usuario es responsable, para la barra de progreso
     const mySpent = useMemo(

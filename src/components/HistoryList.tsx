@@ -26,6 +26,7 @@ import type { ExpenseSplitType } from "@/lib/expenses";
 import {
     DEFAULT_PERSONAL_FUND_COLOR,
     getPersonalFund,
+    isPersonalPocketCashOut,
     listVariableSharedFunds,
     resolveFundColor,
     resolveFundIdForExpense,
@@ -267,10 +268,21 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
 
     // Balance calculations (cash-flow)
     const myAvailableFund = useMemo(() => {
-        const income = allExpenses.filter((e) => e.category === "deposit" && (e.responsible_for === currentUserId || e.responsible_for === "mio")).reduce((s, e) => s + Number(e.amount || 0), 0);
-        const out = allExpenses.filter((e) => e.paid_by === currentUserId && e.category !== "deposit" && e.category !== "withdrawal").reduce((s, e) => s + Number(e.amount || 0), 0);
+        const sharedFundIds = new Set(
+            funds.filter((f) => f.scope === "shared" && !f.archived_at).map((f) => f.id)
+        );
+        const income = allExpenses
+            .filter(
+                (e) =>
+                    e.category === "deposit" &&
+                    (e.responsible_for === currentUserId || e.responsible_for === "mio")
+            )
+            .reduce((s, e) => s + Number(e.amount || 0), 0);
+        const out = allExpenses
+            .filter((e) => isPersonalPocketCashOut(e, currentUserId, sharedFundIds))
+            .reduce((s, e) => s + Number(e.amount || 0), 0);
         return income - out;
-    }, [allExpenses, currentUserId]);
+    }, [allExpenses, currentUserId, funds]);
 
     const fundLiquidity = useMemo(() => {
         const income = allExpenses.filter((e) => e.category === "deposit" && e.responsible_for === "joint_fund").reduce((s, e) => s + Number(e.amount || 0), 0);

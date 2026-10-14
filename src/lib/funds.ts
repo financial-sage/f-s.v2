@@ -105,6 +105,44 @@ export function resolveFundIdForExpense(
   return null;
 }
 
+/**
+ * Whether an expense reduced the user's personal pocket cash.
+ * Excludes cash drawn from shared/system pockets (e.g. Gastos fijos),
+ * even if `paid_by` is the user (who only confirmed the payment).
+ */
+export function isPersonalPocketCashOut(
+  expense: Pick<
+    FundExpenseLike,
+    "paid_by" | "category" | "paid_from_fund" | "responsible_for" | "fund_id"
+  > & { paidBy?: string | null },
+  userId: string,
+  sharedFundIds?: ReadonlySet<string> | readonly string[]
+): boolean {
+  const paidBy = expense.paid_by ?? expense.paidBy ?? "";
+  if (paidBy !== userId) return false;
+  if (expense.category === "deposit" || expense.category === "withdrawal") return false;
+  // Always charged to the fixed-expenses shared pocket.
+  if (expense.category === "fixed_expense") return false;
+
+  if (expense.paid_from_fund === true) {
+    const shared =
+      sharedFundIds instanceof Set
+        ? sharedFundIds
+        : sharedFundIds
+          ? new Set(sharedFundIds)
+          : null;
+
+    if (shared && expense.fund_id && shared.has(expense.fund_id)) {
+      return false;
+    }
+    if (isSharedLegacyResponsible(expense.responsible_for)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /** Cash balance of a pocket (caja). */
 export function calculateFundCashBalance(
   expenses: FundExpenseLike[],
