@@ -7,6 +7,7 @@ import {
   markFixedExpensePaidAction,
   unmarkFixedExpensePaidAction,
   updateFixedExpenseAction,
+  updateFixedExpensePaidAction,
 } from "@/app/actions/fixedExpenses";
 import type {
   FixedExpenseDerivedTotals,
@@ -184,19 +185,39 @@ export const fixedExpensesStore = {
     }
   },
 
-  async markPaid(paymentId: string, realValue: number) {
+  async markPaid(paymentId: string, realValue: number, paidDate?: string) {
     patch({ isSaving: true, error: null });
     try {
       const snapshot = await markFixedExpensePaidAction({
         paymentId,
         realValue,
         monthKey: state$.value.monthKey,
+        paidDate,
       });
       patch({ snapshot, isSaving: false, error: null });
     } catch (err) {
       patch({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo marcar como pagado.",
+      });
+      throw err;
+    }
+  },
+
+  async updatePaid(paymentId: string, realValue: number, paidDate: string) {
+    patch({ isSaving: true, error: null });
+    try {
+      const snapshot = await updateFixedExpensePaidAction({
+        paymentId,
+        realValue,
+        paidDate,
+        monthKey: state$.value.monthKey,
+      });
+      patch({ snapshot, isSaving: false, error: null });
+    } catch (err) {
+      patch({
+        isSaving: false,
+        error: err instanceof Error ? err.message : "No se pudo actualizar el pago.",
       });
       throw err;
     }

@@ -524,7 +524,7 @@ export default function DashboardSolo({
                                                     onClick={(event) => {
                                                         event.stopPropagation();
                                                     }}
-                                                    className="flex-1 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 bg-rose-50/30 transition-colors"
+                                                    className="flex-1 flex items-center justify-center bg-error/15 text-error transition-colors hover:bg-error/25"
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>

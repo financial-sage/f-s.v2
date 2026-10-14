@@ -176,7 +176,7 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
       </div>
 
       {error && (
-        <div className="mb-3 rounded-2xl bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+        <div className="alert-error mb-3 rounded-2xl px-3 py-2 text-xs">{error}</div>
       )}
 
       <div className="space-y-2">

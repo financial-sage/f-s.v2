@@ -805,7 +805,7 @@ export default function AddExpenseForm({
         </div>
 
         {errorMessage && (
-          <div className="rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          <div className="alert-error rounded-xl px-3 py-2 text-xs">
             {errorMessage}
           </div>
         )}

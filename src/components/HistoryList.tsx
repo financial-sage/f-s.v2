@@ -465,7 +465,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                     openDeleteModal(expense.id);
                                     setActiveActionId(null);
                                 }}
-                                className="flex-1 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 bg-rose-50/30 transition-colors"
+                                className="flex-1 flex items-center justify-center bg-error/15 text-error transition-colors hover:bg-error/25"
                             >
                                 <Trash2 size={16} />
                             </button>
@@ -893,9 +893,9 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                         {isDeleteModalOpen && (
                             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                                 <div className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm" onClick={closeDeleteModal} />
-                                <div className="relative z-[1] w-full max-w-xs rounded-3xl bg-surface-lowest p-6 text-center shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
-                                        <Trash2 size={24} className="text-rose-500" />
+                                <div className="relative z-[1] w-full max-w-xs rounded-3xl border border-glass-border bg-glass-strong p-6 text-center shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="modal-danger-icon mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full">
+                                        <Trash2 size={24} />
                                     </div>
                                     <h3 className="mb-1 text-base font-bold text-on-surface">Eliminar Movimiento</h3>
                                     <p className="mb-6 text-sm text-on-surface-variant">
@@ -907,7 +907,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                             Cancelar
                                         </button>
                                         <button type="button" onClick={handleDeleteConfirm} disabled={isDeleting}
-                                            className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-70">
+                                            className="flex-1 rounded-xl bg-rose-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-70">
                                             {isDeleting ? (
                                                 <span className="flex items-center justify-center gap-2">
                                                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">

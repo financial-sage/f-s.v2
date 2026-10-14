@@ -154,7 +154,7 @@ export default function FamilySettings({
           />
 
           <div
-            className={`relative rounded-t-[2rem] border border-glass-border bg-glass-strong p-5 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+            className={`relative rounded-t-[2rem] border border-glass-border glass-sheet p-5 backdrop-blur-xl transition-all duration-300 ${
               isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
             }`}
           >
@@ -240,7 +240,7 @@ export default function FamilySettings({
             {message ? (
               <div
                 className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
-                  isError ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                  isError ? "alert-error" : "alert-success"
                 }`}
               >
                 {message}

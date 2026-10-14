@@ -33,6 +33,23 @@ function progressRatio(spent: number, budget: number) {
   return Math.min(1, spent / budget);
 }
 
+function defaultPayDate(monthKey: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (monthKey === getMonthKey()) return today;
+  const day = Math.min(Number(today.slice(8, 10)) || 1, 28);
+  return `${monthKey}-${String(day).padStart(2, "0")}`;
+}
+
+function formatPaidDate(paidAt: string | null) {
+  if (!paidAt) return null;
+  const dayKey = paidAt.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) return null;
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(`${dayKey}T12:00:00`));
+}
+
 export default function FixedExpensesManager() {
   const { format: formatCurrency } = useCurrency();
   const [monthKey, setMonthKey] = useState(getMonthKey());
@@ -47,11 +64,14 @@ export default function FixedExpensesManager() {
     deactivateTemplate,
     deposit,
     markPaid,
+    updatePaid,
     unmarkPaid,
   } = useFixedExpenses(monthKey);
 
   const [payTarget, setPayTarget] = useState<FixedExpenseMonthItem | null>(null);
+  const [payEditing, setPayEditing] = useState(false);
   const [payValue, setPayValue] = useState("0");
+  const [payDate, setPayDate] = useState(() => defaultPayDate(getMonthKey()));
   const [payError, setPayError] = useState("");
 
   const [depositOpen, setDepositOpen] = useState(false);
@@ -84,8 +104,22 @@ export default function FixedExpensesManager() {
   );
 
   function openPay(item: FixedExpenseMonthItem) {
+    setPayEditing(false);
     setPayTarget(item);
     setPayValue(String(item.payment.base_value_snapshot || 0));
+    setPayDate(defaultPayDate(monthKey));
+    setPayError("");
+  }
+
+  function openEditPay(item: FixedExpenseMonthItem) {
+    setPayEditing(true);
+    setPayTarget(item);
+    setPayValue(String(item.payment.real_value ?? item.payment.base_value_snapshot ?? 0));
+    setPayDate(
+      item.payment.paid_at?.slice(0, 10) && /^\d{4}-\d{2}-\d{2}$/.test(item.payment.paid_at.slice(0, 10))
+        ? item.payment.paid_at.slice(0, 10)
+        : defaultPayDate(monthKey)
+    );
     setPayError("");
   }
 
@@ -96,12 +130,27 @@ export default function FixedExpensesManager() {
       setPayError("Ingresa un valor real válido.");
       return;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(payDate)) {
+      setPayError("Elige una fecha de pago válida.");
+      return;
+    }
     try {
-      await markPaid(payTarget.payment.id, amount);
+      if (payEditing) {
+        await updatePaid(payTarget.payment.id, amount, payDate);
+      } else {
+        await markPaid(payTarget.payment.id, amount, payDate);
+      }
       setPayTarget(null);
+      setPayEditing(false);
       setPayError("");
     } catch (err) {
-      setPayError(err instanceof Error ? err.message : "No se pudo registrar el pago.");
+      setPayError(
+        err instanceof Error
+          ? err.message
+          : payEditing
+            ? "No se pudo actualizar el pago."
+            : "No se pudo registrar el pago."
+      );
     }
   }
 
@@ -277,7 +326,7 @@ export default function FixedExpensesManager() {
         </section>
 
         {error ? (
-          <div className="mb-3 shrink-0 rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700">
+          <div className="alert-error mb-3 shrink-0 rounded-2xl px-4 py-3 text-sm">
             {error}
           </div>
         ) : null}
@@ -362,7 +411,10 @@ export default function FixedExpensesManager() {
                       type="button"
                       className="min-w-0 flex-1 text-left"
                       onClick={() => {
-                        if (isPaid) return;
+                        if (isPaid) {
+                          openEditPay(item);
+                          return;
+                        }
                         openPay(item);
                       }}
                     >
@@ -373,6 +425,11 @@ export default function FixedExpensesManager() {
                       >
                         {item.template.name}
                       </p>
+                      {isPaid && formatPaidDate(item.payment.paid_at) ? (
+                        <p className="mt-0.5 text-[10px] font-light capitalize text-on-surface-variant">
+                          Pagado · {formatPaidDate(item.payment.paid_at)} · Editar
+                        </p>
+                      ) : null}
                     </button>
 
                     <div className="flex shrink-0 items-center gap-1">
@@ -439,11 +496,23 @@ export default function FixedExpensesManager() {
 
       <NumericKeypadSheet
         isOpen={Boolean(payTarget)}
-        title={payTarget ? `Pagar ${payTarget.template.name}` : "Pagar"}
-        subtitle="Valor real de este mes"
+        title={
+          payTarget
+            ? payEditing
+              ? `Editar pago · ${payTarget.template.name}`
+              : `Pagar ${payTarget.template.name}`
+            : "Pagar"
+        }
+        subtitle={payEditing ? "Cambia el importe o la fecha" : "Valor real de este mes"}
         initialValue={payValue}
         errorMessage={payError}
-        onClose={() => setPayTarget(null)}
+        dateValue={payDate}
+        onDateChange={setPayDate}
+        dateLabel="Fecha de pago"
+        onClose={() => {
+          setPayTarget(null);
+          setPayEditing(false);
+        }}
         onValueChange={setPayValue}
         onConfirm={(value) => void confirmPay(value)}
       />
@@ -475,7 +544,7 @@ export default function FixedExpensesManager() {
 
       {formOpen ? (
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-on-surface/40 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-t-[2rem] border border-glass-border bg-glass-strong p-5 shadow-2xl backdrop-blur-xl sm:rounded-[1.85rem]">
+          <div className="w-full max-w-md rounded-t-[2rem] border border-glass-border glass-sheet p-5 backdrop-blur-xl sm:rounded-[1.85rem]">
             <h3 className="text-lg font-medium tracking-tight text-on-surface">
               {editingId ? "Editar gasto fijo" : "Nuevo gasto fijo"}
             </h3>
@@ -521,7 +590,7 @@ export default function FixedExpensesManager() {
               </div>
 
               {formError ? (
-                <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700">
+                <div className="alert-error rounded-2xl px-4 py-3 text-sm">
                   {formError}
                 </div>
               ) : null}

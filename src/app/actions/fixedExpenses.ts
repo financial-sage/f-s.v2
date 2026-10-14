@@ -364,10 +364,29 @@ export async function depositToFixedExpensesFundAction(input: {
   return buildMonthSnapshot(familyId, input.monthKey, funds);
 }
 
+function assertPaidDate(paidDate: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate)) {
+    throw new Error("Fecha de pago inválida.");
+  }
+  const parsed = new Date(`${paidDate}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Fecha de pago inválida.");
+  }
+}
+
+function defaultPaidDateForMonth(monthKey: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (monthKey === getMonthKey()) return today;
+  const day = Math.min(Number(today.slice(8, 10)) || 1, 28);
+  return `${monthKey}-${String(day).padStart(2, "0")}`;
+}
+
 export async function markFixedExpensePaidAction(input: {
   paymentId: string;
   realValue: number;
   monthKey: string;
+  /** YYYY-MM-DD — fecha en que se realizó el pago */
+  paidDate?: string;
 }): Promise<FixedExpenseMonthSnapshot> {
   assertMonthKey(input.monthKey);
   const user = await requireUser();
@@ -378,6 +397,10 @@ export async function markFixedExpensePaidAction(input: {
   if (!Number.isFinite(realValue) || realValue <= 0) {
     throw new Error("Ingresa el valor real pagado.");
   }
+
+  const paidDate = (input.paidDate ?? defaultPaidDateForMonth(input.monthKey)).slice(0, 10);
+  assertPaidDate(paidDate);
+  const paidAt = `${paidDate}T12:00:00.000Z`;
 
   const funds = await ensureFamilyFunds(familyId);
   const fixedFund = getFixedExpensesFund(funds);
@@ -401,11 +424,6 @@ export async function markFixedExpensePaidAction(input: {
     ? paymentRow.fixed_expenses[0]
     : paymentRow.fixed_expenses;
   const concept = String(template?.name ?? "Gasto fijo");
-  const todayKey = getMonthKey();
-  const expenseDate =
-    input.monthKey === todayKey
-      ? new Date().toISOString().slice(0, 10)
-      : `${input.monthKey}-15`;
 
   const { data: expense, error: expenseError } = await admin
     .from("expenses")
@@ -417,7 +435,7 @@ export async function markFixedExpensePaidAction(input: {
       category: "fixed_expense",
       responsible_for: "joint_fund",
       split_type: "shared_equal",
-      expense_date: expenseDate,
+      expense_date: paidDate,
       created_by: user.id,
       updated_by: user.id,
       fund_id: fixedFund.id,
@@ -435,9 +453,73 @@ export async function markFixedExpensePaidAction(input: {
     .update({
       status: "paid",
       real_value: realValue,
-      paid_at: new Date().toISOString(),
+      paid_at: paidAt,
       paid_by: user.id,
       expense_id: expense.id,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq("id", input.paymentId)
+    .eq("family_id", familyId);
+
+  if (updateError) throw new Error(updateError.message);
+
+  return buildMonthSnapshot(familyId, input.monthKey, funds);
+}
+
+/** Update date and/or real amount of an already-paid fixed expense. */
+export async function updateFixedExpensePaidAction(input: {
+  paymentId: string;
+  monthKey: string;
+  realValue: number;
+  paidDate: string;
+}): Promise<FixedExpenseMonthSnapshot> {
+  assertMonthKey(input.monthKey);
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+  const admin = getSupabaseAdminClient();
+  const funds = await ensureFamilyFunds(familyId);
+
+  const realValue = Number(input.realValue);
+  if (!Number.isFinite(realValue) || realValue <= 0) {
+    throw new Error("Ingresa el valor real pagado.");
+  }
+
+  const paidDate = input.paidDate.slice(0, 10);
+  assertPaidDate(paidDate);
+  const paidAt = `${paidDate}T12:00:00.000Z`;
+
+  const { data: paymentRow, error: paymentError } = await admin
+    .from("fixed_expense_payments")
+    .select("*")
+    .eq("id", input.paymentId)
+    .eq("family_id", familyId)
+    .maybeSingle();
+
+  if (paymentError || !paymentRow) throw new Error("Pago no encontrado.");
+  if (paymentRow.status !== "paid") {
+    throw new Error("Este gasto aún no está marcado como pagado.");
+  }
+
+  if (paymentRow.expense_id) {
+    const { error: expenseError } = await admin
+      .from("expenses")
+      .update({
+        amount: realValue,
+        expense_date: paidDate,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+      } as never)
+      .eq("id", paymentRow.expense_id)
+      .eq("family_id", familyId);
+
+    if (expenseError) throw new Error(expenseError.message);
+  }
+
+  const { error: updateError } = await admin
+    .from("fixed_expense_payments")
+    .update({
+      real_value: realValue,
+      paid_at: paidAt,
       updated_at: new Date().toISOString(),
     } as never)
     .eq("id", input.paymentId)

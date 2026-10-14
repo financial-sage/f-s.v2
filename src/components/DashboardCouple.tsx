@@ -946,9 +946,9 @@ export default function DashboardCouple({
             <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
                 {showSharedWelcome && (
                     <div className="pointer-events-none mb-3 shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
-                        <div className="overflow-hidden rounded-3xl border border-emerald-100/70 bg-surface-lowest/90 p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
+                        <div className="overflow-hidden rounded-3xl border border-primary/25 bg-glass-strong p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-primary shadow-sm">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary shadow-sm">
                                     <Sparkles size={18} />
                                 </div>
                                 <div>
@@ -956,7 +956,7 @@ export default function DashboardCouple({
                                     <p className="text-xs text-on-surface-variant">Todo quedó sincronizado con {partnerDisplayName}.</p>
                                 </div>
                             </div>
-                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-50">
+                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary/15">
                                 <div
                                     className="h-full rounded-full bg-linear-to-r from-primary to-primary-container transition-[width] ease-linear"
                                     style={{ width: `${welcomeProgress}%`, transitionDuration: "2400ms" }}
@@ -1029,7 +1029,7 @@ export default function DashboardCouple({
                                 <button
                                     type="button"
                                     onClick={openBalancesModal}
-                                    className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700"
+                                    className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-3 py-1.5 text-xs font-medium text-orange-500"
                                 >
                                     Cobrar {formatCurrency(fundOwesMe)}
                                     <ChevronRight size={12} />
@@ -1229,7 +1229,7 @@ export default function DashboardCouple({
                     {showSettleModal && (
                         <div className="fixed inset-0 z-60 flex flex-col justify-end">
                             <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isSettleAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeSettleModal} />
-                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSettleAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSettleAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
                                     <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                                 </div>
@@ -1263,7 +1263,7 @@ export default function DashboardCouple({
                                                     className={`flex w-full items-center justify-between rounded-2xl border p-4 transition-all duration-500 ${
                                                         isSelected
                                                             ? "border-primary bg-primary/5"
-                                                            : "border-outline-variant/20 bg-surface-lowest"
+                                                            : "border-outline-variant/20 bg-glass"
                                                     }`}
                                                 >
                                                     <div className="flex items-center gap-3">
@@ -1341,7 +1341,7 @@ export default function DashboardCouple({
                     {showPayModal && (
                         <div className="fixed inset-0 z-60 flex flex-col justify-end">
                             <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isPayAnimated ? "opacity-100" : "opacity-0"}`} onClick={closePayModal} />
-                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isPayAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isPayAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
                                     <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                                 </div>
@@ -1362,7 +1362,7 @@ export default function DashboardCouple({
                                                 <button
                                                     key={expense.id}
                                                     onClick={() => toggleSettleSelection(expense.id)}
-                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-outline-variant/20 bg-surface-lowest'
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#bb1b1b] bg-[#bb1b1b]/5' : 'border-outline-variant/20 bg-glass'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
@@ -1409,7 +1409,7 @@ export default function DashboardCouple({
                     {showChargeModal && (
                         <div className="fixed inset-0 z-60 flex flex-col justify-end">
                             <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isChargeAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeChargeModal} />
-                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isChargeAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                            <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isChargeAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
                                     <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                                 </div>
@@ -1430,7 +1430,7 @@ export default function DashboardCouple({
                                                 <button
                                                     key={expense.id}
                                                     onClick={() => toggleSettleSelection(expense.id)}
-                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-outline-variant/20 bg-surface-lowest'
+                                                    className={`w-full flex justify-between items-center p-4 border rounded-2xl transition-all duration-500 ${isSelected ? 'border-[#0f2d91] bg-[#0f2d91]/5' : 'border-outline-variant/20 bg-glass'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
@@ -1610,7 +1610,7 @@ export default function DashboardCouple({
                                                                 openDeleteModal(expense.id);
                                                                 setActiveActionId(null);
                                                             }}
-                                                            className="flex-1 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 bg-rose-50/30 transition-colors"
+                                                            className="flex-1 flex items-center justify-center bg-error/15 text-error transition-colors hover:bg-error/25"
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
@@ -1642,7 +1642,7 @@ export default function DashboardCouple({
             {showBudget && (
                 <div className="fixed inset-0 z-60 flex flex-col justify-end">
                     <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isBudgetAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeBudgetModal} />
-                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBudgetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
+                    <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBudgetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                         <div className="flex justify-center pt-4 pb-2">
                             <div className="h-1.5 w-12 rounded-full bg-surface-container" />
                         </div>
@@ -1657,7 +1657,7 @@ export default function DashboardCouple({
                                 </div>
                             </div>
 
-                            <div className="overflow-hidden rounded-2xl border border-outline-variant/20 bg-surface-lowest divide-y divide-outline-variant/20">
+                            <div className="overflow-hidden rounded-2xl border border-glass-border bg-glass divide-y divide-outline-variant/20">
                                 <div className="p-4">
                                     <div className="mb-2 flex items-end justify-between">
                                         <div>
@@ -1897,7 +1897,7 @@ export default function DashboardCouple({
                                         aria-label={option.label}
                                         className={`mx-auto h-8 w-8 rounded-full shadow-sm transition-transform ${
                                             isSelected
-                                                ? "scale-110 ring-2 ring-on-surface/80 ring-offset-2 ring-offset-white/70"
+                                                ? "scale-110 ring-2 ring-on-surface/80 ring-offset-2 ring-offset-surface"
                                                 : "hover:scale-105"
                                         }`}
                                         style={{ backgroundColor: option.value }}
@@ -1919,7 +1919,7 @@ export default function DashboardCouple({
                             </p>
                         </div>
                         {fundActionError && (
-                            <p className="mt-2 rounded-xl border border-rose-100 bg-rose-50/90 px-3 py-2 text-xs text-rose-700">
+                            <p className="alert-error mt-2 rounded-xl px-3 py-2 text-xs">
                                 {fundActionError}
                             </p>
                         )}
@@ -1970,10 +1970,9 @@ export default function DashboardCouple({
                         className="absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm"
                         onClick={closeDeleteModal}
                     />
-                    <div className="relative w-full max-w-xs rounded-3xl bg-surface-lowest p-6 text-center shadow-2xl transition-all animate-in zoom-in-95 fade-in duration-200">
-                        {/* Icóno */}
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
-                            <Trash2 size={24} className="text-rose-500" />
+                    <div className="relative w-full max-w-xs rounded-3xl border border-glass-border bg-glass-strong p-6 text-center shadow-2xl backdrop-blur-xl transition-all animate-in zoom-in-95 fade-in duration-200">
+                        <div className="modal-danger-icon mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full">
+                            <Trash2 size={24} />
                         </div>
                         <h3 className="mb-1 text-base font-bold text-on-surface">Eliminar Movimiento</h3>
                         <p className="mb-6 text-sm text-on-surface-variant">
@@ -1992,7 +1991,7 @@ export default function DashboardCouple({
                                 type="button"
                                 onClick={handleDeleteConfirm}
                                 disabled={isDeleting}
-                                className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-600 disabled:opacity-70"
+                                className="flex-1 rounded-xl bg-rose-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-500 disabled:opacity-70"
                             >
                                 {isDeleting ? (
                                     <span className="flex items-center justify-center gap-2">
@@ -2018,7 +2017,7 @@ export default function DashboardCouple({
                         onClick={closeFilterModal}
                     />
                     <div
-                        className={`relative flex max-h-[80vh] flex-col rounded-t-[2.5rem] bg-surface-lowest shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isFilterAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+                        className={`relative flex max-h-[80vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isFilterAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
                             }`}
                     >
                         <div className="flex justify-center pt-4 pb-2">

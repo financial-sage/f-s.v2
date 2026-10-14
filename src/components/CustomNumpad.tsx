@@ -145,14 +145,16 @@ export default function CustomNumpad({
 
   return (
     <>
-      {isOpen && !embedded && <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />}
+      {isOpen && !embedded && (
+        <div className="fixed inset-0 z-40 bg-on-surface/45 backdrop-blur-sm" onClick={onClose} />
+      )}
       <div
         className={`pointer-events-auto ${
           embedded
             ? embeddedStyle === "flat"
               ? "relative w-full"
-              : "relative w-full rounded-2xl bg-surface-lowest px-3 py-2 shadow-md"
-            : "fixed right-0 bottom-0 left-0 z-50 rounded-t-3xl bg-surface-lowest px-4 pt-3 pb-10 shadow-2xl transition-transform duration-300 ease-in-out"
+              : "relative w-full rounded-2xl border border-glass-border bg-glass px-3 py-2 shadow-md backdrop-blur-xl"
+            : "fixed right-0 bottom-0 left-0 z-50 rounded-t-[2rem] border border-glass-border glass-sheet px-4 pt-3 pb-10 transition-transform duration-300 ease-in-out"
         } ${!embedded ? (isOpen ? "translate-y-0" : "translate-y-full") : ""}`}
       >
         <div className="mx-auto w-full max-w-md">

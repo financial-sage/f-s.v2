@@ -321,7 +321,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
               {joinMessage ? (
                 <div
                   className={`rounded-2xl px-4 py-3 text-sm ${
-                    joinError ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                    joinError ? "alert-error" : "alert-success"
                   }`}
                 >
                   {joinMessage}

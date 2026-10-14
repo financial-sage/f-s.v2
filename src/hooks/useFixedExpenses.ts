@@ -49,6 +49,7 @@ export function useFixedExpenses(monthKey: string = getMonthKey()) {
     deactivateTemplate: fixedExpensesStore.deactivateTemplate.bind(fixedExpensesStore),
     deposit: fixedExpensesStore.deposit.bind(fixedExpensesStore),
     markPaid: fixedExpensesStore.markPaid.bind(fixedExpensesStore),
+    updatePaid: fixedExpensesStore.updatePaid.bind(fixedExpensesStore),
     unmarkPaid: fixedExpensesStore.unmarkPaid.bind(fixedExpensesStore),
   };
 }

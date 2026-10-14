@@ -69,7 +69,7 @@ export default function InvitePartner({ inviteCode }: InvitePartnerProps) {
         />
 
         {errorMessage && (
-          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="alert-error rounded-2xl px-4 py-3 text-sm">
             {errorMessage}
           </div>
         )}

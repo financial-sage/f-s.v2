@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { CalendarDays, X } from "lucide-react";
 import CustomNumpad from "@/components/CustomNumpad";
 
 interface NumericKeypadSheetProps {
@@ -13,9 +13,22 @@ interface NumericKeypadSheetProps {
   initialValue?: string;
   showDisplay?: boolean;
   errorMessage?: string;
+  /** Optional YYYY-MM-DD payment / expense date row above the keypad */
+  dateValue?: string;
+  onDateChange?: (value: string) => void;
+  dateLabel?: string;
   onClose: () => void;
   onValueChange: (value: string) => void;
   onConfirm: (value?: string) => void;
+}
+
+function formatSheetDate(value: string) {
+  if (!value) return "Fecha";
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${value}T12:00:00`));
 }
 
 export function NumericKeypadSheet({
@@ -26,11 +39,19 @@ export function NumericKeypadSheet({
   initialValue,
   showDisplay = true,
   errorMessage,
+  dateValue,
+  onDateChange,
+  dateLabel = "Fecha de pago",
   onClose,
   onValueChange,
   onConfirm,
 }: NumericKeypadSheetProps) {
   const [mounted, setMounted] = useState(false);
+  const showDate = Boolean(dateValue != null && onDateChange);
+  const displayDate = useMemo(
+    () => (dateValue ? formatSheetDate(dateValue) : dateLabel),
+    [dateValue, dateLabel]
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -41,7 +62,7 @@ export function NumericKeypadSheet({
   return createPortal(
     <div className="fixed inset-0 z-[220]">
       <div className="absolute inset-0 bg-on-surface/45 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-[221] overflow-hidden rounded-t-[2rem] border border-glass-border bg-glass shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl animate-in slide-in-from-bottom-full duration-300">
+      <div className="fixed inset-x-0 bottom-0 z-[221] overflow-hidden rounded-t-[2rem] border border-glass-border glass-sheet backdrop-blur-2xl animate-in slide-in-from-bottom-full duration-300">
         <div className="mx-auto flex w-full max-w-md flex-col">
           <div className="flex justify-center pt-3 pb-1">
             <div className="h-1 w-10 rounded-full bg-outline-variant/35" />
@@ -78,9 +99,45 @@ export function NumericKeypadSheet({
             </button>
           </div>
 
+          {showDate ? (
+            <div className="relative px-5 pb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById(
+                    "numeric-keypad-date"
+                  ) as HTMLInputElement | null;
+                  if (!input) return;
+                  if (typeof input.showPicker === "function") {
+                    input.showPicker();
+                  } else {
+                    input.click();
+                  }
+                }}
+                className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-2xl border border-glass-border bg-glass-soft px-3.5 py-2.5 text-left shadow-sm backdrop-blur-md"
+              >
+                <span className="text-[11px] font-light text-on-surface-variant">{dateLabel}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <CalendarDays size={14} className="shrink-0 text-outline-variant" />
+                  <span className="truncate text-sm font-medium capitalize text-on-surface">
+                    {displayDate}
+                  </span>
+                </span>
+              </button>
+              <input
+                id="numeric-keypad-date"
+                type="date"
+                value={dateValue ?? ""}
+                onChange={(e) => onDateChange?.(e.target.value)}
+                className="pointer-events-none absolute h-0 w-0 opacity-0"
+                tabIndex={-1}
+              />
+            </div>
+          ) : null}
+
           {errorMessage ? (
             <div className="px-5 pb-2">
-              <p className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-center text-sm font-medium text-rose-700 shadow-sm">
+              <p className="alert-error rounded-2xl px-4 py-3 text-center text-sm font-medium shadow-sm">
                 {errorMessage}
               </p>
             </div>

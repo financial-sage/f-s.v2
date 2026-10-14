@@ -281,6 +281,24 @@ body {
   box-shadow: var(--fab-ink-shadow);
 }
 
+/* Modal / sheet alert chips — readable in light and dark */
+.alert-error {
+  border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+  background-color: color-mix(in srgb, var(--error) 14%, transparent);
+  color: var(--error);
+}
+
+.alert-success {
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  background-color: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.modal-danger-icon {
+  background-color: color-mix(in srgb, var(--error) 16%, transparent);
+  color: var(--error);
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

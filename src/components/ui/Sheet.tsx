@@ -56,7 +56,7 @@ export function Sheet({
 
       <div
         className={cn(
-          "relative flex flex-col overflow-hidden rounded-t-[2rem] border border-glass-border bg-glass shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "relative flex flex-col overflow-hidden rounded-t-[2rem] border border-glass-border glass-sheet backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
           heightClassName,
           isAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0",
           contentClassName,
