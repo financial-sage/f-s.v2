@@ -520,8 +520,8 @@ export async function transferBetweenFundsAction(input: {
   return { success: true, transferGroupId };
 }
 
-/** Lightweight fund list — no expense scan. Prefer this when balances aren't needed. */
-export async function listFamilyFundsAction() {
+/** Lightweight fund list + default ids — no expense scan. */
+export async function getFamilyFundsMetaAction() {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const funds = await ensureFamilyFunds(familyId);
