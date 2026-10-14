@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
-  MoreVertical,
   Plus,
-  RotateCcw,
+  SquarePen,
 } from "lucide-react";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useFixedExpenses } from "@/hooks/useFixedExpenses";
@@ -26,15 +26,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 const ACCENT = FIXED_EXPENSES_FUND_COLOR;
-const ROW_MENU_WIDTH = 160;
-const ROW_MENU_EST_HEIGHT = 96;
-
-type RowMenuState = {
-  id: string;
-  top: number;
-  bottom: number;
-  right: number;
-};
 
 function progressRatio(spent: number, budget: number) {
   if (budget <= 0) return 0;
@@ -71,12 +62,6 @@ export default function FixedExpensesManager() {
   const [formBase, setFormBase] = useState("0");
   const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
-  const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const checklist = useMemo(() => {
     const pending = items.filter((item) => item.payment.status === "pending");
@@ -97,7 +82,6 @@ export default function FixedExpensesManager() {
   );
 
   function openPay(item: FixedExpenseMonthItem) {
-    setRowMenu(null);
     setPayTarget(item);
     setPayValue(String(item.payment.base_value_snapshot || 0));
     setPayError("");
@@ -150,7 +134,6 @@ export default function FixedExpensesManager() {
   }
 
   function openEditForm(item: FixedExpenseMonthItem) {
-    setRowMenu(null);
     setEditingId(item.template.id);
     setFormName(item.template.name);
     setFormBase(String(item.template.base_value));
@@ -158,19 +141,6 @@ export default function FixedExpensesManager() {
     setFormError("");
     setFormOpen(true);
   }
-
-  function openRowMenu(id: string, button: HTMLButtonElement) {
-    const rect = button.getBoundingClientRect();
-    setRowMenu((prev) =>
-      prev?.id === id
-        ? null
-        : { id, top: rect.top, bottom: rect.bottom, right: rect.right }
-    );
-  }
-
-  const rowMenuItem = rowMenu
-    ? checklist.find((item) => item.payment.id === rowMenu.id) ?? null
-    : null;
 
   async function submitForm(e: React.FormEvent) {
     e.preventDefault();
@@ -213,9 +183,9 @@ export default function FixedExpensesManager() {
 
       <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
         <Link
-          href="/profile"
+          href="/"
           className="rounded-full border border-white/50 bg-white/70 p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
-          aria-label="Volver"
+          aria-label="Volver al inicio"
         >
           <ChevronLeft size={18} />
         </Link>
@@ -225,15 +195,7 @@ export default function FixedExpensesManager() {
             Gastos fijos
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={openCreateForm}
-          className="rounded-full border border-white/50 bg-white/70 p-2 shadow-sm backdrop-blur-sm"
-          style={{ color: ACCENT }}
-          aria-label="Agregar gasto fijo"
-        >
-          <Plus size={18} />
-        </button>
+        <div className="h-9 w-9" aria-hidden />
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
@@ -353,9 +315,10 @@ export default function FixedExpensesManager() {
             <div className="rounded-[1.5rem] border border-white/60 bg-white/70 shadow-[0_12px_28px_rgba(43,52,55,0.10)] backdrop-blur-xl">
               {checklist.map((item, index) => {
                 const isPaid = item.payment.status === "paid";
-                const rowAmount = isPaid
-                  ? Number(item.payment.real_value ?? 0)
-                  : Number(item.payment.base_value_snapshot || 0);
+                const baseAmount = Number(item.payment.base_value_snapshot || 0);
+                const realAmount = Number(item.payment.real_value ?? 0);
+                const rowAmount = isPaid ? realAmount : baseAmount;
+                const variance = isPaid ? realAmount - baseAmount : 0;
                 const isFirst = index === 0;
                 const isLast = index === checklist.length - 1;
 
@@ -410,22 +373,39 @@ export default function FixedExpensesManager() {
                       </p>
                     </button>
 
-                    <span
-                      className={`shrink-0 text-[13px] font-light tabular-nums tracking-tight ${
-                        isPaid ? "text-on-surface-variant" : "text-on-surface"
-                      }`}
-                    >
-                      {formatCurrency(rowAmount)}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {variance > 0 ? (
+                        <ArrowUp
+                          size={12}
+                          strokeWidth={2.5}
+                          className="text-red-600"
+                          aria-label="Pagado por encima de la base"
+                        />
+                      ) : null}
+                      {variance < 0 ? (
+                        <ArrowDown
+                          size={12}
+                          strokeWidth={2.5}
+                          className="text-emerald-600"
+                          aria-label="Pagado por debajo de la base"
+                        />
+                      ) : null}
+                      <span
+                        className={`text-[13px] font-light tabular-nums tracking-tight ${
+                          isPaid ? "text-on-surface-variant" : "text-on-surface"
+                        }`}
+                      >
+                        {formatCurrency(rowAmount)}
+                      </span>
+                    </div>
 
                     <button
                       type="button"
-                      onClick={(e) => openRowMenu(item.payment.id, e.currentTarget)}
+                      onClick={() => openEditForm(item)}
                       className="shrink-0 rounded-full p-1 text-outline-variant transition-colors hover:bg-white/60 hover:text-on-surface-variant"
-                      aria-label="Más opciones"
-                      aria-expanded={rowMenu?.id === item.payment.id}
+                      aria-label={`Editar ${item.template.name}`}
                     >
-                      <MoreVertical size={14} />
+                      <SquarePen size={14} strokeWidth={2} />
                     </button>
                   </div>
                 );
@@ -435,73 +415,17 @@ export default function FixedExpensesManager() {
         </section>
       </main>
 
-      {mounted &&
-        rowMenu &&
-        rowMenuItem &&
-        createPortal(
-          <>
-            <button
-              type="button"
-              className="fixed inset-0 z-[190]"
-              aria-label="Cerrar menú"
-              onClick={() => setRowMenu(null)}
-            />
-            <div
-              role="menu"
-              className="fixed z-[200] overflow-hidden rounded-2xl border border-white/50 bg-white py-1 shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
-              style={(() => {
-                const openUp =
-                  window.innerHeight - rowMenu.bottom < ROW_MENU_EST_HEIGHT + 12;
-                const right = Math.max(8, window.innerWidth - rowMenu.right);
-                if (openUp) {
-                  return {
-                    width: ROW_MENU_WIDTH,
-                    right,
-                    bottom: window.innerHeight - rowMenu.top + 4,
-                  };
-                }
-                return {
-                  width: ROW_MENU_WIDTH,
-                  right,
-                  top: rowMenu.bottom + 4,
-                };
-              })()}
-            >
-              {rowMenuItem.payment.status !== "paid" ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full px-3 py-2.5 text-left text-sm text-on-surface hover:bg-surface-low"
-                  onClick={() => openPay(rowMenuItem)}
-                >
-                  Registrar pago
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-on-surface hover:bg-surface-low"
-                  onClick={() => {
-                    setRowMenu(null);
-                    void unmarkPaid(rowMenuItem.payment.id);
-                  }}
-                >
-                  <RotateCcw size={14} />
-                  Deshacer
-                </button>
-              )}
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full px-3 py-2.5 text-left text-sm text-on-surface hover:bg-surface-low"
-                onClick={() => openEditForm(rowMenuItem)}
-              >
-                Editar
-              </button>
-            </div>
-          </>,
-          document.body
-        )}
+      <button
+        type="button"
+        onClick={openCreateForm}
+        className="fixed bottom-6 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-transform active:scale-95"
+        style={{
+          backgroundImage: `linear-gradient(145deg, #6B8296 0%, ${ACCENT} 48%, #3A4D5C 100%)`,
+        }}
+        aria-label="Agregar gasto fijo"
+      >
+        <Plus size={18} strokeWidth={2.2} />
+      </button>
 
       <NumericKeypadSheet
         isOpen={Boolean(payTarget)}
