@@ -39,9 +39,9 @@ export function NumericKeypadSheet({
   if (!isOpen || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[200]">
+    <div className="fixed inset-0 z-[220]">
       <div className="absolute inset-0 bg-on-surface/45 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-[201] overflow-hidden rounded-t-[2rem] border border-white/55 bg-white/55 shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl animate-in slide-in-from-bottom-full duration-300">
+      <div className="fixed inset-x-0 bottom-0 z-[221] overflow-hidden rounded-t-[2rem] border border-white/55 bg-white/55 shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl animate-in slide-in-from-bottom-full duration-300">
         <div className="mx-auto flex w-full max-w-md flex-col">
           <div className="flex justify-center pt-3 pb-1">
             <div className="h-1 w-10 rounded-full bg-outline-variant/35" />

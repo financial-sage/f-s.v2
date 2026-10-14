@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
-const LOCAL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.3";
+const LOCAL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.5";
 
 export default function UpdateNotifier() {
   const [updateAvailable, setUpdateAvailable] = useState(false);

@@ -558,23 +558,32 @@ export default function FixedExpensesManager() {
                 required
               />
               <div className="space-y-2">
-                <p className="ml-1 text-[11px] font-light text-on-surface-variant">Valor base</p>
-                <button
-                  type="button"
-                  onClick={() => setFormBaseKeypadOpen(true)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-outline-variant/30 bg-white/55 px-5 py-3.5 text-left shadow-sm backdrop-blur-sm transition-all hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15"
+                <label
+                  htmlFor="fixed-expense-base-value"
+                  className="ml-1 block text-[11px] font-light text-on-surface-variant"
                 >
-                  <span
-                    className={`text-[15px] font-medium tracking-tight tabular-nums ${
-                      !formBase || formBase === "0"
-                        ? "font-light text-outline-variant"
-                        : "text-on-surface"
-                    }`}
-                  >
-                    {formatCurrency(Number(formBase.replace(",", ".") || 0))}
+                  Valor base
+                </label>
+                <div className="relative">
+                  <input
+                    id="fixed-expense-base-value"
+                    type="text"
+                    inputMode="none"
+                    readOnly
+                    value={formatCurrency(Number(formBase.replace(",", ".") || 0))}
+                    onFocus={(e) => {
+                      e.currentTarget.blur();
+                      setFormBaseKeypadOpen(true);
+                    }}
+                    onClick={() => setFormBaseKeypadOpen(true)}
+                    className="w-full cursor-pointer rounded-2xl border border-outline-variant/30 bg-white/55 px-5 py-3.5 pr-16 text-left text-[15px] font-medium tracking-tight text-on-surface tabular-nums outline-none shadow-sm backdrop-blur-sm transition-all focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                    aria-haspopup="dialog"
+                    aria-expanded={formBaseKeypadOpen}
+                  />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-medium text-on-surface-variant">
+                    Editar
                   </span>
-                  <span className="text-[11px] font-medium text-on-surface-variant">Editar</span>
-                </button>
+                </div>
               </div>
 
               {formError ? (
