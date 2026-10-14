@@ -46,7 +46,9 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
   const visibleFunds = useMemo(
     () =>
       funds.filter(
-        (f) => !f.archived_at && (f.scope === "shared" || f.owner_profile_id === currentUserId)
+        (f) =>
+          !f.archived_at &&
+          (f.scope === "shared" || f.owner_profile_id === currentUserId)
       ),
     [funds, currentUserId]
   );

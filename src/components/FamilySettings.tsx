@@ -119,25 +119,27 @@ export default function FamilySettings({
 
   return (
     <>
-      <section className="overflow-hidden rounded-3xl bg-surface-lowest shadow-sm">
+      <section className="overflow-hidden rounded-[1.85rem] border border-white/45 bg-white/55 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
         <button
           type="button"
           onClick={openFinancialModal}
-          className="flex w-full items-center justify-between px-4 py-4 text-left transition hover:bg-surface"
+          className="flex w-full items-center justify-between px-4 py-3.5 text-left transition hover:bg-white/40"
         >
           <div className="flex items-center gap-3">
-            <div className="rounded-full bg-primary/10 p-2 text-primary">
-              <SlidersHorizontal size={18} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+              <SlidersHorizontal size={16} />
             </div>
             <div>
-              <p className="font-semibold text-on-surface">Modelo de Reparto</p>
-              <p className="text-xs text-on-surface-variant">Gestiona cómo comparten gastos.</p>
+              <p className="text-sm font-medium tracking-tight text-on-surface">Modelo de reparto</p>
+              <p className="text-[11px] font-light text-on-surface-variant">
+                Cómo comparten los gastos
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+          <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
             <span>{summaryValue}</span>
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </div>
         </button>
       </section>
@@ -145,29 +147,31 @@ export default function FamilySettings({
       {isFinancialModalOpen ? (
         <div className="fixed inset-0 z-80 flex flex-col justify-end">
           <div
-            className={`absolute inset-0 bg-on-surface/95/40 backdrop-blur-sm transition-opacity duration-300 ${
+            className={`absolute inset-0 bg-on-surface/40 backdrop-blur-sm transition-opacity duration-300 ${
               isSheetAnimated ? "opacity-100" : "opacity-0"
             }`}
             onClick={closeFinancialModal}
           />
 
           <div
-            className={`relative rounded-t-[2rem] bg-surface-lowest p-5 shadow-2xl transition-all duration-300 ${
+            className={`relative rounded-t-[2rem] border border-white/50 bg-white/90 p-5 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
               isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
             }`}
           >
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-on-surface">Modelo Financiero</h2>
-                <p className="text-sm text-on-surface-variant">
-                  Elige la forma en que quieren repartir los gastos.
+                <h2 className="text-lg font-medium tracking-tight text-on-surface">
+                  Modelo financiero
+                </h2>
+                <p className="text-sm font-light text-on-surface-variant">
+                  Elige cómo quieren repartir los gastos.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={closeFinancialModal}
-                className="rounded-full bg-surface-low p-2 text-on-surface-variant"
+                className="rounded-full border border-white/50 bg-white/60 p-2 text-on-surface-variant shadow-sm"
               >
                 <X size={18} />
               </button>
@@ -181,7 +185,9 @@ export default function FamilySettings({
                   <label
                     key={option.value}
                     className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
-                      isSelected ? "border-primary bg-primary/5" : "border-outline-variant/30 bg-surface-lowest"
+                      isSelected
+                        ? "border-primary/30 bg-primary/8"
+                        : "border-outline-variant/25 bg-white/55"
                     }`}
                   >
                     <input
@@ -193,8 +199,10 @@ export default function FamilySettings({
                       className="mt-1 h-4 w-4 accent-[#4A6549]"
                     />
                     <div>
-                      <p className="font-semibold text-on-surface">{option.label}</p>
-                      <p className="text-sm text-on-surface-variant">{option.description}</p>
+                      <p className="text-sm font-medium text-on-surface">{option.label}</p>
+                      <p className="text-sm font-light text-on-surface-variant">
+                        {option.description}
+                      </p>
                     </div>
                   </label>
                 );
@@ -202,9 +210,9 @@ export default function FamilySettings({
             </div>
 
             {model === "p2p_proportional" ? (
-              <div className="mt-4 rounded-2xl bg-surface p-4">
+              <div className="mt-4 rounded-2xl border border-white/50 bg-white/55 p-4 backdrop-blur-md">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-on-surface">
+                  <p className="text-sm font-medium text-on-surface">
                     Tú aportas el {mySplitPct}%, y tu pareja el {partnerSplitPct}%
                   </p>
                   <input
@@ -213,7 +221,7 @@ export default function FamilySettings({
                     max={100}
                     value={mySplitPct}
                     onChange={(e) => setMySplitPct(clampPercentage(Number(e.target.value)))}
-                    className="w-20 rounded-xl border border-outline-variant/30 bg-surface-lowest px-3 py-2 text-center font-semibold text-on-surface outline-none focus:border-sage"
+                    className="w-20 rounded-xl border border-outline-variant/30 bg-white/80 px-3 py-2 text-center text-sm font-medium text-on-surface outline-none focus:border-primary/40"
                   />
                 </div>
 
@@ -243,7 +251,7 @@ export default function FamilySettings({
               type="button"
               onClick={handleSave}
               disabled={isPending}
-              className="mt-4 w-full rounded-full bg-primary px-6 py-3 font-semibold text-on-primary transition hover:brightness-110 disabled:opacity-70"
+              className="mt-4 w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary shadow-[0_8px_18px_rgba(43,52,55,0.16)] transition hover:brightness-110 disabled:opacity-70"
             >
               {isPending ? "Guardando..." : "Guardar modelo"}
             </button>

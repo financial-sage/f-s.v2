@@ -26,6 +26,7 @@ import type { ExpenseSplitType } from "@/lib/expenses";
 import {
     DEFAULT_PERSONAL_FUND_COLOR,
     getPersonalFund,
+    listVariableSharedFunds,
     resolveFundColor,
     resolveFundIdForExpense,
     type FamilyFund,
@@ -222,8 +223,15 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const handleDeleteConfirm = () => {
         if (!expenseToDelete) return;
         startDeletingTransition(async () => {
-            try { await deleteExpenseAction(expenseToDelete); closeDeleteModal(); await refreshData(); }
-            catch { closeDeleteModal(); }
+            try {
+                await deleteExpenseAction(expenseToDelete);
+                closeDeleteModal();
+                await refreshData();
+                router.refresh();
+            } catch (err) {
+                closeDeleteModal();
+                showToast(err instanceof Error ? err.message : "No se pudo eliminar el movimiento.");
+            }
         });
     };
 
@@ -282,6 +290,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         const now = new Date();
         return allExpenses.filter((e) => {
             if (e.concept === "Reembolso del fondo" || isFundSettlementConcept(e.concept)) return false;
+            // Fixed-expense real payments stay visible in history (no aportes for that pocket).
             if (effectiveFilters.timeRange !== "all") {
                 const d = new Date(e.expense_date || e.created_at);
                 if (effectiveFilters.timeRange === "this_month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
@@ -316,7 +325,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
 
     const sharedFunds = useMemo(
-        () => funds.filter((f) => f.scope === "shared").sort((a, b) => a.sort_order - b.sort_order),
+        () => listVariableSharedFunds(funds),
         [funds]
     );
     const personalFund = useMemo(
@@ -353,12 +362,13 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const renderExpenseCard = (expense: HistoryExpenseRow, index: number) => {
         const { icon: Icon } = getCategoryDetails(expense.category ?? "");
         const isDeposit = expense.category === "deposit";
+        const isWithdrawal = expense.category === "withdrawal";
         const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
         const paidByMe = expense.paid_by === currentUserId;
         const paidByLabel = paidByMe ? "TÚ" : partnerName.toUpperCase().slice(0, 8);
         const isModifiable =
-            (!expense.is_settled || expense.category === 'deposit') &&
-            expense.concept !== 'Reembolso del fondo' &&
+            (isDeposit || isWithdrawal || !expense.is_settled) &&
+            expense.concept !== "Reembolso del fondo" &&
             !isFundSettlementConcept(expense.concept);
         const expenseFundId = resolveFundIdForExpense(expense, funds, currentUserId);
         const expenseFund = expenseFundId

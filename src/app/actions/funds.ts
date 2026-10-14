@@ -8,7 +8,11 @@ import type { FamilyFund, FundScope } from "@/lib/funds";
 import {
   DEFAULT_PERSONAL_FUND_COLOR,
   DEFAULT_SHARED_FUND_COLOR,
+  FIXED_EXPENSES_FUND_COLOR,
+  FIXED_EXPENSES_FUND_NAME,
+  getFixedExpensesFund,
   isAllowedFundColor,
+  isFixedExpensesFund,
 } from "@/lib/funds";
 import { calculateFundCashBalance, getDefaultSharedFund, getPersonalFund } from "@/lib/funds";
 
@@ -57,7 +61,9 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
 
   let funds = (existing ?? []) as FamilyFund[];
 
-  const hasDefaultShared = funds.some((f) => f.scope === "shared" && f.is_default);
+  const hasDefaultShared = funds.some(
+    (f) => f.scope === "shared" && f.is_default && !isFixedExpensesFund(f)
+  );
   if (!hasDefaultShared) {
     const sharedPayload = {
       family_id: familyId,
@@ -68,22 +74,72 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       is_system: true,
       sort_order: 0,
       color: DEFAULT_SHARED_FUND_COLOR,
+      purpose: "general" as const,
     };
     let { data: created, error: createError } = await admin
       .from("family_funds")
       .insert(sharedPayload as never)
       .select("*")
       .single();
-    if (createError && /color/i.test(createError.message)) {
-      const { color: _color, ...withoutColor } = sharedPayload;
+    if (createError && /color|purpose/i.test(createError.message)) {
+      const { color: _color, purpose: _purpose, ...withoutOptional } = sharedPayload;
       ({ data: created, error: createError } = await admin
         .from("family_funds")
-        .insert(withoutColor as never)
+        .insert(withoutOptional as never)
         .select("*")
         .single());
     }
     if (createError) throw new Error(createError.message);
     funds = [...funds, created as FamilyFund];
+  }
+
+  const existingFixedFund = funds.find((f) => isFixedExpensesFund(f));
+  if (!existingFixedFund) {
+    const fixedPayload = {
+      family_id: familyId,
+      name: FIXED_EXPENSES_FUND_NAME,
+      scope: "shared" as const,
+      owner_profile_id: null,
+      is_default: false,
+      is_system: true,
+      sort_order: 5,
+      color: FIXED_EXPENSES_FUND_COLOR,
+      purpose: "fixed_expenses" as const,
+    };
+    let { data: created, error: createError } = await admin
+      .from("family_funds")
+      .insert(fixedPayload as never)
+      .select("*")
+      .single();
+    if (createError && /purpose/i.test(createError.message)) {
+      // Migration not applied yet — skip system fund until purpose column exists.
+    } else if (createError && /color/i.test(createError.message)) {
+      const { color: _color, ...withoutColor } = fixedPayload;
+      ({ data: created, error: createError } = await admin
+        .from("family_funds")
+        .insert(withoutColor as never)
+        .select("*")
+        .single());
+      if (createError) throw new Error(createError.message);
+      funds = [...funds, created as FamilyFund];
+    } else if (createError) {
+      throw new Error(createError.message);
+    } else if (created) {
+      funds = [...funds, created as FamilyFund];
+    }
+  } else if (
+    (existingFixedFund.color ?? "").toLowerCase() !==
+    FIXED_EXPENSES_FUND_COLOR.toLowerCase()
+  ) {
+    const { data: updated, error: colorError } = await admin
+      .from("family_funds")
+      .update({ color: FIXED_EXPENSES_FUND_COLOR } as never)
+      .eq("id", existingFixedFund.id)
+      .select("*")
+      .single();
+    if (!colorError && updated) {
+      funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
+    }
   }
 
   const { data: members } = await admin
@@ -145,6 +201,9 @@ export async function createFundAction(input: {
 
   if (!name) throw new Error("El nombre del fondo es obligatorio.");
   if (name.length > 40) throw new Error("El nombre es demasiado largo.");
+  if (name.trim().toLowerCase() === FIXED_EXPENSES_FUND_NAME.toLowerCase()) {
+    throw new Error("Ese nombre está reservado para el módulo de Gastos fijos.");
+  }
   if (!isAllowedFundColor(color)) {
     throw new Error("Selecciona un color válido.");
   }
@@ -163,6 +222,7 @@ export async function createFundAction(input: {
           is_system: false,
           sort_order: 100,
           color,
+          purpose: "general" as const,
         }
       : {
           family_id: familyId,
@@ -173,6 +233,7 @@ export async function createFundAction(input: {
           is_system: false,
           sort_order: 110,
           color,
+          purpose: "general" as const,
         };
 
   const { data, error } = await admin
@@ -195,6 +256,73 @@ export async function createFundAction(input: {
 
   revalidatePath("/");
   revalidatePath("/history");
+  revalidatePath("/profile");
+
+  return data as FamilyFund;
+}
+
+export async function updateFundAction(input: {
+  fundId: string;
+  name: string;
+  color: string;
+}): Promise<FamilyFund> {
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+  const admin = getSupabaseAdminClient();
+  const name = input.name.trim();
+  const color = input.color.trim();
+
+  if (!name) throw new Error("El nombre del fondo es obligatorio.");
+  if (name.length > 40) throw new Error("El nombre es demasiado largo.");
+  if (!isAllowedFundColor(color)) {
+    throw new Error("Selecciona un color válido.");
+  }
+
+  const { data: fund, error: fundError } = await admin
+    .from("family_funds")
+    .select("*")
+    .eq("id", input.fundId)
+    .eq("family_id", familyId)
+    .maybeSingle();
+
+  if (fundError || !fund) throw new Error("Fondo no encontrado.");
+
+  const current = fund as FamilyFund;
+  if (current.archived_at) throw new Error("Este fondo está archivado.");
+
+  if (
+    !isFixedExpensesFund(current) &&
+    name.toLowerCase() === FIXED_EXPENSES_FUND_NAME.toLowerCase()
+  ) {
+    throw new Error("Ese nombre está reservado para el módulo de Gastos fijos.");
+  }
+
+  if (current.scope === "personal" && current.owner_profile_id !== user.id) {
+    throw new Error("Solo puedes editar tus fondos personales.");
+  }
+
+  const { data, error } = await admin
+    .from("family_funds")
+    .update({
+      name,
+      color,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq("id", input.fundId)
+    .eq("family_id", familyId)
+    .select("*")
+    .single();
+
+  if (error) {
+    if (/duplicate|unique/i.test(error.message)) {
+      throw new Error("Ya existe un fondo con ese nombre.");
+    }
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/fixed-expenses");
   revalidatePath("/profile");
 
   return data as FamilyFund;
@@ -289,6 +417,9 @@ export async function depositToFundAction(input: {
 
   revalidatePath("/");
   revalidatePath("/history");
+  if (isFixedExpensesFund(fund)) {
+    revalidatePath("/fixed-expenses");
+  }
   return { success: true, fundId: fund.id };
 }
 
@@ -383,6 +514,9 @@ export async function transferBetweenFundsAction(input: {
 
   revalidatePath("/");
   revalidatePath("/history");
+  if (isFixedExpensesFund(from) || isFixedExpensesFund(to)) {
+    revalidatePath("/fixed-expenses");
+  }
   return { success: true, transferGroupId };
 }
 
@@ -401,7 +535,19 @@ export async function getFundsOverviewAction() {
     .eq("is_active", true);
 
   const defaultShared = getDefaultSharedFund(funds);
-  const rows = (expenses ?? []) as never[];
+  const fixedFund = getFixedExpensesFund(funds);
+  const rows = (expenses ?? []) as Array<{
+    amount: number;
+    category?: string | null;
+    concept?: string | null;
+    paid_by: string;
+    responsible_for?: string | null;
+    fund_id?: string | null;
+    paid_from_fund?: boolean | null;
+    transfer_group_id?: string | null;
+    is_active?: boolean | null;
+    is_settled?: boolean | null;
+  }>;
 
   return {
     funds,
@@ -416,5 +562,6 @@ export async function getFundsOverviewAction() {
       })),
     personalFundId: getPersonalFund(funds, user.id)?.id ?? null,
     sharedDefaultFundId: defaultShared?.id ?? null,
+    fixedExpensesFundId: fixedFund?.id ?? null,
   };
 }

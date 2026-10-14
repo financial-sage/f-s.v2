@@ -327,16 +327,100 @@ export async function deleteExpenseAction(expenseId: string) {
 
   const admin = getSupabaseAdminClient();
 
-  const { error } = await admin
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("family_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profile?.family_id) {
+    throw new Error("Debes pertenecer a una familia.");
+  }
+
+  const { data: expense, error: loadError } = await admin
     .from("expenses")
-    .update({ is_active: false })
+    .select(
+      "id, paid_by, category, concept, is_active, transfer_group_id, fund_id, family_id"
+    )
     .eq("id", expenseId)
-    .eq("paid_by", user.id);
+    .eq("family_id", profile.family_id)
+    .maybeSingle();
+
+  if (loadError) throw new Error(loadError.message);
+  if (!expense || expense.is_active === false) {
+    throw new Error("No se encontró el movimiento.");
+  }
+
+  const concept = String(expense.concept ?? "");
+  if (concept === "Reembolso del fondo" || concept.startsWith("Liquidación de deuda")) {
+    throw new Error("Este movimiento de sistema no se puede eliminar.");
+  }
+
+  const category = String(expense.category ?? "");
+  const isCashMovement = category === "deposit" || category === "withdrawal";
+  const isOwner = expense.paid_by === user.id;
+
+  // Aportes/retiros: cualquier miembro de la familia puede deshacerlos.
+  // Gastos normales: solo quien los registró.
+  if (!isCashMovement && !isOwner) {
+    throw new Error("Solo puedes eliminar movimientos que registraste tú.");
+  }
+
+  const now = new Date().toISOString();
+  const deactivateIds: string[] = [expense.id];
+
+  if (expense.transfer_group_id) {
+    const { data: transferRows, error: transferError } = await admin
+      .from("expenses")
+      .select("id")
+      .eq("family_id", profile.family_id)
+      .eq("transfer_group_id", expense.transfer_group_id)
+      .eq("is_active", true);
+
+    if (transferError) throw new Error(transferError.message);
+    for (const row of transferRows ?? []) {
+      if (!deactivateIds.includes(row.id)) deactivateIds.push(row.id);
+    }
+  }
+
+  const { data: updated, error } = await admin
+    .from("expenses")
+    .update({
+      is_active: false,
+      updated_at: now,
+      updated_by: user.id,
+    } as never)
+    .in("id", deactivateIds)
+    .eq("family_id", profile.family_id)
+    .eq("is_active", true)
+    .select("id");
 
   if (error) throw new Error(error.message);
+  if (!updated?.length) {
+    throw new Error("No se pudo eliminar el movimiento.");
+  }
+
+  // If this was a fixed-expense payment row, reopen the checklist item.
+  const { error: paymentError } = await admin
+    .from("fixed_expense_payments")
+    .update({
+      status: "pending",
+      real_value: null,
+      paid_at: null,
+      paid_by: null,
+      expense_id: null,
+      updated_at: now,
+    } as never)
+    .in("expense_id", deactivateIds);
+
+  // Table may not exist yet in older environments.
+  if (paymentError && !/fixed_expense_payments|schema cache|does not exist/i.test(paymentError.message)) {
+    throw new Error(paymentError.message);
+  }
 
   revalidatePath("/");
   revalidatePath("/history");
+  revalidatePath("/fixed-expenses");
 
   return { success: true };
 }

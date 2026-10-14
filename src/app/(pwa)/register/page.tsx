@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LoaderCircle, MailCheck } from "lucide-react";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Card } from "@/components/ui/Card";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -49,127 +49,91 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-surface text-on-surface">
-      <header className="fixed top-0 z-50 w-full bg-surface/80 px-6 py-4 backdrop-blur-md" />
-
-      <main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto overscroll-none p-6 pt-24 no-scrollbar">
-        <div className="w-full max-w-5xl">
-          <div className="grid gap-10 lg:grid-cols-[1fr_420px] lg:items-center">
-            <div className="hidden lg:block">
-              <div className="relative overflow-hidden rounded-3xl bg-primary/10 p-8">
-                <div className="absolute inset-0 bg-linear-to-br from-primary/10 to-transparent" />
-                <div className="relative">
-                  <h2 className="font-headline text-4xl font-extrabold tracking-tight text-on-surface">
-                    Crea tu cuenta
-                  </h2>
-                  <p className="mt-3 text-lg text-on-surface-variant">
-                    Tus finanzas, claras y simples.
-                  </p>
-                  <div className="mt-10 rounded-2xl bg-surface-lowest/80 p-6 backdrop-blur-sm">
-                    <p className="font-headline text-2xl font-bold leading-tight text-on-surface">
-                      Diseñado para avanzar paso a paso, sin fricción.
-                    </p>
-                    <p className="mt-4 text-xs uppercase tracking-[0.2em] text-on-surface-variant">
-                      Onboarding Progresivo
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="w-full">
-              <div className="mb-8 text-center lg:hidden">
-                <h1 className="font-headline text-4xl font-extrabold tracking-tight text-on-surface">
-                  Crea tu cuenta
-                </h1>
-                <p className="mt-2 text-lg text-on-surface-variant">
-                  Tus finanzas, claras y simples.
-                </p>
-              </div>
-
-              <Card className="bg-surface-low p-8">
-                {isSuccess ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center animate-in fade-in zoom-in-95 duration-700 ease-out">
-                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-emerald-100/50 bg-emerald-50 shadow-sm">
-                      <MailCheck className="h-10 w-10 text-primary" strokeWidth={1.2} />
-                    </div>
-
-                    <h3 className="mb-3 text-2xl font-bold tracking-tight text-on-surface">Revisa tu bandeja</h3>
-                    <p className="mb-8 max-w-[280px] text-sm leading-relaxed text-on-surface-variant">
-                      Hemos enviado un enlace seguro a <span className="font-semibold text-on-surface">{email}</span> para verificar tu identidad.
-                    </p>
-
-                    <Button
-                      onClick={() => router.push("/login")}
-                      variant="ghost"
-                      className="h-10 px-6 text-sm font-semibold text-primary hover:bg-primary/10 hover:text-primary-dim"
-                    >
-                      Ya lo confirmé, iniciar sesión
-                    </Button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <Input
-                      label="Nombre"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Tu nombre"
-                      type="text"
-                      required
-                      className="bg-surface-lowest"
-                    />
-
-                    <Input
-                      label="Correo electrónico"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="nombre@ejemplo.com"
-                      type="email"
-                      required
-                      className="bg-surface-lowest"
-                    />
-
-                    <Input
-                      label="Contraseña"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      type="password"
-                      required
-                      className="bg-surface-lowest"
-                    />
-
-                    {error && (
-                      <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {error}
-                      </div>
-                    )}
-
-                    <Button
-                      type="submit"
-                      size="lg"
-                      className="w-full"
-                      isLoading={isLoading}
-                    >
-                      {isLoading && <LoaderCircle size={18} className="animate-spin" />}
-                      {isLoading ? "Creando cuenta..." : "Crear cuenta"}
-                    </Button>
-                  </form>
-                )}
-              </Card>
-
-              <div className="mt-8 text-center">
-                <p className="font-body text-on-surface-variant">
-                  ¿Ya tienes cuenta?
-                  <Link href="/login" className="ml-1 font-bold text-primary hover:underline">
-                    Inicia sesión
-                  </Link>
-                </p>
-              </div>
-            </div>
+    <AuthLayout
+      title="Crea tu cuenta"
+      subtitle="Tus finanzas, claras y simples."
+      quote="Diseñado para avanzar paso a paso, sin fricción."
+      quoteLabel="Onboarding progresivo"
+      footer={
+        isSuccess ? null : (
+          <p className="text-sm font-light text-on-surface-variant">
+            ¿Ya tienes cuenta?
+            <Link href="/login" className="ml-1 font-medium text-primary hover:underline">
+              Inicia sesión
+            </Link>
+          </p>
+        )
+      }
+    >
+      {isSuccess ? (
+        <div className="flex flex-col items-center justify-center py-6 text-center animate-in fade-in zoom-in-95 duration-700 ease-out">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-primary shadow-sm">
+            <MailCheck className="h-7 w-7" strokeWidth={1.4} />
           </div>
+
+          <h3 className="mb-2 text-xl font-medium tracking-tight text-on-surface">
+            Revisa tu bandeja
+          </h3>
+          <p className="mb-6 max-w-[280px] text-sm font-light leading-relaxed text-on-surface-variant">
+            Hemos enviado un enlace seguro a{" "}
+            <span className="font-medium text-on-surface">{email}</span> para verificar tu
+            identidad.
+          </p>
+
+          <Button
+            onClick={() => router.push("/login")}
+            variant="ghost"
+            className="h-10 px-6 text-sm font-medium text-primary hover:bg-primary/10"
+          >
+            Ya lo confirmé, iniciar sesión
+          </Button>
         </div>
-      </main>
-    </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Input
+            label="Nombre"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Tu nombre"
+            type="text"
+            required
+          />
+
+          <Input
+            label="Correo electrónico"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="nombre@ejemplo.com"
+            type="email"
+            required
+          />
+
+          <Input
+            label="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            type="password"
+            required
+          />
+
+          {error && (
+            <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full shadow-[0_8px_18px_rgba(43,52,55,0.18)]"
+            isLoading={isLoading}
+          >
+            {isLoading && <LoaderCircle size={18} className="animate-spin" />}
+            {isLoading ? "Creando cuenta..." : "Crear cuenta"}
+          </Button>
+        </form>
+      )}
+    </AuthLayout>
   );
 }

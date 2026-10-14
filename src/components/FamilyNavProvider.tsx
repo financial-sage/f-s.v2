@@ -83,7 +83,7 @@ export default function FamilyNavProvider() {
     };
   }, []);
 
-  if (!ready || !nav.familyId) {
+  if (!ready) {
     return null;
   }
 

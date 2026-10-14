@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   turbopack: {},
   allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
     "192.168.*.*",
     "192.168.1.19",
     "*.loca.lt",

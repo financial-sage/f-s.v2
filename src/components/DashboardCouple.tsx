@@ -36,7 +36,11 @@ import {
 } from "lucide-react";
 import { settleDebt } from "@/app/actions/debt";
 import { createDeposit, createPersonalDeposit, deleteExpenseAction } from "@/app/actions/expenses";
-import { createFundAction, getFundsOverviewAction } from "@/app/actions/funds";
+import {
+    createFundAction,
+    getFundsOverviewAction,
+    updateFundAction,
+} from "@/app/actions/funds";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
 import { settleP2PAction } from "@/app/actions/settleP2P";
 import { createClient } from "@/utils/supabase/client";
@@ -58,7 +62,9 @@ import {
     DEFAULT_PERSONAL_FUND_COLOR,
     DEFAULT_SHARED_FUND_COLOR,
     getDefaultSharedFund,
+    isFixedExpensesFund,
     isSharedLegacyResponsible,
+    listDashboardSharedFunds,
     resolveFundColor,
     type FamilyFund,
 } from "@/lib/funds";
@@ -164,7 +170,7 @@ export default function DashboardCouple({
 }: DashboardCoupleProps) {
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
-    const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
+    const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
     const [currentFilter, setCurrentFilter] = useState<ActivityFilter>("all");
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [isFilterAnimated, setIsFilterAnimated] = useState(false);
@@ -203,6 +209,7 @@ export default function DashboardCouple({
     const [showFundsMenu, setShowFundsMenu] = useState(false);
     const [showCreateFundModal, setShowCreateFundModal] = useState(false);
     const [isCreateFundAnimated, setIsCreateFundAnimated] = useState(false);
+    const [editingFund, setEditingFund] = useState<FamilyFund | null>(null);
     const [newFundName, setNewFundName] = useState("");
     const [newFundColor, setNewFundColor] = useState<string>(DEFAULT_SHARED_FUND_COLOR);
     const [fundActionError, setFundActionError] = useState("");
@@ -262,22 +269,24 @@ export default function DashboardCouple({
         setIsDeleteModalOpen(false);
         setExpenseToDelete(null);
     };
+    const showToast = (message: string) => {
+        setSystemNotification(message);
+        window.setTimeout(() => setSystemNotification(null), 3000);
+    };
+
     const handleDeleteConfirm = () => {
         if (!expenseToDelete) return;
         startDeletingTransition(async () => {
             try {
                 await deleteExpenseAction(expenseToDelete);
                 closeDeleteModal();
+                await useExpenseStore.getState().refreshData();
                 router.refresh();
-            } catch {
+            } catch (err) {
                 closeDeleteModal();
+                showToast(err instanceof Error ? err.message : "No se pudo eliminar el movimiento.");
             }
         });
-    };
-
-    const showToast = (message: string) => {
-        setSystemNotification(message);
-        window.setTimeout(() => setSystemNotification(null), 3000);
     };
     const openDepositModal = () => {
         setDepositTarget("shared");
@@ -459,14 +468,24 @@ export default function DashboardCouple({
             try {
                 const overview = await getFundsOverviewAction();
                 if (cancelled) return;
-                const shared = overview.funds.filter(
-                    (f) => f.scope === "shared" && !f.archived_at
-                );
+                const shared = listDashboardSharedFunds(overview.funds);
                 setSharedFunds(shared);
+
+                let nextSelectedId: string | null = null;
                 setSelectedFundId((prev) => {
-                    if (prev && shared.some((f) => f.id === prev)) return prev;
-                    return overview.sharedDefaultFundId ?? shared[0]?.id ?? null;
+                    nextSelectedId =
+                        prev && shared.some((f) => f.id === prev)
+                            ? prev
+                            : overview.sharedDefaultFundId ?? shared[0]?.id ?? null;
+                    return nextSelectedId;
                 });
+
+                const preferredFundId =
+                    nextSelectedId &&
+                    shared.some((f) => f.id === nextSelectedId && isFixedExpensesFund(f))
+                        ? overview.sharedDefaultFundId ?? null
+                        : nextSelectedId;
+                setPreferredFundId(preferredFundId);
             } catch {
                 // Migration/table may be unavailable; keep legacy green card.
             }
@@ -478,13 +497,23 @@ export default function DashboardCouple({
 
     const openCreateFundModal = () => {
         setFundActionError("");
+        setEditingFund(null);
         setNewFundName("");
         setNewFundColor(DEFAULT_SHARED_FUND_COLOR);
         setShowFundsMenu(false);
         animateIn(setShowCreateFundModal, setIsCreateFundAnimated);
     };
+    const openEditFundModal = (fund: FamilyFund) => {
+        setFundActionError("");
+        setEditingFund(fund);
+        setNewFundName(fund.name);
+        setNewFundColor(resolveFundColor(fund));
+        setShowFundsMenu(false);
+        animateIn(setShowCreateFundModal, setIsCreateFundAnimated);
+    };
     const closeCreateFundModal = () =>
         animateOut(setShowCreateFundModal, setIsCreateFundAnimated, () => {
+            setEditingFund(null);
             setNewFundName("");
             setNewFundColor(DEFAULT_SHARED_FUND_COLOR);
             setFundActionError("");
@@ -492,10 +521,15 @@ export default function DashboardCouple({
 
     const handleSelectFund = (fundId: string) => {
         setSelectedFundId(fundId);
+        const fund = sharedFunds.find((f) => f.id === fundId) ?? null;
+        // Fixed-expenses pocket is not selectable in the variable expense modal.
+        if (!isFixedExpensesFund(fund)) {
+            setPreferredFundId(fundId);
+        }
         setShowFundsMenu(false);
     };
 
-    const handleCreateFund = () => {
+    const handleSaveFund = () => {
         const name = newFundName.trim();
         if (!name) {
             setFundActionError("Escribe un nombre para el fondo.");
@@ -504,22 +538,39 @@ export default function DashboardCouple({
         setFundActionError("");
         startCreateFundTransition(async () => {
             try {
-                const created = await createFundAction({
-                    name,
-                    scope: "shared",
-                    color: newFundColor,
-                });
-                const overview = await getFundsOverviewAction();
-                const shared = overview.funds.filter(
-                    (f) => f.scope === "shared" && !f.archived_at
-                );
-                setSharedFunds(shared);
-                setSelectedFundId(created.id);
+                if (editingFund) {
+                    const updated = await updateFundAction({
+                        fundId: editingFund.id,
+                        name,
+                        color: newFundColor,
+                    });
+                    const overview = await getFundsOverviewAction();
+                    const shared = listDashboardSharedFunds(overview.funds);
+                    setSharedFunds(shared);
+                    if (selectedFundId === updated.id) {
+                        setSelectedFundId(updated.id);
+                    }
+                } else {
+                    const created = await createFundAction({
+                        name,
+                        scope: "shared",
+                        color: newFundColor,
+                    });
+                    const overview = await getFundsOverviewAction();
+                    const shared = listDashboardSharedFunds(overview.funds);
+                    setSharedFunds(shared);
+                    setSelectedFundId(created.id);
+                    setPreferredFundId(created.id);
+                }
                 closeCreateFundModal();
                 router.refresh();
             } catch (err) {
                 setFundActionError(
-                    err instanceof Error ? err.message : "No se pudo crear el fondo."
+                    err instanceof Error
+                        ? err.message
+                        : editingFund
+                          ? "No se pudo actualizar el fondo."
+                          : "No se pudo crear el fondo."
                 );
             }
         });
@@ -539,10 +590,11 @@ export default function DashboardCouple({
         return true;
     };
 
-    // Deudas por cada bolsillo compartido
+    // Deudas por cada bolsillo compartido (excluye Gastos fijos)
     const fundDebts = useMemo(
         () =>
             sharedFunds
+                .filter((fund) => !isFixedExpensesFund(fund))
                 .map((fund) => {
                     const debtExpenses = expenses.filter(
                         (expense) =>
@@ -593,6 +645,7 @@ export default function DashboardCouple({
                 (expense) =>
                     expense.category !== "withdrawal" &&
                     expense.category !== "transfer" &&
+                    expense.category !== "fixed_expense" &&
                     expense.concept !== "Reembolso del fondo" &&
                     !isFundSettlementConcept(expense.concept)
             ),
@@ -1015,6 +1068,7 @@ export default function DashboardCouple({
                                 icon: Plus,
                                 onClick: () => {
                                     setExpenseToEdit(null);
+                                    setPreferredFundId(selectedFundId);
                                     setIsExpenseModalOpen(true);
                                 },
                                 darkFab: true,
@@ -1100,20 +1154,19 @@ export default function DashboardCouple({
                                                 fund.id,
                                                 {
                                                     treatLegacyJointAsFundId:
-                                                        getDefaultSharedFund(sharedFunds)?.id ?? null,
+                                                        getDefaultSharedFund(sharedFunds)?.id ??
+                                                        null,
                                                 }
                                             );
                                             const isActive = selectedFund?.id === fund.id;
                                             const fundColor = resolveFundColor(fund);
                                             return (
-                                                <button
+                                                <div
                                                     key={fund.id}
-                                                    type="button"
-                                                    onClick={() => handleSelectFund(fund.id)}
-                                                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-left transition-colors ${
+                                                    className={`flex w-full items-center gap-1 rounded-xl px-1 py-0.5 transition-colors ${
                                                         isActive
                                                             ? "bg-white/55 shadow-sm"
-                                                            : "text-on-surface hover:bg-white/35"
+                                                            : "hover:bg-white/35"
                                                     }`}
                                                     style={
                                                         isActive
@@ -1123,23 +1176,43 @@ export default function DashboardCouple({
                                                             : undefined
                                                     }
                                                 >
-                                                    <span className="flex min-w-0 items-center gap-2">
-                                                        <span
-                                                            className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
-                                                            style={{ backgroundColor: fundColor }}
-                                                        />
-                                                        <span
-                                                            className={`truncate text-[13px] ${
-                                                                isActive ? "font-semibold text-on-surface" : "font-medium"
-                                                            }`}
-                                                        >
-                                                            {fund.name}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSelectFund(fund.id)}
+                                                        className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl px-1.5 py-1.5 text-left"
+                                                    >
+                                                        <span className="flex min-w-0 items-center gap-2">
+                                                            <span
+                                                                className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+                                                                style={{ backgroundColor: fundColor }}
+                                                            />
+                                                            <span
+                                                                className={`truncate text-[13px] ${
+                                                                    isActive
+                                                                        ? "font-semibold text-on-surface"
+                                                                        : "font-medium text-on-surface"
+                                                                }`}
+                                                            >
+                                                                {fund.name}
+                                                            </span>
                                                         </span>
-                                                    </span>
-                                                    <span className="shrink-0 text-[11px] font-medium text-on-surface-variant">
-                                                        {formatCurrency(balance)}
-                                                    </span>
-                                                </button>
+                                                        <span className="shrink-0 text-[11px] font-medium text-on-surface-variant">
+                                                            {formatCurrency(balance)}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openEditFundModal(fund);
+                                                        }}
+                                                        className="mr-0.5 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-white/60 hover:text-on-surface"
+                                                        aria-label={`Editar ${fund.name}`}
+                                                        title="Editar"
+                                                    >
+                                                        <Edit size={13} strokeWidth={2.1} />
+                                                    </button>
+                                                </div>
                                             );
                                         })
                                     )}
@@ -1460,10 +1533,11 @@ export default function DashboardCouple({
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category);
                                     const Icon = categoryPresentation.icon;
                                     const isDeposit = expense.category === "deposit";
+                                    const isWithdrawal = expense.category === "withdrawal";
                                     const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
                                     const isModifiable =
-                                        (!expense.is_settled || expense.category === 'deposit') &&
-                                        expense.concept !== 'Reembolso del fondo' &&
+                                        (isDeposit || isWithdrawal || !expense.is_settled) &&
+                                        expense.concept !== "Reembolso del fondo" &&
                                         !isFundSettlementConcept(expense.concept);
                                     const expenseFund =
                                         sharedFunds.find((f) => f.id === expense.fund_id) ??
@@ -1800,7 +1874,7 @@ export default function DashboardCouple({
                             <X size={14} />
                         </button>
                         <h3 className="pr-8 text-base font-semibold tracking-tight text-on-surface">
-                            Crear fondo
+                            {editingFund ? "Editar fondo" : "Crear fondo"}
                         </h3>
                         <p className="mt-0.5 text-xs text-on-surface-variant">
                             Nombre y color del bolsillo compartido.
@@ -1813,7 +1887,7 @@ export default function DashboardCouple({
                             value={newFundName}
                             onChange={(e) => setNewFundName(e.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === "Enter") handleCreateFund();
+                                if (e.key === "Enter") handleSaveFund();
                             }}
                             placeholder="Ej. Gasolina, Restaurantes..."
                             className="mt-1.5 w-full rounded-2xl border border-white/60 bg-white/50 px-3.5 py-2.5 text-sm text-on-surface outline-none backdrop-blur-md placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
@@ -1851,7 +1925,7 @@ export default function DashboardCouple({
                                 Vista previa
                             </p>
                             <p className="mt-1 text-base font-semibold tracking-tight">
-                                {newFundName.trim() || "Nuevo fondo"}
+                                {newFundName.trim() || (editingFund ? editingFund.name : "Nuevo fondo")}
                             </p>
                         </div>
                         {fundActionError && (
@@ -1862,7 +1936,7 @@ export default function DashboardCouple({
                         <button
                             type="button"
                             disabled={isCreatingFund}
-                            onClick={handleCreateFund}
+                            onClick={handleSaveFund}
                             className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-2.5 text-sm font-semibold text-[#f3f5f0] shadow-[0_10px_22px_rgba(43,52,55,0.28)] transition-transform active:scale-[0.98] disabled:opacity-60"
                             style={{
                                 backgroundImage:

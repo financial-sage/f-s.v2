@@ -1,5 +1,13 @@
 import { revalidatePath } from "next/cache";
-import { BellRing, ChevronRight, CircleHelp, Coins, ShieldCheck, Users } from "lucide-react";
+import {
+  BellRing,
+  ChevronRight,
+  CircleHelp,
+  Coins,
+  ShieldCheck,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import FamilySettings from "@/components/FamilySettings";
@@ -113,14 +121,15 @@ export default async function ProfilePage() {
 
   const { data: partnerProfile } = partnerId
     ? await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", partnerId)
-      .maybeSingle()
+        .from("profiles")
+        .select("full_name")
+        .eq("id", partnerId)
+        .maybeSingle()
     : { data: null };
 
   const partnerDisplayName = getFirstName(partnerProfile?.full_name);
   const hasPartner = Boolean(partnerId);
+  const familyLabel = family?.name?.trim() || "Tu espacio";
 
   const preferences = [
     { icon: BellRing, label: "Notificaciones", value: "Activadas" },
@@ -130,73 +139,92 @@ export default async function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-dvh flex flex-col bg-surface px-4 pt-6">
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col space-y-5">
-        <header className="px-2 pt-2 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-on-surface-variant">
-            Ajustes
-          </p>
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0] text-on-surface">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
 
-          <div className="mt-4 flex flex-col items-center text-center">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-28 pt-4">
+        <header className="mb-3 flex items-start justify-between gap-3 px-1">
+          <div className="min-w-0">
+            <p className="text-[11px] font-light text-on-surface-variant">Tu cuenta</p>
+            <h1 className="text-[17px] font-medium tracking-tight text-on-surface">Perfil</h1>
+          </div>
+          <SignOutButton compact />
+        </header>
+
+        <section
+          className="mb-4 overflow-hidden rounded-[1.85rem] p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
+          style={{
+            backgroundImage:
+              "linear-gradient(145deg, rgba(255,255,255,0.72) 0%, rgba(74,101,73,0.10) 55%, rgba(74,101,73,0.18) 100%)",
+          }}
+        >
+          <div className="flex items-center gap-3.5">
             {profile?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.avatar_url}
                 alt={displayName}
-                className="h-24 w-24 rounded-full object-cover shadow-sm"
+                className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-white/60"
               />
             ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-3xl font-extrabold text-on-primary shadow-sm">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container text-lg font-medium text-on-primary-container shadow-sm ring-2 ring-white/60">
                 {initials}
               </div>
             )}
-
-            <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-on-surface">
-              {displayName}
-            </h1>
-            <p className="mt-1 text-sm text-on-surface-variant">{user.email}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-light text-on-surface-variant">{familyLabel}</p>
+              <h2 className="truncate text-xl font-light tracking-tight text-on-surface">
+                {displayName}
+              </h2>
+              <p className="mt-0.5 truncate text-xs font-light text-on-surface-variant">
+                {user.email}
+              </p>
+            </div>
           </div>
-        </header>
+        </section>
 
-        <section className="rounded-3xl bg-surface-lowest p-4 shadow-sm">
+        <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-white/45 bg-white/55 p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
           <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary/10 p-2 text-primary">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Users size={18} />
             </div>
-            <div className="flex-1">
-              <h2 className="font-semibold text-on-surface">Familia</h2>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-medium tracking-tight text-on-surface">Familia</h3>
               {hasPartner ? (
-                <p className="mt-1 text-sm text-on-surface-variant">
+                <p className="mt-1 text-sm font-light text-on-surface-variant">
                   Espacio compartido con {partnerDisplayName}
                 </p>
               ) : (
                 <>
-                  <p className="mt-1 text-sm text-on-surface-variant">Código de invitación</p>
-                  <div className="mt-3 rounded-2xl bg-primary/8 px-4 py-3">
-                    <p className="font-mono text-xl font-extrabold tracking-[0.2em] text-primary">
+                  <p className="mt-1 text-sm font-light text-on-surface-variant">
+                    Código de invitación
+                  </p>
+                  <div className="mt-3 rounded-2xl border border-white/50 bg-white/60 px-4 py-3 backdrop-blur-md">
+                    <p className="font-mono text-xl font-medium tracking-[0.2em] text-primary">
                       {inviteCode}
                     </p>
                   </div>
 
                   <details className="mt-3 group">
                     <summary className="list-none">
-                      <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-surface-container">
+                      <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low/90 px-3.5 py-1.5 text-xs font-medium text-on-surface transition hover:bg-white/70">
                         Ingresar código
                       </span>
                     </summary>
 
-                    <form action={joinFamily} className="mt-3 flex flex-col gap-3 sm:flex-row">
+                    <form action={joinFamily} className="mt-3 flex flex-col gap-2.5">
                       <input
                         name="inviteCode"
                         type="text"
                         inputMode="text"
                         maxLength={6}
                         placeholder="Código de 6 caracteres"
-                        className="w-full rounded-2xl border border-outline-variant/30 bg-surface px-4 py-3 text-center font-mono text-on-surface uppercase outline-none focus:border-sage"
+                        className="w-full rounded-2xl border border-outline-variant/30 bg-white/70 px-4 py-3 text-center font-mono text-on-surface uppercase outline-none backdrop-blur-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
                         required
                       />
                       <button
                         type="submit"
-                        className="rounded-full bg-primary px-5 py-3 font-semibold text-on-primary transition hover:brightness-110"
+                        className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-on-primary shadow-[0_8px_18px_rgba(43,52,55,0.16)] transition hover:brightness-110"
                       >
                         Unirse
                       </button>
@@ -209,60 +237,70 @@ export default async function ProfilePage() {
         </section>
 
         {family?.id ? (
-          <FamilySettings
-            familyId={family.id}
-            initialModel={currentFinancialModel}
-            initialSplitPct={currentSplitPct}
-            isUserOne={isUserOne}
-          />
+          <div className="mb-3">
+            <FamilySettings
+              familyId={family.id}
+              initialModel={currentFinancialModel}
+              initialSplitPct={currentSplitPct}
+              isUserOne={isUserOne}
+            />
+          </div>
         ) : null}
 
-        <section className="overflow-hidden rounded-3xl bg-surface-lowest shadow-sm">
-          <div className="px-4 pt-4">
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-on-surface-variant">
-              Preferencias
-            </p>
+        <section className="mb-4 overflow-hidden rounded-[1.85rem] border border-white/45 bg-white/55 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
+          <div className="px-4 pt-3.5 pb-1">
+            <p className="text-[11px] font-light text-on-surface-variant">Preferencias</p>
           </div>
 
-          <div className="divide-y divide-outline-variant/20">
+          <div className="divide-y divide-outline-variant/15">
             <ThemeToggleRow />
             <Link
-              href="/categories"
-              className="flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+              href="/fixed-expenses"
+              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-surface-low p-2 text-primary">
-                  <Coins size={18} />
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+                  <Wallet size={16} />
                 </div>
-                <span className="font-semibold text-on-surface">Categorías</span>
+                <span className="text-sm font-medium text-on-surface">Gastos fijos</span>
               </div>
-
-              <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+              <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
+                <span>Abrir</span>
+                <ChevronRight size={14} />
+              </div>
+            </Link>
+            <Link
+              href="/categories"
+              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+                  <Coins size={16} />
+                </div>
+                <span className="text-sm font-medium text-on-surface">Categorías</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
                 <span>Administrar</span>
-                <ChevronRight size={16} />
+                <ChevronRight size={14} />
               </div>
             </Link>
             {preferences.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-center justify-between px-4 py-2.5">
+              <div key={label} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-surface-low p-2 text-primary">
-                    <Icon size={18} />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+                    <Icon size={16} />
                   </div>
-                  <span className="font-semibold text-on-surface">{label}</span>
+                  <span className="text-sm font-medium text-on-surface">{label}</span>
                 </div>
-
-                <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+                <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
                   <span>{value}</span>
-                  <ChevronRight size={16} />
+                  <ChevronRight size={14} />
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        <div className="mt-auto">
-          <SignOutButton subtle />
-        </div>
       </div>
     </div>
   );

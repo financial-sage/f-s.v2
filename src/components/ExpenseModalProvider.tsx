@@ -17,6 +17,7 @@ export interface ExpenseToEdit {
   category?: string | null;
   paid_by?: string | null;
   responsible_for?: string | null;
+  fund_id?: string | null;
 }
 
 interface ExpenseModalContextValue {
@@ -24,6 +25,8 @@ interface ExpenseModalContextValue {
   setIsExpenseModalOpen: Dispatch<SetStateAction<boolean>>;
   expenseToEdit: ExpenseToEdit | null;
   setExpenseToEdit: Dispatch<SetStateAction<ExpenseToEdit | null>>;
+  preferredFundId: string | null;
+  setPreferredFundId: Dispatch<SetStateAction<string | null>>;
 }
 
 const ExpenseModalContext = createContext<ExpenseModalContextValue | null>(null);
@@ -31,6 +34,7 @@ const ExpenseModalContext = createContext<ExpenseModalContextValue | null>(null)
 export function ExpenseModalProvider({ children }: { children: ReactNode }) {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<ExpenseToEdit | null>(null);
+  const [preferredFundId, setPreferredFundId] = useState<string | null>(null);
 
   const value = useMemo(
     () => ({
@@ -38,8 +42,10 @@ export function ExpenseModalProvider({ children }: { children: ReactNode }) {
       setIsExpenseModalOpen,
       expenseToEdit,
       setExpenseToEdit,
+      preferredFundId,
+      setPreferredFundId,
     }),
-    [expenseToEdit, isExpenseModalOpen]
+    [expenseToEdit, isExpenseModalOpen, preferredFundId]
   );
 
   return (

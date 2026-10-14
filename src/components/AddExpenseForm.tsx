@@ -24,14 +24,14 @@ import {
 } from "@/app/actions/expenses";
 import { editExpenseAction } from "@/app/actions/editExpense";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
-import type { ExpenseToEdit } from "@/components/ExpenseModalProvider";
+import { useExpenseModal, type ExpenseToEdit } from "@/components/ExpenseModalProvider";
 import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useCategories } from "@/hooks/useCategories";
 import { listFamilyFundsAction } from "@/app/actions/funds";
 import type { FamilyFund } from "@/lib/funds";
-import { getDefaultSharedFund, resolveFundColor } from "@/lib/funds";
+import { getDefaultSharedFund, listVariableSharedFunds, resolveFundColor } from "@/lib/funds";
 
 interface AddExpenseFormProps {
   familyId: string;
@@ -151,6 +151,7 @@ export default function AddExpenseForm({
 }: AddExpenseFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const { preferredFundId } = useExpenseModal();
   const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
   const [resolvedFamilyMemberCount, setResolvedFamilyMemberCount] = useState<number>(familyMemberCount ?? 1);
   const [resolvedPartnerFirstName, setResolvedPartnerFirstName] = useState<string>(
@@ -189,10 +190,17 @@ export default function AddExpenseForm({
       try {
         const funds = await listFamilyFundsAction();
         if (cancelled) return;
-        const shared = funds.filter((f) => f.scope === "shared" && !f.archived_at);
+        const shared = listVariableSharedFunds(funds);
         setSharedFunds(shared);
+        const preferred =
+          preferredFundId && shared.some((fund) => fund.id === preferredFundId)
+            ? preferredFundId
+            : null;
         const defaultShared = getDefaultSharedFund(shared) ?? shared[0] ?? null;
-        setSelectedFundId((prev) => prev ?? defaultShared?.id ?? null);
+        setSelectedFundId((prev) => preferred ?? prev ?? defaultShared?.id ?? null);
+        if (preferred && !expenseToEdit) {
+          setResponsibleFor("joint_fund");
+        }
       } catch {
         // Migration may not be applied; form still works with legacy joint_fund.
       }
@@ -200,7 +208,7 @@ export default function AddExpenseForm({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [expenseToEdit, preferredFundId]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -326,6 +334,10 @@ export default function AddExpenseForm({
         setResponsibleFor("partner");
       }
 
+      if (expenseToEdit.fund_id) {
+        setSelectedFundId(expenseToEdit.fund_id);
+      }
+
       if (hydratedDate) {
         setDate(hydratedDate.slice(0, 10));
       }
@@ -344,12 +356,15 @@ export default function AddExpenseForm({
     setConcept("");
     setPaidBy("me");
     setResponsibleFor(isCoupleMode ? "joint_fund" : "me");
+    if (preferredFundId) {
+      setSelectedFundId(preferredFundId);
+    }
     setMyContribution("");
     setPartnerContribution("");
     setSelectedCategory("food");
     setDate(new Date().toISOString().slice(0, 10));
     setErrorMessage("");
-  }, [expenseToEdit, isCoupleMode, resolvedCurrentUserId]);
+  }, [expenseToEdit, isCoupleMode, preferredFundId, resolvedCurrentUserId]);
 
   useEffect(() => {
     if (

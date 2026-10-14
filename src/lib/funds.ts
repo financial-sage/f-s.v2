@@ -1,4 +1,9 @@
 export type FundScope = "shared" | "personal";
+export type FundPurpose = "general" | "fixed_expenses";
+
+export const FIXED_EXPENSES_FUND_NAME = "Gastos fijos";
+/** Blue-gray accent for the fixed-expenses fund and screen. */
+export const FIXED_EXPENSES_FUND_COLOR = "#5B7188";
 
 /** Default palette for shared funds (works with white text overlays). */
 export const FUND_COLOR_OPTIONS = [
@@ -38,6 +43,7 @@ export interface FamilyFund {
   sort_order: number;
   archived_at: string | null;
   color?: string | null;
+  purpose?: FundPurpose | null;
 }
 
 export function resolveFundColor(fund?: Pick<FamilyFund, "color" | "scope"> | null) {
@@ -189,8 +195,35 @@ export function calculateFundOwesUser(
   );
 }
 
+export function isFixedExpensesFund(fund?: Pick<FamilyFund, "purpose" | "name"> | null) {
+  if (!fund) return false;
+  if (fund.purpose === "fixed_expenses") return true;
+  return fund.name.trim().toLowerCase() === FIXED_EXPENSES_FUND_NAME.toLowerCase();
+}
+
+export function getFixedExpensesFund(funds: FamilyFund[]) {
+  return funds.find((f) => !f.archived_at && isFixedExpensesFund(f)) ?? null;
+}
+
+export function listVariableSharedFunds(funds: FamilyFund[]) {
+  return listActiveFunds(funds).filter((f) => f.scope === "shared" && !isFixedExpensesFund(f));
+}
+
+/** Shared funds shown on the dashboard (includes Gastos fijos pocket). */
+export function listDashboardSharedFunds(funds: FamilyFund[]) {
+  return listActiveFunds(funds).filter((f) => f.scope === "shared");
+}
+
 export function getDefaultSharedFund(funds: FamilyFund[]) {
-  return funds.find((f) => f.scope === "shared" && f.is_default && !f.archived_at) ?? null;
+  return (
+    funds.find(
+      (f) =>
+        f.scope === "shared" &&
+        f.is_default &&
+        !f.archived_at &&
+        !isFixedExpensesFund(f)
+    ) ?? null
+  );
 }
 
 export function getPersonalFund(funds: FamilyFund[], userId: string) {
