@@ -49,7 +49,6 @@ import {
     ExpenseDebtStatus,
     isFundSettlementConcept,
 } from "@/components/ExpenseDebtStatus";
-import ProfileDrawer from "@/components/ProfileDrawer";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -70,6 +69,7 @@ import {
     resolveFundColor,
     type FamilyFund,
 } from "@/lib/funds";
+import { tintedGlassGradient } from "@/lib/glass";
 
 
 interface CoupleDashboardExpense {
@@ -192,7 +192,6 @@ export default function DashboardCouple({
     const [welcomeProgress, setWelcomeProgress] = useState(0);
     const [highlightFundCard, setHighlightFundCard] = useState(false);
     const [animateSharedEntrance, setAnimateSharedEntrance] = useState(false);
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, startDeletingTransition] = useTransition();
@@ -888,13 +887,12 @@ export default function DashboardCouple({
         members.find((member) => member.id === currentUserId) ?? members[0] ?? null;
 
     return (
-        <div className="relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0]">
+        <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
 
             <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
-                <button
-                    type="button"
-                    onClick={() => setIsProfileOpen(true)}
+                <Link
+                    href="/profile"
                     className="flex min-w-0 items-center gap-2.5 text-left"
                 >
                     <div className="h-9 w-9 overflow-hidden rounded-full border border-outline-variant/30 bg-surface-lowest shadow-sm">
@@ -919,7 +917,7 @@ export default function DashboardCouple({
                             {getFirstName(currentUserName, "Tú")}
                         </p>
                     </div>
-                </button>
+                </Link>
                 <div className="flex items-center gap-1.5">
                     {isPremium ? (
                         <div className="flex items-center rounded-full border border-accent/25 bg-accent/15 px-1.5 py-1 shadow-sm">
@@ -940,7 +938,7 @@ export default function DashboardCouple({
                         aria-label="Notificaciones"
                     >
                         <Bell size={16} />
-                        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-white" />
+                        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-page-from" />
                     </button>
                 </div>
             </header>
@@ -975,7 +973,7 @@ export default function DashboardCouple({
                     <div
                         className="relative overflow-hidden rounded-[1.85rem] p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl transition-[background] duration-500"
                         style={{
-                            backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                            backgroundImage: tintedGlassGradient(heroColor),
                         }}
                     >
                         <div className="relative z-10 flex min-w-0 items-center gap-3">
@@ -1008,7 +1006,7 @@ export default function DashboardCouple({
                             <button
                                 type="button"
                                 onClick={() => setBalanceVisible((v) => !v)}
-                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-white/40"
+                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
                                 aria-label={balanceVisible ? "Ocultar saldo" : "Mostrar saldo"}
                             >
                                 {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
@@ -1100,25 +1098,20 @@ export default function DashboardCouple({
                                 >
                                     <span
                                         className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md transition-[background] duration-500 ${
-                                            darkFab || isAportar
-                                                ? ""
-                                                : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface"
+                                            darkFab
+                                                ? "fab-ink"
+                                                : isAportar
+                                                  ? "border"
+                                                  : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface"
                                         }`}
                                         style={
-                                            darkFab
+                                            isAportar && !darkFab
                                                 ? {
-                                                      backgroundImage:
-                                                          "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
-                                                      color: "#f3f5f0",
-                                                      boxShadow: "0 10px 22px rgba(43,52,55,0.32)",
+                                                      backgroundImage: tintedGlassGradient(heroColor),
+                                                      color: heroColor,
+                                                      borderColor: `${heroColor}55`,
                                                   }
-                                                : isAportar
-                                                  ? {
-                                                        backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
-                                                        color: heroColor,
-                                                        borderColor: heroColor,
-                                                    }
-                                                  : undefined
+                                                : undefined
                                         }
                                     >
                                         <Icon size={17} strokeWidth={darkFab ? 2.2 : 1.7} />
@@ -1137,7 +1130,7 @@ export default function DashboardCouple({
                                 className="fixed inset-0 z-40 cursor-default"
                                 onClick={() => setShowFundsMenu(false)}
                             />
-                            <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-2xl border border-white/45 bg-white/40 shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-2xl border border-glass-border bg-glass-soft shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="max-h-52 overflow-y-auto p-1.5">
                                     {sharedFunds.length === 0 ? (
                                         <p className="px-2.5 py-2 text-[11px] text-on-surface-variant">
@@ -1161,13 +1154,17 @@ export default function DashboardCouple({
                                                     key={fund.id}
                                                     className={`flex w-full items-center gap-1 rounded-xl px-1 py-0.5 transition-colors ${
                                                         isActive
-                                                            ? "bg-white/55 shadow-sm"
-                                                            : "hover:bg-white/35"
+                                                            ? "bg-glass shadow-sm"
+                                                            : "hover:bg-glass-soft"
                                                     }`}
                                                     style={
                                                         isActive
                                                             ? {
-                                                                  backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.55) 0%, ${fundColor}14 100%)`,
+                                                                  backgroundImage: tintedGlassGradient(fundColor, {
+                                                                      soft: true,
+                                                                      midAlpha: "14",
+                                                                      endOnly: true,
+                                                                  }),
                                                               }
                                                             : undefined
                                                     }
@@ -1202,7 +1199,7 @@ export default function DashboardCouple({
                                                             e.stopPropagation();
                                                             openEditFundModal(fund);
                                                         }}
-                                                        className="mr-0.5 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-white/60 hover:text-on-surface"
+                                                        className="mr-0.5 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
                                                         aria-label={`Editar ${fund.name}`}
                                                         title="Editar"
                                                     >
@@ -1213,15 +1210,11 @@ export default function DashboardCouple({
                                         })
                                     )}
                                 </div>
-                                <div className="border-t border-white/40 p-1.5">
+                                <div className="border-t border-glass-border p-1.5">
                                     <button
                                         type="button"
                                         onClick={openCreateFundModal}
-                                        className="flex w-full items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold text-[#f3f5f0] shadow-[0_8px_18px_rgba(43,52,55,0.22)] transition-transform active:scale-[0.98]"
-                                        style={{
-                                            backgroundImage:
-                                                "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
-                                        }}
+                                        className="fab-ink flex w-full items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold transition-transform active:scale-[0.98]"
                                     >
                                         <Plus size={14} strokeWidth={2.2} />
                                         Crear fondo
@@ -1506,14 +1499,14 @@ export default function DashboardCouple({
                     </div>
 
                     <div
-                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/40 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-2xl ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
+                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-2xl ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "240ms" } : undefined}
                     >
                         {currentList.length === 0 ? (
                             <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
                                 <div className="relative mb-4 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />
-                                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-emerald-100/50 bg-white/50 text-primary shadow-sm backdrop-blur-md">
+                                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-emerald-100/50 bg-glass text-primary shadow-sm backdrop-blur-md">
                                         <Receipt size={28} strokeWidth={1.5} />
                                     </div>
                                 </div>
@@ -1547,14 +1540,14 @@ export default function DashboardCouple({
                                     return (
                                         <div
                                             key={expense.id}
-                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-white/40 last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-glass-border last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
                                             style={{ animationDelay: `${index * 60}ms` }}
                                         >
                                             <button
                                                 type="button"
                                                 onClick={() => toggleActions(expense.id)}
                                                 className={`flex h-full w-full items-center justify-between gap-2.5 px-3.5 text-left transition-colors duration-200 ${
-                                                    activeActionId === expense.id ? "bg-white/40 pr-2" : "bg-transparent"
+                                                    activeActionId === expense.id ? "bg-glass-soft pr-2" : "bg-transparent"
                                                 }`}
                                             >
                                                 <div className="flex min-w-0 items-center gap-3">
@@ -1707,7 +1700,7 @@ export default function DashboardCouple({
                             onClick={() => closeBalancesModal()}
                         />
                         <div
-                            className={`relative flex max-h-[88dvh] flex-col overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                            className={`relative flex max-h-[88dvh] flex-col overflow-hidden rounded-t-[2rem] glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                                 isBalancesAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
                             }`}
                         >
@@ -1725,7 +1718,7 @@ export default function DashboardCouple({
                                 <button
                                     type="button"
                                     onClick={() => closeBalancesModal()}
-                                    className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
+                                    className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-glass-strong text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-glass-strong"
                                     aria-label="Cerrar"
                                 >
                                     <X size={16} />
@@ -1733,7 +1726,7 @@ export default function DashboardCouple({
                             </div>
 
                             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-                                <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/55 shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md divide-y divide-outline-variant/15">
+                                <div className="overflow-hidden rounded-2xl border border-glass-border bg-glass shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md divide-y divide-outline-variant/15">
                                     {fundDebts.map(({ fund, amount }) => {
                                         const fundColor = resolveFundColor(fund);
                                         return (
@@ -1856,7 +1849,7 @@ export default function DashboardCouple({
                         onClick={closeCreateFundModal}
                     />
                     <div
-                        className={`relative m-4 w-full max-w-sm overflow-hidden rounded-[1.75rem] border border-white/55 bg-white/55 p-5 shadow-[0_20px_50px_rgba(43,52,55,0.18)] backdrop-blur-2xl transition-all duration-300 ${
+                        className={`relative m-4 w-full max-w-sm overflow-hidden rounded-[1.75rem] border border-glass-border bg-glass p-5 shadow-[0_20px_50px_rgba(43,52,55,0.18)] backdrop-blur-2xl transition-all duration-300 ${
                             isCreateFundAnimated
                                 ? "translate-y-0 opacity-100"
                                 : "translate-y-6 opacity-0"
@@ -1865,7 +1858,7 @@ export default function DashboardCouple({
                         <button
                             type="button"
                             onClick={closeCreateFundModal}
-                            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-white/60 text-on-surface-variant shadow-sm backdrop-blur-md"
+                            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-on-surface-variant shadow-sm backdrop-blur-md"
                             aria-label="Cerrar"
                         >
                             <X size={14} />
@@ -1887,7 +1880,7 @@ export default function DashboardCouple({
                                 if (e.key === "Enter") handleSaveFund();
                             }}
                             placeholder="Ej. Gasolina, Restaurantes..."
-                            className="mt-1.5 w-full rounded-2xl border border-white/60 bg-white/50 px-3.5 py-2.5 text-sm text-on-surface outline-none backdrop-blur-md placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                            className="mt-1.5 w-full rounded-2xl border border-glass-border bg-glass px-3.5 py-2.5 text-sm text-on-surface outline-none backdrop-blur-md placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
                         />
                         <label className="mt-3.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
                             Color
@@ -1913,7 +1906,7 @@ export default function DashboardCouple({
                             })}
                         </div>
                         <div
-                            className="mt-4 overflow-hidden rounded-2xl border border-white/40 p-3.5 text-white shadow-sm backdrop-blur-md"
+                            className="mt-4 overflow-hidden rounded-2xl border border-glass-border p-3.5 text-white shadow-sm backdrop-blur-md"
                             style={{
                                 backgroundImage: `linear-gradient(145deg, ${newFundColor}cc 0%, ${newFundColor} 100%)`,
                             }}
@@ -1934,11 +1927,7 @@ export default function DashboardCouple({
                             type="button"
                             disabled={isCreatingFund}
                             onClick={handleSaveFund}
-                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-2.5 text-sm font-semibold text-[#f3f5f0] shadow-[0_10px_22px_rgba(43,52,55,0.28)] transition-transform active:scale-[0.98] disabled:opacity-60"
-                            style={{
-                                backgroundImage:
-                                    "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
-                            }}
+                            className="fab-ink mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-2.5 text-sm font-semibold transition-transform active:scale-[0.98] disabled:opacity-60"
                         >
                             {isCreatingFund ? "Guardando..." : "Guardar"}
                         </button>
@@ -1965,8 +1954,6 @@ export default function DashboardCouple({
                 onValueChange={(value) => setDepositAmount(value)}
                 onConfirm={(value) => handleDepositConfirm(value)}
             />
-            <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
-
             {/* Toast de notificación del sistema */}
             {systemNotification && (
                 <div className="fixed top-6 left-1/2 z-200 -translate-x-1/2 animate-in slide-in-from-top-3 fade-in duration-300">

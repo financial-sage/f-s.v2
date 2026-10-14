@@ -27,10 +27,10 @@ import {
 import { createPersonalDeposit } from "@/app/actions/expenses";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
-import ProfileDrawer from "@/components/ProfileDrawer";
 import { useCurrency } from "@/hooks/useCurrency";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
 import { createClient } from "@/utils/supabase/client";
+import { tintedGlassGradient } from "@/lib/glass";
 import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
 import { useExpenseStore } from "@/store/useExpenseStore";
 
@@ -100,7 +100,6 @@ export default function DashboardSolo({
     const [, startDepositTransition] = useTransition();
     const [isPartnerJoining, setIsPartnerJoining] = useState(false);
     const [transitionStep, setTransitionStep] = useState(0);
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const hasCelebratedRef = useRef(false);
     const refreshTimeoutRef = useRef<number | null>(null);
     const stageTimeoutsRef = useRef<number[]>([]);
@@ -230,16 +229,15 @@ export default function DashboardSolo({
 
     return (
         <div
-            className={`relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0] transition-all duration-1000 ${
+            className={`relative flex h-dvh flex-col overflow-hidden bg-page-gradient transition-all duration-1000 ${
                 isPartnerJoining ? "scale-[0.97] opacity-25 blur-[2px] saturate-50" : "scale-100 opacity-100"
             }`}
         >
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
 
             <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
-                <button
-                    type="button"
-                    onClick={() => setIsProfileOpen(true)}
+                <Link
+                    href="/profile"
                     className="flex min-w-0 items-center gap-2.5 text-left"
                 >
                     <div className="h-9 w-9 overflow-hidden rounded-full border border-outline-variant/30 bg-surface-lowest shadow-sm">
@@ -260,7 +258,7 @@ export default function DashboardSolo({
                             {getFirstName(displayName)}
                         </p>
                     </div>
-                </button>
+                </Link>
                 <div className="flex items-center gap-1.5">
                     <button
                         type="button"
@@ -277,7 +275,7 @@ export default function DashboardSolo({
                     <div
                         className="relative overflow-hidden rounded-[1.85rem] p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl transition-[background] duration-500"
                         style={{
-                            backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                            backgroundImage: tintedGlassGradient(heroColor),
                         }}
                     >
                         <div className="relative z-10 flex min-w-0 items-center gap-3">
@@ -310,7 +308,7 @@ export default function DashboardSolo({
                             <button
                                 type="button"
                                 onClick={() => setBalanceVisible((v) => !v)}
-                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-white/40"
+                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
                                 aria-label={balanceVisible ? "Ocultar saldo" : "Mostrar saldo"}
                             >
                                 {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
@@ -381,7 +379,7 @@ export default function DashboardSolo({
                                         style={
                                             highlight
                                                 ? {
-                                                      backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.72) 0%, ${heroColor}18 55%, ${heroColor}28 100%)`,
+                                                      backgroundImage: tintedGlassGradient(heroColor),
                                                       color: heroColor,
                                                       border: `1px solid ${heroColor}40`,
                                                   }
@@ -433,12 +431,12 @@ export default function DashboardSolo({
                         </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/40 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-2xl">
+                    <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-2xl">
                         {currentList.length === 0 ? (
                             <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
                                 <div className="relative mb-4 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />
-                                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-emerald-100/50 bg-white/50 text-primary shadow-sm backdrop-blur-md">
+                                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-emerald-100/50 bg-glass text-primary shadow-sm backdrop-blur-md">
                                         <Receipt size={28} strokeWidth={1.5} />
                                     </div>
                                 </div>
@@ -456,7 +454,7 @@ export default function DashboardSolo({
                                     return (
                                         <div
                                             key={tx.id}
-                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-white/40 last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-glass-border last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
                                             style={{ animationDelay: `${index * 60}ms` }}
                                         >
                                             <button
@@ -465,7 +463,7 @@ export default function DashboardSolo({
                                                     setActiveActionId((prev) => (prev === tx.id ? null : tx.id))
                                                 }
                                                 className={`flex h-full w-full items-center justify-between gap-2.5 px-3.5 text-left transition-colors duration-200 ${
-                                                    activeActionId === tx.id ? "bg-white/40 pr-2" : "bg-transparent"
+                                                    activeActionId === tx.id ? "bg-glass-soft pr-2" : "bg-transparent"
                                                 }`}
                                             >
                                                 <div className="flex min-w-0 items-center gap-3">
@@ -544,12 +542,12 @@ export default function DashboardSolo({
                 <div className="fixed inset-0 z-120 overflow-hidden bg-[radial-gradient(circle_at_top,rgba(74,101,73,0.22),transparent_55%),linear-gradient(to_bottom,rgba(248,249,250,0.72),rgba(15,23,42,0.18))] px-6 backdrop-blur-md animate-in fade-in duration-500">
                     <div className="absolute inset-0 pointer-events-none">
                         <div className="absolute left-1/2 top-[18%] h-56 w-56 -translate-x-1/2 rounded-full bg-emerald-200/35 blur-3xl animate-pulse" />
-                        <div className="absolute left-[15%] top-[20%] h-24 w-24 rounded-full border border-white/40 bg-surface-lowest/15 animate-ping" />
+                        <div className="absolute left-[15%] top-[20%] h-24 w-24 rounded-full border border-glass-border bg-surface-lowest/15 animate-ping" />
                         <div className="absolute right-[12%] top-[24%] h-16 w-16 rounded-full border border-accent/25 bg-accent/10 animate-pulse" />
                     </div>
 
                     <div className="relative flex h-full items-center justify-center">
-                        <div className="w-full max-w-sm rounded-4xl border border-white/70 bg-surface-lowest/88 p-6 text-center shadow-[0_20px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 slide-in-from-bottom-4 duration-700">
+                        <div className="w-full max-w-sm rounded-4xl border border-glass-border bg-surface-lowest/88 p-6 text-center shadow-[0_20px_60px_rgba(15,23,42,0.18)] animate-in zoom-in-95 slide-in-from-bottom-4 duration-700">
                             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-primary/10 to-accent/15 text-primary shadow-sm ring-8 ring-primary/10">
                                 {transitionStep < 2 ? <Sparkles size={26} /> : <CheckCircle2 size={26} />}
                             </div>
@@ -608,7 +606,6 @@ export default function DashboardSolo({
                 onValueChange={(value) => setDepositAmount(value)}
                 onConfirm={(value) => handleDepositConfirm(value)}
             />
-            <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
         </div>
     );
 }

@@ -32,6 +32,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { listFamilyFundsAction } from "@/app/actions/funds";
 import type { FamilyFund } from "@/lib/funds";
 import { getDefaultSharedFund, listVariableSharedFunds, resolveFundColor } from "@/lib/funds";
+import { tintedGlassGradient } from "@/lib/glass";
 
 interface AddExpenseFormProps {
   familyId: string;
@@ -105,12 +106,12 @@ function getSelectorClasses(isSelected: boolean, disabled: boolean) {
   if (disabled) {
     return isSelected
       ? "border border-primary/25 bg-primary/15 text-primary shadow-sm opacity-100"
-      : "border border-outline-variant/20 bg-white/40 text-outline-variant opacity-60";
+      : "border border-outline-variant/20 bg-glass-soft text-outline-variant opacity-60";
   }
 
   return isSelected
     ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80";
+    : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong";
 }
 
 function formatDisplayDate(value: string) {
@@ -598,9 +599,12 @@ export default function AddExpenseForm({
         </section>
 
         <section
-          className="flex flex-col items-center gap-2.5 rounded-[1.35rem] border border-white/60 p-3.5 shadow-[0_10px_28px_rgba(43,52,55,0.08)] backdrop-blur-md"
+          className="flex flex-col items-center gap-2.5 rounded-[1.35rem] border border-glass-border p-3.5 shadow-[0_10px_28px_rgba(43,52,55,0.08)] backdrop-blur-md"
           style={{
-            backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.78) 0%, ${amountAccent}14 55%, ${amountAccent}22 100%)`,
+            backgroundImage: tintedGlassGradient(amountAccent, {
+              midAlpha: "14",
+              endAlpha: "22",
+            }),
           }}
         >
           <div className="flex w-full flex-col items-center text-center">
@@ -625,7 +629,7 @@ export default function AddExpenseForm({
             </button>
           </div>
 
-          <div className="flex w-full items-center gap-2 border-t border-white/50 pt-2.5">
+          <div className="flex w-full items-center gap-2 border-t border-glass-border pt-2.5">
             <PencilLine size={15} className="shrink-0 text-outline-variant" />
             <input
               type="text"
@@ -674,7 +678,7 @@ export default function AddExpenseForm({
                         type="number"
                         value={myContribution}
                         onChange={(e) => setMyContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl border border-outline-variant/30 bg-white/70 py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
+                        className="w-full rounded-xl border border-outline-variant/30 bg-glass-strong py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
                         placeholder="0.00"
                       />
                     </div>
@@ -687,7 +691,7 @@ export default function AddExpenseForm({
                         type="number"
                         value={partnerContribution}
                         onChange={(e) => setPartnerContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl border border-outline-variant/30 bg-white/70 py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
+                        className="w-full rounded-xl border border-outline-variant/30 bg-glass-strong py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
                         placeholder="0.00"
                       />
                     </div>
@@ -734,12 +738,15 @@ export default function AddExpenseForm({
                         className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
                           isSelected
                             ? "text-on-surface"
-                            : "border-white/60 bg-white/55 text-on-surface-variant hover:bg-white/80"
+                            : "border-glass-border bg-glass text-on-surface-variant hover:bg-glass-strong"
                         }`}
                         style={
                           isSelected
                             ? {
-                                backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.88) 0%, ${fundColor}28 100%)`,
+                                backgroundImage: tintedGlassGradient(fundColor, {
+                                  midAlpha: "28",
+                                  endOnly: true,
+                                }),
                                 borderColor: `${fundColor}55`,
                                 color: fundColor,
                               }
@@ -760,7 +767,7 @@ export default function AddExpenseForm({
           </>
         )}
 
-        <div className="flex overflow-hidden rounded-2xl border border-white/60 bg-white/55 shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md">
+        <div className="flex overflow-hidden rounded-2xl border border-glass-border bg-glass shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md">
           <button
             type="button"
             onClick={openCategorySheet}
@@ -808,11 +815,7 @@ export default function AddExpenseForm({
         <button
           type="submit"
           disabled={isSaving}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-[#f3f5f0] shadow-[0_10px_22px_rgba(43,52,55,0.28)] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          style={{
-            backgroundImage:
-              "linear-gradient(145deg, #4a5558 0%, #2b3437 52%, #1a2224 100%)",
-          }}
+          className="fab-ink flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? (
             <LoaderCircle size={17} className="animate-spin" />
@@ -842,7 +845,7 @@ export default function AddExpenseForm({
               onClick={closeCategorySheet}
             />
             <div
-              className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
               }`}
             >
@@ -853,7 +856,7 @@ export default function AddExpenseForm({
                 <button
                   type="button"
                   onClick={closeCategorySheet}
-                  className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm"
+                  className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-glass-strong text-on-surface-variant shadow-sm backdrop-blur-sm"
                   aria-label="Cerrar"
                 >
                   <X size={16} />
@@ -881,7 +884,7 @@ export default function AddExpenseForm({
                             className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
                               isSelected
                                 ? "border-transparent text-white shadow-md"
-                                : "border-white/60 bg-white/70 text-on-surface-variant"
+                                : "border-glass-border bg-glass-strong text-on-surface-variant"
                             }`}
                             style={isSelected ? { backgroundColor: amountAccent } : undefined}
                           >
@@ -928,7 +931,7 @@ export default function AddExpenseForm({
                                 className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
                                   isSelected
                                     ? "border-transparent text-white shadow-md"
-                                    : "border-white/60 bg-white/70 text-on-surface-variant"
+                                    : "border-glass-border bg-glass-strong text-on-surface-variant"
                                 }`}
                                 style={isSelected ? { backgroundColor: amountAccent } : undefined}
                               >
@@ -959,7 +962,7 @@ export default function AddExpenseForm({
                           className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                             isExpanded
                               ? "rotate-90 scale-105 border-transparent bg-on-surface text-white shadow-md"
-                              : "border-white/60 bg-white/70 text-on-surface-variant"
+                              : "border-glass-border bg-glass-strong text-on-surface-variant"
                           }`}
                         >
                           {isExpanded ? (

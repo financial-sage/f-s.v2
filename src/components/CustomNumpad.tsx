@@ -51,12 +51,12 @@ function keyClass(kind: "digit" | "op" | "danger" = "digit") {
   const base =
     "flex h-[3.6rem] items-center justify-center rounded-2xl text-[1.35rem] font-medium shadow-[0_4px_12px_rgba(43,52,55,0.05)] transition-all active:scale-95";
   if (kind === "op") {
-    return `${base} bg-white/55 text-primary backdrop-blur-sm`;
+    return `${base} bg-glass text-primary backdrop-blur-sm`;
   }
   if (kind === "danger") {
-    return `${base} bg-white/55 text-rose-500 backdrop-blur-sm`;
+    return `${base} bg-glass text-rose-500 backdrop-blur-sm`;
   }
-  return `${base} bg-white/50 text-on-surface backdrop-blur-md`;
+  return `${base} bg-glass text-on-surface backdrop-blur-md`;
 }
 
 export default function CustomNumpad({

@@ -40,7 +40,7 @@ export default async function HistoryPage() {
   const partnerId = partner?.id ?? null;
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0]">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
       <StoreHydrator userId={user.id} />
       <PageHeader

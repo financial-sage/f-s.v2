@@ -21,6 +21,7 @@ import {
   shiftMonthKey,
 } from "@/lib/budget";
 import type { FixedExpenseMonthItem } from "@/lib/fixed-expenses/types";
+import { tintedGlassGradient } from "@/lib/glass";
 import { FIXED_EXPENSES_FUND_COLOR } from "@/lib/funds";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -169,12 +170,7 @@ export default function FixedExpensesManager() {
   }
 
   return (
-    <div
-      className="relative flex h-dvh flex-col overflow-hidden text-on-surface"
-      style={{
-        backgroundImage: `linear-gradient(180deg, #eef2f5 0%, #e2e8ee 48%, #d4dde6 100%)`,
-      }}
-    >
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-56"
         style={{
@@ -185,7 +181,7 @@ export default function FixedExpensesManager() {
       <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
         <Link
           href="/"
-          className="rounded-full border border-white/50 bg-white/70 p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
+          className="rounded-full border border-glass-border bg-glass-strong p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
           aria-label="Volver al inicio"
         >
           <ChevronLeft size={18} />
@@ -202,16 +198,21 @@ export default function FixedExpensesManager() {
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
         <section className="mb-3 shrink-0">
           <div
-            className="relative overflow-hidden rounded-[1.85rem] border border-white/45 p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
+            className="relative overflow-hidden rounded-[1.85rem] border border-glass-border p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
             style={{
-              backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.55) 0%, ${ACCENT}28 52%, ${ACCENT}3D 100%)`,
+              backgroundImage: tintedGlassGradient(ACCENT, {
+                soft: true,
+                midAlpha: "28",
+                endAlpha: "3D",
+                midStop: 52,
+              }),
             }}
           >
             <div className="relative z-10 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setMonthKey((key) => shiftMonthKey(key, -1))}
-                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-white/40"
+                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
                 aria-label="Mes anterior"
               >
                 <ChevronLeft size={16} />
@@ -222,7 +223,7 @@ export default function FixedExpensesManager() {
               <button
                 type="button"
                 onClick={() => setMonthKey((key) => shiftMonthKey(key, 1))}
-                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-white/40"
+                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
                 aria-label="Mes siguiente"
               >
                 <ChevronRight size={16} />
@@ -241,14 +242,14 @@ export default function FixedExpensesManager() {
               <button
                 type="button"
                 onClick={openDepositEditor}
-                className="shrink-0 rounded-full bg-white/45 px-3 py-1.5 text-xs font-medium text-on-surface backdrop-blur-sm transition-colors hover:bg-white/65"
+                className="shrink-0 rounded-full bg-glass-soft px-3 py-1.5 text-xs font-medium text-on-surface backdrop-blur-sm transition-colors hover:bg-glass-strong"
               >
                 Aportar
               </button>
             </div>
 
             <div className="relative z-10 mt-5">
-              <div className="h-1.5 overflow-hidden rounded-full bg-white/45">
+              <div className="h-1.5 overflow-hidden rounded-full bg-glass-soft">
                 <div
                   className="h-full rounded-full transition-[width] duration-500"
                   style={{
@@ -298,7 +299,7 @@ export default function FixedExpensesManager() {
             <button
               type="button"
               onClick={openCreateForm}
-              className="flex w-full flex-col items-center gap-2 rounded-[1.85rem] border border-dashed bg-white/40 px-4 py-10 text-center shadow-sm backdrop-blur-md"
+              className="flex w-full flex-col items-center gap-2 rounded-[1.85rem] border border-dashed bg-glass-soft px-4 py-10 text-center shadow-sm backdrop-blur-md"
               style={{ borderColor: `${ACCENT}40` }}
             >
               <span
@@ -313,7 +314,7 @@ export default function FixedExpensesManager() {
               </span>
             </button>
           ) : (
-            <div className="rounded-[1.5rem] border border-white/60 bg-white/70 shadow-[0_12px_28px_rgba(43,52,55,0.10)] backdrop-blur-xl">
+            <div className="rounded-[1.5rem] border border-glass-border bg-glass-strong shadow-[0_12px_28px_rgba(43,52,55,0.10)] backdrop-blur-xl">
               {checklist.map((item, index) => {
                 const isPaid = item.payment.status === "paid";
                 const baseAmount = Number(item.payment.base_value_snapshot || 0);
@@ -328,7 +329,7 @@ export default function FixedExpensesManager() {
                     key={item.payment.id}
                     className={`relative flex items-center gap-2.5 px-3 py-2 ${
                       index > 0 ? "border-t border-outline-variant/15" : ""
-                    } ${isPaid ? "bg-white/25" : ""} ${
+                    } ${isPaid ? "bg-glass-muted" : ""} ${
                       isFirst ? "rounded-t-[1.5rem]" : ""
                     } ${isLast ? "rounded-b-[1.5rem]" : ""}`}
                   >
@@ -345,7 +346,7 @@ export default function FixedExpensesManager() {
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all active:scale-95 ${
                         isPaid
                           ? "text-white shadow-sm"
-                          : "border-outline-variant/45 bg-white/70 text-transparent"
+                          : "border-outline-variant/45 bg-glass-strong text-transparent"
                       }`}
                       style={
                         isPaid
@@ -411,7 +412,7 @@ export default function FixedExpensesManager() {
                     <button
                       type="button"
                       onClick={() => openEditForm(item)}
-                      className="shrink-0 rounded-full p-1 text-outline-variant transition-colors hover:bg-white/60 hover:text-on-surface-variant"
+                      className="shrink-0 rounded-full p-1 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface-variant"
                       aria-label={`Editar ${item.template.name}`}
                     >
                       <SquarePen size={14} strokeWidth={2} />
@@ -427,7 +428,7 @@ export default function FixedExpensesManager() {
       <button
         type="button"
         onClick={openCreateForm}
-        className="fixed bottom-6 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-transform active:scale-95"
+        className="fixed bottom-6 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-glass-border text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-transform active:scale-95"
         style={{
           backgroundImage: `linear-gradient(145deg, #6B8296 0%, ${ACCENT} 48%, #3A4D5C 100%)`,
         }}
@@ -474,7 +475,7 @@ export default function FixedExpensesManager() {
 
       {formOpen ? (
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-on-surface/40 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-t-[2rem] border border-white/50 bg-white/90 p-5 shadow-2xl backdrop-blur-xl sm:rounded-[1.85rem]">
+          <div className="w-full max-w-md rounded-t-[2rem] border border-glass-border bg-glass-strong p-5 shadow-2xl backdrop-blur-xl sm:rounded-[1.85rem]">
             <h3 className="text-lg font-medium tracking-tight text-on-surface">
               {editingId ? "Editar gasto fijo" : "Nuevo gasto fijo"}
             </h3>
@@ -509,7 +510,7 @@ export default function FixedExpensesManager() {
                       setFormBaseKeypadOpen(true);
                     }}
                     onClick={() => setFormBaseKeypadOpen(true)}
-                    className="w-full cursor-pointer rounded-2xl border border-outline-variant/30 bg-white/55 px-5 py-3.5 pr-16 text-left text-[15px] font-medium tracking-tight text-on-surface tabular-nums outline-none shadow-sm backdrop-blur-sm transition-all focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                    className="w-full cursor-pointer rounded-2xl border border-outline-variant/30 bg-glass px-5 py-3.5 pr-16 text-left text-[15px] font-medium tracking-tight text-on-surface tabular-nums outline-none shadow-sm backdrop-blur-sm transition-all focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
                     aria-haspopup="dialog"
                     aria-expanded={formBaseKeypadOpen}
                   />

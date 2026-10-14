@@ -1,54 +1,205 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 
-@theme inline {
+/*
+  Runtime light/dark: primitives live on html / html.dark.
+  @theme inline embeds var(--*) into utilities so overrides apply
+  (literal hex in @theme gets baked into .bg-* / .text-* and ignores dark).
+*/
+:root {
   /* Sage primary palette */
-  --color-primary: #4a6549;
-  --color-primary-dim: #3f593e;
-  --color-primary-container: #ccebc7;
-  --color-on-primary: #e5ffdf;
-  --color-on-primary-container: #3e583d;
+  --primary: #4a6549;
+  --primary-dim: #3f593e;
+  --primary-container: #ccebc7;
+  --on-primary: #e5ffdf;
+  --on-primary-container: #3e583d;
 
-  /* Secondary (premium / confidence) */
-  --color-secondary: #3e5c68;
-  --color-secondary-container: #d7e6ec;
-  --color-on-secondary: #071013;
-  --color-on-secondary-container: #1c2d33;
+  /* Secondary */
+  --secondary: #3e5c68;
+  --secondary-container: #d7e6ec;
+  --on-secondary: #071013;
+  --on-secondary-container: #1c2d33;
 
-  /* Accent (gold / highlights) */
-  --color-accent: #d4af37;
-  --color-accent-container: #f3e7b3;
-  --color-on-accent: #0b120c;
-  --color-on-accent-container: #5b4a10;
-
-  /* Background (alias for surface — used by layout) */
-  --color-background: #f8f9fa;
+  /* Accent */
+  --accent: #d4af37;
+  --accent-container: #f3e7b3;
+  --on-accent: #0b120c;
+  --on-accent-container: #5b4a10;
 
   /* Surfaces */
-  --color-surface: #f8f9fa;
-  --color-surface-low: #f1f4f6;
-  --color-surface-container: #eaeff1;
-  --color-surface-high: #e2e9ec;
-  --color-surface-highest: #dbe4e7;
-  --color-surface-lowest: #ffffff;
+  --background: #f8f9fa;
+  --surface: #f8f9fa;
+  --surface-low: #f1f4f6;
+  --surface-container: #eaeff1;
+  --surface-high: #e2e9ec;
+  --surface-highest: #dbe4e7;
+  --surface-lowest: #ffffff;
 
   /* Text */
-  --color-on-surface: #2b3437;
-  --color-on-surface-variant: #586064;
+  --on-surface: #2b3437;
+  --on-surface-variant: #586064;
 
   /* Outline */
-  --color-outline: #737c7f;
-  --color-outline-variant: #abb3b7;
+  --outline: #737c7f;
+  --outline-variant: #abb3b7;
 
   /* Error */
-  --color-error: #9e422c;
+  --error: #9e422c;
 
-  /* Legacy sage aliases — aligned with primary palette */
-  --color-sage: #4a6549;
-  --color-sage-dark: #3f593e;
-  --color-sage-light: #ccebc7;
+  /* Legacy sage */
+  --sage: #4a6549;
+  --sage-dark: #3f593e;
+  --sage-light: #ccebc7;
 
-  /* Fonts — Helvetica Neue (system on Apple; falls back elsewhere) */
+  /* Page atmosphere */
+  --page-from: #f3f5f0;
+  --page-via: #e8ede4;
+  --page-to: #d5dfd0;
+
+  /* Glass */
+  --glass: rgb(255 255 255 / 0.55);
+  --glass-strong: rgb(255 255 255 / 0.7);
+  --glass-soft: rgb(255 255 255 / 0.4);
+  --glass-muted: rgb(255 255 255 / 0.25);
+  --glass-hover: rgb(255 255 255 / 0.4);
+  --glass-border: rgb(255 255 255 / 0.45);
+
+  /* Sheets */
+  --sheet-from: #f7f8f5;
+  --sheet-to: #eef1eb;
+
+  /* Glass highlight / shadows (inline gradients in JS) */
+  --glass-highlight: rgba(255, 255, 255, 0.72);
+  --glass-highlight-soft: rgba(255, 255, 255, 0.55);
+  --glass-shadow: 0 12px 28px rgba(43, 52, 55, 0.1);
+  --glass-shadow-lg: 0 20px 50px rgba(43, 52, 55, 0.18);
+  --sheet-shadow: 0 -16px 48px rgba(43, 52, 55, 0.18);
+
+  /* Charcoal CTA / primary FAB */
+  --fab-ink-from: #4a5558;
+  --fab-ink-via: #2b3437;
+  --fab-ink-to: #1a2224;
+  --fab-ink-fg: #e5ffdf;
+  --fab-ink-shadow: 0 10px 22px rgba(43, 52, 55, 0.32);
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --primary: #8fc08c;
+  --primary-dim: #7aa677;
+  --primary-container: #243625;
+  --on-primary: #0b120c;
+  --on-primary-container: #d6f5d2;
+
+  --secondary: #7ea3ad;
+  --secondary-container: #1b2b31;
+  --on-secondary: #061014;
+  --on-secondary-container: #d7e6ec;
+
+  --accent: #f0d06a;
+  --accent-container: #4b3a0f;
+  --on-accent: #0b120c;
+  --on-accent-container: #f3e7b3;
+
+  --background: #0b1210;
+  --surface: #0b1210;
+  --surface-low: #121a17;
+  --surface-container: #18221e;
+  --surface-high: #1f2b26;
+  --surface-highest: #27342e;
+  --surface-lowest: #1a2420;
+
+  --on-surface: #e7ece9;
+  --on-surface-variant: #b7c0bb;
+
+  --outline: #93a09a;
+  --outline-variant: #4a5a54;
+
+  --error: #ffb4a4;
+
+  --sage: var(--primary);
+  --sage-dark: var(--primary-dim);
+  --sage-light: var(--primary-container);
+
+  --page-from: #0b1210;
+  --page-via: #121a17;
+  --page-to: #18221e;
+
+  --glass: rgb(255 255 255 / 0.1);
+  --glass-strong: rgb(255 255 255 / 0.14);
+  --glass-soft: rgb(255 255 255 / 0.07);
+  --glass-muted: rgb(255 255 255 / 0.05);
+  --glass-hover: rgb(255 255 255 / 0.16);
+  --glass-border: rgb(255 255 255 / 0.14);
+
+  --sheet-from: #151d1a;
+  --sheet-to: #0f1613;
+
+  --glass-highlight: rgba(255, 255, 255, 0.14);
+  --glass-highlight-soft: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  --glass-shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
+  --sheet-shadow: 0 -16px 48px rgba(0, 0, 0, 0.45);
+
+  --fab-ink-from: #5c6e69;
+  --fab-ink-via: #3d4c48;
+  --fab-ink-to: #2a3632;
+  --fab-ink-fg: #e7ece9;
+  --fab-ink-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-dim: var(--primary-dim);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary: var(--on-primary);
+  --color-on-primary-container: var(--on-primary-container);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary: var(--on-secondary);
+  --color-on-secondary-container: var(--on-secondary-container);
+
+  --color-accent: var(--accent);
+  --color-accent-container: var(--accent-container);
+  --color-on-accent: var(--on-accent);
+  --color-on-accent-container: var(--on-accent-container);
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-low: var(--surface-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-high: var(--surface-high);
+  --color-surface-highest: var(--surface-highest);
+  --color-surface-lowest: var(--surface-lowest);
+
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
+  --color-error: var(--error);
+
+  --color-sage: var(--sage);
+  --color-sage-dark: var(--sage-dark);
+  --color-sage-light: var(--sage-light);
+
+  --color-page-from: var(--page-from);
+  --color-page-via: var(--page-via);
+  --color-page-to: var(--page-to);
+
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+  --color-glass-soft: var(--glass-soft);
+  --color-glass-muted: var(--glass-muted);
+  --color-glass-hover: var(--glass-hover);
+  --color-glass-border: var(--glass-border);
+
+  --color-sheet-from: var(--sheet-from);
+  --color-sheet-to: var(--sheet-to);
+
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-headline: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -57,10 +208,18 @@
     monospace;
 }
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 html,
 body {
-  background: var(--color-surface);
-  color: var(--color-on-surface);
+  background: var(--surface);
+  color: var(--on-surface);
   font-family: var(--font-body);
   font-weight: 400;
   letter-spacing: -0.01em;
@@ -80,56 +239,46 @@ body {
   letter-spacing: 0.04em;
 }
 
-html {
-  color-scheme: light;
+/* Page + glass utilities — theme-aware without per-component dark: */
+.bg-page-gradient {
+  background-image: linear-gradient(
+    to bottom,
+    var(--page-from),
+    var(--page-via),
+    var(--page-to)
+  );
 }
 
-html.dark {
-  color-scheme: dark;
+.glass-panel {
+  background-color: var(--glass);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
 
-  /* Sage primary palette (dark) */
-  --color-primary: #8fc08c;
-  --color-primary-dim: #7aa677;
-  --color-primary-container: #243625;
-  --color-on-primary: #0b120c;
-  --color-on-primary-container: #d6f5d2;
+.glass-panel-strong {
+  background-color: var(--glass-strong);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
 
-  /* Secondary (dark) */
-  --color-secondary: #7ea3ad;
-  --color-secondary-container: #1b2b31;
-  --color-on-secondary: #061014;
-  --color-on-secondary-container: #d7e6ec;
+.glass-sheet {
+  background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+  box-shadow: var(--sheet-shadow);
+}
 
-  /* Accent (dark) */
-  --color-accent: #f0d06a;
-  --color-accent-container: #4b3a0f;
-  --color-on-accent: #0b120c;
-  --color-on-accent-container: #f3e7b3;
-
-  /* Background / surfaces (dark) */
-  --color-background: #0b1210;
-  --color-surface: #0b1210;
-  --color-surface-low: #121a17;
-  --color-surface-container: #18221e;
-  --color-surface-high: #1f2b26;
-  --color-surface-highest: #27342e;
-  --color-surface-lowest: #070c0b;
-
-  /* Text (dark) */
-  --color-on-surface: #e7ece9;
-  --color-on-surface-variant: #b7c0bb;
-
-  /* Outline (dark) */
-  --color-outline: #93a09a;
-  --color-outline-variant: #33413b;
-
-  /* Error (dark) */
-  --color-error: #ffb4a4;
-
-  /* Legacy sage aliases (dark) */
-  --color-sage: var(--color-primary);
-  --color-sage-dark: var(--color-primary-dim);
-  --color-sage-light: var(--color-primary-container);
+.fab-ink {
+  background-image: linear-gradient(
+    145deg,
+    var(--fab-ink-from) 0%,
+    var(--fab-ink-via) 52%,
+    var(--fab-ink-to) 100%
+  );
+  color: var(--fab-ink-fg);
+  box-shadow: var(--fab-ink-shadow);
 }
 
 .no-scrollbar::-webkit-scrollbar {

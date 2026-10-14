@@ -94,7 +94,7 @@ function StickyDayLabel({
             <div ref={sentinelRef} className="h-px w-full" aria-hidden />
             <div
                 className={`sticky top-0 z-10 py-1.5 transition-[background-color] duration-150 ${
-                    stuck ? "-mx-4 bg-[#e8ede4] px-5" : "bg-transparent px-1"
+                    stuck ? "-mx-4 bg-page-via px-5" : "bg-transparent px-1"
                 }`}
             >
                 <span className="text-[11px] font-medium tracking-wide text-on-surface">
@@ -388,14 +388,14 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         return (
             <div
                 key={expense.id}
-                className="group relative flex items-stretch overflow-hidden border-b border-white/40 last:border-0 bg-transparent animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                className="group relative flex items-stretch overflow-hidden border-b border-glass-border last:border-0 bg-transparent animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
             >
                 <button
                     type="button"
                     onClick={() => setActiveActionId((prev) => (prev === expense.id ? null : expense.id))}
                     className={`flex w-full items-center justify-between px-3 py-2 text-left transition-all duration-300 ease-out ${
-                        activeActionId === expense.id ? "bg-white/40 pr-2" : "bg-transparent"
+                        activeActionId === expense.id ? "bg-glass-soft pr-2" : "bg-transparent"
                     }`}
                 >
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -518,7 +518,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
         <>
             <div className="sticky top-0 z-40 px-4 pb-2 pt-1">
                 <div className="flex items-center gap-2">
-                    <div className="flex flex-1 overflow-hidden rounded-[1.25rem] border border-white/60 bg-surface-lowest/70 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-xl">
+                    <div className="flex flex-1 overflow-hidden rounded-[1.25rem] border border-glass-border bg-glass-strong shadow-[var(--glass-shadow)] backdrop-blur-xl">
                         <div
                             className={`flex flex-1 flex-col items-center px-3 py-2.5 ${
                                 hasPartner ? "border-r border-outline-variant/20" : ""
@@ -611,7 +611,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                     groups.map(({ label, items }) => (
                         <section key={label} className="mb-2">
                             <StickyDayLabel label={label} scrollRoot={scrollRoot} />
-                            <div className="overflow-hidden rounded-3xl border border-white/60 bg-surface-lowest/45 shadow-[0_10px_24px_rgba(43,52,55,0.06)] backdrop-blur-2xl">
+                            <div className="overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-2xl">
                                 {items.map((expense, index) => renderExpenseCard(expense, index))}
                             </div>
                         </section>
@@ -632,7 +632,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                     onClick={closeFilterModal}
                                 />
                                 <div
-                                    className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-linear-to-b from-[#f7f8f5] to-[#eef1eb] shadow-[0_-16px_48px_rgba(43,52,55,0.18)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                    className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                                         isFilterAnimated
                                             ? "translate-y-0 opacity-100"
                                             : "translate-y-full opacity-0"
@@ -647,7 +647,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                         <button
                                             type="button"
                                             onClick={closeFilterModal}
-                                            className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-white/70 text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                                            className="absolute right-4 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-glass-strong text-on-surface-variant shadow-sm backdrop-blur-sm transition-colors hover:bg-glass-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                                             aria-label="Cerrar"
                                         >
                                             <X size={16} />
@@ -679,7 +679,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                                             className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                                                                 isActive
                                                                     ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                                    : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
                                                             }`}
                                                         >
                                                             {l}
@@ -714,7 +714,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                                             className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                                                                 isActive
                                                                     ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                                    : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
                                                             }`}
                                                         >
                                                             {l}
@@ -740,7 +740,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                                     className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                                                         pendingFilters.fundIds.length === 0
                                                             ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-                                                            : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                            : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
                                                     }`}
                                                 >
                                                     Todos
@@ -755,7 +755,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                                             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                                                                 isActive
                                                                     ? "border border-transparent text-white shadow-sm"
-                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                                    : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
                                                             }`}
                                                             style={
                                                                 isActive && color
@@ -772,7 +772,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                                             ) : null}
                                                             {color && isActive ? (
                                                                 <span
-                                                                    className="h-2 w-2 shrink-0 rounded-full bg-white/90 ring-1 ring-white/40"
+                                                                    className="h-2 w-2 shrink-0 rounded-full bg-glass-strong ring-1 ring-glass-border"
                                                                     aria-hidden
                                                                 />
                                                             ) : null}
@@ -814,7 +814,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                                                 className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                                                                     isActive
                                                                         ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-                                                                        : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                                        : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
                                                                 }`}
                                                             >
                                                                 {l}
@@ -849,7 +849,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                                             className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                                                                 isActive
                                                                     ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-                                                                    : "border border-outline-variant/20 bg-white/55 text-on-surface-variant shadow-sm hover:bg-white/80"
+                                                                    : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
                                                             }`}
                                                         >
                                                             {l}
@@ -864,7 +864,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                                         <button
                                             type="button"
                                             onClick={clearFilters}
-                                            className="flex-1 rounded-2xl border border-outline-variant/20 bg-white/70 py-2.5 text-sm font-semibold text-on-surface-variant shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+                                            className="flex-1 rounded-2xl border border-outline-variant/20 bg-glass-strong py-2.5 text-sm font-semibold text-on-surface-variant shadow-sm transition-colors hover:bg-glass-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                                         >
                                             Limpiar
                                         </button>

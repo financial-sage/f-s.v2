@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { sageGlassGradient } from "@/lib/glass";
 
 type AuthLayoutProps = {
   title: string;
@@ -21,7 +22,7 @@ export function AuthLayout({
   showBackLink = true,
 }: AuthLayoutProps) {
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0] text-on-surface">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
 
       <main className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-y-auto overscroll-none px-4 py-8 no-scrollbar">
@@ -31,8 +32,7 @@ export function AuthLayout({
               <div
                 className="relative overflow-hidden rounded-[1.85rem] p-8 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
                 style={{
-                  backgroundImage:
-                    "linear-gradient(145deg, rgba(255,255,255,0.72) 0%, rgba(74,101,73,0.10) 55%, rgba(74,101,73,0.18) 100%)",
+                  backgroundImage: sageGlassGradient(),
                 }}
               >
                 <p className="text-[11px] font-light text-on-surface-variant">{quoteLabel}</p>
@@ -58,7 +58,7 @@ export function AuthLayout({
                 <p className="mt-2 text-sm font-light text-on-surface-variant">{subtitle}</p>
               </div>
 
-              <div className="overflow-hidden rounded-[1.85rem] border border-white/45 bg-surface-lowest/90 p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl sm:p-8">
+              <div className="overflow-hidden rounded-[1.85rem] border border-glass-border bg-surface-lowest/90 p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl sm:p-8">
                 {children}
               </div>
 

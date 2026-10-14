@@ -119,14 +119,14 @@ export default function FamilySettings({
 
   return (
     <>
-      <section className="overflow-hidden rounded-[1.85rem] border border-white/45 bg-white/55 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
+      <section className="overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
         <button
           type="button"
           onClick={openFinancialModal}
-          className="flex w-full items-center justify-between px-4 py-3.5 text-left transition hover:bg-white/40"
+          className="flex w-full items-center justify-between px-4 py-3.5 text-left transition hover:bg-glass-soft"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
               <SlidersHorizontal size={16} />
             </div>
             <div>
@@ -154,7 +154,7 @@ export default function FamilySettings({
           />
 
           <div
-            className={`relative rounded-t-[2rem] border border-white/50 bg-white/90 p-5 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+            className={`relative rounded-t-[2rem] border border-glass-border bg-glass-strong p-5 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
               isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
             }`}
           >
@@ -171,7 +171,7 @@ export default function FamilySettings({
               <button
                 type="button"
                 onClick={closeFinancialModal}
-                className="rounded-full border border-white/50 bg-white/60 p-2 text-on-surface-variant shadow-sm"
+                className="rounded-full border border-glass-border bg-glass-strong p-2 text-on-surface-variant shadow-sm"
               >
                 <X size={18} />
               </button>
@@ -187,7 +187,7 @@ export default function FamilySettings({
                     className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
                       isSelected
                         ? "border-primary/30 bg-primary/8"
-                        : "border-outline-variant/25 bg-white/55"
+                        : "border-outline-variant/25 bg-glass"
                     }`}
                   >
                     <input
@@ -210,7 +210,7 @@ export default function FamilySettings({
             </div>
 
             {model === "p2p_proportional" ? (
-              <div className="mt-4 rounded-2xl border border-white/50 bg-white/55 p-4 backdrop-blur-md">
+              <div className="mt-4 rounded-2xl border border-glass-border bg-glass p-4 backdrop-blur-md">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-on-surface">
                     Tú aportas el {mySplitPct}%, y tu pareja el {partnerSplitPct}%
@@ -221,7 +221,7 @@ export default function FamilySettings({
                     max={100}
                     value={mySplitPct}
                     onChange={(e) => setMySplitPct(clampPercentage(Number(e.target.value)))}
-                    className="w-20 rounded-xl border border-outline-variant/30 bg-white/80 px-3 py-2 text-center text-sm font-medium text-on-surface outline-none focus:border-primary/40"
+                    className="w-20 rounded-xl border border-outline-variant/30 bg-glass-strong px-3 py-2 text-center text-sm font-medium text-on-surface outline-none focus:border-primary/40"
                   />
                 </div>
 

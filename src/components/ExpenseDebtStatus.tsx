@@ -25,8 +25,8 @@ export function ExpenseDebtStatus({
       <span
         className={`inline-flex h-4 w-4 items-center justify-center rounded-full ${
           isSettled
-            ? "bg-emerald-50 text-emerald-600"
-            : "bg-orange-50 text-orange-600"
+            ? "bg-primary/20 text-primary"
+            : "bg-orange-500/20 text-orange-500"
         }`}
         title={isSettled ? "Liquidado" : "Pendiente"}
         aria-label={isSettled ? "Liquidado" : "Pendiente"}

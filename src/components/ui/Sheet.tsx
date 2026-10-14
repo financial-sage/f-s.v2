@@ -56,7 +56,7 @@ export function Sheet({
 
       <div
         className={cn(
-          "relative flex flex-col overflow-hidden rounded-t-[2rem] border border-white/55 bg-white/55 shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "relative flex flex-col overflow-hidden rounded-t-[2rem] border border-glass-border bg-glass shadow-[0_-16px_48px_rgba(43,52,55,0.16)] backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
           heightClassName,
           isAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0",
           contentClassName,
@@ -67,7 +67,7 @@ export function Sheet({
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-3 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/50 bg-white/60 text-on-surface-variant shadow-sm backdrop-blur-md transition-colors hover:bg-white/80"
+            className="absolute top-3 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-on-surface-variant shadow-sm backdrop-blur-md transition-colors hover:bg-glass-strong"
             aria-label={title ? `Cerrar ${title}` : "Cerrar"}
           >
             <X size={16} />

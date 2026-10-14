@@ -16,6 +16,7 @@ import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
 import { ThemeToggleRow } from "@/components/ThemeToggleRow";
+import { sageGlassGradient } from "@/lib/glass";
 
 async function joinFamily(formData: FormData) {
   "use server";
@@ -139,7 +140,7 @@ export default async function ProfilePage() {
   ];
 
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-linear-to-b from-[#f3f5f0] via-[#e8ede4] to-[#d5dfd0] text-on-surface">
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-28 pt-4">
@@ -154,8 +155,7 @@ export default async function ProfilePage() {
         <section
           className="mb-4 overflow-hidden rounded-[1.85rem] p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
           style={{
-            backgroundImage:
-              "linear-gradient(145deg, rgba(255,255,255,0.72) 0%, rgba(74,101,73,0.10) 55%, rgba(74,101,73,0.18) 100%)",
+            backgroundImage: sageGlassGradient(),
           }}
         >
           <div className="flex items-center gap-3.5">
@@ -164,10 +164,10 @@ export default async function ProfilePage() {
               <img
                 src={profile.avatar_url}
                 alt={displayName}
-                className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-white/60"
+                className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-glass-border"
               />
             ) : (
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container text-lg font-medium text-on-primary-container shadow-sm ring-2 ring-white/60">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container text-lg font-medium text-on-primary-container shadow-sm ring-2 ring-glass-border">
                 {initials}
               </div>
             )}
@@ -183,7 +183,7 @@ export default async function ProfilePage() {
           </div>
         </section>
 
-        <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-white/45 bg-white/55 p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
+        <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Users size={18} />
@@ -199,7 +199,7 @@ export default async function ProfilePage() {
                   <p className="mt-1 text-sm font-light text-on-surface-variant">
                     Código de invitación
                   </p>
-                  <div className="mt-3 rounded-2xl border border-white/50 bg-white/60 px-4 py-3 backdrop-blur-md">
+                  <div className="mt-3 rounded-2xl border border-glass-border bg-glass-strong px-4 py-3 backdrop-blur-md">
                     <p className="font-mono text-xl font-medium tracking-[0.2em] text-primary">
                       {inviteCode}
                     </p>
@@ -207,7 +207,7 @@ export default async function ProfilePage() {
 
                   <details className="mt-3 group">
                     <summary className="list-none">
-                      <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low/90 px-3.5 py-1.5 text-xs font-medium text-on-surface transition hover:bg-white/70">
+                      <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low/90 px-3.5 py-1.5 text-xs font-medium text-on-surface transition hover:bg-glass-strong">
                         Ingresar código
                       </span>
                     </summary>
@@ -219,7 +219,7 @@ export default async function ProfilePage() {
                         inputMode="text"
                         maxLength={6}
                         placeholder="Código de 6 caracteres"
-                        className="w-full rounded-2xl border border-outline-variant/30 bg-white/70 px-4 py-3 text-center font-mono text-on-surface uppercase outline-none backdrop-blur-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
+                        className="w-full rounded-2xl border border-outline-variant/30 bg-glass-strong px-4 py-3 text-center font-mono text-on-surface uppercase outline-none backdrop-blur-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
                         required
                       />
                       <button
@@ -247,7 +247,7 @@ export default async function ProfilePage() {
           </div>
         ) : null}
 
-        <section className="mb-4 overflow-hidden rounded-[1.85rem] border border-white/45 bg-white/55 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
+        <section className="mb-4 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
           <div className="px-4 pt-3.5 pb-1">
             <p className="text-[11px] font-light text-on-surface-variant">Preferencias</p>
           </div>
@@ -257,10 +257,10 @@ export default async function ProfilePage() {
             <CurrencySelectRow />
             <Link
               href="/fixed-expenses"
-              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
                   <Wallet size={16} />
                 </div>
                 <span className="text-sm font-medium text-on-surface">Gastos fijos</span>
@@ -272,10 +272,10 @@ export default async function ProfilePage() {
             </Link>
             <Link
               href="/categories"
-              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
                   <Coins size={16} />
                 </div>
                 <span className="text-sm font-medium text-on-surface">Categorías</span>
@@ -288,7 +288,7 @@ export default async function ProfilePage() {
             {preferences.map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
                     <Icon size={16} />
                   </div>
                   <span className="text-sm font-medium text-on-surface">{label}</span>

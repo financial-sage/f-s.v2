@@ -39,10 +39,10 @@ export function CurrencySelectRow() {
         ref={rowRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-primary shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
             <Coins size={16} />
           </div>
           <span className="text-sm font-medium text-on-surface">Moneda</span>
@@ -65,7 +65,7 @@ export function CurrencySelectRow() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Elegir moneda"
-                className="fixed inset-x-0 bottom-0 z-[210] mx-auto w-full max-w-md rounded-t-[1.75rem] border border-white/50 bg-white/92 p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(43,52,55,0.18)] backdrop-blur-xl"
+                className="fixed inset-x-0 bottom-0 z-[210] mx-auto w-full max-w-md rounded-t-[1.75rem] border border-glass-border bg-glass-strong p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(43,52,55,0.18)] backdrop-blur-xl"
               >
                 <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-outline-variant/40" />
                 <p className="mb-3 px-1 text-[11px] font-light text-on-surface-variant">
@@ -82,7 +82,7 @@ export function CurrencySelectRow() {
                           className={`flex w-full items-center justify-between rounded-2xl px-3.5 py-3 text-left transition ${
                             selected
                               ? "bg-primary/10 text-on-surface"
-                              : "bg-white/55 text-on-surface hover:bg-white/80"
+                              : "bg-glass text-on-surface hover:bg-glass-strong"
                           }`}
                         >
                           <span className="flex items-center gap-3">

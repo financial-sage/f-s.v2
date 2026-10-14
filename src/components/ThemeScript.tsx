@@ -16,4 +16,3 @@ export function ThemeScript() {
 
   return <script id="fsage-theme" dangerouslySetInnerHTML={{ __html: code }} />;
 }
-
