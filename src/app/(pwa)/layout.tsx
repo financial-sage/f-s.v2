@@ -5,6 +5,7 @@ import PWARegister from "@/components/PWARegister";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
 import PageTransition from "@/components/PageTransition";
 import RealtimeSync from "@/components/RealtimeSync";
+import StoreHydrator from "@/components/StoreHydrator";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
@@ -32,6 +33,7 @@ export default function PwaLayout({
 }) {
   return (
     <ExpenseModalProvider>
+      <StoreHydrator />
       <RealtimeSync />
       <PWARegister />
       <InstallPrompt />

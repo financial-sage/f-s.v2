@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import {
     ChevronDown,
@@ -20,7 +19,6 @@ import {
     isFundSettlementConcept,
 } from "@/components/ExpenseDebtStatus";
 import { deleteExpenseAction } from "@/app/actions/expenses";
-import { listFamilyFundsAction } from "@/app/actions/funds";
 import { getCategoryDetails } from "@/lib/categoryMap";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import {
@@ -31,11 +29,11 @@ import {
     listVariableSharedFunds,
     resolveFundColor,
     resolveFundIdForExpense,
-    type FamilyFund,
 } from "@/lib/funds";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useIsDark } from "@/hooks/useIsDark";
+import { useFundsStore } from "@/store/useFundsStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface HistoryExpenseRow {
@@ -140,14 +138,12 @@ interface HistoryListProps {
 }
 
 export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, partnerName, partnerId, financialModel: ssrFinancialModel }: HistoryListProps) {
-    const router = useRouter();
     const { format: formatCurrency } = useCurrency();
     const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
     const storeFinancialModel = useExpenseStore((s) => s.financialModel);
-    const refreshData = useExpenseStore((s) => s.refreshData);
 
     // Use store data when hydrated (instant on navigation), fall back to SSR props
     const allExpenses = (isHydrated ? storeExpenses : ssrExpenses) as HistoryExpenseRow[];
@@ -161,26 +157,16 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
     const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
-    const [funds, setFunds] = useState<FamilyFund[]>([]);
+    const funds = useFundsStore((s) => s.funds);
+    const loadFunds = useFundsStore((s) => s.load);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
     useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const rows = await listFamilyFundsAction();
-                if (!cancelled) setFunds(rows.filter((f) => !f.archived_at));
-            } catch {
-                // Funds optional for history badges
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        void loadFunds();
+    }, [loadFunds]);
 
     // Filter states
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -225,8 +211,8 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
             try {
                 await deleteExpenseAction(expenseToDelete);
                 closeDeleteModal();
-                await refreshData();
-                router.refresh();
+                const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+                await syncFamilyExpenses();
             } catch (err) {
                 closeDeleteModal();
                 showToast(err instanceof Error ? err.message : "No se pudo eliminar el movimiento.");
@@ -612,7 +598,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                     groups.map(({ label, items }) => (
                         <section key={label} className="mb-2">
                             <StickyDayLabel label={label} scrollRoot={scrollRoot} />
-                            <div className="overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-2xl">
+                            <div className="overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md">
                                 {items.map((expense, index) => renderExpenseCard(expense, index))}
                             </div>
                         </section>
@@ -621,6 +607,7 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
             </main>
 
             {mounted &&
+                (isFilterModalOpen || isDeleteModalOpen) &&
                 createPortal(
                     <>
                         {/* Filter Bottom Sheet */}

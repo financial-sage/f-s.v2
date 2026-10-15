@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/Input";
 const ACCENT = FIXED_EXPENSES_FUND_COLOR;
 
 /** Temporary: pad the checklist to stress-test scroll + dense list visuals. Set false when done. */
-const USE_FIXED_EXPENSES_SCROLL_DEMO = true;
+const USE_FIXED_EXPENSES_SCROLL_DEMO = false;
 
 const DEMO_FIXED_EXPENSE_SEEDS: Array<{
   name: string;

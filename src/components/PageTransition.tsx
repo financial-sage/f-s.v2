@@ -3,19 +3,25 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+/**
+ * Soft fade on route change without remounting children.
+ * Remounting via key={pathname} was restarting fetches, realtime, and store effects.
+ */
 export default function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [animating, setAnimating] = useState(true);
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
     setAnimating(true);
+    const id = window.setTimeout(() => setAnimating(false), 220);
+    return () => window.clearTimeout(id);
   }, [pathname]);
 
   return (
     <div
-      key={pathname}
-      onAnimationEnd={() => setAnimating(false)}
-      className={`h-full ${animating ? "animate-in fade-in slide-in-from-bottom-2 duration-200 ease-out fill-mode-both" : ""}`}
+      className={`h-full ${
+        animating ? "animate-in fade-in duration-200 ease-out fill-mode-both" : ""
+      }`}
     >
       {children}
     </div>

@@ -1,4 +1,6 @@
-import { BehaviorSubject, combineLatest, map, type Observable } from "rxjs";
+"use client";
+
+import { create } from "zustand";
 import {
   createFixedExpenseAction,
   deactivateFixedExpenseAction,
@@ -23,19 +25,17 @@ export interface FixedExpensesState {
   error: string | null;
 }
 
-const initialState: FixedExpensesState = {
-  monthKey: getMonthKey(),
-  snapshot: null,
-  isLoading: false,
-  isSaving: false,
-  error: null,
+const emptyTotals: FixedExpenseDerivedTotals = {
+  sumBase: 0,
+  sumReal: 0,
+  budgetTotal: 0,
+  pocketDeposits: 0,
+  pocketBalance: 0,
+  remaining: 0,
+  variance: 0,
+  paidCount: 0,
+  totalCount: 0,
 };
-
-const state$ = new BehaviorSubject<FixedExpensesState>(initialState);
-
-function patch(partial: Partial<FixedExpensesState>) {
-  state$.next({ ...state$.value, ...partial });
-}
 
 function computeTotals(snapshot: FixedExpenseMonthSnapshot | null): FixedExpenseDerivedTotals {
   const items = snapshot?.items ?? [];
@@ -62,35 +62,37 @@ function computeTotals(snapshot: FixedExpenseMonthSnapshot | null): FixedExpense
   };
 }
 
-export const fixedExpensesState$: Observable<FixedExpensesState> = state$.asObservable();
-
-export const fixedExpensesTotals$: Observable<FixedExpenseDerivedTotals> = state$.pipe(
-  map((state) => computeTotals(state.snapshot))
-);
-
-export const fixedExpensesView$: Observable<{
-  state: FixedExpensesState;
+interface FixedExpensesStore extends FixedExpensesState {
   totals: FixedExpenseDerivedTotals;
-}> = combineLatest([fixedExpensesState$, fixedExpensesTotals$]).pipe(
-  map(([state, totals]) => ({ state, totals }))
-);
+  loadMonth: (monthKey: string, options?: { force?: boolean }) => Promise<void>;
+  createTemplate: (input: {
+    name: string;
+    baseValue: number;
+    dueDay?: number | null;
+  }) => Promise<void>;
+  updateTemplate: (input: {
+    id: string;
+    name: string;
+    baseValue: number;
+    dueDay?: number | null;
+  }) => Promise<void>;
+  deactivateTemplate: (id: string) => Promise<void>;
+  deposit: (amount: number) => Promise<void>;
+  markPaid: (paymentId: string, realValue: number, paidDate?: string) => Promise<void>;
+  updatePaid: (paymentId: string, realValue: number, paidDate: string) => Promise<void>;
+  unmarkPaid: (paymentId: string) => Promise<void>;
+}
 
-export const fixedExpensesStore = {
-  getState() {
-    return state$.value;
-  },
+export const useFixedExpensesStore = create<FixedExpensesStore>((set, get) => ({
+  monthKey: getMonthKey(),
+  snapshot: null,
+  isLoading: false,
+  isSaving: false,
+  error: null,
+  totals: emptyTotals,
 
-  getTotals() {
-    return computeTotals(state$.value.snapshot);
-  },
-
-  subscribe(listener: (value: { state: FixedExpensesState; totals: FixedExpenseDerivedTotals }) => void) {
-    const subscription = fixedExpensesView$.subscribe(listener);
-    return () => subscription.unsubscribe();
-  },
-
-  async loadMonth(monthKey: string, options?: { force?: boolean }) {
-    const current = state$.value;
+  loadMonth: async (monthKey, options) => {
+    const current = get();
     if (
       !options?.force &&
       current.monthKey === monthKey &&
@@ -100,28 +102,28 @@ export const fixedExpensesStore = {
       return;
     }
 
-    patch({ monthKey, isLoading: true, error: null });
+    set({ monthKey, isLoading: true, error: null });
     try {
       const snapshot = await loadFixedExpensesMonthAction(monthKey);
-      patch({ snapshot, isLoading: false, error: null });
+      set({ snapshot, isLoading: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isLoading: false,
         error: err instanceof Error ? err.message : "No se pudo cargar gastos fijos.",
       });
     }
   },
 
-  async createTemplate(input: { name: string; baseValue: number; dueDay?: number | null }) {
-    patch({ isSaving: true, error: null });
+  createTemplate: async (input) => {
+    set({ isSaving: true, error: null });
     try {
       const snapshot = await createFixedExpenseAction({
         ...input,
-        monthKey: state$.value.monthKey,
+        monthKey: get().monthKey,
       });
-      patch({ snapshot, isSaving: false, error: null });
+      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo crear el gasto fijo.",
       });
@@ -129,21 +131,16 @@ export const fixedExpensesStore = {
     }
   },
 
-  async updateTemplate(input: {
-    id: string;
-    name: string;
-    baseValue: number;
-    dueDay?: number | null;
-  }) {
-    patch({ isSaving: true, error: null });
+  updateTemplate: async (input) => {
+    set({ isSaving: true, error: null });
     try {
       const snapshot = await updateFixedExpenseAction({
         ...input,
-        monthKey: state$.value.monthKey,
+        monthKey: get().monthKey,
       });
-      patch({ snapshot, isSaving: false, error: null });
+      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo actualizar el gasto fijo.",
       });
@@ -151,16 +148,16 @@ export const fixedExpensesStore = {
     }
   },
 
-  async deactivateTemplate(id: string) {
-    patch({ isSaving: true, error: null });
+  deactivateTemplate: async (id) => {
+    set({ isSaving: true, error: null });
     try {
       const snapshot = await deactivateFixedExpenseAction({
         id,
-        monthKey: state$.value.monthKey,
+        monthKey: get().monthKey,
       });
-      patch({ snapshot, isSaving: false, error: null });
+      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo archivar el gasto fijo.",
       });
@@ -168,16 +165,16 @@ export const fixedExpensesStore = {
     }
   },
 
-  async deposit(amount: number) {
-    patch({ isSaving: true, error: null });
+  deposit: async (amount) => {
+    set({ isSaving: true, error: null });
     try {
       const snapshot = await depositToFixedExpensesFundAction({
         amount,
-        monthKey: state$.value.monthKey,
+        monthKey: get().monthKey,
       });
-      patch({ snapshot, isSaving: false, error: null });
+      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo registrar el aporte.",
       });
@@ -185,18 +182,18 @@ export const fixedExpensesStore = {
     }
   },
 
-  async markPaid(paymentId: string, realValue: number, paidDate?: string) {
-    patch({ isSaving: true, error: null });
+  markPaid: async (paymentId, realValue, paidDate) => {
+    set({ isSaving: true, error: null });
     try {
       const snapshot = await markFixedExpensePaidAction({
         paymentId,
         realValue,
-        monthKey: state$.value.monthKey,
+        monthKey: get().monthKey,
         paidDate,
       });
-      patch({ snapshot, isSaving: false, error: null });
+      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo marcar como pagado.",
       });
@@ -204,18 +201,18 @@ export const fixedExpensesStore = {
     }
   },
 
-  async updatePaid(paymentId: string, realValue: number, paidDate: string) {
-    patch({ isSaving: true, error: null });
+  updatePaid: async (paymentId, realValue, paidDate) => {
+    set({ isSaving: true, error: null });
     try {
       const snapshot = await updateFixedExpensePaidAction({
         paymentId,
         realValue,
         paidDate,
-        monthKey: state$.value.monthKey,
+        monthKey: get().monthKey,
       });
-      patch({ snapshot, isSaving: false, error: null });
+      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo actualizar el pago.",
       });
@@ -223,20 +220,20 @@ export const fixedExpensesStore = {
     }
   },
 
-  async unmarkPaid(paymentId: string) {
-    patch({ isSaving: true, error: null });
+  unmarkPaid: async (paymentId) => {
+    set({ isSaving: true, error: null });
     try {
       const snapshot = await unmarkFixedExpensePaidAction({
         paymentId,
-        monthKey: state$.value.monthKey,
+        monthKey: get().monthKey,
       });
-      patch({ snapshot, isSaving: false, error: null });
+      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
-      patch({
+      set({
         isSaving: false,
         error: err instanceof Error ? err.message : "No se pudo deshacer el pago.",
       });
       throw err;
     }
   },
-};
+}));

@@ -58,11 +58,23 @@ interface ExpenseStoreState {
     // State flags
     isHydrated: boolean;
     isFetching: boolean;
+    /** Short notice when the partner mutates expenses over Realtime */
+    remoteNotice: string | null;
 
     // Actions
     fetchData: (userId?: string) => Promise<void>;
     refreshData: () => Promise<void>;
+    applyRealtimeChange: (payload: RealtimeExpensePayload) => void;
+    clearRemoteNotice: () => void;
     reset: () => void;
+}
+
+export type RealtimeExpenseEvent = "INSERT" | "UPDATE" | "DELETE";
+
+export interface RealtimeExpensePayload {
+    eventType: RealtimeExpenseEvent;
+    new?: Record<string, unknown> | null;
+    old?: Record<string, unknown> | null;
 }
 
 // ─── Privacy filter (client-side mirror of lib/dashboard.ts) ─────────────────
@@ -159,6 +171,36 @@ function computeBalances(
     return { myAvailableFund, fundLiquidity, p2pBalance };
 }
 
+function mapRealtimeRow(raw: Record<string, unknown> | null | undefined): StoreExpenseRow | null {
+    if (!raw || raw.id == null) return null;
+    return {
+        id: String(raw.id),
+        amount: Number(raw.amount || 0),
+        concept: String(raw.concept ?? ""),
+        paid_by: String(raw.paid_by ?? ""),
+        responsible_for: raw.responsible_for == null ? null : String(raw.responsible_for),
+        category: raw.category == null ? null : String(raw.category),
+        split_type: String(raw.split_type ?? "full"),
+        payer_share_pct: Number(raw.payer_share_pct ?? 100),
+        expense_date: String(raw.expense_date ?? ""),
+        created_at: String(raw.created_at ?? new Date().toISOString()),
+        is_settled: Boolean(raw.is_settled),
+        is_active: raw.is_active !== false,
+        family_id: String(raw.family_id ?? ""),
+        fund_id: raw.fund_id == null ? null : String(raw.fund_id),
+        paid_from_fund: raw.paid_from_fund == null ? null : Boolean(raw.paid_from_fund),
+        transfer_group_id: raw.transfer_group_id == null ? null : String(raw.transfer_group_id),
+    };
+}
+
+function sortExpensesNewestFirst(rows: StoreExpenseRow[]) {
+    return [...rows].sort((a, b) => {
+        const byDate = String(b.expense_date).localeCompare(String(a.expense_date));
+        if (byDate !== 0) return byDate;
+        return String(b.created_at).localeCompare(String(a.created_at));
+    });
+}
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
@@ -174,6 +216,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
     p2pBalance: 0,
     isHydrated: false,
     isFetching: false,
+    remoteNotice: null,
 
     fetchData: async (passedUserId?: string) => {
         if (get().isFetching) return;
@@ -226,7 +269,9 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                     .eq("family_id", familyId)
                     .eq("is_active", true)
                     .order("expense_date", { ascending: false })
-                    .order("created_at", { ascending: false }),
+                    .order("created_at", { ascending: false })
+                    // Cap payload for snappy nav; older rows remain in History via filters later if needed.
+                    .limit(400),
             ]);
 
             const partnerName =
@@ -266,6 +311,59 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
         await get().fetchData(userId ?? undefined);
     },
 
+    applyRealtimeChange: (payload) => {
+        const { userId, familyId, financialModel, partnerId, partnerName, expenses } = get();
+        if (!userId || !familyId) return;
+
+        const removeById = (id: string) => {
+            const next = expenses.filter((e) => e.id !== id);
+            if (next.length === expenses.length) return;
+            const balances = computeBalances(next, userId, financialModel);
+            set({ expenses: next, ...balances });
+        };
+
+        if (payload.eventType === "DELETE") {
+            const oldId = payload.old?.id;
+            if (oldId != null) removeById(String(oldId));
+            return;
+        }
+
+        const row = mapRealtimeRow(payload.new);
+        if (!row || row.family_id !== familyId) return;
+
+        // Soft-delete / inactive → drop from live lists
+        if (!row.is_active) {
+            removeById(row.id);
+            return;
+        }
+
+        const visible = filterExpensesForPrivacy([row], userId);
+        if (visible.length === 0) {
+            removeById(row.id);
+            return;
+        }
+
+        const without = expenses.filter((e) => e.id !== row.id);
+        const next = sortExpensesNewestFirst([row, ...without]).slice(0, 400);
+        const balances = computeBalances(next, userId, financialModel);
+
+        const fromPartner = Boolean(partnerId) && row.paid_by === partnerId;
+        const notice =
+            fromPartner && payload.eventType === "INSERT"
+                ? `${partnerName} registró “${row.concept || "un movimiento"}”`
+                : fromPartner && payload.eventType === "UPDATE"
+                  ? `${partnerName} actualizó un movimiento`
+                  : null;
+
+        set({
+            expenses: next,
+            ...balances,
+            ...(notice ? { remoteNotice: notice } : {}),
+        });
+    },
+
+    clearRemoteNotice: () => set({ remoteNotice: null }),
+
     reset: () =>
         set({
             userId: null,
@@ -280,5 +378,6 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
             p2pBalance: 0,
             isHydrated: false,
             isFetching: false,
+            remoteNotice: null,
         }),
 }));

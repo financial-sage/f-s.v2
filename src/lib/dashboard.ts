@@ -524,7 +524,8 @@ export async function getHomePageData(): Promise<
       )
       .eq("family_id", familyId)
       .eq("is_active", true)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(400),
   ]);
 
   const family = familyResult.data as (FamilyRow & { financial_model?: string | null }) | null;

@@ -555,17 +555,17 @@ export default function AddExpenseForm({
       setIsSheetAnimated(false);
       setIsCategorySheetOpen(false);
 
-      // Refresh store in background (Optimistic UI — no full page reload)
-      const { refreshData } = useExpenseStore.getState();
+      // Refresh local store + pulse partner Realtime channel
+      const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
 
       if (onClose) {
         onClose();
         window.setTimeout(() => {
-          refreshData();
+          void syncFamilyExpenses();
         }, 460);
       } else {
         router.push("/");
-        refreshData();
+        void syncFamilyExpenses();
       }
     } catch (error) {
       setErrorMessage(

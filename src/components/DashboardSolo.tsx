@@ -221,8 +221,8 @@ export default function DashboardSolo({
             try {
                 await createPersonalDeposit({ amount: normalizedAmount });
                 closeDepositModal();
-                await refreshData();
-                router.refresh();
+                const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+                await syncFamilyExpenses();
             } catch (err) {
                 setDepositError(err instanceof Error ? err.message : "No se pudo registrar el aporte.");
             }
@@ -433,7 +433,7 @@ export default function DashboardSolo({
                         </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-2xl">
+                    <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md">
                         {currentList.length === 0 ? (
                             <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
                                 <div className="relative mb-4 flex items-center justify-center">
@@ -471,9 +471,7 @@ export default function DashboardSolo({
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <div
                                                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                                                            isDark
-                                                                ? "icon-chip-coin"
-                                                                : "shadow-sm backdrop-blur-md"
+                                                            isDark ? "icon-chip-coin" : "shadow-sm"
                                                         }`}
                                                         style={fundIconChipStyle(heroColor, isDark)}
                                                     >

@@ -153,7 +153,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
     { icon: ShieldCheck, label: "Privacidad", value: "Protegida" },
   ];
 
-  if (!mounted) return null;
+  if (!mounted || !isOpen) return null;
 
   return createPortal(
     <>

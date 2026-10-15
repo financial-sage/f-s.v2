@@ -53,6 +53,7 @@ import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useIsDark } from "@/hooks/useIsDark";
 import { useExpenseStore } from "@/store/useExpenseStore";
+import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { getCategoryDetails } from "@/lib/categoryMap";
@@ -156,11 +157,11 @@ export default function DashboardCouple({
     currentUserName,
     partnerFirstName,
     members,
-    expenses,
+    expenses: ssrExpenses,
     mySpent: _mySpent,
     partnerSpent: _partnerSpent,
-    fundBalance,
-    personalBalance,
+    fundBalance: ssrFundBalance,
+    personalBalance: ssrPersonalBalance,
     financialModel = "joint_fund",
 }: DashboardCoupleProps) {
     const router = useRouter();
@@ -168,6 +169,36 @@ export default function DashboardCouple({
     const { format: formatCurrency } = useCurrency();
     const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
+    const isHydrated = useExpenseStore((s) => s.isHydrated);
+    const storeExpenses = useExpenseStore((s) => s.expenses);
+    const storePersonalBalance = useExpenseStore((s) => s.myAvailableFund);
+    const storeFundLiquidity = useExpenseStore((s) => s.fundLiquidity);
+    const isPremium = useExpenseStore((s) => s.isPremium);
+
+    // Prefer Zustand once warm so Home↔History navigations skip waiting on RSC.
+    const expenses = useMemo<CoupleDashboardExpense[]>(() => {
+        if (!isHydrated) return ssrExpenses;
+        return storeExpenses.map((e) => ({
+            id: e.id,
+            concept: e.concept,
+            amount: Number(e.amount),
+            paid_by: e.paid_by,
+            responsible_for: e.responsible_for,
+            category: e.category,
+            split_type: (e.split_type as ExpenseSplitType) || "full",
+            expense_date: e.expense_date,
+            created_at: e.created_at,
+            is_settled: e.is_settled,
+            family_id: e.family_id,
+            fund_id: e.fund_id,
+            paid_from_fund: e.paid_from_fund,
+            transfer_group_id: e.transfer_group_id,
+        }));
+    }, [isHydrated, storeExpenses, ssrExpenses]);
+
+    const personalBalance = isHydrated ? storePersonalBalance : ssrPersonalBalance;
+    const fundBalance = isHydrated ? storeFundLiquidity : ssrFundBalance;
+
     const [currentFilter, setCurrentFilter] = useState<ActivityFilter>("all");
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [isFilterAnimated, setIsFilterAnimated] = useState(false);
@@ -199,7 +230,6 @@ export default function DashboardCouple({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
-    const isPremium = useExpenseStore((s) => s.isPremium);
     const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>([]);
     const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
     const [showFundsMenu, setShowFundsMenu] = useState(false);
@@ -276,8 +306,8 @@ export default function DashboardCouple({
             try {
                 await deleteExpenseAction(expenseToDelete);
                 closeDeleteModal();
-                await useExpenseStore.getState().refreshData();
-                router.refresh();
+                const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+                await syncFamilyExpenses();
             } catch (err) {
                 closeDeleteModal();
                 showToast(err instanceof Error ? err.message : "No se pudo eliminar el movimiento.");
@@ -466,6 +496,7 @@ export default function DashboardCouple({
             try {
                 const overview = await getFamilyFundsMetaAction();
                 if (cancelled) return;
+                useFundsStore.getState().setFunds(overview.funds);
                 const shared = listDashboardSharedFunds(overview.funds);
                 setSharedFunds(shared);
 
@@ -543,6 +574,7 @@ export default function DashboardCouple({
                         color: newFundColor,
                     });
                     const overview = await getFamilyFundsMetaAction();
+                    useFundsStore.getState().setFunds(overview.funds);
                     const shared = listDashboardSharedFunds(overview.funds);
                     setSharedFunds(shared);
                     if (selectedFundId === updated.id) {
@@ -555,13 +587,14 @@ export default function DashboardCouple({
                         color: newFundColor,
                     });
                     const overview = await getFamilyFundsMetaAction();
+                    useFundsStore.getState().setFunds(overview.funds);
                     const shared = listDashboardSharedFunds(overview.funds);
                     setSharedFunds(shared);
                     setSelectedFundId(created.id);
                     setPreferredFundId(created.id);
                 }
                 closeCreateFundModal();
-                router.refresh();
+                await useExpenseStore.getState().refreshData();
             } catch (err) {
                 setFundActionError(
                     err instanceof Error
@@ -722,7 +755,8 @@ export default function DashboardCouple({
 
             setDepositAmount("");
             closeDepositModal();
-            router.refresh();
+            const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+            await syncFamilyExpenses();
         });
     }
 
@@ -758,7 +792,8 @@ export default function DashboardCouple({
                 });
             }
             closeSettleModal();
-            router.refresh();
+            const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+            await syncFamilyExpenses();
         });
     }
 
@@ -777,7 +812,8 @@ export default function DashboardCouple({
             setShowPayModal(false);
             setShowChargeModal(false);
             setSelectedSettleIds([]);
-            router.refresh();
+            const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+            await syncFamilyExpenses();
         });
     }
 
@@ -808,30 +844,8 @@ export default function DashboardCouple({
         return () => window.clearTimeout(timeoutId);
     }, []);
 
-    // Supabase Realtime para refrescar dashboard automáticamente
-    useEffect(() => {
-        const channel = supabase
-            .channel(`realtime-expenses-${familyId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'expenses',
-                    filter: `family_id=eq.${familyId}`,
-                },
-                (payload) => {
-                    console.log('Cambio detectado en base de datos:', payload);
-                    router.refresh();
-                }
-            )
-            .subscribe();
-
-        return () => {
-            void supabase.removeChannel(channel);
-        };
-    }, [familyId, router, supabase]);
-
+    // Expenses realtime lives in layout RealtimeSync → Zustand only.
+    // Family settings still need a light RSC refresh when model/split changes.
     useEffect(() => {
         const channel = supabase
             .channel(`family-settings-updates-${familyId}`)
@@ -1502,7 +1516,7 @@ export default function DashboardCouple({
                     </div>
 
                     <div
-                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-2xl ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
+                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "240ms" } : undefined}
                     >
                         {currentList.length === 0 ? (
@@ -1556,9 +1570,7 @@ export default function DashboardCouple({
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <div
                                                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                                                            isDark
-                                                                ? "icon-chip-coin"
-                                                                : "shadow-sm backdrop-blur-md"
+                                                            isDark ? "icon-chip-coin" : "shadow-sm"
                                                         }`}
                                                         style={fundIconChipStyle(iconColor, isDark)}
                                                         title={expenseFund?.name ?? "Mi fondo"}

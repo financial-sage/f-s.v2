@@ -1,10 +1,25 @@
 export const dynamic = "force-dynamic";
 
+import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
-import DashboardCouple from "@/components/DashboardCouple";
-import DashboardSolo from "@/components/DashboardSolo";
 import StoreHydrator from "@/components/StoreHydrator";
 import { getHomePageData } from "@/lib/dashboard";
+
+const DashboardCouple = dynamicImport(() => import("@/components/DashboardCouple"), {
+  loading: () => (
+    <div className="flex h-dvh items-center justify-center bg-page-gradient text-sm text-on-surface-variant">
+      Cargando…
+    </div>
+  ),
+});
+
+const DashboardSolo = dynamicImport(() => import("@/components/DashboardSolo"), {
+  loading: () => (
+    <div className="flex h-dvh items-center justify-center bg-page-gradient text-sm text-on-surface-variant">
+      Cargando…
+    </div>
+  ),
+});
 
 export default async function Home() {
   const home = await getHomePageData();

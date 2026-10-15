@@ -1,10 +1,18 @@
 export const dynamic = "force-dynamic";
 
+import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import HistoryList from "@/components/HistoryList";
 import StoreHydrator from "@/components/StoreHydrator";
 import { PageHeader } from "@/components/ui/PageHeader";
+
+const HistoryList = dynamicImport(() => import("@/components/HistoryList"), {
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center px-4 text-sm text-on-surface-variant">
+      Cargando historial…
+    </div>
+  ),
+});
 
 export default async function HistoryPage() {
   const supabase = await createClient();
