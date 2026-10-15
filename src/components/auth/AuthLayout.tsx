@@ -23,7 +23,7 @@ export function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
       <main className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-y-auto overscroll-none px-4 py-8 no-scrollbar">
         <div className="w-full max-w-5xl">

@@ -77,7 +77,7 @@ export default function InvitePartner({ inviteCode }: InvitePartnerProps) {
         <button
           type="submit"
           disabled={isPending}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-sage px-4 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 font-semibold text-on-primary transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isPending && <LoaderCircle size={18} className="animate-spin" />}
           {isPending ? "Uniendo..." : "Unirse usando el código"}

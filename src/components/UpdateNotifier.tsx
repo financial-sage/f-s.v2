@@ -57,7 +57,7 @@ export default function UpdateNotifier() {
       <button
         type="button"
         onClick={handleUpdate}
-        className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-dim transition-colors"
+        className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
       >
         Actualizar
       </button>

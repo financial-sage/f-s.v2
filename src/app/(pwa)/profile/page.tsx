@@ -141,7 +141,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-28 pt-4">
         <header className="mb-3 flex items-start justify-between gap-3 px-1">

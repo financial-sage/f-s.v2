@@ -24,7 +24,7 @@ export function tintedGlassGradient(
   return `linear-gradient(145deg, ${highlight} 0%, ${accentHex}${mid} ${midStop}%, ${accentHex}${end} 100%)`;
 }
 
-/** Sage-tinted hero glass used on profile / auth. */
+/** Theme-aware hero glass (sage in light, graphite ink in dark). */
 export function sageGlassGradient() {
-  return tintedGlassGradient("#4a6549");
+  return `linear-gradient(145deg, var(--glass-highlight) 0%, color-mix(in srgb, var(--primary) 18%, transparent) 55%, color-mix(in srgb, var(--primary) 28%, transparent) 100%)`;
 }

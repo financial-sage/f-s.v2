@@ -233,7 +233,7 @@ export default function DashboardSolo({
                 isPartnerJoining ? "scale-[0.97] opacity-25 blur-[2px] saturate-50" : "scale-100 opacity-100"
             }`}
         >
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
             <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
                 <Link

@@ -58,7 +58,7 @@ export default async function HistoryPage() {
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
       <StoreHydrator userId={user.id} initialFunds={funds} />
       <PageHeader
         title="Historial"

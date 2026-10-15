@@ -954,7 +954,7 @@ export default function DashboardCouple({
 
     return (
         <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
             <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
                 <Link
@@ -1392,7 +1392,7 @@ export default function DashboardCouple({
                                                 onClick={() => handleSettleFundDebt(selectedSettleIds, selectedTotal)}
                                                 className={`w-full py-4 rounded-full font-bold shadow-md transition-all ${selectedSettleIds.length === 0 || isLiquidating
                                                     ? 'bg-surface-low text-outline-variant cursor-not-allowed'
-                                                    : 'bg-primary text-white'
+                                                    : 'bg-primary text-on-primary'
                                                     }`}
                                             >
                                                 Recuperar {selectedTotal > 0 ? formatCurrency(selectedTotal) : ''}
