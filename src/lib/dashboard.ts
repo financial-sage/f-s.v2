@@ -1,5 +1,6 @@
 import type { ExpenseSplitType } from "@/lib/expenses";
-import { isPersonalPocketCashOut } from "@/lib/funds";
+import type { FamilyFund } from "@/lib/funds";
+import { getDefaultSharedFund, isPersonalPocketCashOut } from "@/lib/funds";
 import { createClient } from "@/utils/supabase/server";
 
 interface UserRow {
@@ -336,6 +337,9 @@ export interface HomePageData {
   personalBalance: number;
   /** Real personal pocket cash (deposits − spends), not budget remaining. */
   pocketBalance: number;
+  /** Active family funds for first paint (avoids hero/icon color flash). */
+  funds: FamilyFund[];
+  sharedDefaultFundId: string | null;
 }
 
 /** Same rules as Zustand `myAvailableFund`: personal deposits − paid spends. */
@@ -507,7 +511,7 @@ export async function getHomePageData(): Promise<
 
   const familyId = profile.family_id;
 
-  const [familyResult, membersResult, expensesResult] = await Promise.all([
+  const [familyResult, membersResult, expensesResult, fundsResult] = await Promise.all([
     supabase
       .from("families")
       .select("id, name, user_1_id, user_2_id, financial_model")
@@ -526,6 +530,14 @@ export async function getHomePageData(): Promise<
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(400),
+    supabase
+      .from("family_funds")
+      .select(
+        "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose",
+      )
+      .eq("family_id", familyId)
+      .is("archived_at", null)
+      .order("sort_order", { ascending: true }),
   ]);
 
   const family = familyResult.data as (FamilyRow & { financial_model?: string | null }) | null;
@@ -592,6 +604,8 @@ export async function getHomePageData(): Promise<
   const pocketBalance = calculatePersonalPocketBalance(coupleExpenses, user.id);
 
   const currentMember = members.find((member) => member.id === user.id);
+  const funds = ((fundsResult.data ?? []) as FamilyFund[]).filter((f) => !f.archived_at);
+  const sharedDefaultFundId = getDefaultSharedFund(funds)?.id ?? null;
 
   return {
     ok: true,
@@ -615,6 +629,8 @@ export async function getHomePageData(): Promise<
       fundBalance,
       personalBalance,
       pocketBalance,
+      funds,
+      sharedDefaultFundId,
     },
   };
 }

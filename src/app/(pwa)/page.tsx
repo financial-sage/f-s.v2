@@ -43,11 +43,13 @@ export default async function Home() {
     fundBalance,
     personalBalance,
     pocketBalance,
+    funds,
+    sharedDefaultFundId,
   } = home.data;
 
   return (
     <>
-      <StoreHydrator userId={userId} />
+      <StoreHydrator userId={userId} initialFunds={funds} />
       {familyMemberCount >= 2 && familyId ? (
         <DashboardCouple
           familyId={familyId}
@@ -62,6 +64,8 @@ export default async function Home() {
           fundBalance={fundBalance}
           personalBalance={personalBalance}
           financialModel={financialModel}
+          initialFunds={funds}
+          sharedDefaultFundId={sharedDefaultFundId}
         />
       ) : (
         <DashboardSolo

@@ -29,10 +29,10 @@ import {
     listVariableSharedFunds,
     resolveFundColor,
     resolveFundIdForExpense,
+    type FamilyFund,
 } from "@/lib/funds";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
-import { useIsDark } from "@/hooks/useIsDark";
 import { useFundsStore } from "@/store/useFundsStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -135,11 +135,18 @@ interface HistoryListProps {
     partnerName: string;
     partnerId: string | null;
     financialModel: string;
+    initialFunds?: FamilyFund[];
 }
 
-export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, partnerName, partnerId, financialModel: ssrFinancialModel }: HistoryListProps) {
+export default function HistoryList({
+    allExpenses: ssrExpenses,
+    currentUserId,
+    partnerName,
+    partnerId,
+    financialModel: ssrFinancialModel,
+    initialFunds = [],
+}: HistoryListProps) {
     const { format: formatCurrency } = useCurrency();
-    const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
@@ -157,16 +164,21 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
     const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
-    const funds = useFundsStore((s) => s.funds);
+    const storeFunds = useFundsStore((s) => s.funds);
     const loadFunds = useFundsStore((s) => s.load);
+    // Prefer store; fall back to SSR props so first paint has real fund colors.
+    const funds = storeFunds.length > 0 ? storeFunds : initialFunds;
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
     useEffect(() => {
+        if (initialFunds.length) {
+            useFundsStore.getState().setFunds(initialFunds);
+        }
         void loadFunds();
-    }, [loadFunds]);
+    }, [initialFunds, loadFunds]);
 
     // Filter states
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -389,13 +401,11 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                 >
                     <div className="flex min-w-0 items-center gap-2.5">
                         <div
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                                isDark ? "icon-chip-coin" : "shadow-sm"
-                            }`}
-                            style={fundIconChipStyle(iconColor, isDark)}
+                            className="icon-chip-fund flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+                            style={fundIconChipStyle(iconColor)}
                             title={expenseFund?.name ?? "Mi fondo"}
                         >
-                            <Icon size={14} strokeWidth={isDark ? 2.1 : 2} />
+                            <Icon size={14} strokeWidth={2} />
                         </div>
                         <div className="flex min-w-0 flex-col">
                             <span className="truncate text-[13px] font-medium text-on-surface">

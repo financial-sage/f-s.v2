@@ -29,7 +29,7 @@ export default async function HistoryPage() {
 
   if (!profile?.family_id) redirect("/onboarding");
 
-  const [familyProfilesResult, familyResult] = await Promise.all([
+  const [familyProfilesResult, familyResult, fundsResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, full_name")
@@ -39,6 +39,14 @@ export default async function HistoryPage() {
       .select("financial_model")
       .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
       .maybeSingle(),
+    supabase
+      .from("family_funds")
+      .select(
+        "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose",
+      )
+      .eq("family_id", profile.family_id)
+      .is("archived_at", null)
+      .order("sort_order", { ascending: true }),
   ]);
 
   const familyProfiles = familyProfilesResult.data ?? [];
@@ -46,11 +54,12 @@ export default async function HistoryPage() {
   const partner = familyProfiles.find((p) => p.id !== user.id);
   const partnerName = partner?.full_name?.trim().split(/\s+/)[0] ?? "Pareja";
   const partnerId = partner?.id ?? null;
+  const funds = (fundsResult.data ?? []).filter((f) => !f.archived_at);
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,_rgba(74,101,73,0.16),_transparent_70%)]" />
-      <StoreHydrator userId={user.id} />
+      <StoreHydrator userId={user.id} initialFunds={funds} />
       <PageHeader
         title="Historial"
         subtitle="Todos tus movimientos"
@@ -65,6 +74,7 @@ export default async function HistoryPage() {
           partnerName={partnerName}
           partnerId={partnerId}
           financialModel={financialModel}
+          initialFunds={funds}
         />
       </div>
     </div>

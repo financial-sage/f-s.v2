@@ -51,7 +51,6 @@ import {
 } from "@/components/ExpenseDebtStatus";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
-import { useIsDark } from "@/hooks/useIsDark";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
@@ -115,6 +114,8 @@ interface DashboardCoupleProps {
     fundBalance: number;
     personalBalance: number;
     financialModel?: string;
+    initialFunds?: FamilyFund[];
+    sharedDefaultFundId?: string | null;
 }
 
 
@@ -150,6 +151,21 @@ function getExpenseCategoryPresentation(category?: string | null) {
     return { icon, label };
 }
 
+function pickInitialSharedFunds(initialFunds?: FamilyFund[]) {
+    if (initialFunds?.length) return listDashboardSharedFunds(initialFunds);
+    return listDashboardSharedFunds(useFundsStore.getState().funds);
+}
+
+function pickInitialSelectedFundId(
+    shared: FamilyFund[],
+    sharedDefaultFundId?: string | null,
+) {
+    if (sharedDefaultFundId && shared.some((f) => f.id === sharedDefaultFundId)) {
+        return sharedDefaultFundId;
+    }
+    return getDefaultSharedFund(shared)?.id ?? shared[0]?.id ?? null;
+}
+
 export default function DashboardCouple({
     familyId,
     currentUserId,
@@ -163,17 +179,19 @@ export default function DashboardCouple({
     fundBalance: ssrFundBalance,
     personalBalance: ssrPersonalBalance,
     financialModel = "joint_fund",
+    initialFunds = [],
+    sharedDefaultFundId = null,
 }: DashboardCoupleProps) {
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const { format: formatCurrency } = useCurrency();
-    const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
     const storePersonalBalance = useExpenseStore((s) => s.myAvailableFund);
     const storeFundLiquidity = useExpenseStore((s) => s.fundLiquidity);
     const isPremium = useExpenseStore((s) => s.isPremium);
+    const storeFunds = useFundsStore((s) => s.funds);
 
     // Prefer Zustand once warm so Home↔History navigations skip waiting on RSC.
     const expenses = useMemo<CoupleDashboardExpense[]>(() => {
@@ -230,8 +248,12 @@ export default function DashboardCouple({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
-    const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>([]);
-    const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
+    const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>(() =>
+        pickInitialSharedFunds(initialFunds),
+    );
+    const [selectedFundId, setSelectedFundId] = useState<string | null>(() =>
+        pickInitialSelectedFundId(pickInitialSharedFunds(initialFunds), sharedDefaultFundId),
+    );
     const [showFundsMenu, setShowFundsMenu] = useState(false);
     const [showCreateFundModal, setShowCreateFundModal] = useState(false);
     const [isCreateFundAnimated, setIsCreateFundAnimated] = useState(false);
@@ -476,11 +498,12 @@ export default function DashboardCouple({
         null;
 
     const selectedFundBalance = useMemo(() => {
-        if (!selectedFund) return legacyFundLiquidity;
+        // Avoid flashing the aggregate of all pockets before a fund is selected.
+        if (!selectedFund) return 0;
         return calculateFundCashBalance(expenses, selectedFund.id, {
             treatLegacyJointAsFundId: getDefaultSharedFund(sharedFunds)?.id ?? null,
         });
-    }, [expenses, legacyFundLiquidity, selectedFund, sharedFunds]);
+    }, [expenses, selectedFund, sharedFunds]);
 
     const secondaryWidgetHint = isJointModel
         ? ""
@@ -490,7 +513,33 @@ export default function DashboardCouple({
                 : "Por pagar"
             : "Sin deuda";
 
+    // Keep local shared list in sync with the zustand cache (SSR seed / soft nav).
     useEffect(() => {
+        if (!storeFunds.length) return;
+        const shared = listDashboardSharedFunds(storeFunds);
+        setSharedFunds(shared);
+        setSelectedFundId((prev) => {
+            if (prev && shared.some((f) => f.id === prev)) return prev;
+            return pickInitialSelectedFundId(shared, sharedDefaultFundId);
+        });
+    }, [storeFunds, sharedDefaultFundId]);
+
+    useEffect(() => {
+        if (initialFunds.length) {
+            useFundsStore.getState().setFunds(initialFunds);
+        }
+        const preferred =
+            selectedFundId &&
+            sharedFunds.some((f) => f.id === selectedFundId && isFixedExpensesFund(f))
+                ? sharedDefaultFundId
+                : selectedFundId;
+        setPreferredFundId(preferred);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once from SSR
+    }, []);
+
+    useEffect(() => {
+        // Refresh meta only if SSR/store had nothing (new family / migration).
+        if (sharedFunds.length > 0) return;
         let cancelled = false;
         (async () => {
             try {
@@ -522,7 +571,7 @@ export default function DashboardCouple({
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [sharedFunds.length, setPreferredFundId]);
 
     const openCreateFundModal = () => {
         setFundActionError("");
@@ -1569,13 +1618,11 @@ export default function DashboardCouple({
                                             >
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <div
-                                                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                                                            isDark ? "icon-chip-coin" : "shadow-sm"
-                                                        }`}
-                                                        style={fundIconChipStyle(iconColor, isDark)}
+                                                        className="icon-chip-fund flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+                                                        style={fundIconChipStyle(iconColor)}
                                                         title={expenseFund?.name ?? "Mi fondo"}
                                                     >
-                                                        <Icon size={15} strokeWidth={isDark ? 2.1 : 2} />
+                                                        <Icon size={15} strokeWidth={2} />
                                                     </div>
 
                                                     <div className="flex min-w-0 flex-col justify-center gap-0.5">

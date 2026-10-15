@@ -281,10 +281,19 @@ body {
   box-shadow: var(--fab-ink-shadow);
 }
 
-/* Dark-mode list icons: fab-ink metal + soft coin bevel, tinted by fund color */
+/* Fund-tinted list icons — light soft chip; dark uses fab-ink coin (no JS theme flash) */
+.icon-chip-fund {
+  --icon-chip-accent: var(--primary);
+  background-color: color-mix(in srgb, var(--icon-chip-accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--icon-chip-accent) 21%, transparent);
+  color: var(--icon-chip-accent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+
+.dark .icon-chip-fund,
 .icon-chip-coin {
-  --icon-chip-accent: var(--fab-ink-via);
   border-color: color-mix(in srgb, var(--icon-chip-accent) 55%, white 18%);
+  background-color: transparent;
   background-image:
     radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.12), transparent 42%),
     radial-gradient(circle at 70% 78%, rgb(0 0 0 / 0.22), transparent 48%),
