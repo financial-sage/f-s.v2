@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
@@ -27,6 +27,83 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 const ACCENT = FIXED_EXPENSES_FUND_COLOR;
+
+/** Temporary: pad the checklist to stress-test scroll + dense list visuals. Set false when done. */
+const USE_FIXED_EXPENSES_SCROLL_DEMO = true;
+
+const DEMO_FIXED_EXPENSE_SEEDS: Array<{
+  name: string;
+  base: number;
+  paid?: boolean;
+  real?: number;
+  paidDay?: number;
+}> = [
+  { name: "Alquiler", base: 950, paid: true, real: 950, paidDay: 1 },
+  { name: "Luz", base: 85, paid: true, real: 92, paidDay: 5 },
+  { name: "Agua", base: 32, paid: true, real: 28, paidDay: 6 },
+  { name: "Gas", base: 45 },
+  { name: "Internet fibra", base: 49.9, paid: true, real: 49.9, paidDay: 3 },
+  { name: "Móvil Ana", base: 25 },
+  { name: "Móvil Carlos", base: 30, paid: true, real: 30, paidDay: 8 },
+  { name: "Seguro hogar", base: 28.5 },
+  { name: "Seguro coche", base: 62 },
+  { name: "Gimnasio", base: 39.99, paid: true, real: 39.99, paidDay: 2 },
+  { name: "Netflix", base: 17.99 },
+  { name: "Spotify Duo", base: 14.99, paid: true, real: 14.99, paidDay: 4 },
+  { name: "Disney+", base: 11.99 },
+  { name: "Comunidad vecinos", base: 75 },
+  { name: "Parking", base: 80, paid: true, real: 80, paidDay: 1 },
+  { name: "Guardería", base: 320 },
+  { name: "Colegio (comedor)", base: 110 },
+  { name: "Cuota hipoteca", base: 680, paid: true, real: 680, paidDay: 1 },
+  { name: "Basura / IBI mens.", base: 22 },
+  { name: "Streaming música kids", base: 6.99 },
+  { name: "Amazon Prime", base: 4.99, paid: true, real: 4.99, paidDay: 7 },
+  { name: "iCloud / Google One", base: 2.99 },
+];
+
+function buildDemoFixedExpenseItems(monthKey: string): FixedExpenseMonthItem[] {
+  const now = new Date().toISOString();
+  return DEMO_FIXED_EXPENSE_SEEDS.map((seed, index) => {
+    const id = `demo-fe-${index + 1}`;
+    const paymentId = `demo-pay-${index + 1}`;
+    const paidAt =
+      seed.paid && seed.paidDay
+        ? `${monthKey}-${String(seed.paidDay).padStart(2, "0")}T10:00:00.000Z`
+        : null;
+    return {
+      template: {
+        id,
+        family_id: "demo",
+        name: seed.name,
+        base_value: seed.base,
+        due_day: null,
+        is_active: true,
+        sort_order: index + 1,
+        created_at: now,
+        updated_at: now,
+      },
+      payment: {
+        id: paymentId,
+        family_id: "demo",
+        fixed_expense_id: id,
+        month_key: monthKey,
+        base_value_snapshot: seed.base,
+        real_value: seed.paid ? (seed.real ?? seed.base) : null,
+        status: seed.paid ? "paid" : "pending",
+        paid_at: paidAt,
+        paid_by: seed.paid ? "demo" : null,
+        expense_id: seed.paid ? `demo-exp-${index + 1}` : null,
+        created_at: now,
+        updated_at: now,
+      },
+    };
+  });
+}
+
+function isDemoFixedExpenseItem(item: FixedExpenseMonthItem) {
+  return item.template.id.startsWith("demo-fe-");
+}
 
 function progressRatio(spent: number, budget: number) {
   if (budget <= 0) return 0;
@@ -85,25 +162,82 @@ export default function FixedExpensesManager() {
   const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
 
-  const checklist = useMemo(() => {
-    const pending = items.filter((item) => item.payment.status === "pending");
-    const paid = items.filter((item) => item.payment.status === "paid");
-    return [...pending, ...paid];
-  }, [items]);
+  const [cardCollapsed, setCardCollapsed] = useState(false);
+  const listScrollRef = useRef<HTMLElement | null>(null);
+  const expandedCardRef = useRef<HTMLDivElement | null>(null);
 
-  // Progress fills as real payments accumulate against the sum of bases.
-  const ratio = progressRatio(totals.sumReal, totals.sumBase);
-  const remainingToPay = useMemo(
-    () =>
+  // Show the compact bar only once the large card has fully left the scrollport,
+  // so both never appear on screen at the same time.
+  useEffect(() => {
+    const root = listScrollRef.current;
+    const target = expandedCardRef.current;
+    if (!root || !target) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setCardCollapsed(!entry.isIntersecting);
+      },
+      { root, threshold: 0, rootMargin: "0px 0px 0px 0px" }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [monthKey, isLoading]);
+
+  const checklist = useMemo(() => {
+    const source = USE_FIXED_EXPENSES_SCROLL_DEMO
+      ? [...items, ...buildDemoFixedExpenseItems(monthKey)]
+      : items;
+    const pending = source.filter((item) => item.payment.status === "pending");
+    const paid = source.filter((item) => item.payment.status === "paid");
+    return [...pending, ...paid];
+  }, [items, monthKey]);
+
+  const displayTotals = useMemo(() => {
+    if (!USE_FIXED_EXPENSES_SCROLL_DEMO) {
+      return {
+        sumBase: totals.sumBase,
+        sumReal: totals.sumReal,
+        paidCount: totals.paidCount,
+        totalCount: totals.totalCount,
+        remainingToPay: Math.round(
+          items
+            .filter((item) => item.payment.status === "pending")
+            .reduce((sum, item) => sum + Number(item.payment.base_value_snapshot || 0), 0) * 100
+        ) / 100,
+      };
+    }
+    const sumBase =
       Math.round(
-        items
+        checklist.reduce((sum, item) => sum + Number(item.payment.base_value_snapshot || 0), 0) * 100
+      ) / 100;
+    const sumReal =
+      Math.round(
+        checklist
+          .filter((item) => item.payment.status === "paid")
+          .reduce((sum, item) => sum + Number(item.payment.real_value || 0), 0) * 100
+      ) / 100;
+    const remainingToPay =
+      Math.round(
+        checklist
           .filter((item) => item.payment.status === "pending")
           .reduce((sum, item) => sum + Number(item.payment.base_value_snapshot || 0), 0) * 100
-      ) / 100,
-    [items]
-  );
+      ) / 100;
+    return {
+      sumBase,
+      sumReal,
+      paidCount: checklist.filter((item) => item.payment.status === "paid").length,
+      totalCount: checklist.length,
+      remainingToPay,
+    };
+  }, [checklist, items, totals.paidCount, totals.sumBase, totals.sumReal, totals.totalCount]);
+
+  // Progress fills as real payments accumulate against the sum of bases.
+  const ratio = progressRatio(displayTotals.sumReal, displayTotals.sumBase);
+  const remainingToPay = displayTotals.remainingToPay;
 
   function openPay(item: FixedExpenseMonthItem) {
+    if (isDemoFixedExpenseItem(item)) return;
     setPayEditing(false);
     setPayTarget(item);
     setPayValue(String(item.payment.base_value_snapshot || 0));
@@ -112,6 +246,7 @@ export default function FixedExpensesManager() {
   }
 
   function openEditPay(item: FixedExpenseMonthItem) {
+    if (isDemoFixedExpenseItem(item)) return;
     setPayEditing(true);
     setPayTarget(item);
     setPayValue(String(item.payment.real_value ?? item.payment.base_value_snapshot ?? 0));
@@ -185,6 +320,7 @@ export default function FixedExpensesManager() {
   }
 
   function openEditForm(item: FixedExpenseMonthItem) {
+    if (isDemoFixedExpenseItem(item)) return;
     setEditingId(item.template.id);
     setFormName(item.template.name);
     setFormBase(String(item.template.base_value));
@@ -245,97 +381,164 @@ export default function FixedExpensesManager() {
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
-        <section className="mb-3 shrink-0">
-          <div
-            className="relative overflow-hidden rounded-[1.85rem] border border-glass-border p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
-            style={{
-              backgroundImage: tintedGlassGradient(ACCENT, {
-                soft: true,
-                midAlpha: "28",
-                endAlpha: "3D",
-                midStop: 52,
-              }),
-            }}
-          >
-            <div className="relative z-10 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setMonthKey((key) => shiftMonthKey(key, -1))}
-                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
-                aria-label="Mes anterior"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <p className="text-[11px] font-light text-on-surface-variant">
-                {formatMonthLabel(monthKey)}
-              </p>
-              <button
-                type="button"
-                onClick={() => setMonthKey((key) => shiftMonthKey(key, 1))}
-                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
-                aria-label="Mes siguiente"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-
-            <div className="relative z-10 mt-4 flex items-center justify-between gap-2">
-              <div>
-                <p className="text-[11px] font-light text-on-surface-variant">
-                  Bolsillo · {totals.paidCount}/{totals.totalCount} pagados
-                </p>
-                <p className="mt-1 text-[2.65rem] font-light leading-none tracking-tight text-on-surface">
-                  {formatCurrency(totals.pocketBalance)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={openDepositEditor}
-                className="shrink-0 rounded-full bg-glass-soft px-3 py-1.5 text-xs font-medium text-on-surface backdrop-blur-sm transition-colors hover:bg-glass-strong"
-              >
-                Aportar
-              </button>
-            </div>
-
-            <div className="relative z-10 mt-5">
-              <div className="h-1.5 overflow-hidden rounded-full bg-glass-soft">
-                <div
-                  className="h-full rounded-full transition-[width] duration-500"
-                  style={{
-                    width: `${ratio * 100}%`,
-                    backgroundImage: `linear-gradient(90deg, ${ACCENT}, ${ACCENT}B8)`,
-                  }}
-                />
-              </div>
-              <div className="mt-2.5 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-light tracking-tight text-on-surface tabular-nums">
-                    {formatCurrency(totals.sumReal)}
+        {/* Compact bar: opaque page-colored plate first so list shadows can't show
+            through the rounded corner wedges. */}
+        <div
+          className={`pointer-events-none absolute inset-x-4 top-1 z-30 ease-out ${
+            cardCollapsed
+              ? "translate-y-0 opacity-100 transition-[opacity,transform] duration-300"
+              : "pointer-events-none invisible -translate-y-1 opacity-0 transition-none"
+          }`}
+          aria-hidden={!cardCollapsed}
+        >
+          <div style={{ backgroundColor: "var(--page-from)" }}>
+            <div
+              className={`rounded-[1.25rem] border border-glass-border px-3.5 py-2.5 ${
+                cardCollapsed ? "pointer-events-auto" : "pointer-events-none"
+              }`}
+              style={{
+                backgroundColor: "var(--surface-lowest)",
+                backgroundImage: tintedGlassGradient(ACCENT, {
+                  soft: true,
+                  midAlpha: "33",
+                  endAlpha: "48",
+                  midStop: 52,
+                }),
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-light text-on-surface-variant">Bolsillo</p>
+                  <p className="truncate text-[15px] font-light leading-tight tracking-tight text-on-surface tabular-nums">
+                    {formatCurrency(totals.pocketBalance)}
                   </p>
-                  <p className="mt-0.5 text-[10px] font-light text-on-surface-variant">Pagado</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-light tracking-tight text-on-surface tabular-nums">
+                <div className="min-w-0 flex-1 text-right">
+                  <p className="text-[10px] font-light text-on-surface-variant">Falta</p>
+                  <p className="truncate text-[15px] font-light leading-tight tracking-tight text-on-surface tabular-nums">
                     {formatCurrency(remainingToPay)}
                   </p>
-                  <p className="mt-0.5 text-[10px] font-light text-on-surface-variant">Falta</p>
+                </div>
+                <button
+                  type="button"
+                  tabIndex={cardCollapsed ? 0 : -1}
+                  onClick={openDepositEditor}
+                  className="shrink-0 rounded-full bg-glass-soft px-2.5 py-1 text-[11px] font-medium text-on-surface transition-colors hover:bg-glass-strong"
+                >
+                  Aportar
+                </button>
+              </div>
+            </div>
+          </div>
+          <div
+            className="pointer-events-none h-8"
+            style={{
+              backgroundImage:
+                "linear-gradient(to bottom, var(--page-from), transparent)",
+            }}
+          />
+        </div>
+
+        <section
+          ref={listScrollRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-none pb-28 no-scrollbar"
+        >
+          <div ref={expandedCardRef} className="mb-3">
+            <div
+              className="relative overflow-hidden rounded-[1.85rem] border border-glass-border p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
+              style={{
+                backgroundImage: tintedGlassGradient(ACCENT, {
+                  soft: true,
+                  midAlpha: "28",
+                  endAlpha: "3D",
+                  midStop: 52,
+                }),
+              }}
+            >
+              <div className="relative z-10 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMonthKey((key) => shiftMonthKey(key, -1));
+                    setCardCollapsed(false);
+                    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
+                  }}
+                  className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
+                  aria-label="Mes anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <p className="text-[11px] font-light text-on-surface-variant">
+                  {formatMonthLabel(monthKey)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMonthKey((key) => shiftMonthKey(key, 1));
+                    setCardCollapsed(false);
+                    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
+                  }}
+                  className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
+                  aria-label="Mes siguiente"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              <div className="relative z-10 mt-4 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-light text-on-surface-variant">
+                    Bolsillo · {displayTotals.paidCount}/{displayTotals.totalCount} pagados
+                  </p>
+                  <p className="mt-1 text-[2.65rem] font-light leading-none tracking-tight text-on-surface">
+                    {formatCurrency(totals.pocketBalance)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openDepositEditor}
+                  className="shrink-0 rounded-full bg-glass-soft px-3 py-1.5 text-xs font-medium text-on-surface backdrop-blur-sm transition-colors hover:bg-glass-strong"
+                >
+                  Aportar
+                </button>
+              </div>
+
+              <div className="relative z-10 mt-5">
+                <div className="h-1.5 overflow-hidden rounded-full bg-glass-soft">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500"
+                    style={{
+                      width: `${ratio * 100}%`,
+                      backgroundImage: `linear-gradient(90deg, ${ACCENT}, ${ACCENT}B8)`,
+                    }}
+                  />
+                </div>
+                <div className="mt-2.5 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-light tracking-tight text-on-surface tabular-nums">
+                      {formatCurrency(displayTotals.sumReal)}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-light text-on-surface-variant">Pagado</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-light tracking-tight text-on-surface tabular-nums">
+                      {formatCurrency(remainingToPay)}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-light text-on-surface-variant">Falta</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </section>
 
-        {error ? (
-          <div className="alert-error mb-3 shrink-0 rounded-2xl px-4 py-3 text-sm">
-            {error}
-          </div>
-        ) : null}
+          {error ? (
+            <div className="alert-error mb-3 rounded-2xl px-4 py-3 text-sm">{error}</div>
+          ) : null}
 
-        <section className="min-h-0 flex-1 overflow-y-auto overscroll-none pb-28 no-scrollbar">
           <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
             <h2 className="text-xs font-medium text-on-surface">Este mes</h2>
             <p className="text-xs font-light tabular-nums text-on-surface-variant">
-              {formatCurrency(totals.sumBase)}
+              {formatCurrency(displayTotals.sumBase)}
             </p>
           </div>
 
@@ -384,8 +587,9 @@ export default function FixedExpensesManager() {
                   >
                     <button
                       type="button"
-                      disabled={isSaving}
+                      disabled={isSaving || isDemoFixedExpenseItem(item)}
                       onClick={() => {
+                        if (isDemoFixedExpenseItem(item)) return;
                         if (isPaid) {
                           void unmarkPaid(item.payment.id);
                           return;
@@ -468,8 +672,9 @@ export default function FixedExpensesManager() {
 
                     <button
                       type="button"
+                      disabled={isDemoFixedExpenseItem(item)}
                       onClick={() => openEditForm(item)}
-                      className="shrink-0 rounded-full p-1 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface-variant"
+                      className="shrink-0 rounded-full p-1 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface-variant disabled:opacity-40"
                       aria-label={`Editar ${item.template.name}`}
                     >
                       <SquarePen size={14} strokeWidth={2} />
