@@ -51,6 +51,7 @@ import {
 } from "@/components/ExpenseDebtStatus";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useIsDark } from "@/hooks/useIsDark";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
@@ -62,6 +63,7 @@ import {
     FUND_COLOR_OPTIONS,
     DEFAULT_PERSONAL_FUND_COLOR,
     DEFAULT_SHARED_FUND_COLOR,
+    fundIconChipStyle,
     getDefaultSharedFund,
     isFixedExpensesFund,
     isSharedLegacyResponsible,
@@ -164,6 +166,7 @@ export default function DashboardCouple({
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const { format: formatCurrency } = useCurrency();
+    const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
     const [currentFilter, setCurrentFilter] = useState<ActivityFilter>("all");
     const [showFilterModal, setShowFilterModal] = useState(false);
@@ -1552,15 +1555,15 @@ export default function DashboardCouple({
                                             >
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <div
-                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md"
-                                                        style={{
-                                                            backgroundColor: `${iconColor}18`,
-                                                            borderColor: `${iconColor}35`,
-                                                            color: iconColor,
-                                                        }}
+                                                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                                                            isDark
+                                                                ? "icon-chip-coin"
+                                                                : "shadow-sm backdrop-blur-md"
+                                                        }`}
+                                                        style={fundIconChipStyle(iconColor, isDark)}
                                                         title={expenseFund?.name ?? "Mi fondo"}
                                                     >
-                                                        <Icon size={15} />
+                                                        <Icon size={15} strokeWidth={isDark ? 2.1 : 2} />
                                                     </div>
 
                                                     <div className="flex min-w-0 flex-col justify-center gap-0.5">

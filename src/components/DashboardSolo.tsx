@@ -28,10 +28,11 @@ import { createPersonalDeposit } from "@/app/actions/expenses";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useIsDark } from "@/hooks/useIsDark";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
 import { createClient } from "@/utils/supabase/client";
 import { tintedGlassGradient } from "@/lib/glass";
-import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
+import { DEFAULT_PERSONAL_FUND_COLOR, fundIconChipStyle } from "@/lib/funds";
 import { useExpenseStore } from "@/store/useExpenseStore";
 
 interface DashboardSoloProps {
@@ -80,6 +81,7 @@ export default function DashboardSolo({
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const { format: formatCurrency } = useCurrency();
+    const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storePocket = useExpenseStore((s) => s.myAvailableFund);
@@ -468,14 +470,14 @@ export default function DashboardSolo({
                                             >
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <div
-                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md"
-                                                        style={{
-                                                            backgroundColor: `${heroColor}18`,
-                                                            borderColor: `${heroColor}35`,
-                                                            color: heroColor,
-                                                        }}
+                                                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                                                            isDark
+                                                                ? "icon-chip-coin"
+                                                                : "shadow-sm backdrop-blur-md"
+                                                        }`}
+                                                        style={fundIconChipStyle(heroColor, isDark)}
                                                     >
-                                                        <Icon size={15} />
+                                                        <Icon size={15} strokeWidth={isDark ? 2.1 : 2} />
                                                     </div>
 
                                                     <div className="flex min-w-0 flex-col justify-center gap-0.5">

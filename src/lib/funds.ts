@@ -52,6 +52,21 @@ export function resolveFundColor(fund?: Pick<FamilyFund, "color" | "scope"> | nu
   return DEFAULT_SHARED_FUND_COLOR;
 }
 
+/**
+ * Soft tinted chip for category/fund icons in expense lists.
+ * Dark mode: sets `--icon-chip-accent` for `.icon-chip-coin` (fab-ink / moneda).
+ */
+export function fundIconChipStyle(color: string, isDark = false) {
+  if (isDark) {
+    return { ["--icon-chip-accent" as string]: color };
+  }
+  return {
+    backgroundColor: `${color}18`,
+    borderColor: `${color}35`,
+    color,
+  };
+}
+
 export function isAllowedFundColor(color: string) {
   return FUND_COLOR_OPTIONS.some((option) => option.value.toLowerCase() === color.toLowerCase());
 }

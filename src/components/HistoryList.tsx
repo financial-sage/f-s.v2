@@ -25,6 +25,7 @@ import { getCategoryDetails } from "@/lib/categoryMap";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import {
     DEFAULT_PERSONAL_FUND_COLOR,
+    fundIconChipStyle,
     getPersonalFund,
     isPersonalPocketCashOut,
     listVariableSharedFunds,
@@ -34,6 +35,7 @@ import {
 } from "@/lib/funds";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useIsDark } from "@/hooks/useIsDark";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface HistoryExpenseRow {
@@ -140,6 +142,7 @@ interface HistoryListProps {
 export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, partnerName, partnerId, financialModel: ssrFinancialModel }: HistoryListProps) {
     const router = useRouter();
     const { format: formatCurrency } = useCurrency();
+    const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
@@ -400,15 +403,13 @@ export default function HistoryList({ allExpenses: ssrExpenses, currentUserId, p
                 >
                     <div className="flex min-w-0 items-center gap-2.5">
                         <div
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm"
-                            style={{
-                                backgroundColor: `${iconColor}18`,
-                                borderColor: `${iconColor}35`,
-                                color: iconColor,
-                            }}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                                isDark ? "icon-chip-coin" : "shadow-sm"
+                            }`}
+                            style={fundIconChipStyle(iconColor, isDark)}
                             title={expenseFund?.name ?? "Mi fondo"}
                         >
-                            <Icon size={14} />
+                            <Icon size={14} strokeWidth={isDark ? 2.1 : 2} />
                         </div>
                         <div className="flex min-w-0 flex-col">
                             <span className="truncate text-[13px] font-medium text-on-surface">
