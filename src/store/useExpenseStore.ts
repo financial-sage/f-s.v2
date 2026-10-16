@@ -141,12 +141,14 @@ function computeBalances(
     financialModel: string
 ) {
     const myAvailableFund = (() => {
-        // 1. Ingresos a MI fondo: aportes al bolsillo personal (nunca caja de cuenta).
+        // 1. Ingresos a MI fondo: aportes / reembolsos al bolsillo personal (nunca caja de cuenta).
+        // Liquidaciones (withdrawal del compartido) NO suman aquí: el crédito ya viene en el deposit "Reembolso del fondo".
         const income = expenses
             .filter((e) => !e.account_id)
-            .filter((e) =>
-                (e.category === "deposit" && (e.responsible_for === userId || e.responsible_for === "mio")) ||
-                (e.paid_by === userId && e.category === "withdrawal")
+            .filter(
+                (e) =>
+                    e.category === "deposit" &&
+                    (e.responsible_for === userId || e.responsible_for === "mio")
             )
             .reduce((s, e) => s + Number(e.amount || 0), 0);
 

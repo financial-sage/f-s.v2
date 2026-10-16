@@ -402,12 +402,13 @@ export function calculatePersonalPocketBalance(
   // Any row with account_id belongs to account cash, not "Mi fondo".
   const fundRows = expenses.filter((e) => !e.account_id);
 
+  // Only personal deposits / reembolsos. Shared-fund withdrawals ("Liquidación de deuda")
+  // must not count: settleFundDebt already credits via the matching deposit.
   const income = fundRows
     .filter(
       (e) =>
-        (e.category === "deposit" &&
-          (e.responsible_for === userId || e.responsible_for === "mio")) ||
-        (e.paid_by === userId && e.category === "withdrawal"),
+        e.category === "deposit" &&
+        (e.responsible_for === userId || e.responsible_for === "mio"),
     )
     .reduce((s, e) => s + Number(e.amount || 0), 0);
 
