@@ -23,7 +23,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#4a6549",
+  themeColor: "#1c2740",
 };
 
 export default function PwaLayout({

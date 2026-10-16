@@ -7,151 +7,144 @@
   (literal hex in @theme gets baked into .bg-* / .text-* and ignores dark).
 */
 :root {
-  /* Sage primary palette */
-  --primary: #4a6549;
-  --primary-dim: #3f593e;
-  --primary-container: #ccebc7;
-  --on-primary: #e5ffdf;
-  --on-primary-container: #3e583d;
+  /*
+    Quiet luxury (visual test) — same navy + muted gold as dark,
+    adapted to light surfaces. Source: /img/apple-touch-icon.png
+  */
+  --primary: #1c2740;
+  --primary-dim: #151d32;
+  --primary-container: #e4e0d6;
+  --on-primary: #e8e2d6;
+  --on-primary-container: #1c2740;
 
-  /* Secondary */
-  --secondary: #3e5c68;
-  --secondary-container: #d7e6ec;
-  --on-secondary: #071013;
-  --on-secondary-container: #1c2d33;
+  --secondary: #5c5348;
+  --secondary-container: #ebe4d8;
+  --on-secondary: #0f1729;
+  --on-secondary-container: #2a241c;
 
-  /* Accent */
-  --accent: #d4af37;
-  --accent-container: #f3e7b3;
-  --on-accent: #0b120c;
-  --on-accent-container: #5b4a10;
+  --accent: #c4a574;
+  --accent-container: #f3ead8;
+  --on-accent: #0f1729;
+  --on-accent-container: #5b4a2a;
 
-  /* Surfaces */
-  --background: #f8f9fa;
-  --surface: #f8f9fa;
-  --surface-low: #f1f4f6;
-  --surface-container: #eaeff1;
-  --surface-high: #e2e9ec;
-  --surface-highest: #dbe4e7;
-  --surface-lowest: #ffffff;
+  --background: #f7f4ee;
+  --surface: #f7f4ee;
+  --surface-low: #f0ebe3;
+  --surface-container: #e8e2d6;
+  --surface-high: #ddd5c6;
+  --surface-highest: #d2c9b8;
+  --surface-lowest: #fffcf7;
 
-  /* Text */
-  --on-surface: #2b3437;
-  --on-surface-variant: #586064;
+  --on-surface: #1c2740;
+  --on-surface-variant: #5c5348;
 
-  /* Outline */
-  --outline: #737c7f;
-  --outline-variant: #abb3b7;
+  --outline: #8a8274;
+  --outline-variant: #c4bcae;
 
-  /* Error */
   --error: #9e422c;
-
-  /* Legacy sage */
-  --sage: #4a6549;
-  --sage-dark: #3f593e;
-  --sage-light: #ccebc7;
-
-  /* Page atmosphere */
-  --page-from: #f3f5f0;
-  --page-via: #e8ede4;
-  --page-to: #d5dfd0;
-  --page-glow: rgba(74, 101, 73, 0.16);
-
-  /* Glass */
-  --glass: rgb(255 255 255 / 0.55);
-  --glass-strong: rgb(255 255 255 / 0.7);
-  --glass-soft: rgb(255 255 255 / 0.4);
-  --glass-muted: rgb(255 255 255 / 0.25);
-  --glass-hover: rgb(255 255 255 / 0.4);
-  --glass-border: rgb(255 255 255 / 0.45);
-
-  /* Sheets */
-  --sheet-from: #f7f8f5;
-  --sheet-to: #eef1eb;
-
-  /* Glass highlight / shadows (inline gradients in JS) */
-  --glass-highlight: rgba(255, 255, 255, 0.72);
-  --glass-highlight-soft: rgba(255, 255, 255, 0.55);
-  --glass-shadow: 0 12px 28px rgba(43, 52, 55, 0.1);
-  --glass-shadow-lg: 0 20px 50px rgba(43, 52, 55, 0.18);
-  --sheet-shadow: 0 -16px 48px rgba(43, 52, 55, 0.18);
-
-  /* Charcoal CTA / primary FAB */
-  --fab-ink-from: #4a5558;
-  --fab-ink-via: #2b3437;
-  --fab-ink-to: #1a2224;
-  --fab-ink-fg: #e5ffdf;
-  --fab-ink-shadow: 0 10px 22px rgba(43, 52, 55, 0.32);
-}
-
-html.dark {
-  color-scheme: dark;
-
-  /* Cool graphite — soft ink text (not pure white) */
-  --primary: #e6edf3;
-  --primary-dim: #c9d1d9;
-  --primary-container: #21262d;
-  --on-primary: #0d1117;
-  --on-primary-container: #e6edf3;
-
-  --secondary: #c9d1d9;
-  --secondary-container: #21262d;
-  --on-secondary: #0d1117;
-  --on-secondary-container: #e6edf3;
-
-  --accent: #e6edf3;
-  --accent-container: #30363d;
-  --on-accent: #0d1117;
-  --on-accent-container: #e6edf3;
-
-  --background: #0d1117;
-  --surface: #0d1117;
-  --surface-low: #161b22;
-  --surface-container: #21262d;
-  --surface-high: #21262d;
-  --surface-highest: #30363d;
-  --surface-lowest: #161b22;
-
-  /* Body text softened; secondary/meta lifted so they stay readable */
-  --on-surface: #e6edf3;
-  --on-surface-variant: #a8b2bd;
-
-  /* outline-variant is used as muted text in many places — must not be a border hex */
-  --outline: #8b949e;
-  --outline-variant: #7d8590;
-
-  --error: #f85149;
 
   --sage: var(--primary);
   --sage-dark: var(--primary-dim);
   --sage-light: var(--primary-container);
 
-  --page-from: #0d1117;
-  --page-via: #161b22;
-  --page-to: #21262d;
-  --page-glow: rgba(230, 237, 243, 0.05);
+  --page-from: #f7f4ee;
+  --page-via: #efe9df;
+  --page-to: #e4e0d6;
+  --page-glow: rgba(196, 165, 116, 0.18);
 
-  --glass: rgb(230 237 243 / 0.05);
-  --glass-strong: rgb(230 237 243 / 0.09);
-  --glass-soft: rgb(230 237 243 / 0.035);
-  --glass-muted: rgb(230 237 243 / 0.025);
-  --glass-hover: rgb(230 237 243 / 0.1);
-  --glass-border: rgb(48 54 61 / 0.85);
+  --glass: rgb(255 252 247 / 0.82);
+  --glass-strong: rgb(255 252 247 / 0.92);
+  --glass-soft: rgb(247 244 238 / 0.78);
+  --glass-muted: rgb(240 235 227 / 0.7);
+  --glass-hover: rgb(255 252 247 / 0.95);
+  --glass-border: rgb(196 165 116 / 0.28);
 
-  --sheet-from: #161b22;
-  --sheet-to: #0d1117;
+  --sheet-from: #f7f4ee;
+  --sheet-to: #efe9df;
 
-  --glass-highlight: rgba(230, 237, 243, 0.08);
-  --glass-highlight-soft: rgba(230, 237, 243, 0.05);
-  --glass-shadow: 0 12px 28px rgba(1, 4, 9, 0.55);
-  --glass-shadow-lg: 0 20px 50px rgba(1, 4, 9, 0.65);
-  --sheet-shadow: 0 -16px 48px rgba(1, 4, 9, 0.65);
+  --glass-highlight: rgba(255, 252, 247, 0.78);
+  --glass-highlight-soft: rgba(255, 252, 247, 0.58);
+  --glass-shadow: 0 12px 28px rgba(28, 39, 64, 0.1);
+  --glass-shadow-lg: 0 20px 50px rgba(28, 39, 64, 0.16);
+  --sheet-shadow: 0 -16px 48px rgba(28, 39, 64, 0.16);
 
-  --fab-ink-from: #30363d;
-  --fab-ink-via: #21262d;
-  --fab-ink-to: #161b22;
-  --fab-ink-fg: #e6edf3;
-  --fab-ink-shadow: 0 10px 22px rgba(1, 4, 9, 0.55);
+  --fab-ink-from: #2e3c5a;
+  --fab-ink-via: #1c2740;
+  --fab-ink-to: #151d32;
+  --fab-ink-fg: #e8e2d6;
+  --fab-ink-shadow: 0 10px 22px rgba(28, 39, 64, 0.32);
+}
+
+html.dark {
+  color-scheme: dark;
+
+  /*
+    Quiet luxury (visual test) — inspired by /img/apple-touch-icon.png
+    Light mode stays sage; dark uses navy surfaces + muted gold accents.
+  */
+  --primary: #e8e2d6;
+  --primary-dim: #cfc6b6;
+  --primary-container: #1c2740;
+  --on-primary: #0f1729;
+  --on-primary-container: #e8e2d6;
+
+  --secondary: #c4b8a4;
+  --secondary-container: #1a2438;
+  --on-secondary: #0f1729;
+  --on-secondary-container: #e8e2d6;
+
+  --accent: #c4a574;
+  --accent-container: #3a3224;
+  --on-accent: #0f1729;
+  --on-accent-container: #e8e2d6;
+
+  --background: #0f1729;
+  --surface: #0f1729;
+  --surface-low: #151d32;
+  --surface-container: #1c2740;
+  --surface-high: #24304c;
+  --surface-highest: #2e3c5a;
+  --surface-lowest: #151d32;
+
+  --on-surface: #e8e2d6;
+  --on-surface-variant: #b5ad9e;
+
+  --outline: #8a8274;
+  --outline-variant: #7a7468;
+
+  --error: #e07a6a;
+
+  --sage: var(--primary);
+  --sage-dark: var(--primary-dim);
+  --sage-light: var(--primary-container);
+
+  --page-from: #0f1729;
+  --page-via: #151d32;
+  --page-to: #1c2740;
+  --page-glow: rgba(196, 165, 116, 0.08);
+
+  /* Solid enough for modals/sheets (was ~5% and looked washed-out) */
+  --glass: rgb(28 39 64 / 0.88);
+  --glass-strong: rgb(21 29 50 / 0.94);
+  --glass-soft: rgb(28 39 64 / 0.72);
+  --glass-muted: rgb(28 39 64 / 0.55);
+  --glass-hover: rgb(36 48 76 / 0.92);
+  --glass-border: rgb(196 165 116 / 0.22);
+
+  --sheet-from: #1a2438;
+  --sheet-to: #121a2c;
+
+  --glass-highlight: rgba(232, 226, 214, 0.08);
+  --glass-highlight-soft: rgba(232, 226, 214, 0.05);
+  --glass-shadow: 0 12px 28px rgba(8, 12, 24, 0.55);
+  --glass-shadow-lg: 0 20px 50px rgba(8, 12, 24, 0.65);
+  --sheet-shadow: 0 -16px 48px rgba(8, 12, 24, 0.65);
+
+  --fab-ink-from: #2e3c5a;
+  --fab-ink-via: #1c2740;
+  --fab-ink-to: #151d32;
+  --fab-ink-fg: #e8e2d6;
+  --fab-ink-shadow: 0 10px 22px rgba(8, 12, 24, 0.55);
 }
 
 @theme inline {
@@ -279,8 +272,21 @@ body {
 }
 
 .glass-sheet {
+  background-color: var(--sheet-from);
   background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+  color: var(--on-surface);
   box-shadow: var(--sheet-shadow);
+  border-color: var(--glass-border);
+}
+
+.glass-modal {
+  background-color: var(--sheet-from);
+  background-image: linear-gradient(160deg, var(--sheet-from) 0%, var(--sheet-to) 100%);
+  color: var(--on-surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-lg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
 .fab-ink {

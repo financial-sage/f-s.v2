@@ -215,13 +215,13 @@ export async function saveExpenseAction({
 
   const fund = resolvedFundId ? funds.find((f) => f.id === resolvedFundId) : null;
   if (resolvedFundId && !fund) {
-    throw new Error("El fondo seleccionado no existe.");
+    throw new Error("El bolsillo seleccionado no existe.");
   }
   if (fund?.scope === "personal" && fund.owner_profile_id !== user.id && responsibleFor !== "partner") {
     // partner personal fund only when explicitly charging partner
   }
   if (fund?.scope === "personal" && fund.owner_profile_id && fund.owner_profile_id !== user.id && fund.owner_profile_id !== partnerUserId) {
-    throw new Error("No puedes imputar gastos al fondo personal de otra persona.");
+    throw new Error("No puedes imputar gastos al bolsillo personal de otra persona.");
   }
 
   const paidByValue = resolveActor(paidBy, user.id, partnerUserId);
@@ -233,7 +233,7 @@ export async function saveExpenseAction({
   const isPaidFromFund = paidFromFund === true || paidBy === "joint_fund";
 
   if (isPaidFromFund && fund?.scope !== "shared") {
-    throw new Error("Solo se puede pagar desde la caja de un fondo compartido.");
+    throw new Error("Solo se puede pagar desde la caja de un bolsillo compartido.");
   }
 
   const normalizedPayerSharePct = Math.max(0, Math.min(100, Number(payerSharePct)));
@@ -326,7 +326,7 @@ export async function createDeposit({
 
     const funds = await ensureFamilyFunds(profile.family_id);
     const targetId = fundId ?? getDefaultSharedFund(funds)?.id;
-    if (!targetId) throw new Error("No hay fondo común disponible.");
+    if (!targetId) throw new Error("No hay Bolsillos disponible.");
 
     return depositToFundAction({ fundId: targetId, amount, date });
   } catch (error) {
@@ -400,7 +400,7 @@ export async function createPersonalDeposit({
 
   const funds = await ensureFamilyFunds(profile.family_id);
   const personal = getPersonalFund(funds, user.id);
-  if (!personal) throw new Error("No hay fondo personal disponible.");
+  if (!personal) throw new Error("No hay bolsillo personal disponible.");
 
   return depositToFundAction({
     fundId: personal.id,

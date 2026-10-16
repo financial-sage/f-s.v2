@@ -199,7 +199,7 @@ export async function createFundAction(input: {
   const name = input.name.trim();
   const color = (input.color ?? DEFAULT_SHARED_FUND_COLOR).trim();
 
-  if (!name) throw new Error("El nombre del fondo es obligatorio.");
+  if (!name) throw new Error("El nombre del bolsillo es obligatorio.");
   if (name.length > 40) throw new Error("El nombre es demasiado largo.");
   if (name.trim().toLowerCase() === FIXED_EXPENSES_FUND_NAME.toLowerCase()) {
     throw new Error("Ese nombre está reservado para el módulo de Gastos fijos.");
@@ -244,7 +244,7 @@ export async function createFundAction(input: {
 
   if (error) {
     if (/duplicate|unique/i.test(error.message)) {
-      throw new Error("Ya existe un fondo con ese nombre.");
+      throw new Error("Ya existe un bolsillo con ese nombre.");
     }
     if (/color/i.test(error.message) && /column|schema|does not exist/i.test(error.message)) {
       throw new Error(
@@ -272,7 +272,7 @@ export async function updateFundAction(input: {
   const name = input.name.trim();
   const color = input.color.trim();
 
-  if (!name) throw new Error("El nombre del fondo es obligatorio.");
+  if (!name) throw new Error("El nombre del bolsillo es obligatorio.");
   if (name.length > 40) throw new Error("El nombre es demasiado largo.");
   if (!isAllowedFundColor(color)) {
     throw new Error("Selecciona un color válido.");
@@ -285,10 +285,10 @@ export async function updateFundAction(input: {
     .eq("family_id", familyId)
     .maybeSingle();
 
-  if (fundError || !fund) throw new Error("Fondo no encontrado.");
+  if (fundError || !fund) throw new Error("Bolsillo no encontrado.");
 
   const current = fund as FamilyFund;
-  if (current.archived_at) throw new Error("Este fondo está archivado.");
+  if (current.archived_at) throw new Error("Este bolsillo está archivado.");
 
   if (
     !isFixedExpensesFund(current) &&
@@ -298,7 +298,7 @@ export async function updateFundAction(input: {
   }
 
   if (current.scope === "personal" && current.owner_profile_id !== user.id) {
-    throw new Error("Solo puedes editar tus fondos personales.");
+    throw new Error("Solo puedes editar tus bolsillos personales.");
   }
 
   const { data, error } = await admin
@@ -315,7 +315,7 @@ export async function updateFundAction(input: {
 
   if (error) {
     if (/duplicate|unique/i.test(error.message)) {
-      throw new Error("Ya existe un fondo con ese nombre.");
+      throw new Error("Ya existe un bolsillo con ese nombre.");
     }
     throw new Error(error.message);
   }
@@ -340,10 +340,10 @@ export async function archiveFundAction(fundId: string) {
     .eq("family_id", familyId)
     .maybeSingle();
 
-  if (error || !fund) throw new Error("Fondo no encontrado.");
-  if (fund.is_system) throw new Error("No puedes archivar un fondo del sistema.");
+  if (error || !fund) throw new Error("Bolsillo no encontrado.");
+  if (fund.is_system) throw new Error("No puedes archivar un bolsillo del sistema.");
   if (fund.scope === "personal" && fund.owner_profile_id !== user.id) {
-    throw new Error("Solo puedes archivar tus fondos personales.");
+    throw new Error("Solo puedes archivar tus bolsillos personales.");
   }
 
   const { data: expenses } = await admin
@@ -354,7 +354,7 @@ export async function archiveFundAction(fundId: string) {
 
   const balance = calculateFundCashBalance((expenses ?? []) as never[], fundId);
   if (Math.abs(balance) > 0.009) {
-    throw new Error("El fondo debe tener saldo 0 antes de archivarlo.");
+    throw new Error("El bolsillo debe tener saldo 0 antes de archivarlo.");
   }
 
   const { error: updateError } = await admin
@@ -385,10 +385,10 @@ export async function depositToFundAction(input: {
 
   const funds = await ensureFamilyFunds(familyId);
   const fund = funds.find((f) => f.id === input.fundId && !f.archived_at);
-  if (!fund) throw new Error("Fondo no encontrado.");
+  if (!fund) throw new Error("Bolsillo no encontrado.");
 
   if (fund.scope === "personal" && fund.owner_profile_id !== user.id) {
-    throw new Error("Solo puedes aportar a tu fondo personal.");
+    throw new Error("Solo puedes aportar a tu bolsillo personal.");
   }
 
   const admin = getSupabaseAdminClient();
@@ -437,19 +437,19 @@ export async function transferBetweenFundsAction(input: {
     throw new Error("Ingresa un importe válido.");
   }
   if (input.fromFundId === input.toFundId) {
-    throw new Error("Elige dos fondos distintos.");
+    throw new Error("Elige dos bolsillos distintos.");
   }
 
   const funds = await ensureFamilyFunds(familyId);
   const from = funds.find((f) => f.id === input.fromFundId && !f.archived_at);
   const to = funds.find((f) => f.id === input.toFundId && !f.archived_at);
-  if (!from || !to) throw new Error("Fondo no encontrado.");
+  if (!from || !to) throw new Error("Bolsillo no encontrado.");
 
   if (from.scope === "personal" && from.owner_profile_id !== user.id) {
-    throw new Error("Solo puedes transferir desde tu fondo personal.");
+    throw new Error("Solo puedes transferir desde tu bolsillo personal.");
   }
   if (to.scope === "personal" && to.owner_profile_id !== user.id) {
-    throw new Error("Solo puedes transferir hacia tu fondo personal.");
+    throw new Error("Solo puedes transferir hacia tu bolsillo personal.");
   }
 
   const admin = getSupabaseAdminClient();
@@ -465,7 +465,7 @@ export async function transferBetweenFundsAction(input: {
   });
 
   if (balance + 0.009 < amount) {
-    throw new Error("Saldo insuficiente en el fondo de origen.");
+    throw new Error("Saldo insuficiente en el bolsillo de origen.");
   }
 
   const transferGroupId = crypto.randomUUID();

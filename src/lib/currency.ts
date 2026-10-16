@@ -7,6 +7,8 @@ export type CurrencyMeta = {
   /** ISO 3166-1 alpha-2 for flag rendering (Windows has no emoji flags). */
   country: "ES" | "CO" | "US";
   symbol: string;
+  /** Where the symbol sits relative to the amount in UI (es-ES: after). */
+  symbolPosition: "before" | "after";
 };
 
 export const CURRENCY_STORAGE_KEY = "fsage:currency";
@@ -21,6 +23,7 @@ export const CURRENCIES: Record<AppCurrency, CurrencyMeta> = {
     label: "España",
     country: "ES",
     symbol: "€",
+    symbolPosition: "after",
   },
   COP: {
     code: "COP",
@@ -28,6 +31,7 @@ export const CURRENCIES: Record<AppCurrency, CurrencyMeta> = {
     label: "Colombia",
     country: "CO",
     symbol: "$",
+    symbolPosition: "before",
   },
   USD: {
     code: "USD",
@@ -35,6 +39,7 @@ export const CURRENCIES: Record<AppCurrency, CurrencyMeta> = {
     label: "Estados Unidos",
     country: "US",
     symbol: "$",
+    symbolPosition: "before",
   },
 };
 

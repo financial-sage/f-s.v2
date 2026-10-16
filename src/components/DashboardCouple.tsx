@@ -23,6 +23,7 @@ import {
     Receipt,
     ReceiptText,
     Scale,
+    ArrowLeftRight,
     Landmark,
     Send,
     Settings,
@@ -50,6 +51,7 @@ import {
     ExpenseDebtStatus,
     isFundSettlementConcept,
 } from "@/components/ExpenseDebtStatus";
+import FundTransferSheet from "@/components/FundTransferSheet";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -69,6 +71,7 @@ import {
     getDefaultSharedFund,
     isFixedExpensesFund,
     isSharedLegacyResponsible,
+    listActiveFunds,
     listDashboardSharedFunds,
     resolveFundColor,
     type FamilyFund,
@@ -265,6 +268,8 @@ export default function DashboardCouple({
         pickInitialSelectedFundId(pickInitialSharedFunds(initialFunds), sharedDefaultFundId),
     );
     const [showFundsMenu, setShowFundsMenu] = useState(false);
+    const [showFundTransfer, setShowFundTransfer] = useState(false);
+    const [transferFromFundId, setTransferFromFundId] = useState<string | null>(null);
     const [showCreateFundModal, setShowCreateFundModal] = useState(false);
     const [isCreateFundAnimated, setIsCreateFundAnimated] = useState(false);
     const [editingFund, setEditingFund] = useState<FamilyFund | null>(null);
@@ -625,10 +630,37 @@ export default function DashboardCouple({
         setShowFundsMenu(false);
     };
 
+    const allTransferFunds = useMemo(() => {
+        const fromStore = storeFunds.length > 0 ? storeFunds : initialFunds;
+        return listActiveFunds(fromStore);
+    }, [storeFunds, initialFunds]);
+
+    const openFundTransfer = (fundId: string | null | undefined) => {
+        const sourceId = fundId ?? selectedFundId;
+        if (!sourceId) return;
+        setTransferFromFundId(sourceId);
+        setShowFundsMenu(false);
+        setShowFundTransfer(true);
+    };
+
+    const handleFundTransferSuccess = async () => {
+        const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+        await syncFamilyExpenses();
+        try {
+            const overview = await getFamilyFundsMetaAction();
+            useFundsStore.getState().setFunds(overview.funds);
+            setSharedFunds(listDashboardSharedFunds(overview.funds));
+        } catch {
+            // Keep current funds list; expense refresh still updates balances.
+        }
+        router.refresh();
+        showToast("Transferencia entre bolsillos lista.");
+    };
+
     const handleSaveFund = () => {
         const name = newFundName.trim();
         if (!name) {
-            setFundActionError("Escribe un nombre para el fondo.");
+            setFundActionError("Escribe un nombre para el bolsillo.");
             return;
         }
         setFundActionError("");
@@ -667,8 +699,8 @@ export default function DashboardCouple({
                     err instanceof Error
                         ? err.message
                         : editingFund
-                          ? "No se pudo actualizar el fondo."
-                          : "No se pudo crear el fondo."
+                          ? "No se pudo actualizar el bolsillo."
+                          : "No se pudo crear el bolsillo."
                 );
             }
         });
@@ -1027,9 +1059,9 @@ export default function DashboardCouple({
                 </div>
             </header>
 
-            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
+            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col gap-[clamp(0.75rem,2.5dvh,1.25rem)] overflow-hidden px-4 pb-24 pt-1">
                 {showSharedWelcome && (
-                    <div className="pointer-events-none mb-3 shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
+                    <div className="pointer-events-none shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
                         <div className="overflow-hidden rounded-3xl border border-primary/25 bg-glass-strong p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary shadow-sm">
@@ -1051,29 +1083,32 @@ export default function DashboardCouple({
                 )}
 
                 <section
-                    className={`relative mb-3 shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
+                    className={`relative shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
                     style={animateSharedEntrance ? { animationDelay: "80ms" } : undefined}
                 >
                     <div
-                        className="relative overflow-hidden rounded-[1.85rem] p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl transition-[background] duration-500"
+                        className="relative overflow-hidden rounded-[1.85rem] border-[0.5px] border-glass-border p-6 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-[background] duration-500"
                         style={{
                             backgroundImage: tintedGlassGradient(heroColor),
                         }}
                     >
-                        <div className="relative z-10 flex min-w-0 items-center gap-3">
-                            <div
-                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-                                style={{ backgroundColor: `${heroColor}28`, color: heroColor }}
-                            >
-                                <Wallet size={20} />
-                            </div>
-                            <div className="min-w-0">
+                        <div className="relative z-10 flex min-w-0 items-center justify-end gap-3">
+                            <div className="min-w-0 text-right">
                                 <p className="text-[11px] font-light text-on-surface-variant">
                                     Saldo disponible
                                 </p>
                                 <p className="truncate text-base font-medium text-on-surface">
                                     {heroLabel}
                                 </p>
+                            </div>
+                            <div
+                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                                style={{
+                                    backgroundColor: `${heroColor}28`,
+                                    color: heroColor,
+                                }}
+                            >
+                                <Wallet size={20} />
                             </div>
                         </div>
 
@@ -1091,63 +1126,121 @@ export default function DashboardCouple({
                                 type="button"
                                 onClick={() => setBalanceVisible((v) => !v)}
                                 className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
-                                aria-label={balanceVisible ? "Ocultar saldo" : "Mostrar saldo"}
+                                aria-label={
+                                    balanceVisible ? "Ocultar saldo" : "Mostrar saldo"
+                                }
                             >
                                 {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
                             </button>
                         </div>
-
-                        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2">
-                            <Link
-                                href="/accounts"
-                                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
-                            >
-                                <Landmark size={12} className="text-on-surface-variant" />
-                                {hasVisibleAccounts
-                                    ? `Cuentas · ${
-                                          balanceVisible
-                                              ? formatCurrency(accountsVisibleLiquidity)
-                                              : "••••"
-                                      }`
-                                    : "Abrir cuentas"}
-                            </Link>
-                            <button
-                                type="button"
-                                onClick={openPersonalDepositModal}
-                                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
-                            >
-                                <span
-                                    className="h-2 w-2 rounded-full"
-                                    style={{ backgroundColor: "#0F2D91" }}
-                                />
-                                Mi fondo · {balanceVisible ? formatCurrency(myAvailableFund) : "••••"}
-                            </button>
-                            {isJointModel && fundOwesMe > 0 && (
-                                <button
-                                    type="button"
-                                    onClick={openBalancesModal}
-                                    className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-3 py-1.5 text-xs font-medium text-orange-500"
-                                >
-                                    Cobrar {formatCurrency(fundOwesMe)}
-                                    <ChevronRight size={12} />
-                                </button>
-                            )}
-                            {!isJointModel && hasP2PBalance && (
-                                <button
-                                    type="button"
-                                    onClick={openBalancesModal}
-                                    className="inline-flex items-center gap-1 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface"
-                                >
-                                    {secondaryWidgetHint || "Saldos"}
-                                    <ChevronRight size={12} />
-                                </button>
-                            )}
-                        </div>
                     </div>
                 </section>
 
+                {(() => {
+                    const showCollect =
+                        (isJointModel && fundOwesMe > 0) ||
+                        (!isJointModel && hasP2PBalance);
+                    const tileClass =
+                        "flex min-w-0 items-center gap-1 rounded-xl bg-surface-low px-2.5 py-2 text-left transition-colors hover:bg-surface-container";
+
+                    return (
+                        <section
+                            className={`relative shrink-0 ${
+                                animateSharedEntrance
+                                    ? "animate-in fade-in slide-in-from-bottom-3 duration-700"
+                                    : ""
+                            }`}
+                            style={
+                                animateSharedEntrance
+                                    ? { animationDelay: "120ms" }
+                                    : undefined
+                            }
+                        >
+                            <div
+                                className={`grid gap-1.5 ${
+                                    showCollect ? "grid-cols-3" : "grid-cols-2"
+                                }`}
+                            >
+                                <Link href="/accounts" className={tileClass}>
+                                    <Landmark
+                                        size={11}
+                                        className="shrink-0 text-on-surface-variant"
+                                    />
+                                    <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
+                                        Cuentas
+                                    </span>
+                                    <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
+                                        {hasVisibleAccounts
+                                            ? balanceVisible
+                                                ? formatCurrency(accountsVisibleLiquidity)
+                                                : "••••"
+                                            : "Abrir"}
+                                    </span>
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    onClick={openPersonalDepositModal}
+                                    className={tileClass}
+                                >
+                                    <span
+                                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                        style={{ backgroundColor: "#0F2D91" }}
+                                    />
+                                    <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
+                                        Mi bolsillo
+                                    </span>
+                                    <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
+                                        {balanceVisible
+                                            ? formatCurrency(myAvailableFund)
+                                            : "••••"}
+                                    </span>
+                                </button>
+
+                                {isJointModel && fundOwesMe > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={openBalancesModal}
+                                        className="flex min-w-0 items-center gap-1 rounded-xl bg-orange-500/15 px-2.5 py-2 text-left transition-colors hover:bg-orange-500/20"
+                                    >
+                                        <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-orange-600">
+                                            Cobrar
+                                        </span>
+                                        <span className="shrink-0 text-[10px] font-medium tabular-nums text-orange-600">
+                                            {formatCurrency(fundOwesMe)}
+                                        </span>
+                                        <ChevronRight
+                                            size={10}
+                                            className="shrink-0 text-orange-600"
+                                        />
+                                    </button>
+                                )}
+
+                                {!isJointModel && hasP2PBalance && (
+                                    <button
+                                        type="button"
+                                        onClick={openBalancesModal}
+                                        className={tileClass}
+                                    >
+                                        <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
+                                            {secondaryWidgetHint || "Saldos"}
+                                        </span>
+                                        <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
+                                            Ver
+                                        </span>
+                                        <ChevronRight
+                                            size={10}
+                                            className="shrink-0 text-on-surface-variant"
+                                        />
+                                    </button>
+                                )}
+                            </div>
+                        </section>
+                    );
+                })()}
+
                 <section
-                    className={`relative mb-3 shrink-0 ${animateSharedEntrance ? "animate-in fade-in slide-in-from-bottom-3 duration-700" : ""}`}
+                    className={`relative shrink-0 ${animateSharedEntrance ? "animate-in fade-in slide-in-from-bottom-3 duration-700" : ""}`}
                     style={animateSharedEntrance ? { animationDelay: "160ms" } : undefined}
                 >
                     <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
@@ -1170,15 +1263,22 @@ export default function DashboardCouple({
                                 icon: isJointModel ? Send : Scale,
                                 onClick: isJointModel ? openDepositModal : openBalancesModal,
                             },
-                            {
-                                key: "collect",
-                                label: fundOwesMe > 0 || hasP2PBalance ? "Cobrar" : "Saldos",
-                                icon: HandCoins,
-                                onClick: openBalancesModal,
-                            },
+                            isJointModel
+                                ? {
+                                      key: "transfer",
+                                      label: "Transferir",
+                                      icon: ArrowLeftRight,
+                                      onClick: () => openFundTransfer(selectedFundId),
+                                  }
+                                : {
+                                      key: "collect",
+                                      label: fundOwesMe > 0 || hasP2PBalance ? "Cobrar" : "Saldos",
+                                      icon: HandCoins,
+                                      onClick: openBalancesModal,
+                                  },
                             {
                                 key: "funds",
-                                label: isJointModel ? "Fondos" : "Filtros",
+                                label: isJointModel ? "Bolsillos" : "Filtros",
                                 icon: isJointModel ? WalletCards : SlidersHorizontal,
                                 onClick: isJointModel
                                     ? () => setShowFundsMenu((open) => !open)
@@ -1223,7 +1323,7 @@ export default function DashboardCouple({
                         <>
                             <button
                                 type="button"
-                                aria-label="Cerrar lista de fondos"
+                                aria-label="Cerrar lista de bolsillos"
                                 className="fixed inset-0 z-40 cursor-default"
                                 onClick={() => setShowFundsMenu(false)}
                             />
@@ -1231,7 +1331,7 @@ export default function DashboardCouple({
                                 <div className="max-h-52 overflow-y-auto p-1.5">
                                     {sharedFunds.length === 0 ? (
                                         <p className="px-2.5 py-2 text-[11px] text-on-surface-variant">
-                                            Aún no hay fondos.
+                                            Aún no hay bolsillos.
                                         </p>
                                     ) : (
                                         sharedFunds.map((fund) => {
@@ -1294,6 +1394,18 @@ export default function DashboardCouple({
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
+                                                            openFundTransfer(fund.id);
+                                                        }}
+                                                        className="shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
+                                                        aria-label={`Transferir desde ${fund.name}`}
+                                                        title="Transferir"
+                                                    >
+                                                        <ArrowLeftRight size={13} strokeWidth={2.1} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
                                                             openEditFundModal(fund);
                                                         }}
                                                         className="mr-0.5 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
@@ -1307,14 +1419,24 @@ export default function DashboardCouple({
                                         })
                                     )}
                                 </div>
-                                <div className="border-t border-glass-border p-1.5">
+                                <div className="border-t border-glass-border p-1.5 space-y-1">
+                                    {selectedFund && (
+                                        <button
+                                            type="button"
+                                            onClick={() => openFundTransfer(selectedFund.id)}
+                                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-glass-border bg-glass px-2.5 py-2 text-xs font-medium text-on-surface transition-colors hover:bg-glass-strong"
+                                        >
+                                            <ArrowLeftRight size={13} strokeWidth={2.1} />
+                                            Transferir desde {selectedFund.name}
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={openCreateFundModal}
                                         className="fab-ink flex w-full items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold transition-transform active:scale-[0.98]"
                                     >
                                         <Plus size={14} strokeWidth={2.2} />
-                                        Crear fondo
+                                        Crear bolsillo
                                     </button>
                                 </div>
                             </div>
@@ -1340,7 +1462,7 @@ export default function DashboardCouple({
                                     <h3 className="mb-1 text-lg font-bold text-on-surface">
                                         {settleScopeFundId === "all"
                                             ? "Cobrar a bolsillos"
-                                            : `Cobrar a ${settleScopeFund?.name ?? "Fondo"}`}
+                                            : `Cobrar a ${settleScopeFund?.name ?? "bolsillo"}`}
                                     </h3>
                                     <p className="mb-4 text-xs text-on-surface-variant">
                                         {settleScopeFundId === "all"
@@ -1571,7 +1693,7 @@ export default function DashboardCouple({
                         </div>
                     )}
 
-                <div className="mb-24 flex min-h-0 flex-1 flex-col">
+                <div className="flex min-h-0 flex-1 flex-col">
                     <div className="mb-2 flex items-center justify-between px-1">
                         <div className="flex items-baseline gap-2.5">
                             <h3 className="text-xs font-medium text-on-surface">Movimientos recientes</h3>
@@ -1596,7 +1718,9 @@ export default function DashboardCouple({
                     </div>
 
                     <div
-                        className={`flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
+                        className={`flex max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md ${
+                            currentList.length === 0 ? "flex-1" : ""
+                        } ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "240ms" } : undefined}
                     >
                         {currentList.length === 0 ? (
@@ -1614,7 +1738,7 @@ export default function DashboardCouple({
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none">
+                            <div className="min-h-0 overflow-y-auto overscroll-none">
                                 {currentList.map((expense, index) => {
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category);
                                     const Icon = categoryPresentation.icon;
@@ -1651,7 +1775,7 @@ export default function DashboardCouple({
                                                     <div
                                                         className="icon-chip-fund flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
                                                         style={fundIconChipStyle(iconColor)}
-                                                        title={expenseFund?.name ?? "Mi fondo"}
+                                                        title={expenseFund?.name ?? "Mi bolsillo"}
                                                     >
                                                         <Icon size={15} strokeWidth={2} />
                                                     </div>
@@ -1746,7 +1870,7 @@ export default function DashboardCouple({
                             <div className="mb-5 flex items-start justify-between gap-4">
                                 <div>
                                     <h3 className="text-lg font-bold text-on-surface">Control de Presupuesto</h3>
-                                    <p className="text-xs text-on-surface-variant">Estado actual de tus bolsillos y del fondo común.</p>
+                                    <p className="text-xs text-on-surface-variant">Estado actual de tus bolsillos compartidos y personales.</p>
                                 </div>
                             </div>
 
@@ -1767,7 +1891,9 @@ export default function DashboardCouple({
                                 <div className="p-4">
                                     <div className="mb-2 flex items-end justify-between">
                                         <div>
-                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-primary">Fondo Común</span>
+                                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-primary">
+                                                {getDefaultSharedFund(sharedFunds)?.name ?? "Bolsillos"}
+                                            </span>
                                             <span className="text-base font-bold text-on-surface">{formatCurrency(fundSpent)}</span>
                                         </div>
                                         <span className="text-[11px] font-medium text-outline-variant">de {formatCurrency(fundBudget)}</span>
@@ -1793,7 +1919,7 @@ export default function DashboardCouple({
                             onClick={() => closeBalancesModal()}
                         />
                         <div
-                            className={`relative flex max-h-[88dvh] flex-col overflow-hidden rounded-t-[2rem] glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                            className={`relative flex max-h-[88dvh] flex-col overflow-hidden rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                                 isBalancesAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
                             }`}
                         >
@@ -1936,13 +2062,13 @@ export default function DashboardCouple({
             {showCreateFundModal && (
                 <div className="fixed inset-0 z-70 flex items-end justify-center sm:items-center">
                     <div
-                        className={`absolute inset-0 bg-on-surface/45 backdrop-blur-sm transition-opacity duration-300 ${
+                        className={`absolute inset-0 bg-on-surface/50 backdrop-blur-sm transition-opacity duration-300 ${
                             isCreateFundAnimated ? "opacity-100" : "opacity-0"
                         }`}
                         onClick={closeCreateFundModal}
                     />
                     <div
-                        className={`relative m-4 w-full max-w-sm overflow-hidden rounded-[1.75rem] border border-glass-border bg-glass p-5 shadow-[0_20px_50px_rgba(43,52,55,0.18)] backdrop-blur-2xl transition-all duration-300 ${
+                        className={`glass-modal relative m-4 w-full max-w-sm overflow-hidden rounded-[1.75rem] p-5 transition-all duration-300 ${
                             isCreateFundAnimated
                                 ? "translate-y-0 opacity-100"
                                 : "translate-y-6 opacity-0"
@@ -1951,13 +2077,13 @@ export default function DashboardCouple({
                         <button
                             type="button"
                             onClick={closeCreateFundModal}
-                            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-on-surface-variant shadow-sm backdrop-blur-md"
+                            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-glass-border bg-surface-low text-on-surface-variant shadow-sm"
                             aria-label="Cerrar"
                         >
                             <X size={14} />
                         </button>
                         <h3 className="pr-8 text-base font-semibold tracking-tight text-on-surface">
-                            {editingFund ? "Editar fondo" : "Crear fondo"}
+                            {editingFund ? "Editar bolsillo" : "Crear bolsillo"}
                         </h3>
                         <p className="mt-0.5 text-xs text-on-surface-variant">
                             Nombre y color del bolsillo compartido.
@@ -1973,7 +2099,7 @@ export default function DashboardCouple({
                                 if (e.key === "Enter") handleSaveFund();
                             }}
                             placeholder="Ej. Gasolina, Restaurantes..."
-                            className="mt-1.5 w-full rounded-2xl border border-glass-border bg-glass px-3.5 py-2.5 text-sm text-on-surface outline-none backdrop-blur-md placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20"
+                            className="mt-1.5 w-full rounded-2xl border border-glass-border bg-surface-low px-3.5 py-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant focus:ring-2 focus:ring-accent/30"
                         />
                         <label className="mt-3.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
                             Color
@@ -1990,7 +2116,7 @@ export default function DashboardCouple({
                                         aria-label={option.label}
                                         className={`mx-auto h-8 w-8 rounded-full shadow-sm transition-transform ${
                                             isSelected
-                                                ? "scale-110 ring-2 ring-on-surface/80 ring-offset-2 ring-offset-surface"
+                                                ? "scale-110 ring-2 ring-accent ring-offset-2 ring-offset-[var(--sheet-from)]"
                                                 : "hover:scale-105"
                                         }`}
                                         style={{ backgroundColor: option.value }}
@@ -1999,7 +2125,7 @@ export default function DashboardCouple({
                             })}
                         </div>
                         <div
-                            className="mt-4 overflow-hidden rounded-2xl border border-glass-border p-3.5 text-white shadow-sm backdrop-blur-md"
+                            className="mt-4 overflow-hidden rounded-2xl border border-glass-border p-3.5 text-white shadow-sm"
                             style={{
                                 backgroundImage: `linear-gradient(145deg, ${newFundColor}cc 0%, ${newFundColor} 100%)`,
                             }}
@@ -2008,7 +2134,7 @@ export default function DashboardCouple({
                                 Vista previa
                             </p>
                             <p className="mt-1 text-base font-semibold tracking-tight">
-                                {newFundName.trim() || (editingFund ? editingFund.name : "Nuevo fondo")}
+                                {newFundName.trim() || (editingFund ? editingFund.name : "Nuevo bolsillo")}
                             </p>
                         </div>
                         {fundActionError && (
@@ -2030,10 +2156,10 @@ export default function DashboardCouple({
 
             <NumericKeypadSheet
                 isOpen={Boolean(depositTarget)}
-                title={depositTarget === "personal" ? "Aportar a mi fondo" : "Aportar al bolsillo"}
+                title={depositTarget === "personal" ? "Aportar a mi bolsillo" : "Aportar al bolsillo"}
                 subtitle={
                     depositTarget === "personal"
-                        ? "Mi fondo"
+                        ? "Mi bolsillo"
                         : selectedFund?.name ?? "Bolsillo"
                 }
                 accentColor={
@@ -2046,6 +2172,18 @@ export default function DashboardCouple({
                 onClose={closeDepositModal}
                 onValueChange={(value) => setDepositAmount(value)}
                 onConfirm={(value) => handleDepositConfirm(value)}
+            />
+
+            <FundTransferSheet
+                open={showFundTransfer}
+                onClose={() => {
+                    setShowFundTransfer(false);
+                    setTransferFromFundId(null);
+                }}
+                currentUserId={currentUserId}
+                fromFundId={transferFromFundId}
+                funds={allTransferFunds}
+                onSuccess={handleFundTransferSuccess}
             />
             {/* Toast de notificación del sistema */}
             {systemNotification && (
@@ -2063,7 +2201,7 @@ export default function DashboardCouple({
                         className="absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm"
                         onClick={closeDeleteModal}
                     />
-                    <div className="relative w-full max-w-xs rounded-3xl border border-glass-border bg-glass-strong p-6 text-center shadow-2xl backdrop-blur-xl transition-all animate-in zoom-in-95 fade-in duration-200">
+                    <div className="glass-modal relative w-full max-w-xs rounded-3xl p-6 text-center transition-all animate-in zoom-in-95 fade-in duration-200">
                         <div className="modal-danger-icon mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full">
                             <Trash2 size={24} />
                         </div>
@@ -2128,9 +2266,9 @@ export default function DashboardCouple({
                                 {([
                                     { value: "all", label: "Todos los movimientos" },
                                     { value: "personal", label: "Mis gastos personales" },
-                                    { value: "shared_all", label: "Fondo Común (todos)" },
-                                    { value: "shared_me", label: "Fondo Común (pagados por mí)" },
-                                    { value: "shared_partner", label: `Fondo Común (pagados por ${partnerDisplayName})` },
+                                    { value: "shared_all", label: "Bolsillos (todos)" },
+                                    { value: "shared_me", label: "Bolsillos (pagados por mí)" },
+                                    { value: "shared_partner", label: `Bolsillos (pagados por ${partnerDisplayName})` },
                                 ] as { value: ActivityFilter; label: string }[]).map(({ value, label }) => (
                                     <button
                                         key={value}
@@ -2158,7 +2296,7 @@ export default function DashboardCouple({
 
 const filterLabels: Record<Exclude<ActivityFilter, "all">, string> = {
     personal: "Personal",
-    shared_all: "Fondo Común",
-    shared_me: "Fondo (mí)",
-    shared_partner: "Fondo (pareja)",
+    shared_all: "Bolsillos",
+    shared_me: "Bolsillos (mí)",
+    shared_partner: "Bolsillos (pareja)",
 };

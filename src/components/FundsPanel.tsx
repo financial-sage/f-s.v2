@@ -71,7 +71,7 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
         setToFundId(overview.personalFundId ?? "");
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "No se pudieron cargar los fondos.");
+          setError(err instanceof Error ? err.message : "No se pudieron cargar los bolsillos.");
         }
       }
     })();
@@ -83,7 +83,7 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
   function handleCreateFund() {
     const name = newName.trim();
     if (!name) {
-      setError("Escribe un nombre para el fondo.");
+      setError("Escribe un nombre para el bolsillo.");
       return;
     }
     setError("");
@@ -94,7 +94,7 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
         await refresh();
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "No se pudo crear el fondo.");
+        setError(err instanceof Error ? err.message : "No se pudo crear el bolsillo.");
       }
     });
   }
@@ -163,7 +163,7 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-bold text-on-surface">Bolsillos</h2>
-          <p className="text-xs text-on-surface-variant">Fondos compartidos y personales</p>
+          <p className="text-xs text-on-surface-variant">Bolsillos compartidos y personales</p>
         </div>
         <button
           type="button"
@@ -230,7 +230,7 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nuevo fondo compartido"
+            placeholder="Nuevo bolsillo compartido"
             className="w-full rounded-2xl border border-outline-variant/40 bg-surface py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>

@@ -356,7 +356,7 @@ export default function HistoryList({
         }
         options.push({
             v: personalFund?.id ?? "personal",
-            l: "Mi fondo",
+            l: "Mi bolsillo",
             color: personalFund ? resolveFundColor(personalFund) : DEFAULT_PERSONAL_FUND_COLOR,
         });
         return options;
@@ -407,7 +407,7 @@ export default function HistoryList({
                         <div
                             className="icon-chip-fund flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
                             style={fundIconChipStyle(iconColor)}
-                            title={expenseFund?.name ?? "Mi fondo"}
+                            title={expenseFund?.name ?? "Mi bolsillo"}
                         >
                             <Icon size={14} strokeWidth={2} />
                         </div>
@@ -526,7 +526,7 @@ export default function HistoryList({
                             }`}
                         >
                             <span className="text-[10px] font-light text-on-surface-variant">
-                                Mi fondo
+                                Mi bolsillo
                             </span>
                             <span
                                 className={`text-[15px] font-light tracking-tight ${
@@ -895,7 +895,7 @@ export default function HistoryList({
                         {isDeleteModalOpen && (
                             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                                 <div className="absolute inset-0 bg-on-surface/60 backdrop-blur-sm" onClick={closeDeleteModal} />
-                                <div className="relative z-[1] w-full max-w-xs rounded-3xl border border-glass-border bg-glass-strong p-6 text-center shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+                                <div className="glass-modal relative z-[1] w-full max-w-xs rounded-3xl p-6 text-center animate-in fade-in zoom-in-95 duration-200">
                                     <div className="modal-danger-icon mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full">
                                         <Trash2 size={24} />
                                     </div>

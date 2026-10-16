@@ -17,7 +17,7 @@ interface FamilySettingsProps {
 const MODEL_OPTIONS: Array<{ value: FinancialModel; label: string; description: string }> = [
   {
     value: "joint_fund",
-    label: "Fondo Común (Bote compartido)",
+    label: "Bolsillos (bote compartido)",
     description: "Todos los gastos salen del mismo bote compartido.",
   },
   {
@@ -78,7 +78,7 @@ export default function FamilySettings({
 
   const partnerSplitPct = useMemo(() => 100 - mySplitPct, [mySplitPct]);
   const summaryValue =
-    model === "joint_fund" ? "Fondo Común" : model === "p2p_50_50" ? "50/50" : "Proporcional";
+    model === "joint_fund" ? "Bolsillos" : model === "p2p_50_50" ? "50/50" : "Proporcional";
 
   function openFinancialModal() {
     setMessage("");

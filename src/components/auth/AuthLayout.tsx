@@ -35,6 +35,12 @@ export function AuthLayout({
                   backgroundImage: sageGlassGradient(),
                 }}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/img/apple-touch-icon.png"
+                  alt="SinDescuadre"
+                  className="mb-5 h-14 w-14 rounded-[1rem] shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
+                />
                 <p className="text-[11px] font-light text-on-surface-variant">{quoteLabel}</p>
                 <h2 className="mt-2 text-4xl font-light leading-tight tracking-tight text-on-surface">
                   {title}
@@ -50,7 +56,13 @@ export function AuthLayout({
             </div>
 
             <div className="mx-auto w-full max-w-md">
-              <div className="mb-6 px-1 lg:hidden">
+              <div className="mb-6 flex flex-col items-center px-1 text-center lg:hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/img/apple-touch-icon.png"
+                  alt="SinDescuadre"
+                  className="mb-4 h-16 w-16 rounded-[1.1rem] shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
+                />
                 <p className="text-[11px] font-light text-on-surface-variant">{quoteLabel}</p>
                 <h1 className="mt-1 text-[2rem] font-light leading-tight tracking-tight text-on-surface">
                   {title}

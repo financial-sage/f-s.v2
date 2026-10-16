@@ -725,7 +725,7 @@ export default function FixedExpensesManager() {
       <NumericKeypadSheet
         isOpen={depositOpen}
         title="Aportar al bolsillo"
-        subtitle="Queda registrado en el historial, igual que en cualquier otro fondo."
+        subtitle="Queda registrado en el historial, igual que en cualquier otro bolsillo."
         initialValue={depositValue}
         errorMessage={depositError}
         onClose={() => setDepositOpen(false)}
@@ -749,7 +749,7 @@ export default function FixedExpensesManager() {
 
       {formOpen ? (
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-on-surface/40 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-t-[2rem] border border-glass-border glass-sheet p-5 backdrop-blur-xl sm:rounded-[1.85rem]">
+          <div className="glass-sheet w-full max-w-md rounded-t-[2rem] border border-glass-border p-5 sm:rounded-[1.85rem]">
             <h3 className="text-lg font-medium tracking-tight text-on-surface">
               {editingId ? "Editar gasto fijo" : "Nuevo gasto fijo"}
             </h3>

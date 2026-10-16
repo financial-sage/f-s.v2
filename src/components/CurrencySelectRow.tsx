@@ -65,7 +65,7 @@ export function CurrencySelectRow() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Elegir moneda"
-                className="fixed inset-x-0 bottom-0 z-[210] mx-auto w-full max-w-md rounded-t-[1.75rem] border border-glass-border bg-glass-strong p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(43,52,55,0.18)] backdrop-blur-xl"
+                className="glass-sheet fixed inset-x-0 bottom-0 z-[210] mx-auto w-full max-w-md rounded-t-[1.75rem] border border-glass-border p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
               >
                 <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-outline-variant/40" />
                 <p className="mb-3 px-1 text-[11px] font-light text-on-surface-variant">
@@ -81,8 +81,8 @@ export function CurrencySelectRow() {
                           onClick={() => select(option.code)}
                           className={`flex w-full items-center justify-between rounded-2xl px-3.5 py-3 text-left transition ${
                             selected
-                              ? "bg-primary/10 text-on-surface"
-                              : "bg-glass text-on-surface hover:bg-glass-strong"
+                              ? "bg-surface-container text-on-surface ring-1 ring-accent/35"
+                              : "bg-surface-low text-on-surface hover:bg-surface-container"
                           }`}
                         >
                           <span className="flex items-center gap-3">

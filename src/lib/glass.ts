@@ -24,7 +24,7 @@ export function tintedGlassGradient(
   return `linear-gradient(145deg, ${highlight} 0%, ${accentHex}${mid} ${midStop}%, ${accentHex}${end} 100%)`;
 }
 
-/** Theme-aware hero glass (sage in light, graphite ink in dark). */
+/** Theme-aware hero glass (uses --primary in both themes). */
 export function sageGlassGradient() {
   return `linear-gradient(145deg, var(--glass-highlight) 0%, color-mix(in srgb, var(--primary) 18%, transparent) 55%, color-mix(in srgb, var(--primary) 28%, transparent) 100%)`;
 }

@@ -30,7 +30,7 @@ export async function settleFundDebtAction({
 
   const sharedFund = funds.find((f) => f.id === fundId && f.scope === "shared" && !f.archived_at);
   if (!sharedFund) {
-    throw new Error("Fondo compartido no encontrado.");
+    throw new Error("Bolsillo compartido no encontrado.");
   }
 
   const { data: targetExpenses, error: loadError } = await admin

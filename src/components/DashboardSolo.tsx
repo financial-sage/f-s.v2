@@ -325,7 +325,7 @@ export default function DashboardSolo({
                                     className="h-2 w-2 rounded-full"
                                     style={{ backgroundColor: heroColor }}
                                 />
-                                Mi fondo · {balanceVisible ? formatCurrency(displayBalance) : "••••"}
+                                Mi bolsillo · {balanceVisible ? formatCurrency(displayBalance) : "••••"}
                             </button>
                             <Link
                                 href="/budget"
@@ -431,7 +431,11 @@ export default function DashboardSolo({
                         </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md">
+                    <div
+                        className={`flex max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md ${
+                            currentList.length === 0 ? "flex-1" : ""
+                        }`}
+                    >
                         {currentList.length === 0 ? (
                             <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
                                 <div className="relative mb-4 flex items-center justify-center">
@@ -447,7 +451,7 @@ export default function DashboardSolo({
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none">
+                            <div className="min-h-0 overflow-y-auto overscroll-none">
                                 {currentList.map((tx, index) => {
                                     const Icon = iconMap[tx.iconKey] ?? ReceiptText;
 
@@ -593,8 +597,8 @@ export default function DashboardSolo({
             )}
             <NumericKeypadSheet
                 isOpen={showDeposit}
-                title="Aportar a mi fondo"
-                subtitle="Mi fondo"
+                title="Aportar a mi bolsillo"
+                subtitle="Mi bolsillo"
                 accentColor={DEFAULT_PERSONAL_FUND_COLOR}
                 initialValue={depositAmount || "0"}
                 errorMessage={showDeposit ? depositError : undefined}

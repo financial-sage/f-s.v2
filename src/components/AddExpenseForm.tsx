@@ -37,6 +37,8 @@ import { getDefaultSharedFund, listVariableSharedFunds, resolveFundColor } from 
 import type { FamilyAccount } from "@/lib/accounts";
 import { listOperableAccountsForUser, resolveAccountColor } from "@/lib/accounts";
 import { tintedGlassGradient } from "@/lib/glass";
+import { useCurrency } from "@/hooks/useCurrency";
+import { useIsDark } from "@/hooks/useIsDark";
 
 type PaymentSource = "fund" | "account";
 
@@ -82,7 +84,7 @@ function buildPaidByOptions(
   ];
 
   if (financialModel === "joint_fund") {
-    baseOptions.push({ value: "joint_fund", label: "Fondo Común", icon: Home });
+    baseOptions.push({ value: "joint_fund", label: "Bolsillos", icon: Home });
   }
 
   return baseOptions;
@@ -94,7 +96,7 @@ function buildResponsibleOptions(
 ): OptionItem<ExpenseResponsibleFor>[] {
   const sharedLabel =
     financialModel === "joint_fund"
-      ? "Fondo Común"
+      ? "Bolsillos"
       : financialModel === "p2p_50_50"
         ? "A medias (50/50)"
         : "Proporcional";
@@ -111,13 +113,13 @@ function buildResponsibleOptions(
 function getSelectorClasses(isSelected: boolean, disabled: boolean) {
   if (disabled) {
     return isSelected
-      ? "border border-primary/25 bg-primary/15 text-primary shadow-sm opacity-100"
-      : "border border-outline-variant/20 bg-glass-soft text-outline-variant opacity-60";
+      ? "border border-primary/30 bg-primary/15 text-on-surface/80 shadow-sm opacity-100"
+      : "border border-outline-variant/20 bg-surface-low text-on-surface/45 opacity-70";
   }
 
   return isSelected
-    ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-    : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong";
+    ? "border border-primary/35 bg-primary/15 text-on-surface shadow-sm"
+    : "border border-outline-variant/25 bg-surface-low text-on-surface/65 shadow-sm hover:bg-surface-container hover:text-on-surface/80";
 }
 
 function formatDisplayDate(value: string) {
@@ -158,6 +160,13 @@ export default function AddExpenseForm({
 }: AddExpenseFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const { meta: currencyMeta } = useCurrency();
+  const isDark = useIsDark();
+  const formatAmountDisplay = (value: number) =>
+    new Intl.NumberFormat(currencyMeta.locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(value) ? value : 0);
   const { preferredFundId } = useExpenseModal();
   const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
   const [resolvedFamilyMemberCount, setResolvedFamilyMemberCount] = useState<number>(familyMemberCount ?? 1);
@@ -647,7 +656,9 @@ export default function AddExpenseForm({
   const amountAccent =
     !isSolo && responsibleFor === "joint_fund"
       ? resolveFundColor(selectedFund)
-      : "#4A6549";
+      : isDark
+        ? "#c4a574"
+        : "#1c2740";
 
   return (
     <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col text-on-surface">
@@ -656,13 +667,13 @@ export default function AddExpenseForm({
           <h1 className="text-base font-medium tracking-tight text-on-surface">
             {expenseToEdit ? "Editar gasto" : "Nuevo gasto"}
           </h1>
-          <p className="text-xs text-on-surface-variant">
+          <p className="text-xs text-on-surface/70">
             {expenseToEdit ? "Actualiza el movimiento." : "Registra un nuevo movimiento."}
           </p>
         </section>
 
         <section
-          className="flex flex-col items-center gap-2.5 rounded-[1.35rem] border border-glass-border p-3.5 shadow-[0_10px_28px_rgba(43,52,55,0.08)] backdrop-blur-md"
+          className="flex flex-col items-center gap-2.5 rounded-[1.35rem] border border-glass-border bg-surface-low/80 p-3.5 shadow-[0_10px_28px_rgba(43,52,55,0.08)] backdrop-blur-md"
           style={{
             backgroundImage: tintedGlassGradient(amountAccent, {
               midAlpha: "14",
@@ -671,42 +682,51 @@ export default function AddExpenseForm({
           }}
         >
           <div className="flex w-full flex-col items-center text-center">
-            <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-on-surface-variant">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-on-surface/80">
               Importe
             </span>
             <button
               type="button"
               onClick={() => setShowKeypad(true)}
-              className="mt-1 flex items-baseline justify-center gap-1 border-none bg-transparent outline-none"
+              className="mt-1 flex items-baseline justify-center gap-1.5 border-none bg-transparent outline-none"
             >
-              <span className="text-2xl font-light" style={{ color: amountAccent }}>
-                $
-              </span>
-              <span className="text-[2.55rem] font-light leading-none tracking-tight text-on-surface">
+              {currencyMeta.symbolPosition === "before" ? (
+                <span className="text-[1.75rem] font-light" style={{ color: amountAccent }}>
+                  {currencyMeta.symbol}
+                </span>
+              ) : null}
+              <span className="text-[2.75rem] font-light leading-none tracking-tight text-on-surface">
                 {Number.isNaN(parseDecimal(amount)) || parseDecimal(amount) <= 0 ? (
-                  <span className="text-outline-variant">0,00</span>
+                  <span className="text-on-surface/35">
+                    {formatAmountDisplay(0)}
+                  </span>
                 ) : (
-                  parseDecimal(amount).toFixed(2)
+                  formatAmountDisplay(parseDecimal(amount))
                 )}
               </span>
+              {currencyMeta.symbolPosition === "after" ? (
+                <span className="text-[1.75rem] font-light" style={{ color: amountAccent }}>
+                  {currencyMeta.symbol}
+                </span>
+              ) : null}
             </button>
           </div>
 
           <div className="flex w-full items-center gap-2 border-t border-glass-border pt-2.5">
-            <PencilLine size={15} className="shrink-0 text-outline-variant" />
+            <PencilLine size={15} className="shrink-0 text-on-surface/70" />
             <input
               type="text"
               value={concept}
               onChange={(e) => setConcept(e.target.value)}
               placeholder="¿En qué gastaste?"
-              className="w-full border-none bg-transparent text-sm font-medium text-on-surface outline-none placeholder:text-outline-variant focus:ring-0"
+              className="w-full border-none bg-transparent text-[15px] font-semibold text-on-surface outline-none placeholder:font-medium placeholder:text-on-surface/40 focus:ring-0"
             />
           </div>
         </section>
 
         {operableAccounts.length > 0 && (
           <section className="px-0.5">
-            <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+            <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface/55">
               Pagar desde
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -760,7 +780,7 @@ export default function AddExpenseForm({
                         className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
                           isSelected
                             ? "text-on-surface"
-                            : "border-glass-border bg-glass text-on-surface-variant hover:bg-glass-strong"
+                            : "border-glass-border bg-surface-low text-on-surface/65 hover:bg-surface-container hover:text-on-surface/80"
                         }`}
                         style={
                           isSelected
@@ -792,7 +812,7 @@ export default function AddExpenseForm({
         {!isSolo && (
           <>
             <section className="px-0.5">
-              <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+              <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface/55">
                 Pagado por
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -822,28 +842,48 @@ export default function AddExpenseForm({
               {paymentSource === "fund" && paidBy === "both_split" && (
                 <div className="mt-2 flex gap-2 animate-in fade-in slide-in-from-top-2">
                   <div className="flex-1">
-                    <label className="text-[10px] font-medium uppercase text-on-surface-variant">Tú</label>
+                    <label className="text-[10px] font-medium uppercase text-on-surface/55">Tú</label>
                     <div className="relative mt-0.5">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">$</span>
+                      {currencyMeta.symbolPosition === "before" ? (
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
+                          {currencyMeta.symbol}
+                        </span>
+                      ) : (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
+                          {currencyMeta.symbol}
+                        </span>
+                      )}
                       <input
                         type="number"
                         value={myContribution}
                         onChange={(e) => setMyContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl border border-outline-variant/30 bg-glass-strong py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
-                        placeholder="0.00"
+                        className={`w-full rounded-xl border border-outline-variant/30 bg-surface-low py-1.5 text-sm text-on-surface outline-none ${
+                          currencyMeta.symbolPosition === "before" ? "pl-6 pr-2" : "pl-2 pr-6"
+                        }`}
+                        placeholder={formatAmountDisplay(0)}
                       />
                     </div>
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-medium uppercase text-on-surface-variant">{resolvedPartnerFirstName}</label>
+                    <label className="text-[10px] font-medium uppercase text-on-surface/55">{resolvedPartnerFirstName}</label>
                     <div className="relative mt-0.5">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">$</span>
+                      {currencyMeta.symbolPosition === "before" ? (
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
+                          {currencyMeta.symbol}
+                        </span>
+                      ) : (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
+                          {currencyMeta.symbol}
+                        </span>
+                      )}
                       <input
                         type="number"
                         value={partnerContribution}
                         onChange={(e) => setPartnerContribution(e.target.value.replace(/,/g, "."))}
-                        className="w-full rounded-xl border border-outline-variant/30 bg-glass-strong py-1.5 pl-6 pr-2 text-sm text-on-surface outline-none"
-                        placeholder="0.00"
+                        className={`w-full rounded-xl border border-outline-variant/30 bg-surface-low py-1.5 text-sm text-on-surface outline-none ${
+                          currencyMeta.symbolPosition === "before" ? "pl-6 pr-2" : "pl-2 pr-6"
+                        }`}
+                        placeholder={formatAmountDisplay(0)}
                       />
                     </div>
                   </div>
@@ -853,7 +893,7 @@ export default function AddExpenseForm({
 
             {paymentSource === "fund" && (
               <section className="px-0.5">
-                <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface/55">
                   Destino
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -890,7 +930,7 @@ export default function AddExpenseForm({
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
                             isSelected
                               ? "text-on-surface"
-                              : "border-glass-border bg-glass text-on-surface-variant hover:bg-glass-strong"
+                              : "border-glass-border bg-surface-low text-on-surface/65 hover:bg-surface-container hover:text-on-surface/80"
                           }`}
                           style={
                             isSelected
@@ -920,13 +960,13 @@ export default function AddExpenseForm({
           </>
         )}
 
-        <div className="flex overflow-hidden rounded-2xl border border-glass-border bg-glass shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md">
+        <div className="flex overflow-hidden rounded-2xl border border-glass-border bg-surface-low shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md">
           <button
             type="button"
             onClick={openCategorySheet}
             className="flex flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left"
           >
-            <span className="text-[11px] font-medium uppercase tracking-wide text-outline-variant">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-on-surface/55">
               Categoría
             </span>
             <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-on-surface">
@@ -935,14 +975,14 @@ export default function AddExpenseForm({
             </span>
           </button>
 
-          <div className="w-px self-stretch bg-outline-variant/20" />
+          <div className="w-px self-stretch bg-outline-variant/25" />
 
           <label
             htmlFor="expense-date"
             className="flex flex-1 cursor-pointer items-center justify-between gap-2 px-3 py-2.5"
           >
             <span className="flex min-w-0 items-center gap-1.5">
-              <CalendarDays size={14} className="shrink-0 text-outline-variant" />
+              <CalendarDays size={14} className="shrink-0 text-on-surface/60" />
               <span className="truncate text-sm font-medium capitalize text-on-surface">
                 {displayDate}
               </span>
@@ -1004,7 +1044,7 @@ export default function AddExpenseForm({
               onClick={closeCategorySheet}
             />
             <div
-              className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
               }`}
             >
@@ -1043,7 +1083,7 @@ export default function AddExpenseForm({
                             className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
                               isSelected
                                 ? "border-transparent text-white shadow-md"
-                                : "border-glass-border bg-glass-strong text-on-surface-variant"
+                                : "border-glass-border bg-surface-low text-on-surface"
                             }`}
                             style={isSelected ? { backgroundColor: amountAccent } : undefined}
                           >
@@ -1051,7 +1091,7 @@ export default function AddExpenseForm({
                           </div>
                           <span
                             className={`w-full truncate text-center text-[10px] font-medium tracking-wide ${
-                              isSelected ? "font-semibold text-on-surface" : "text-on-surface-variant"
+                              isSelected ? "font-semibold text-on-surface" : "text-on-surface/80"
                             }`}
                           >
                             {display.label}
@@ -1090,7 +1130,7 @@ export default function AddExpenseForm({
                                 className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
                                   isSelected
                                     ? "border-transparent text-white shadow-md"
-                                    : "border-glass-border bg-glass-strong text-on-surface-variant"
+                                    : "border-glass-border bg-surface-low text-on-surface"
                                 }`}
                                 style={isSelected ? { backgroundColor: amountAccent } : undefined}
                               >
@@ -1098,7 +1138,7 @@ export default function AddExpenseForm({
                               </div>
                               <span
                                 className={`w-full truncate text-center text-[10px] font-medium tracking-wide ${
-                                  isSelected ? "font-semibold text-on-surface" : "text-on-surface-variant"
+                                  isSelected ? "font-semibold text-on-surface" : "text-on-surface/80"
                                 }`}
                               >
                                 {display.label}
@@ -1121,7 +1161,7 @@ export default function AddExpenseForm({
                           className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                             isExpanded
                               ? "rotate-90 scale-105 border-transparent bg-on-surface text-white shadow-md"
-                              : "border-glass-border bg-glass-strong text-on-surface-variant"
+                              : "border-glass-border bg-surface-low text-on-surface"
                           }`}
                         >
                           {isExpanded ? (
@@ -1132,7 +1172,7 @@ export default function AddExpenseForm({
                         </div>
                         <span
                           className={`text-[10px] font-medium transition-colors duration-300 ${
-                            isExpanded ? "font-semibold text-on-surface" : "text-on-surface-variant"
+                            isExpanded ? "font-semibold text-on-surface" : "text-on-surface/80"
                           }`}
                         >
                           {isExpanded ? "Cerrar" : "Más"}

@@ -52,14 +52,22 @@ export default function InstallPrompt() {
   return (
     <div className="pointer-events-auto fixed inset-x-4 bottom-32 z-[70] mx-auto max-w-md rounded-2xl border border-black/5 bg-surface-lowest/95 p-3 shadow-lg backdrop-blur">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-on-surface">Instalar app</p>
-          <p className="text-xs text-on-surface-variant">Añade SinDescuadre a tu pantalla de inicio.</p>
+        <div className="flex min-w-0 items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/img/apple-touch-icon.png"
+            alt=""
+            className="h-11 w-11 shrink-0 rounded-[0.85rem] shadow-sm"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-on-surface">Instalar app</p>
+            <p className="text-xs text-on-surface-variant">Añade SinDescuadre a tu pantalla de inicio.</p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => void handleInstall()}
-          className="rounded-xl bg-[#4a6549] px-3 py-2 text-sm font-medium text-white"
+          className="rounded-xl bg-primary px-3 py-2 text-sm font-medium text-on-primary"
         >
           Instalar
         </button>
