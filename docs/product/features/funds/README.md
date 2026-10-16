@@ -17,6 +17,7 @@ Esta Feature generaliza el comportamiento histórico del **fondo común** para p
 | Gasto | Un gasto se imputa a **un solo fondo** (no se reparte entre fondos) |
 | Transferencias | Sí, entre fondos de la misma familia |
 | Aportes | Directos a cada fondo |
+| Desde cuentas | También pueden recibir **transferencias desde cuentas** (feature Accounts); ambos caminos coexisten |
 
 ---
 
@@ -38,13 +39,15 @@ Cada miembro tiene al menos un fondo personal de sistema.
 
 ```
 saldo = aportes
+      + transferencias entrantes (desde otros fondos o desde cuentas)
       − gastos pagados desde la caja del fondo
       − retiros / liquidaciones de salida
-      − transferencias salientes
-      + transferencias entrantes
+      − transferencias salientes (hacia otros fondos o hacia cuentas)
 ```
 
 Los adelantos personales (alguien paga de su bolsillo un gasto imputado a un fondo compartido) generan **deuda fondo ↔ persona**, no reducen necesariamente la caja del fondo hasta la liquidación.
+
+La capa de **cuentas** (dónde vive el dinero antes de repartirlo) se define en [Accounts](../accounts/README.md) y [ADR-0006](../../../decisions/ADR-0006-accounts-vs-funds.md).
 
 ---
 
@@ -63,6 +66,8 @@ Un gasto de restaurante puede imputarse al fondo “Restaurantes”; la categor�
 - Ver saldos por fondo en el Dashboard.
 - Crear fondos compartidos adicionales.
 - Aportar directamente a un fondo.
+- Recibir transferencias desde una cuenta (Accounts).
 - Registrar un gasto imputado a un fondo.
 - Transferir entre fondos.
+- Transferir de un fondo hacia una cuenta.
 - Liquidar deudas persona ↔ fondo compartido.

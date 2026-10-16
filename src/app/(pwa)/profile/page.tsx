@@ -4,6 +4,7 @@ import {
   ChevronRight,
   CircleHelp,
   Coins,
+  Landmark,
   ShieldCheck,
   Users,
   Wallet,
@@ -255,6 +256,21 @@ export default async function ProfilePage() {
           <div className="divide-y divide-outline-variant/15">
             <ThemeToggleRow />
             <CurrencySelectRow />
+            <Link
+              href="/accounts"
+              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
+                  <Landmark size={16} />
+                </div>
+                <span className="text-sm font-medium text-on-surface">Centro de cuentas</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
+                <span>Abrir</span>
+                <ChevronRight size={14} />
+              </div>
+            </Link>
             <Link
               href="/fixed-expenses"
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"

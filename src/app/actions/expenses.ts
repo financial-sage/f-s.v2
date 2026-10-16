@@ -7,6 +7,12 @@ import { createClient } from "@/utils/supabase/server";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { ensureFamilyFunds, depositToFundAction } from "@/app/actions/funds";
 import { getDefaultSharedFund, getPersonalFund } from "@/lib/funds";
+import {
+  calculateAccountCashBalance,
+  canOperateAccount,
+  responsibleForAccount,
+  type FamilyAccount,
+} from "@/lib/accounts";
 
 export type ExpenseActor = "me" | "partner" | "joint_fund";
 export type ExpenseResponsibleFor = "joint_fund" | "me" | "partner";
@@ -25,6 +31,10 @@ interface SaveExpenseInput {
   fundId?: string | null;
   /** True when cash leaves the fund pocket (paid from fund caja). */
   paidFromFund?: boolean;
+  /** Account cash source (when paying from a bank-like account). */
+  accountId?: string | null;
+  /** True when cash leaves the account caja. */
+  paidFromAccount?: boolean;
 }
 
 function resolveActor(
@@ -58,6 +68,8 @@ export async function saveExpenseAction({
   splitTypeOverride,
   fundId,
   paidFromFund,
+  accountId,
+  paidFromAccount,
 }: SaveExpenseInput) {
   const normalizedAmount = Number(amount);
   const normalizedConcept = concept.trim();
@@ -105,6 +117,80 @@ export async function saveExpenseAction({
   }
 
   const partnerUserId = (profiles ?? []).find((member) => member.id !== user.id)?.id ?? null;
+
+  const isPaidFromAccount = paidFromAccount === true && !!accountId;
+
+  // ── Pay from account (does not touch fund cash) ──────────────────────────
+  if (isPaidFromAccount) {
+    const { data: accountRow, error: accountError } = await admin
+      .from("family_accounts")
+      .select("*")
+      .eq("id", accountId)
+      .eq("family_id", profile.family_id)
+      .maybeSingle();
+
+    if (accountError) {
+      throw new Error(
+        /family_accounts|column/i.test(accountError.message)
+          ? "Falta aplicar la migración de cuentas. Ejecuta database/migrations/003_family_accounts.sql"
+          : accountError.message
+      );
+    }
+
+    const account = accountRow as FamilyAccount | null;
+    if (!account || account.archived_at) {
+      throw new Error("No encontramos esa cuenta.");
+    }
+    if (!canOperateAccount(account, user.id)) {
+      throw new Error("Solo puedes pagar desde tus cuentas personales o las compartidas.");
+    }
+
+    const { data: accountExpenses } = await admin
+      .from("expenses")
+      .select("amount, category, account_id, paid_from_account, transfer_group_id, is_active")
+      .eq("family_id", profile.family_id)
+      .eq("is_active", true);
+
+    const balance = calculateAccountCashBalance(
+      (accountExpenses ?? []) as never[],
+      account.id
+    );
+    const balanceWarning = balance - normalizedAmount < -0.009;
+
+    const paidByValue = resolveActor(paidBy === "joint_fund" ? "me" : paidBy, user.id, partnerUserId);
+
+    const payload = {
+      family_id: profile.family_id,
+      amount: Number(normalizedAmount.toFixed(2)),
+      concept: normalizedConcept,
+      paid_by: paidByValue,
+      responsible_for: responsibleForAccount(account),
+      category,
+      expense_date: date,
+      split_type: "personal" as ExpenseSplitType,
+      payer_share_pct: 100,
+      fund_id: null,
+      paid_from_fund: false,
+      account_id: account.id,
+      paid_from_account: true,
+    };
+
+    const { error: insertError } = await admin.from("expenses").insert(payload as never);
+    if (insertError) {
+      throw new Error(
+        /account_id|paid_from_account|column/i.test(insertError.message)
+          ? "Falta aplicar la migración de cuentas. Ejecuta database/migrations/003_family_accounts.sql"
+          : insertError.message
+      );
+    }
+
+    revalidatePath("/");
+    revalidatePath("/add-expense");
+    revalidatePath("/history");
+    revalidatePath("/accounts");
+
+    return { success: true as const, balanceWarning };
+  }
 
   let funds: Awaited<ReturnType<typeof ensureFamilyFunds>> = [];
   try {
@@ -173,6 +259,8 @@ export async function saveExpenseAction({
     payer_share_pct: splitType.includes("shared") ? normalizedPayerSharePct : 100,
     fund_id: resolvedFundId,
     paid_from_fund: isPaidFromFund,
+    account_id: null,
+    paid_from_account: false,
   };
 
   let { error: insertError } = await admin.from("expenses").insert(payload as never);
@@ -187,9 +275,15 @@ export async function saveExpenseAction({
     ));
   }
 
-  // Columns may not exist yet if migration not applied — retry without fund fields
-  if (insertError && /fund_id|paid_from_fund|column/i.test(insertError.message)) {
-    const { fund_id: _f, paid_from_fund: _p, ...legacyPayload } = payload;
+  // Columns may not exist yet if migration not applied — retry without fund/account fields
+  if (insertError && /fund_id|paid_from_fund|account_id|paid_from_account|column/i.test(insertError.message)) {
+    const {
+      fund_id: _f,
+      paid_from_fund: _p,
+      account_id: _a,
+      paid_from_account: _pa,
+      ...legacyPayload
+    } = payload;
     ({ error: insertError } = await admin.from("expenses").insert(legacyPayload as never));
   }
 
@@ -201,7 +295,7 @@ export async function saveExpenseAction({
   revalidatePath("/add-expense");
   revalidatePath("/history");
 
-  return { success: true };
+  return { success: true as const };
 }
 
 export async function createDeposit({

@@ -71,6 +71,8 @@ export interface FundExpenseLike {
   responsible_for?: string | null;
   fund_id?: string | null;
   paid_from_fund?: boolean | null;
+  account_id?: string | null;
+  paid_from_account?: boolean | null;
   is_settled?: boolean | null;
   is_active?: boolean | null;
   transfer_group_id?: string | null;
@@ -160,11 +162,14 @@ export function calculateFundCashBalance(
 
   const belongs = (e: FundExpenseLike) => {
     if (e.is_active === false) return false;
+    // Account-only cash must never inflate a bolsillo (ADR-0006).
+    if (e.account_id && !e.fund_id) return false;
     if (e.fund_id === fundId) return true;
     if (
       legacySharedId &&
       fundId === legacySharedId &&
       !e.fund_id &&
+      !e.account_id &&
       isSharedLegacyResponsible(e.responsible_for)
     ) {
       return true;

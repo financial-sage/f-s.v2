@@ -29,7 +29,9 @@ El glosario sigue los siguientes principios:
 
 ### Account
 
-Representa una cuenta financiera utilizada por la familia para administrar dinero.
+Cuenta bancaria simulada donde la familia recibe y mueve dinero (personal o compartida).
+
+Es distinta de un **Fund** (bolsillo): la cuenta es la ubicación del dinero; el bolsillo es la organización del gasto. Ver ADR-0006 y la feature Accounts.
 
 ---
 

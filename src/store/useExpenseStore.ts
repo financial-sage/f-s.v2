@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createClient } from "@/utils/supabase/client";
+import { isAccountOnlyMovement } from "@/lib/accounts";
 import { isPersonalPocketCashOut } from "@/lib/funds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -22,6 +23,8 @@ export interface StoreExpenseRow {
     family_id: string;
     fund_id?: string | null;
     paid_from_fund?: boolean | null;
+    account_id?: string | null;
+    paid_from_account?: boolean | null;
     transfer_group_id?: string | null;
 }
 
@@ -80,8 +83,19 @@ export interface RealtimeExpensePayload {
 // ─── Privacy filter (client-side mirror of lib/dashboard.ts) ─────────────────
 
 function filterExpensesForPrivacy<
-    T extends { paid_by: string; responsible_for?: string | null }
->(expenses: T[], currentUserId: string): T[] {
+    T extends {
+        paid_by: string;
+        responsible_for?: string | null;
+        account_id?: string | null;
+    }
+>(
+    expenses: T[],
+    currentUserId: string,
+    accountsById?: Map<
+        string,
+        { scope: string; owner_profile_id: string | null; visibility: string }
+    >
+): T[] {
     const sharedAliases = new Set(["joint_fund", "fondo_comun", "shared", "compartido"]);
     const partnerAliases = new Set(["partner", "pareja"]);
 
@@ -93,6 +107,28 @@ function filterExpensesForPrivacy<
         if (expense.paid_by === currentUserId) return true;
         if (expense.responsible_for === currentUserId) return true;
         if (partnerAliases.has(responsibleFor) && expense.paid_by !== currentUserId) return true;
+
+        if (expense.account_id && accountsById) {
+            const account = accountsById.get(expense.account_id);
+            if (
+                account &&
+                account.scope === "personal" &&
+                account.visibility === "family_visible" &&
+                account.owner_profile_id !== currentUserId
+            ) {
+                return true;
+            }
+            if (
+                account &&
+                account.scope === "personal" &&
+                account.visibility === "private" &&
+                account.owner_profile_id !== currentUserId
+            ) {
+                return false;
+            }
+            if (account?.scope === "shared") return true;
+        }
+
         return false;
     });
 }
@@ -105,16 +141,18 @@ function computeBalances(
     financialModel: string
 ) {
     const myAvailableFund = (() => {
-        // 1. Ingresos a MI fondo: Depósitos personales + Liquidaciones recibidas del fondo común
+        // 1. Ingresos a MI fondo: aportes al bolsillo personal (nunca caja de cuenta).
         const income = expenses
+            .filter((e) => !e.account_id)
             .filter((e) =>
                 (e.category === "deposit" && (e.responsible_for === userId || e.responsible_for === "mio")) ||
-                (e.paid_by === userId && e.category === "withdrawal") // <- ¡ESTA ES LA LÍNEA MÁGICA!
+                (e.paid_by === userId && e.category === "withdrawal")
             )
             .reduce((s, e) => s + Number(e.amount || 0), 0);
 
         // 2. Salidas de MI bolsillo personal (no cajas compartidas / gastos fijos)
         const out = expenses
+            .filter((e) => !e.account_id)
             .filter((e) => isPersonalPocketCashOut(e, userId))
             .reduce((s, e) => s + Number(e.amount || 0), 0);
 
@@ -122,7 +160,8 @@ function computeBalances(
     })();
 
     const fundLiquidity = (() => {
-        const income = expenses
+        const fundRows = expenses.filter((e) => !isAccountOnlyMovement(e));
+        const income = fundRows
             .filter(
                 (e) =>
                     e.category === "deposit" &&
@@ -133,10 +172,10 @@ function computeBalances(
             .reduce((s, e) => s + Number(e.amount || 0), 0);
 
         // Prefer shared-legacy deposits only for default common fund liquidity widget
-        const sharedIncome = expenses
+        const sharedIncome = fundRows
             .filter((e) => e.category === "deposit" && e.responsible_for === "joint_fund" && !e.transfer_group_id)
             .reduce((s, e) => s + Number(e.amount || 0), 0);
-        const direct = expenses
+        const direct = fundRows
             .filter(
                 (e) =>
                     e.responsible_for === "joint_fund" &&
@@ -146,7 +185,7 @@ function computeBalances(
                     !e.transfer_group_id
             )
             .reduce((s, e) => s + Number(e.amount || 0), 0);
-        const withdrawals = expenses
+        const withdrawals = fundRows
             .filter(
                 (e) =>
                     e.category === "withdrawal" &&
@@ -189,6 +228,8 @@ function mapRealtimeRow(raw: Record<string, unknown> | null | undefined): StoreE
         family_id: String(raw.family_id ?? ""),
         fund_id: raw.fund_id == null ? null : String(raw.fund_id),
         paid_from_fund: raw.paid_from_fund == null ? null : Boolean(raw.paid_from_fund),
+        account_id: raw.account_id == null ? null : String(raw.account_id),
+        paid_from_account: raw.paid_from_account == null ? null : Boolean(raw.paid_from_account),
         transfer_group_id: raw.transfer_group_id == null ? null : String(raw.transfer_group_id),
     };
 }
@@ -258,29 +299,61 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                 ? (family.user_1_id === userId ? family.user_2_id : family.user_1_id)
                 : null;
 
-            // Fetch partner name and all expenses in parallel
-            const [partnerProfileResult, rawExpensesResult] = await Promise.all([
+            // Fetch partner name, expenses and accounts in parallel
+            const [partnerProfileResult, rawExpensesResult, accountsResult] = await Promise.all([
                 partnerId
                     ? supabase.from("profiles").select("full_name").eq("id", partnerId).maybeSingle()
                     : Promise.resolve({ data: null }),
                 supabase
                     .from("expenses")
-                    .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, transfer_group_id")
+                    .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id")
                     .eq("family_id", familyId)
                     .eq("is_active", true)
                     .order("expense_date", { ascending: false })
                     .order("created_at", { ascending: false })
                     // Cap payload for snappy nav; older rows remain in History via filters later if needed.
                     .limit(400),
+                supabase
+                    .from("family_accounts")
+                    .select("id, scope, owner_profile_id, visibility")
+                    .eq("family_id", familyId)
+                    .is("archived_at", null),
             ]);
+
+            // If account columns/table missing, retry expenses without them
+            let expenseRows: unknown = rawExpensesResult.data;
+            if (rawExpensesResult.error && /account_id|paid_from_account|column/i.test(rawExpensesResult.error.message)) {
+                const legacy = await supabase
+                    .from("expenses")
+                    .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, transfer_group_id")
+                    .eq("family_id", familyId)
+                    .eq("is_active", true)
+                    .order("expense_date", { ascending: false })
+                    .order("created_at", { ascending: false })
+                    .limit(400);
+                expenseRows = legacy.data;
+            }
+
+            const accountsById = new Map(
+                ((accountsResult.data ?? []) as Array<{
+                    id: string;
+                    scope: string;
+                    owner_profile_id: string | null;
+                    visibility: string;
+                }>).map((a) => [a.id, a])
+            );
 
             const partnerName =
                 (partnerProfileResult as { data: { full_name?: string | null } | null }).data?.full_name
                     ?.trim()
                     .split(/\s+/)[0] ?? "Pareja";
 
-            const rawExpenses = (rawExpensesResult.data ?? []) as StoreExpenseRow[];
-            const expenses = filterExpensesForPrivacy(rawExpenses, userId) as StoreExpenseRow[];
+            const rawExpenses = (expenseRows ?? []) as StoreExpenseRow[];
+            const expenses = filterExpensesForPrivacy(
+                rawExpenses,
+                userId,
+                accountsById
+            ) as StoreExpenseRow[];
             const { myAvailableFund, fundLiquidity, p2pBalance } = computeBalances(expenses, userId, financialModel);
 
             const isPremium = (profileResult.data as { is_premium?: boolean | null } | null)?.is_premium === true;

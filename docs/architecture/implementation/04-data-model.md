@@ -130,7 +130,11 @@ Personas que forman parte de la unidad familiar.
 
 ## Account
 
-Lugar donde se administra dinero.
+Cuenta bancaria simulada (`family_accounts`): personal o compartida, con visibilidad configurable.
+
+Distinta de Fund (bolsillo). El ledger sigue siendo `expenses`, ampliado con `account_id` y `paid_from_account`.
+
+Detalle: `docs/product/features/accounts/technical-spec.md` y ADR-0006.
 
 ---
 

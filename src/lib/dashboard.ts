@@ -1,6 +1,11 @@
 import type { ExpenseSplitType } from "@/lib/expenses";
 import type { FamilyFund } from "@/lib/funds";
 import { getDefaultSharedFund, isPersonalPocketCashOut } from "@/lib/funds";
+import {
+  calculateAccountCashBalance,
+  listVisibleAccountsForUser,
+  type FamilyAccount,
+} from "@/lib/accounts";
 import { createClient } from "@/utils/supabase/server";
 
 interface UserRow {
@@ -127,8 +132,16 @@ function round2(value: number) {
 }
 
 export function filterExpensesForPrivacy<
-  T extends { paid_by: string; responsible_for?: string | null }
->(expenses: T[], currentUserId: string) {
+  T extends {
+    paid_by: string;
+    responsible_for?: string | null;
+    account_id?: string | null;
+  }
+>(
+  expenses: T[],
+  currentUserId: string,
+  accountsById?: Map<string, { scope: string; owner_profile_id: string | null; visibility: string }>
+) {
   const sharedAliases = new Set(["joint_fund", "fondo_comun", "shared", "compartido"]);
   const partnerAliases = new Set(["partner", "pareja"]);
 
@@ -150,6 +163,30 @@ export function filterExpensesForPrivacy<
 
     if (partnerAliases.has(responsibleFor) && expense.paid_by !== currentUserId) {
       return true;
+    }
+
+    // Partner may see movements on family-visible personal accounts (not private).
+    if (expense.account_id && accountsById) {
+      const account = accountsById.get(expense.account_id);
+      if (
+        account &&
+        account.scope === "personal" &&
+        account.visibility === "family_visible" &&
+        account.owner_profile_id !== currentUserId
+      ) {
+        return true;
+      }
+      if (
+        account &&
+        account.scope === "personal" &&
+        account.visibility === "private" &&
+        account.owner_profile_id !== currentUserId
+      ) {
+        return false;
+      }
+      if (account?.scope === "shared") {
+        return true;
+      }
     }
 
     return false;
@@ -317,6 +354,8 @@ export interface HomeExpenseRow {
   is_settled?: boolean;
   fund_id?: string | null;
   paid_from_fund?: boolean | null;
+  account_id?: string | null;
+  paid_from_account?: boolean | null;
   transfer_group_id?: string | null;
 }
 
@@ -340,6 +379,10 @@ export interface HomePageData {
   /** Active family funds for first paint (avoids hero/icon color flash). */
   funds: FamilyFund[];
   sharedDefaultFundId: string | null;
+  /** Sum of visible account balances (bank-like liquidity). */
+  accountsVisibleLiquidity: number;
+  /** True when the family already has at least one visible account. */
+  hasVisibleAccounts: boolean;
 }
 
 /** Same rules as Zustand `myAvailableFund`: personal deposits − paid spends. */
@@ -351,11 +394,15 @@ export function calculatePersonalPocketBalance(
     responsible_for?: string | null;
     paid_from_fund?: boolean | null;
     fund_id?: string | null;
+    account_id?: string | null;
   }>,
   userId: string,
   sharedFundIds?: ReadonlySet<string> | readonly string[],
 ) {
-  const income = expenses
+  // Any row with account_id belongs to account cash, not "Mi fondo".
+  const fundRows = expenses.filter((e) => !e.account_id);
+
+  const income = fundRows
     .filter(
       (e) =>
         (e.category === "deposit" &&
@@ -364,7 +411,7 @@ export function calculatePersonalPocketBalance(
     )
     .reduce((s, e) => s + Number(e.amount || 0), 0);
 
-  const out = expenses
+  const out = fundRows
     .filter((e) => isPersonalPocketCashOut(e, userId, sharedFundIds))
     .reduce((s, e) => s + Number(e.amount || 0), 0);
 
@@ -511,7 +558,7 @@ export async function getHomePageData(): Promise<
 
   const familyId = profile.family_id;
 
-  const [familyResult, membersResult, expensesResult, fundsResult] = await Promise.all([
+  const [familyResult, membersResult, expensesResult, fundsResult, accountsResult] = await Promise.all([
     supabase
       .from("families")
       .select("id, name, user_1_id, user_2_id, financial_model")
@@ -524,7 +571,7 @@ export async function getHomePageData(): Promise<
     supabase
       .from("expenses")
       .select(
-        "id, amount, concept, paid_by, family_id, split_type, responsible_for, category, payer_share_pct, expense_date, created_at, is_settled, fund_id, paid_from_fund, transfer_group_id, profiles!expenses_paid_by_fkey(full_name, avatar_url)",
+        "id, amount, concept, paid_by, family_id, split_type, responsible_for, category, payer_share_pct, expense_date, created_at, is_settled, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id, profiles!expenses_paid_by_fkey(full_name, avatar_url)",
       )
       .eq("family_id", familyId)
       .eq("is_active", true)
@@ -538,6 +585,13 @@ export async function getHomePageData(): Promise<
       .eq("family_id", familyId)
       .is("archived_at", null)
       .order("sort_order", { ascending: true }),
+    supabase
+      .from("family_accounts")
+      .select(
+        "id, family_id, name, scope, owner_profile_id, visibility, color, sort_order, archived_at"
+      )
+      .eq("family_id", familyId)
+      .is("archived_at", null),
   ]);
 
   const family = familyResult.data as (FamilyRow & { financial_model?: string | null }) | null;
@@ -563,13 +617,37 @@ export async function getHomePageData(): Promise<
       | null;
   };
 
-  const rawExpenses = (expensesResult.data ?? []) as RawHomeExpense[];
+  // If account columns are missing (migration not applied), fall back gracefully.
+  let expenseData: unknown = expensesResult.data;
+  if (expensesResult.error && /account_id|paid_from_account|column/i.test(expensesResult.error.message)) {
+    const legacy = await supabase
+      .from("expenses")
+      .select(
+        "id, amount, concept, paid_by, family_id, split_type, responsible_for, category, payer_share_pct, expense_date, created_at, is_settled, fund_id, paid_from_fund, transfer_group_id, profiles!expenses_paid_by_fkey(full_name, avatar_url)",
+      )
+      .eq("family_id", familyId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(400);
+    expenseData = legacy.data;
+  }
+
+  const accountsById = new Map(
+    ((accountsResult.data ?? []) as Array<{
+      id: string;
+      scope: string;
+      owner_profile_id: string | null;
+      visibility: string;
+    }>).map((a) => [a.id, a])
+  );
+
+  const rawExpenses = (expenseData ?? []) as RawHomeExpense[];
   const normalizedExpenses: HomeExpenseRow[] = rawExpenses.map((row) => ({
     ...row,
     profiles: Array.isArray(row.profiles) ? (row.profiles[0] ?? null) : row.profiles,
   }));
 
-  const coupleExpenses = filterExpensesForPrivacy(normalizedExpenses, user.id);
+  const coupleExpenses = filterExpensesForPrivacy(normalizedExpenses, user.id, accountsById);
   const expenseRowsForDashboard = coupleExpenses.map((expense) => ({
     id: expense.id,
     amount: expense.amount,
@@ -607,6 +685,30 @@ export async function getHomePageData(): Promise<
   const funds = ((fundsResult.data ?? []) as FamilyFund[]).filter((f) => !f.archived_at);
   const sharedDefaultFundId = getDefaultSharedFund(funds)?.id ?? null;
 
+  const allAccounts = ((accountsResult.data ?? []) as FamilyAccount[]).filter(
+    (a) => !a.archived_at
+  );
+  const visibleAccounts = listVisibleAccountsForUser(allAccounts, user.id);
+  const accountsVisibleLiquidity =
+    Math.round(
+      visibleAccounts.reduce(
+        (sum, account) =>
+          sum +
+          calculateAccountCashBalance(
+            coupleExpenses as Array<{
+              amount: number;
+              category?: string | null;
+              account_id?: string | null;
+              paid_from_account?: boolean | null;
+              transfer_group_id?: string | null;
+              is_active?: boolean | null;
+            }>,
+            account.id
+          ),
+        0
+      ) * 100
+    ) / 100;
+
   return {
     ok: true,
     data: {
@@ -631,6 +733,8 @@ export async function getHomePageData(): Promise<
       pocketBalance,
       funds,
       sharedDefaultFundId,
+      accountsVisibleLiquidity,
+      hasVisibleAccounts: visibleAccounts.length > 0,
     },
   };
 }

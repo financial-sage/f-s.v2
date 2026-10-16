@@ -23,6 +23,7 @@ import {
     Receipt,
     ReceiptText,
     Scale,
+    Landmark,
     Send,
     Settings,
     SlidersHorizontal,
@@ -56,6 +57,7 @@ import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { getCategoryDetails } from "@/lib/categoryMap";
+import { isAccountOnlyMovement } from "@/lib/accounts";
 import {
     calculateFundCashBalance,
     calculateFundOwesUser,
@@ -96,6 +98,8 @@ interface CoupleDashboardExpense {
     family_id?: string;
     fund_id?: string | null;
     paid_from_fund?: boolean | null;
+    account_id?: string | null;
+    paid_from_account?: boolean | null;
     transfer_group_id?: string | null;
 }
 
@@ -116,6 +120,8 @@ interface DashboardCoupleProps {
     financialModel?: string;
     initialFunds?: FamilyFund[];
     sharedDefaultFundId?: string | null;
+    accountsVisibleLiquidity?: number;
+    hasVisibleAccounts?: boolean;
 }
 
 
@@ -181,6 +187,8 @@ export default function DashboardCouple({
     financialModel = "joint_fund",
     initialFunds = [],
     sharedDefaultFundId = null,
+    accountsVisibleLiquidity = 0,
+    hasVisibleAccounts = false,
 }: DashboardCoupleProps) {
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
@@ -210,6 +218,8 @@ export default function DashboardCouple({
             family_id: e.family_id,
             fund_id: e.fund_id,
             paid_from_fund: e.paid_from_fund,
+            account_id: e.account_id,
+            paid_from_account: e.paid_from_account,
             transfer_group_id: e.transfer_group_id,
         }));
     }, [isHydrated, storeExpenses, ssrExpenses]);
@@ -413,6 +423,7 @@ export default function DashboardCouple({
     const myTotalIncome = useMemo(
         () =>
             expenses
+                .filter((expense) => !expense.account_id)
                 .filter(
                     (expense) =>
                         expense.category === "deposit" &&
@@ -430,6 +441,7 @@ export default function DashboardCouple({
     const moneyOutFromMe = useMemo(
         () =>
             expenses
+                .filter((expense) => !expense.account_id)
                 .filter((expense) =>
                     isPersonalPocketCashOut(expense, currentUserId, sharedFundIds)
                 )
@@ -449,12 +461,16 @@ export default function DashboardCouple({
                 .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
         [currentUserId, expenses]
     );
-    const myAvailableFund = myTotalIncome - moneyOutFromMe;
+    // Prefer store pocket cash when hydrated (includes account_id filtering).
+    // Before hydrate, derive from SSR rows (must carry account_id).
+    const derivedPersonalPocket = myTotalIncome - moneyOutFromMe;
+    const myAvailableFund = isHydrated ? storePersonalBalance : derivedPersonalPocket;
     const myBudget = Math.max(mySpent, 400);
 
     const fundIncome = useMemo(
         () =>
             expenses
+                .filter((expense) => !isAccountOnlyMovement(expense))
                 .filter(
                     (expense) => expense.category === "deposit" && expense.responsible_for === "joint_fund"
                 )
@@ -464,6 +480,7 @@ export default function DashboardCouple({
     const fundWithdrawals = useMemo(
         () =>
             expenses
+                .filter((expense) => !isAccountOnlyMovement(expense))
                 .filter(
                     (expense) => expense.category === "withdrawal" && expense.responsible_for === "joint_fund"
                 )
@@ -473,6 +490,7 @@ export default function DashboardCouple({
     const fundDirectExpenses = useMemo(
         () =>
             expenses
+                .filter((expense) => !isAccountOnlyMovement(expense))
                 .filter(
                     (expense) =>
                         expense.responsible_for === "joint_fund" &&
@@ -1080,6 +1098,19 @@ export default function DashboardCouple({
                         </div>
 
                         <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2">
+                            <Link
+                                href="/accounts"
+                                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+                            >
+                                <Landmark size={12} className="text-on-surface-variant" />
+                                {hasVisibleAccounts
+                                    ? `Cuentas · ${
+                                          balanceVisible
+                                              ? formatCurrency(accountsVisibleLiquidity)
+                                              : "••••"
+                                      }`
+                                    : "Abrir cuentas"}
+                            </Link>
                             <button
                                 type="button"
                                 onClick={openPersonalDepositModal}
@@ -1583,7 +1614,7 @@ export default function DashboardCouple({
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex h-full min-h-0 flex-1 flex-col">
+                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none">
                                 {currentList.map((expense, index) => {
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category);
                                     const Icon = categoryPresentation.icon;
@@ -1606,13 +1637,13 @@ export default function DashboardCouple({
                                     return (
                                         <div
                                             key={expense.id}
-                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-glass-border last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                                            className="group relative flex shrink-0 items-stretch overflow-hidden border-b border-glass-border last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
                                             style={{ animationDelay: `${index * 60}ms` }}
                                         >
                                             <button
                                                 type="button"
                                                 onClick={() => toggleActions(expense.id)}
-                                                className={`flex h-full w-full items-center justify-between gap-2.5 px-3.5 text-left transition-colors duration-200 ${
+                                                className={`flex w-full items-center justify-between gap-2.5 px-3.5 py-3.5 text-left transition-colors duration-200 ${
                                                     activeActionId === expense.id ? "bg-glass-soft pr-2" : "bg-transparent"
                                                 }`}
                                             >

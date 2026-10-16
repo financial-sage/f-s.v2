@@ -45,6 +45,8 @@ export default async function Home() {
     pocketBalance,
     funds,
     sharedDefaultFundId,
+    accountsVisibleLiquidity,
+    hasVisibleAccounts,
   } = home.data;
 
   return (
@@ -66,6 +68,8 @@ export default async function Home() {
           financialModel={financialModel}
           initialFunds={funds}
           sharedDefaultFundId={sharedDefaultFundId}
+          accountsVisibleLiquidity={accountsVisibleLiquidity}
+          hasVisibleAccounts={hasVisibleAccounts}
         />
       ) : (
         <DashboardSolo

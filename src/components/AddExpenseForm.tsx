@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Heart,
   Home,
+  Landmark,
   LoaderCircle,
   MoreHorizontal,
   PencilLine,
@@ -30,9 +31,14 @@ import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useCategories } from "@/hooks/useCategories";
 import { listFamilyFundsAction } from "@/app/actions/funds";
+import { listFamilyAccountsAction } from "@/app/actions/accounts";
 import type { FamilyFund } from "@/lib/funds";
 import { getDefaultSharedFund, listVariableSharedFunds, resolveFundColor } from "@/lib/funds";
+import type { FamilyAccount } from "@/lib/accounts";
+import { listOperableAccountsForUser, resolveAccountColor } from "@/lib/accounts";
 import { tintedGlassGradient } from "@/lib/glass";
+
+type PaymentSource = "fund" | "account";
 
 interface AddExpenseFormProps {
   familyId: string;
@@ -180,8 +186,12 @@ export default function AddExpenseForm({
   const [isSheetAnimated, setIsSheetAnimated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [balanceWarning, setBalanceWarning] = useState("");
   const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>([]);
   const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
+  const [paymentSource, setPaymentSource] = useState<PaymentSource>("fund");
+  const [operableAccounts, setOperableAccounts] = useState<FamilyAccount[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -210,6 +220,25 @@ export default function AddExpenseForm({
       cancelled = true;
     };
   }, [expenseToEdit, preferredFundId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!resolvedCurrentUserId) return;
+      try {
+        const accounts = await listFamilyAccountsAction();
+        if (cancelled) return;
+        const operable = listOperableAccountsForUser(accounts, resolvedCurrentUserId);
+        setOperableAccounts(operable);
+        setSelectedAccountId((prev) => prev ?? operable[0]?.id ?? null);
+      } catch {
+        // Accounts migration may not be applied yet.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedCurrentUserId]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -477,6 +506,15 @@ export default function AddExpenseForm({
 
           const requests = [];
 
+          if (paymentSource === "account") {
+            if (!selectedAccountId) {
+              throw new Error("Elige la cuenta desde la que pagas.");
+            }
+            throw new Error(
+              "Si pagan entre los dos, registra el gasto desde un bolsillo o crea un movimiento por persona."
+            );
+          }
+
           if (mine > 0) {
             requests.push(
               saveExpenseAction({
@@ -524,30 +562,55 @@ export default function AddExpenseForm({
           await Promise.all(requests);
         } else {
           const singlePaidBy = (isCoupleMode ? paidBy : "me") as ExpenseActor;
-          const splitTypeOverride =
-            responsibleFor === "joint_fund"
-              ? "fund_transfer"
-              : responsibleFor === "partner" && singlePaidBy === "me"
-                ? "p2p_debt"
-                : responsibleFor === "me" && singlePaidBy === "partner"
-                  ? "p2p_debt"
-                  : "personal";
 
-          await saveExpenseAction({
-            amount: finalAmount,
-            concept,
-            paidBy: singlePaidBy,
-            responsibleFor: isCoupleMode ? responsibleFor : "me",
-            payerSharePct: 100,
-            category: selectedCategory,
-            date,
-            splitTypeOverride,
-            fundId:
-              (isCoupleMode ? responsibleFor : "me") === "joint_fund"
-                ? selectedFundId
-                : null,
-            paidFromFund: singlePaidBy === "joint_fund",
-          });
+          if (paymentSource === "account") {
+            if (!selectedAccountId) {
+              throw new Error("Elige la cuenta desde la que pagas.");
+            }
+            const result = await saveExpenseAction({
+              amount: finalAmount,
+              concept,
+              paidBy: singlePaidBy === "joint_fund" ? "me" : singlePaidBy,
+              responsibleFor: "me",
+              payerSharePct: 100,
+              category: selectedCategory,
+              date,
+              accountId: selectedAccountId,
+              paidFromAccount: true,
+              paidFromFund: false,
+              fundId: null,
+            });
+            if (result && "balanceWarning" in result && result.balanceWarning) {
+              setBalanceWarning(
+                "La cuenta queda en negativo. El gasto se guardó; revísalo cuando puedas."
+              );
+            }
+          } else {
+            const splitTypeOverride =
+              responsibleFor === "joint_fund"
+                ? "fund_transfer"
+                : responsibleFor === "partner" && singlePaidBy === "me"
+                  ? "p2p_debt"
+                  : responsibleFor === "me" && singlePaidBy === "partner"
+                    ? "p2p_debt"
+                    : "personal";
+
+            await saveExpenseAction({
+              amount: finalAmount,
+              concept,
+              paidBy: singlePaidBy,
+              responsibleFor: isCoupleMode ? responsibleFor : "me",
+              payerSharePct: 100,
+              category: selectedCategory,
+              date,
+              splitTypeOverride,
+              fundId:
+                (isCoupleMode ? responsibleFor : "me") === "joint_fund"
+                  ? selectedFundId
+                  : null,
+              paidFromFund: singlePaidBy === "joint_fund",
+            });
+          }
         }
       }
 
@@ -641,6 +704,91 @@ export default function AddExpenseForm({
           </div>
         </section>
 
+        {operableAccounts.length > 0 && (
+          <section className="px-0.5">
+            <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+              Pagar desde
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentSource("fund");
+                  setBalanceWarning("");
+                }}
+                className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
+                  paymentSource === "fund",
+                  false
+                )}`}
+              >
+                <Wallet size={13} />
+                Bolsillo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentSource("account");
+                  if (paidBy === "joint_fund" || paidBy === "both_split") {
+                    setPaidBy("me");
+                  }
+                }}
+                className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
+                  paymentSource === "account",
+                  false
+                )}`}
+              >
+                <Landmark size={13} />
+                Cuenta
+              </button>
+            </div>
+
+            {paymentSource === "account" && (
+              <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2">
+                <div className="rounded-xl border border-primary/20 bg-primary/8 px-3 py-2 text-[11px] leading-relaxed text-on-surface">
+                  Suele ser más claro pagar desde un bolsillo: así ves de qué parte del presupuesto sale.
+                  Si lo pagas desde la cuenta, el bolsillo no se toca.
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {operableAccounts.map((account) => {
+                    const isSelected = selectedAccountId === account.id;
+                    const accountColor = resolveAccountColor(account);
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        onClick={() => setSelectedAccountId(account.id)}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
+                          isSelected
+                            ? "text-on-surface"
+                            : "border-glass-border bg-glass text-on-surface-variant hover:bg-glass-strong"
+                        }`}
+                        style={
+                          isSelected
+                            ? {
+                                backgroundImage: tintedGlassGradient(accountColor, {
+                                  midAlpha: "28",
+                                  endOnly: true,
+                                }),
+                                borderColor: `${accountColor}55`,
+                                color: accountColor,
+                              }
+                            : undefined
+                        }
+                      >
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: accountColor }}
+                        />
+                        {account.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {!isSolo && (
           <>
             <section className="px-0.5">
@@ -648,7 +796,10 @@ export default function AddExpenseForm({
                 Pagado por
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {paidByOptions.map(({ value, label, icon: Icon }) => {
+                {(paymentSource === "account"
+                  ? paidByOptions.filter((o) => o.value === "me" || o.value === "partner")
+                  : paidByOptions
+                ).map(({ value, label, icon: Icon }) => {
                   const isSelected = paidBy === value;
 
                   return (
@@ -668,7 +819,7 @@ export default function AddExpenseForm({
                 })}
               </div>
 
-              {paidBy === "both_split" && (
+              {paymentSource === "fund" && paidBy === "both_split" && (
                 <div className="mt-2 flex gap-2 animate-in fade-in slide-in-from-top-2">
                   <div className="flex-1">
                     <label className="text-[10px] font-medium uppercase text-on-surface-variant">Tú</label>
@@ -700,70 +851,72 @@ export default function AddExpenseForm({
               )}
             </section>
 
-            <section className="px-0.5">
-              <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
-                Destino
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {responsibleOptions.map(({ value, label, icon: Icon }) => {
-                  const isSelected = responsibleFor === value;
+            {paymentSource === "fund" && (
+              <section className="px-0.5">
+                <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                  Destino
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {responsibleOptions.map(({ value, label, icon: Icon }) => {
+                    const isSelected = responsibleFor === value;
 
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setResponsibleFor(value)}
-                      className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
-                        isSelected,
-                        false
-                      )}`}
-                    >
-                      <Icon size={13} />
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {responsibleFor === "joint_fund" && sharedFunds.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {sharedFunds.map((fund) => {
-                    const isSelected = selectedFundId === fund.id;
-                    const fundColor = resolveFundColor(fund);
                     return (
                       <button
-                        key={fund.id}
+                        key={value}
                         type="button"
-                        onClick={() => setSelectedFundId(fund.id)}
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
-                          isSelected
-                            ? "text-on-surface"
-                            : "border-glass-border bg-glass text-on-surface-variant hover:bg-glass-strong"
-                        }`}
-                        style={
-                          isSelected
-                            ? {
-                                backgroundImage: tintedGlassGradient(fundColor, {
-                                  midAlpha: "28",
-                                  endOnly: true,
-                                }),
-                                borderColor: `${fundColor}55`,
-                                color: fundColor,
-                              }
-                            : undefined
-                        }
+                        onClick={() => setResponsibleFor(value)}
+                        className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
+                          isSelected,
+                          false
+                        )}`}
                       >
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
-                          style={{ backgroundColor: fundColor }}
-                        />
-                        {fund.name}
+                        <Icon size={13} />
+                        {label}
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </section>
+
+                {responsibleFor === "joint_fund" && sharedFunds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {sharedFunds.map((fund) => {
+                      const isSelected = selectedFundId === fund.id;
+                      const fundColor = resolveFundColor(fund);
+                      return (
+                        <button
+                          key={fund.id}
+                          type="button"
+                          onClick={() => setSelectedFundId(fund.id)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
+                            isSelected
+                              ? "text-on-surface"
+                              : "border-glass-border bg-glass text-on-surface-variant hover:bg-glass-strong"
+                          }`}
+                          style={
+                            isSelected
+                              ? {
+                                  backgroundImage: tintedGlassGradient(fundColor, {
+                                    midAlpha: "28",
+                                    endOnly: true,
+                                  }),
+                                  borderColor: `${fundColor}55`,
+                                  color: fundColor,
+                                }
+                              : undefined
+                          }
+                        >
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
+                            style={{ backgroundColor: fundColor }}
+                          />
+                          {fund.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
 
@@ -803,6 +956,12 @@ export default function AddExpenseForm({
             className="sr-only"
           />
         </div>
+
+        {balanceWarning && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+            {balanceWarning}
+          </div>
+        )}
 
         {errorMessage && (
           <div className="alert-error rounded-xl px-3 py-2 text-xs">

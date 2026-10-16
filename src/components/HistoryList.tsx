@@ -48,6 +48,8 @@ export interface HistoryExpenseRow {
     created_at: string;
     is_settled?: boolean;
     fund_id?: string | null;
+    account_id?: string | null;
+    paid_from_account?: boolean | null;
 }
 
 interface Filters {
@@ -267,23 +269,25 @@ export default function HistoryList({
         const sharedFundIds = new Set(
             funds.filter((f) => f.scope === "shared" && !f.archived_at).map((f) => f.id)
         );
-        const income = allExpenses
+        const fundRows = allExpenses.filter((e) => !e.account_id);
+        const income = fundRows
             .filter(
                 (e) =>
                     e.category === "deposit" &&
                     (e.responsible_for === currentUserId || e.responsible_for === "mio")
             )
             .reduce((s, e) => s + Number(e.amount || 0), 0);
-        const out = allExpenses
+        const out = fundRows
             .filter((e) => isPersonalPocketCashOut(e, currentUserId, sharedFundIds))
             .reduce((s, e) => s + Number(e.amount || 0), 0);
         return income - out;
     }, [allExpenses, currentUserId, funds]);
 
     const fundLiquidity = useMemo(() => {
-        const income = allExpenses.filter((e) => e.category === "deposit" && e.responsible_for === "joint_fund").reduce((s, e) => s + Number(e.amount || 0), 0);
-        const direct = allExpenses.filter((e) => e.responsible_for === "joint_fund" && e.paid_by === "joint_fund" && e.category !== "deposit" && e.category !== "withdrawal").reduce((s, e) => s + Number(e.amount || 0), 0);
-        const withdrawals = allExpenses.filter((e) => e.category === "withdrawal" && e.responsible_for === "joint_fund").reduce((s, e) => s + Number(e.amount || 0), 0);
+        const fundRows = allExpenses.filter((e) => !e.account_id);
+        const income = fundRows.filter((e) => e.category === "deposit" && e.responsible_for === "joint_fund").reduce((s, e) => s + Number(e.amount || 0), 0);
+        const direct = fundRows.filter((e) => e.responsible_for === "joint_fund" && e.paid_by === "joint_fund" && e.category !== "deposit" && e.category !== "withdrawal").reduce((s, e) => s + Number(e.amount || 0), 0);
+        const withdrawals = fundRows.filter((e) => e.category === "withdrawal" && e.responsible_for === "joint_fund").reduce((s, e) => s + Number(e.amount || 0), 0);
         return income - direct - withdrawals;
     }, [allExpenses]);
 

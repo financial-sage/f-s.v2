@@ -1,0 +1,45 @@
+---
+description: Invariantes del módulo Accounts (cuentas vs bolsillos). Usar al implementar o tocar cuentas, transferencias cuenta↔bolsillo, ingresos a cuenta o ADR-0006.
+globs: docs/product/features/accounts/**,docs/decisions/ADR-0006*,**/*account*,**/*Account*,**/accounts/**
+alwaysApply: false
+---
+
+# Accounts module
+
+## Fuente de verdad
+
+Antes de código o migraciones, leer:
+
+1. `docs/product/features/accounts/README.md`
+2. `docs/product/features/accounts/business-rules.md`
+3. `docs/product/features/accounts/technical-spec.md`
+4. `docs/decisions/ADR-0006-accounts-vs-funds.md`
+
+Nombres fijos: tabla `family_accounts`; ledger `expenses` + `account_id` / `paid_from_account`; migración `003_family_accounts.sql`; UI `/accounts`.
+
+## Invariantes
+
+- **Account ≠ Fund**: cuenta = banco simulado; bolsillo = organización del gasto.
+- Ingreso **solo** a cuenta; el reparto es transferencia aparte.
+- Bolsillos: aporte directo **y** transferencia desde cuenta (ambos válidos).
+- Gasto: preferir bolsillo; origen cuenta permitido con nudge UX.
+- Saldo negativo: aviso, no bloqueo.
+- Parejas primero; no diseñar aún el modo individual completo.
+- Cuenta personal: solo el dueño opera; visibilidad `private` | `family_visible`.
+- Cuenta compartida: ambos ven y operan.
+
+## Espejo de Funds
+
+Seguir el patrón de Funds al implementar:
+
+- tipos/helpers → `src/lib/funds.ts`
+- actions → `src/app/actions/funds.ts`
+- store → `src/store/useFundsStore.ts`
+- UI panel → `src/components/FundsPanel.tsx`
+- SQL → `database/migrations/001_family_funds.sql`
+
+## Prohibido
+
+- Fusionar cuentas y bolsillos en una sola entidad.
+- Hacer que el ingreso aterricé directo en un bolsillo “por comodidad” sin el camino de aporte explícito de Funds.
+- Bloquear movimientos por saldo negativo (salvo que producto cambie las rules).

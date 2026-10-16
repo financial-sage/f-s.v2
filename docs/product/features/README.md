@@ -68,6 +68,12 @@ Gestionar bolsillos compartidos y personales con saldo, aportes directos, gastos
 
 ---
 
+## Accounts (Cuentas)
+
+Simular cuentas bancarias (personales y compartidas), registrar ingresos, transferir hacia bolsillos u otras cuentas y pagar excepcionalmente desde una cuenta.
+
+---
+
 ## Financial Timeline
 
 Comprender la evolución financiera.

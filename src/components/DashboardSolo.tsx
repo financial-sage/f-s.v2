@@ -447,14 +447,14 @@ export default function DashboardSolo({
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex h-full min-h-0 flex-1 flex-col">
+                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none">
                                 {currentList.map((tx, index) => {
                                     const Icon = iconMap[tx.iconKey] ?? ReceiptText;
 
                                     return (
                                         <div
                                             key={tx.id}
-                                            className="group relative flex min-h-0 flex-1 items-stretch overflow-hidden border-b border-glass-border last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
+                                            className="group relative flex shrink-0 items-stretch overflow-hidden border-b border-glass-border last:border-0 animate-in slide-in-from-left-8 fade-in duration-500 fill-mode-both"
                                             style={{ animationDelay: `${index * 60}ms` }}
                                         >
                                             <button
@@ -462,7 +462,7 @@ export default function DashboardSolo({
                                                 onClick={() =>
                                                     setActiveActionId((prev) => (prev === tx.id ? null : tx.id))
                                                 }
-                                                className={`flex h-full w-full items-center justify-between gap-2.5 px-3.5 text-left transition-colors duration-200 ${
+                                                className={`flex w-full items-center justify-between gap-2.5 px-3.5 py-3.5 text-left transition-colors duration-200 ${
                                                     activeActionId === tx.id ? "bg-glass-soft pr-2" : "bg-transparent"
                                                 }`}
                                             >
