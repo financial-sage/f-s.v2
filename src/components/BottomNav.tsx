@@ -4,7 +4,14 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { History, Home, UserRound, Wallet, type LucideProps } from "lucide-react";
+import {
+  History,
+  Home,
+  Landmark,
+  UserRound,
+  Wallet,
+  type LucideProps,
+} from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { Sheet } from "@/components/ui/Sheet";
 
@@ -28,7 +35,7 @@ const AUTH_PATHS = new Set([
 type NavIcon = ComponentType<LucideProps>;
 
 type NavModule = {
-  id: "home" | "history" | "fixed-expenses" | "profile";
+  id: "home" | "history" | "accounts" | "fixed-expenses" | "profile";
   href: string;
   label: string;
   icon: NavIcon;
@@ -51,6 +58,13 @@ const NAV_MODULES: NavModule[] = [
     match: (pathname) => pathname === "/history" || pathname.startsWith("/history/"),
   },
   {
+    id: "accounts",
+    href: "/accounts",
+    label: "Cuentas",
+    icon: Landmark,
+    match: (pathname) => pathname === "/accounts" || pathname.startsWith("/accounts/"),
+  },
+  {
     id: "fixed-expenses",
     href: "/fixed-expenses",
     label: "Gastos fijos",
@@ -67,9 +81,9 @@ const NAV_MODULES: NavModule[] = [
   },
 ];
 
-/** Arc slots around the center FAB (left → top → right). */
-const ARC_SLOTS = [-150, -90, -30] as const;
-const ARC_RADIUS_PX = 78;
+/** Arc slots around the center FAB (left → top → right). Four satellites when one module is active. */
+const ARC_SLOTS = [-155, -115, -65, -25] as const;
+const ARC_RADIUS_PX = 82;
 
 interface BottomNavProps {
   familyId?: string;
@@ -108,8 +122,8 @@ export default function BottomNav({
   const satellites = useMemo(() => {
     const others = NAV_MODULES.filter((module) => module.id !== currentModule.id);
 
-    // Keep a stable visual order: home (if present), history, fixed, profile
-    const order = ["home", "history", "fixed-expenses", "profile"] as const;
+    // Keep a stable visual order around the arc
+    const order = ["home", "history", "accounts", "fixed-expenses", "profile"] as const;
     return [...others].sort(
       (a, b) => order.indexOf(a.id) - order.indexOf(b.id)
     );
