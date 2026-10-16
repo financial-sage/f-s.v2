@@ -127,7 +127,7 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
     return (
       <div className="min-h-dvh bg-surface">
         <PageHeader title="Presupuesto" subtitle={formatMonthLabel(monthKey)} backHref="/" />
-        <div className="mx-auto w-full max-w-md space-y-4 px-4 pb-28 pt-4">
+        <div className="mx-auto w-full max-w-md space-y-4 px-4 pb-[var(--fab-clearance)] pt-4">
           <Skeleton className="h-24 rounded-4xl" />
           <Skeleton className="h-12 rounded-4xl" />
           <Skeleton className="h-16 rounded-3xl" />
@@ -157,7 +157,7 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
         }
       />
 
-      <main className="mx-auto w-full max-w-xl px-4 pt-4 pb-28">
+      <main className="mx-auto w-full max-w-xl px-4 pt-4 pb-[var(--fab-clearance)]">
         <div className="mb-4 flex items-center justify-between rounded-2xl bg-surface-lowest px-3 py-2 shadow-sm">
           <button
             type="button"

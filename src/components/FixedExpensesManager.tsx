@@ -363,7 +363,7 @@ export default function FixedExpensesManager() {
         }}
       />
 
-      <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
+      <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-[max(0.75rem,var(--safe-top))]">
         <Link
           href="/"
           className="rounded-full border border-glass-border bg-glass-strong p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
@@ -441,7 +441,7 @@ export default function FixedExpensesManager() {
 
         <section
           ref={listScrollRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-none pb-28 no-scrollbar"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-none pb-[var(--fab-clearance)] no-scrollbar"
         >
           <div ref={expandedCardRef} className="mb-3">
             <div

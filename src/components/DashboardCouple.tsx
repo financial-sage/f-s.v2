@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition, useEffect } from "react";
+import { useMemo, useRef, useState, useTransition, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
@@ -54,6 +54,7 @@ import {
 import FundTransferSheet from "@/components/FundTransferSheet";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useFitItemCount } from "@/hooks/useFitItemCount";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
@@ -69,6 +70,7 @@ import {
     DEFAULT_SHARED_FUND_COLOR,
     fundIconChipStyle,
     getDefaultSharedFund,
+    getPersonalFund,
     isFixedExpensesFund,
     isSharedLegacyResponsible,
     listActiveFunds,
@@ -514,19 +516,39 @@ export default function DashboardCouple({
     const isJointModel = financialModel === "joint_fund";
     const hasP2PBalance = iOwePartner > 0 || partnerOwesMe > 0;
 
+    const personalFund = useMemo(
+        () =>
+            getPersonalFund(
+                storeFunds.length > 0 ? storeFunds : initialFunds,
+                currentUserId
+            ),
+        [storeFunds, initialFunds, currentUserId]
+    );
+
+    const menuFunds = useMemo(() => {
+        if (!personalFund) return sharedFunds;
+        // Personal pocket at the end of the list.
+        return [...sharedFunds.filter((f) => f.id !== personalFund.id), personalFund];
+    }, [sharedFunds, personalFund]);
+
     const selectedFund =
-        sharedFunds.find((f) => f.id === selectedFundId) ??
+        menuFunds.find((f) => f.id === selectedFundId) ??
         getDefaultSharedFund(sharedFunds) ??
         sharedFunds[0] ??
         null;
 
+    const selectedIsPersonal = selectedFund?.scope === "personal";
+
     const selectedFundBalance = useMemo(() => {
         // Avoid flashing the aggregate of all pockets before a fund is selected.
         if (!selectedFund) return 0;
+        if (selectedFund.scope === "personal") {
+            return myAvailableFund;
+        }
         return calculateFundCashBalance(expenses, selectedFund.id, {
             treatLegacyJointAsFundId: getDefaultSharedFund(sharedFunds)?.id ?? null,
         });
-    }, [expenses, selectedFund, sharedFunds]);
+    }, [expenses, selectedFund, sharedFunds, myAvailableFund]);
 
     const secondaryWidgetHint = isJointModel
         ? ""
@@ -541,11 +563,13 @@ export default function DashboardCouple({
         if (!storeFunds.length) return;
         const shared = listDashboardSharedFunds(storeFunds);
         setSharedFunds(shared);
+        const personal = getPersonalFund(storeFunds, currentUserId);
         setSelectedFundId((prev) => {
             if (prev && shared.some((f) => f.id === prev)) return prev;
+            if (prev && personal?.id === prev) return prev;
             return pickInitialSelectedFundId(shared, sharedDefaultFundId);
         });
-    }, [storeFunds, sharedDefaultFundId]);
+    }, [storeFunds, sharedDefaultFundId, currentUserId]);
 
     useEffect(() => {
         if (initialFunds.length) {
@@ -622,9 +646,11 @@ export default function DashboardCouple({
 
     const handleSelectFund = (fundId: string) => {
         setSelectedFundId(fundId);
-        const fund = sharedFunds.find((f) => f.id === fundId) ?? null;
-        // Fixed-expenses pocket is not selectable in the variable expense modal.
-        if (!isFixedExpensesFund(fund)) {
+        const fund =
+            sharedFunds.find((f) => f.id === fundId) ??
+            (personalFund?.id === fundId ? personalFund : null);
+        // Fixed-expenses / personal pockets are not the default for shared variable expenses.
+        if (fund && fund.scope === "shared" && !isFixedExpensesFund(fund)) {
             setPreferredFundId(fundId);
         }
         setShowFundsMenu(false);
@@ -830,7 +856,13 @@ export default function DashboardCouple({
         }
     }, [activityExpenses, currentFilter, currentUserId]);
 
-    const currentList = filteredExpenses.slice(0, 5);
+    const recentListMeasureRef = useRef<HTMLDivElement>(null);
+    const visibleRecentCount = useFitItemCount(recentListMeasureRef, {
+        maxItems: 5,
+        itemHeightPx: 64,
+        minItems: 1,
+    });
+    const currentList = filteredExpenses.slice(0, visibleRecentCount);
 
     function handleDepositConfirm(nextValue?: string) {
         const normalizedAmount = Number((nextValue ?? depositAmount).replace(/,/g, ".").trim());
@@ -994,7 +1026,9 @@ export default function DashboardCouple({
 
     const heroBalance = isJointModel ? selectedFundBalance : personalBalance;
     const heroLabel = isJointModel
-        ? selectedFund?.name ?? "Bolsillo"
+        ? selectedIsPersonal
+            ? "Mi bolsillo"
+            : selectedFund?.name ?? "Bolsillo"
         : "Balance P2P";
     const heroColor = isJointModel
         ? resolveFundColor(selectedFund)
@@ -1006,7 +1040,7 @@ export default function DashboardCouple({
         <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
-            <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
+            <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-[max(0.75rem,var(--safe-top))]">
                 <Link
                     href="/profile"
                     className="flex min-w-0 items-center gap-2.5 text-left"
@@ -1059,7 +1093,7 @@ export default function DashboardCouple({
                 </div>
             </header>
 
-            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col gap-[clamp(0.75rem,2.5dvh,1.25rem)] overflow-hidden px-4 pb-24 pt-1">
+            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col gap-[clamp(0.75rem,2.5dvh,1.25rem)] overflow-hidden px-4 pb-[var(--fab-clearance)] pt-1">
                 {showSharedWelcome && (
                     <div className="pointer-events-none shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
                         <div className="overflow-hidden rounded-3xl border border-primary/25 bg-glass-strong p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
@@ -1261,7 +1295,11 @@ export default function DashboardCouple({
                                 key: "shared",
                                 label: isJointModel ? "Aportar" : "Liquidar",
                                 icon: isJointModel ? Send : Scale,
-                                onClick: isJointModel ? openDepositModal : openBalancesModal,
+                                onClick: isJointModel
+                                    ? selectedIsPersonal
+                                        ? openPersonalDepositModal
+                                        : openDepositModal
+                                    : openBalancesModal,
                             },
                             isJointModel
                                 ? {
@@ -1329,23 +1367,23 @@ export default function DashboardCouple({
                             />
                             <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-2xl border border-glass-border bg-glass-soft shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="max-h-52 overflow-y-auto p-1.5">
-                                    {sharedFunds.length === 0 ? (
+                                    {menuFunds.length === 0 ? (
                                         <p className="px-2.5 py-2 text-[11px] text-on-surface-variant">
                                             Aún no hay bolsillos.
                                         </p>
                                     ) : (
-                                        sharedFunds.map((fund) => {
-                                            const balance = calculateFundCashBalance(
-                                                expenses,
-                                                fund.id,
-                                                {
-                                                    treatLegacyJointAsFundId:
-                                                        getDefaultSharedFund(sharedFunds)?.id ??
-                                                        null,
-                                                }
-                                            );
+                                        menuFunds.map((fund) => {
+                                            const isPersonal = fund.scope === "personal";
+                                            const balance = isPersonal
+                                                ? myAvailableFund
+                                                : calculateFundCashBalance(expenses, fund.id, {
+                                                      treatLegacyJointAsFundId:
+                                                          getDefaultSharedFund(sharedFunds)?.id ??
+                                                          null,
+                                                  });
                                             const isActive = selectedFund?.id === fund.id;
                                             const fundColor = resolveFundColor(fund);
+                                            const displayName = isPersonal ? "Mi bolsillo" : fund.name;
                                             return (
                                                 <div
                                                     key={fund.id}
@@ -1383,53 +1421,33 @@ export default function DashboardCouple({
                                                                         : "font-medium text-on-surface"
                                                                 }`}
                                                             >
-                                                                {fund.name}
+                                                                {displayName}
                                                             </span>
                                                         </span>
                                                         <span className="shrink-0 text-[11px] font-medium text-on-surface-variant">
                                                             {formatCurrency(balance)}
                                                         </span>
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openFundTransfer(fund.id);
-                                                        }}
-                                                        className="shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
-                                                        aria-label={`Transferir desde ${fund.name}`}
-                                                        title="Transferir"
-                                                    >
-                                                        <ArrowLeftRight size={13} strokeWidth={2.1} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openEditFundModal(fund);
-                                                        }}
-                                                        className="mr-0.5 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
-                                                        aria-label={`Editar ${fund.name}`}
-                                                        title="Editar"
-                                                    >
-                                                        <Edit size={13} strokeWidth={2.1} />
-                                                    </button>
+                                                    {!isPersonal && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openEditFundModal(fund);
+                                                            }}
+                                                            className="mr-0.5 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
+                                                            aria-label={`Editar ${fund.name}`}
+                                                            title="Editar"
+                                                        >
+                                                            <Edit size={13} strokeWidth={2.1} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             );
                                         })
                                     )}
                                 </div>
-                                <div className="border-t border-glass-border p-1.5 space-y-1">
-                                    {selectedFund && (
-                                        <button
-                                            type="button"
-                                            onClick={() => openFundTransfer(selectedFund.id)}
-                                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-glass-border bg-glass px-2.5 py-2 text-xs font-medium text-on-surface transition-colors hover:bg-glass-strong"
-                                        >
-                                            <ArrowLeftRight size={13} strokeWidth={2.1} />
-                                            Transferir desde {selectedFund.name}
-                                        </button>
-                                    )}
+                                <div className="border-t border-glass-border p-1.5">
                                     <button
                                         type="button"
                                         onClick={openCreateFundModal}
@@ -1694,7 +1712,7 @@ export default function DashboardCouple({
                     )}
 
                 <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="mb-2 flex items-center justify-between px-1">
+                    <div className="mb-2 flex shrink-0 items-center justify-between px-1">
                         <div className="flex items-baseline gap-2.5">
                             <h3 className="text-xs font-medium text-on-surface">Movimientos recientes</h3>
                             <Link
@@ -1718,12 +1736,16 @@ export default function DashboardCouple({
                     </div>
 
                     <div
+                        ref={recentListMeasureRef}
+                        className="flex min-h-0 flex-1 flex-col"
+                    >
+                    <div
                         className={`flex max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md ${
-                            currentList.length === 0 ? "flex-1" : ""
+                            filteredExpenses.length === 0 ? "flex-1" : "shrink-0"
                         } ${animateSharedEntrance ? "animate-in slide-in-from-bottom-5 fade-in duration-700" : ""}`}
                         style={animateSharedEntrance ? { animationDelay: "240ms" } : undefined}
                     >
-                        {currentList.length === 0 ? (
+                        {filteredExpenses.length === 0 ? (
                             <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
                                 <div className="relative mb-4 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />
@@ -1738,7 +1760,7 @@ export default function DashboardCouple({
                                 </p>
                             </div>
                         ) : (
-                            <div className="min-h-0 overflow-y-auto overscroll-none">
+                            <div className="min-h-0 overflow-hidden">
                                 {currentList.map((expense, index) => {
                                     const categoryPresentation = getExpenseCategoryPresentation(expense.category);
                                     const Icon = categoryPresentation.icon;
@@ -1852,6 +1874,7 @@ export default function DashboardCouple({
                                 })}
                             </div>
                         )}
+                    </div>
                     </div>
                 </div>
             </main>
@@ -2160,10 +2183,12 @@ export default function DashboardCouple({
                 subtitle={
                     depositTarget === "personal"
                         ? "Mi bolsillo"
-                        : selectedFund?.name ?? "Bolsillo"
+                        : selectedIsPersonal
+                          ? "Mi bolsillo"
+                          : selectedFund?.name ?? "Bolsillo"
                 }
                 accentColor={
-                    depositTarget === "personal"
+                    depositTarget === "personal" || selectedIsPersonal
                         ? DEFAULT_PERSONAL_FUND_COLOR
                         : heroColor
                 }

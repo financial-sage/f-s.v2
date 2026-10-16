@@ -73,6 +73,14 @@
   --fab-ink-to: #151d32;
   --fab-ink-fg: #e8e2d6;
   --fab-ink-shadow: 0 10px 22px rgba(28, 39, 64, 0.32);
+
+  /* Safe areas — PWA standalone + gesture / 3-button nav bars */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* FAB (3rem) + breathing room above system nav */
+  --fab-clearance: calc(5.5rem + var(--safe-bottom));
 }
 
 html.dark {
@@ -216,7 +224,9 @@ html.dark {
 
 html,
 body {
-  background: var(--surface);
+  min-height: 100%;
+  min-height: 100dvh;
+  background: var(--page-from);
   color: var(--on-surface);
   font-family: var(--font-body);
   font-weight: 400;

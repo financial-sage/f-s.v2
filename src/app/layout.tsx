@@ -17,7 +17,10 @@ export default function RootLayout({
       <head>
         <ThemeScript />
       </head>
-      <body suppressHydrationWarning className="min-h-screen bg-background text-on-surface">
+      <body
+        suppressHydrationWarning
+        className="min-h-dvh bg-page-from text-on-surface"
+      >
         {children}
       </body>
     </html>

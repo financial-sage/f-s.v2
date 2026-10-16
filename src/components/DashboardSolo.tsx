@@ -28,6 +28,7 @@ import { createPersonalDeposit } from "@/app/actions/expenses";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useFitItemCount } from "@/hooks/useFitItemCount";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
 import { createClient } from "@/utils/supabase/client";
 import { tintedGlassGradient } from "@/lib/glass";
@@ -103,7 +104,13 @@ export default function DashboardSolo({
     const hasCelebratedRef = useRef(false);
     const refreshTimeoutRef = useRef<number | null>(null);
     const stageTimeoutsRef = useRef<number[]>([]);
-    const currentList = transactions.slice(0, 5);
+    const recentListMeasureRef = useRef<HTMLDivElement>(null);
+    const visibleRecentCount = useFitItemCount(recentListMeasureRef, {
+        maxItems: 5,
+        itemHeightPx: 64,
+        minItems: 1,
+    });
+    const currentList = transactions.slice(0, visibleRecentCount);
     const transitionStages = [
         "Tu pareja se ha unido",
         "Sincronizando movimientos",
@@ -235,7 +242,7 @@ export default function DashboardSolo({
         >
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
-            <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
+            <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-[max(0.75rem,var(--safe-top))]">
                 <Link
                     href="/profile"
                     className="flex min-w-0 items-center gap-2.5 text-left"
@@ -270,8 +277,8 @@ export default function DashboardSolo({
                 </div>
             </header>
 
-            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
-                <section className="relative mb-3 shrink-0">
+            <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col gap-[clamp(0.75rem,2.5dvh,1.25rem)] overflow-hidden px-4 pb-[var(--fab-clearance)] pt-1">
+                <section className="relative shrink-0">
                     <div
                         className="relative overflow-hidden rounded-[1.85rem] p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl transition-[background] duration-500"
                         style={{
@@ -338,7 +345,7 @@ export default function DashboardSolo({
                     </div>
                 </section>
 
-                <section className="relative mb-3 shrink-0">
+                <section className="relative shrink-0">
                     <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
                     <div className="grid grid-cols-4 gap-1.5">
                         {[
@@ -418,8 +425,8 @@ export default function DashboardSolo({
                     </div>
                 </section>
 
-                <div className="mb-24 flex min-h-0 flex-1 flex-col">
-                    <div className="mb-2 flex items-center justify-between px-1">
+                <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="mb-2 flex shrink-0 items-center justify-between px-1">
                         <div className="flex items-baseline gap-2.5">
                             <h3 className="text-xs font-medium text-on-surface">Movimientos recientes</h3>
                             <Link
@@ -432,11 +439,15 @@ export default function DashboardSolo({
                     </div>
 
                     <div
+                        ref={recentListMeasureRef}
+                        className="flex min-h-0 flex-1 flex-col"
+                    >
+                    <div
                         className={`flex max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md ${
-                            currentList.length === 0 ? "flex-1" : ""
+                            transactions.length === 0 ? "flex-1" : "shrink-0"
                         }`}
                     >
-                        {currentList.length === 0 ? (
+                        {transactions.length === 0 ? (
                             <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
                                 <div className="relative mb-4 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />
@@ -451,7 +462,7 @@ export default function DashboardSolo({
                                 </p>
                             </div>
                         ) : (
-                            <div className="min-h-0 overflow-y-auto overscroll-none">
+                            <div className="min-h-0 overflow-hidden">
                                 {currentList.map((tx, index) => {
                                     const Icon = iconMap[tx.iconKey] ?? ReceiptText;
 
@@ -534,6 +545,7 @@ export default function DashboardSolo({
                                 })}
                             </div>
                         )}
+                    </div>
                     </div>
                 </div>
             </main>

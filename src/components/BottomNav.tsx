@@ -163,7 +163,7 @@ export default function BottomNav({
         />
       ) : null}
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-5 pb-6 pointer-events-none">
+      <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-5 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pointer-events-none">
         <div className="relative h-12 w-12 pointer-events-auto">
           {satellites.map((module, index) => {
             const angleDeg = ARC_SLOTS[index] ?? ARC_SLOTS[ARC_SLOTS.length - 1];

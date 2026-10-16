@@ -23,7 +23,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#1c2740",
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f4ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1729" },
+  ],
 };
 
 export default function PwaLayout({
@@ -37,7 +41,12 @@ export default function PwaLayout({
       <RealtimeSync />
       <PWARegister />
       <InstallPrompt />
-      <main className="h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
+      {/* Full-bleed paint behind system nav / home indicator (PWA standalone). */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-page-gradient"
+        aria-hidden
+      />
+      <main className="relative z-0 h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
         <PageTransition>{children}</PageTransition>
       </main>
       <FamilyNavProvider />

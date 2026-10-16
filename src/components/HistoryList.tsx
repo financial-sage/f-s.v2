@@ -493,7 +493,7 @@ export default function HistoryList({
     // Show skeleton only when there are no SSR expenses and store hasn't hydrated yet
     if (!isHydrated && ssrExpenses.length === 0) {
         return (
-            <div className="flex-1 overflow-y-auto pb-32 px-3 pt-4">
+            <div className="flex-1 overflow-y-auto px-3 pb-[calc(var(--fab-clearance)+2rem)] pt-4">
                 {/* Balance chips skeleton */}
                 <div className="flex gap-2 mb-4">
                     <Skeleton className="flex-1 h-14 rounded-2xl" />
@@ -587,7 +587,7 @@ export default function HistoryList({
                 </div>
             </div>
 
-            <main ref={setScrollRoot} className="flex-1 overflow-y-auto px-4 pb-32">
+            <main ref={setScrollRoot} className="flex-1 overflow-y-auto px-4 pb-[calc(var(--fab-clearance)+2rem)]">
                 {groups.length === 0 ? (
                     <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pt-20 text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-lowest/80 shadow-sm">
