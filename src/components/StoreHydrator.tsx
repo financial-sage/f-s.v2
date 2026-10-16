@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import type { FamilyFund } from "@/lib/funds";
+import { useAccountsStore } from "@/store/useAccountsStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 
 /**
- * Primes expense + funds caches once so tab navigations stay instant.
- * Safe to mount in the PWA layout and again on individual pages.
+ * Primes expense + funds + accounts caches once so tab navigations and the
+ * expense sheet stay instant. Safe to mount in the PWA layout and again on pages.
  */
 export default function StoreHydrator({
   userId,
@@ -19,6 +20,7 @@ export default function StoreHydrator({
   const isHydrated = useExpenseStore((s) => s.isHydrated);
   const fetchData = useExpenseStore((s) => s.fetchData);
   const loadFunds = useFundsStore((s) => s.load);
+  const loadAccounts = useAccountsStore((s) => s.load);
 
   useEffect(() => {
     if (initialFunds?.length) {
@@ -34,7 +36,8 @@ export default function StoreHydrator({
 
   useEffect(() => {
     void loadFunds();
-  }, [loadFunds]);
+    void loadAccounts();
+  }, [loadFunds, loadAccounts]);
 
   return null;
 }

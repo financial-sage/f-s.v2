@@ -18,8 +18,11 @@ import { Sheet } from "@/components/ui/Sheet";
 const AddExpenseForm = dynamic(() => import("@/components/AddExpenseForm"), {
   ssr: false,
   loading: () => (
-    <div className="flex min-h-40 items-center justify-center text-sm text-on-surface-variant">
-      Cargando…
+    <div className="flex min-h-[28rem] flex-col gap-3 px-0.5 pt-2" aria-hidden>
+      <div className="h-16 animate-pulse rounded-2xl bg-on-surface/8" />
+      <div className="h-10 animate-pulse rounded-xl bg-on-surface/6" />
+      <div className="h-24 animate-pulse rounded-2xl bg-on-surface/6" />
+      <div className="mt-auto h-12 animate-pulse rounded-full bg-on-surface/8" />
     </div>
   ),
 });
@@ -87,6 +90,9 @@ const ARC_RADIUS_PX = 82;
 
 interface BottomNavProps {
   familyId?: string;
+  currentUserId?: string;
+  partnerUserId?: string | null;
+  familyMemberCount?: number;
   partnerFirstName?: string;
   financialModel?: string;
   user1SplitPct?: number;
@@ -106,6 +112,9 @@ function resolveCurrentModule(pathname: string): NavModule {
 
 export default function BottomNav({
   familyId,
+  currentUserId,
+  partnerUserId = null,
+  familyMemberCount = 1,
   partnerFirstName = "Mi pareja",
   financialModel = "joint_fund",
   user1SplitPct = 50,
@@ -114,6 +123,12 @@ export default function BottomNav({
   const { isExpenseModalOpen, setIsExpenseModalOpen, expenseToEdit, setExpenseToEdit } =
     useExpenseModal();
   const [expanded, setExpanded] = useState(false);
+
+  // Prefetch form chunk on first interaction with the nav (covers cases idle prefetch missed).
+  useEffect(() => {
+    if (!expanded && !isExpenseModalOpen) return;
+    void import("@/components/AddExpenseForm");
+  }, [expanded, isExpenseModalOpen]);
 
   const currentModule = useMemo(() => resolveCurrentModule(pathname), [pathname]);
   const CurrentIcon = currentModule.icon;
@@ -227,6 +242,9 @@ export default function BottomNav({
           {isExpenseModalOpen ? (
             <AddExpenseForm
               familyId={familyId}
+              currentUserId={currentUserId}
+              partnerUserId={partnerUserId}
+              familyMemberCount={familyMemberCount}
               expenseToEdit={expenseToEdit}
               onClose={closeExpenseSheet}
               partnerFirstName={partnerFirstName}

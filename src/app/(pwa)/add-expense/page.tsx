@@ -29,6 +29,7 @@ export default async function AddExpensePage() {
   let partnerFirstName = "Mi pareja";
   let financialModel = "joint_fund";
   let user1SplitPct = 50;
+  let partnerUserId: string | null = null;
 
   if (user) {
     const { data: family } = await supabase
@@ -40,14 +41,14 @@ export default async function AddExpensePage() {
     financialModel = family?.financial_model ?? "joint_fund";
     user1SplitPct = Number(family?.user_1_split_pct ?? 50);
 
-    const partnerId =
+    partnerUserId =
       family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
 
-    if (partnerId) {
+    if (partnerUserId) {
       const { data: partnerProfile } = await supabase
         .from("profiles")
         .select("full_name")
-        .eq("id", partnerId)
+        .eq("id", partnerUserId)
         .maybeSingle();
 
       partnerFirstName = getFirstName(partnerProfile?.full_name);
@@ -58,6 +59,8 @@ export default async function AddExpensePage() {
     <div className="min-h-dvh bg-surface">
       <AddExpenseForm
         familyId={familyState.familyId}
+        currentUserId={familyState.userId}
+        partnerUserId={partnerUserId}
         familyMemberCount={familyState.familyMemberCount}
         partnerFirstName={partnerFirstName}
         financialModel={financialModel}

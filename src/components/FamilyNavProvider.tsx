@@ -6,12 +6,17 @@ import { createClient } from "@/utils/supabase/client";
 
 type FamilyNavState = {
   familyId?: string;
+  currentUserId?: string;
+  partnerUserId?: string | null;
+  familyMemberCount: number;
   partnerFirstName: string;
   financialModel: string;
   user1SplitPct: number;
 };
 
 const DEFAULT_STATE: FamilyNavState = {
+  partnerUserId: null,
+  familyMemberCount: 1,
   partnerFirstName: "Mi pareja",
   financialModel: "joint_fund",
   user1SplitPct: 50,
@@ -68,6 +73,9 @@ export default function FamilyNavProvider() {
 
         setNav({
           familyId: family.id,
+          currentUserId: user.id,
+          partnerUserId: partnerId,
+          familyMemberCount: partnerId ? 2 : 1,
           partnerFirstName: getFirstName(partnerProfile?.full_name),
           financialModel: family.financial_model ?? "joint_fund",
           user1SplitPct: Number(family.user_1_split_pct ?? 50),
@@ -83,6 +91,24 @@ export default function FamilyNavProvider() {
     };
   }, []);
 
+  // Warm the expense-form chunk while the user is browsing so the sheet opens instantly.
+  useEffect(() => {
+    if (!ready || !nav.familyId) return;
+
+    const prefetch = () => {
+      void import("@/components/AddExpenseForm");
+    };
+
+    const ric = window.requestIdleCallback?.bind(window);
+    if (ric) {
+      const idleId = ric(prefetch, { timeout: 1500 });
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(prefetch, 200);
+    return () => window.clearTimeout(timeoutId);
+  }, [ready, nav.familyId]);
+
   if (!ready) {
     return null;
   }
@@ -90,6 +116,9 @@ export default function FamilyNavProvider() {
   return (
     <BottomNav
       familyId={nav.familyId}
+      currentUserId={nav.currentUserId}
+      partnerUserId={nav.partnerUserId}
+      familyMemberCount={nav.familyMemberCount}
       partnerFirstName={nav.partnerFirstName}
       financialModel={nav.financialModel}
       user1SplitPct={nav.user1SplitPct}

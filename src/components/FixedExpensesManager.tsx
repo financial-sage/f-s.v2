@@ -3,23 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowDown,
-  ArrowUp,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  LoaderCircle,
+  MoreHorizontal,
   Plus,
-  SquarePen,
 } from "lucide-react";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useFixedExpenses } from "@/hooks/useFixedExpenses";
-import {
-  formatMonthLabel,
-  getMonthKey,
-  shiftMonthKey,
-} from "@/lib/budget";
+import { formatMonthLabel, getMonthKey, shiftMonthKey } from "@/lib/budget";
 import type { FixedExpenseMonthItem } from "@/lib/fixed-expenses/types";
 import { tintedGlassGradient } from "@/lib/glass";
 import { FIXED_EXPENSES_FUND_COLOR } from "@/lib/funds";
@@ -27,83 +21,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 const ACCENT = FIXED_EXPENSES_FUND_COLOR;
-
-/** Temporary: pad the checklist to stress-test scroll + dense list visuals. Set false when done. */
-const USE_FIXED_EXPENSES_SCROLL_DEMO = false;
-
-const DEMO_FIXED_EXPENSE_SEEDS: Array<{
-  name: string;
-  base: number;
-  paid?: boolean;
-  real?: number;
-  paidDay?: number;
-}> = [
-  { name: "Alquiler", base: 950, paid: true, real: 950, paidDay: 1 },
-  { name: "Luz", base: 85, paid: true, real: 92, paidDay: 5 },
-  { name: "Agua", base: 32, paid: true, real: 28, paidDay: 6 },
-  { name: "Gas", base: 45 },
-  { name: "Internet fibra", base: 49.9, paid: true, real: 49.9, paidDay: 3 },
-  { name: "Móvil Ana", base: 25 },
-  { name: "Móvil Carlos", base: 30, paid: true, real: 30, paidDay: 8 },
-  { name: "Seguro hogar", base: 28.5 },
-  { name: "Seguro coche", base: 62 },
-  { name: "Gimnasio", base: 39.99, paid: true, real: 39.99, paidDay: 2 },
-  { name: "Netflix", base: 17.99 },
-  { name: "Spotify Duo", base: 14.99, paid: true, real: 14.99, paidDay: 4 },
-  { name: "Disney+", base: 11.99 },
-  { name: "Comunidad vecinos", base: 75 },
-  { name: "Parking", base: 80, paid: true, real: 80, paidDay: 1 },
-  { name: "Guardería", base: 320 },
-  { name: "Colegio (comedor)", base: 110 },
-  { name: "Cuota hipoteca", base: 680, paid: true, real: 680, paidDay: 1 },
-  { name: "Basura / IBI mens.", base: 22 },
-  { name: "Streaming música kids", base: 6.99 },
-  { name: "Amazon Prime", base: 4.99, paid: true, real: 4.99, paidDay: 7 },
-  { name: "iCloud / Google One", base: 2.99 },
-];
-
-function buildDemoFixedExpenseItems(monthKey: string): FixedExpenseMonthItem[] {
-  const now = new Date().toISOString();
-  return DEMO_FIXED_EXPENSE_SEEDS.map((seed, index) => {
-    const id = `demo-fe-${index + 1}`;
-    const paymentId = `demo-pay-${index + 1}`;
-    const paidAt =
-      seed.paid && seed.paidDay
-        ? `${monthKey}-${String(seed.paidDay).padStart(2, "0")}T10:00:00.000Z`
-        : null;
-    return {
-      template: {
-        id,
-        family_id: "demo",
-        name: seed.name,
-        base_value: seed.base,
-        due_day: null,
-        is_active: true,
-        sort_order: index + 1,
-        created_at: now,
-        updated_at: now,
-      },
-      payment: {
-        id: paymentId,
-        family_id: "demo",
-        fixed_expense_id: id,
-        month_key: monthKey,
-        base_value_snapshot: seed.base,
-        real_value: seed.paid ? (seed.real ?? seed.base) : null,
-        status: seed.paid ? "paid" : "pending",
-        paid_at: paidAt,
-        paid_by: seed.paid ? "demo" : null,
-        expense_id: seed.paid ? `demo-exp-${index + 1}` : null,
-        created_at: now,
-        updated_at: now,
-      },
-    };
-  });
-}
-
-function isDemoFixedExpenseItem(item: FixedExpenseMonthItem) {
-  return item.template.id.startsWith("demo-fe-");
-}
 
 function progressRatio(spent: number, budget: number) {
   if (budget <= 0) return 0;
@@ -125,6 +42,102 @@ function formatPaidDate(paidAt: string | null) {
     day: "numeric",
     month: "short",
   }).format(new Date(`${dayKey}T12:00:00`));
+}
+
+function formatVarianceHint(variance: number, formatCurrency: (n: number) => string) {
+  if (Math.abs(variance) < 0.005) return null;
+  const abs = formatCurrency(Math.abs(variance));
+  return variance > 0 ? `+${abs}` : `−${abs}`;
+}
+
+function ChecklistRow({
+  item,
+  isSaving,
+  formatCurrency,
+  onTogglePaid,
+  onOpenRow,
+  onEditTemplate,
+}: {
+  item: FixedExpenseMonthItem;
+  isSaving: boolean;
+  formatCurrency: (n: number) => string;
+  onTogglePaid: () => void;
+  onOpenRow: () => void;
+  onEditTemplate: () => void;
+}) {
+  const isPaid = item.payment.status === "paid";
+  const baseAmount = Number(item.payment.base_value_snapshot || 0);
+  const realAmount = Number(item.payment.real_value ?? 0);
+  const rowAmount = isPaid ? realAmount : baseAmount;
+  const variance = isPaid ? realAmount - baseAmount : 0;
+  const varianceHint = formatVarianceHint(variance, formatCurrency);
+  const paidLabel = formatPaidDate(item.payment.paid_at);
+
+  return (
+    <div
+      className={`flex items-center gap-3 px-3.5 py-3 ${
+        isPaid ? "bg-glass-muted/60" : ""
+      }`}
+    >
+      <button
+        type="button"
+        disabled={isSaving}
+        onClick={onTogglePaid}
+        className={`flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border transition-all active:scale-95 ${
+          isPaid ? "text-white shadow-sm" : "border-outline-variant/45 bg-glass-strong text-transparent"
+        }`}
+        style={isPaid ? { backgroundColor: ACCENT, borderColor: `${ACCENT}66` } : undefined}
+        aria-label={isPaid ? "Deshacer pago" : `Pagar ${item.template.name}`}
+      >
+        {isPaid ? <Check size={11} strokeWidth={2.75} /> : null}
+      </button>
+
+      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpenRow}>
+        <p
+          className={`truncate text-[14px] font-medium tracking-tight ${
+            isPaid
+              ? "text-on-surface-variant line-through decoration-outline-variant/45"
+              : "text-on-surface"
+          }`}
+        >
+          {item.template.name}
+        </p>
+        {isPaid && paidLabel ? (
+          <p className="mt-0.5 text-[11px] font-light capitalize text-on-surface-variant">
+            Pagado · {paidLabel}
+          </p>
+        ) : null}
+      </button>
+
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
+        <span
+          className={`text-[14px] font-light tabular-nums tracking-tight ${
+            isPaid ? "text-on-surface-variant" : "text-on-surface"
+          }`}
+        >
+          {formatCurrency(rowAmount)}
+        </span>
+        {varianceHint ? (
+          <span
+            className={`text-[10px] font-medium tabular-nums ${
+              variance > 0 ? "text-red-600/80" : "text-emerald-700/80"
+            }`}
+          >
+            {varianceHint}
+          </span>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        onClick={onEditTemplate}
+        className="shrink-0 rounded-full p-1.5 text-outline-variant/70 transition-colors hover:bg-glass-strong hover:text-on-surface-variant"
+        aria-label={`Editar plantilla ${item.template.name}`}
+      >
+        <MoreHorizontal size={16} strokeWidth={2} />
+      </button>
+    </div>
+  );
 }
 
 export default function FixedExpensesManager() {
@@ -161,83 +174,52 @@ export default function FixedExpensesManager() {
   const [formBase, setFormBase] = useState("0");
   const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
+  const [paidExpanded, setPaidExpanded] = useState(false);
 
-  const [cardCollapsed, setCardCollapsed] = useState(false);
-  const listScrollRef = useRef<HTMLElement | null>(null);
-  const expandedCardRef = useRef<HTMLDivElement | null>(null);
+  const pendingScrollRef = useRef<HTMLDivElement | null>(null);
+  const paidScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Show the compact bar only once the large card has fully left the scrollport,
-  // so both never appear on screen at the same time.
+  const pendingItems = useMemo(
+    () => items.filter((item) => item.payment.status === "pending"),
+    [items]
+  );
+  const paidItems = useMemo(
+    () => items.filter((item) => item.payment.status === "paid"),
+    [items]
+  );
+
+  const remainingToPay = useMemo(
+    () =>
+      Math.round(
+        pendingItems.reduce(
+          (sum, item) => sum + Number(item.payment.base_value_snapshot || 0),
+          0
+        ) * 100
+      ) / 100,
+    [pendingItems]
+  );
+
+  const paidTotal = useMemo(
+    () =>
+      Math.round(
+        paidItems.reduce((sum, item) => sum + Number(item.payment.real_value ?? 0), 0) * 100
+      ) / 100,
+    [paidItems]
+  );
+
+  const ratio = progressRatio(totals.sumReal, totals.sumBase);
+
   useEffect(() => {
-    const root = listScrollRef.current;
-    const target = expandedCardRef.current;
-    if (!root || !target) return;
+    setPaidExpanded(false);
+    if (pendingScrollRef.current) pendingScrollRef.current.scrollTop = 0;
+    if (paidScrollRef.current) paidScrollRef.current.scrollTop = 0;
+  }, [monthKey]);
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setCardCollapsed(!entry.isIntersecting);
-      },
-      { root, threshold: 0, rootMargin: "0px 0px 0px 0px" }
-    );
-
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [monthKey, isLoading]);
-
-  const checklist = useMemo(() => {
-    const source = USE_FIXED_EXPENSES_SCROLL_DEMO
-      ? [...items, ...buildDemoFixedExpenseItems(monthKey)]
-      : items;
-    const pending = source.filter((item) => item.payment.status === "pending");
-    const paid = source.filter((item) => item.payment.status === "paid");
-    return [...pending, ...paid];
-  }, [items, monthKey]);
-
-  const displayTotals = useMemo(() => {
-    if (!USE_FIXED_EXPENSES_SCROLL_DEMO) {
-      return {
-        sumBase: totals.sumBase,
-        sumReal: totals.sumReal,
-        paidCount: totals.paidCount,
-        totalCount: totals.totalCount,
-        remainingToPay: Math.round(
-          items
-            .filter((item) => item.payment.status === "pending")
-            .reduce((sum, item) => sum + Number(item.payment.base_value_snapshot || 0), 0) * 100
-        ) / 100,
-      };
-    }
-    const sumBase =
-      Math.round(
-        checklist.reduce((sum, item) => sum + Number(item.payment.base_value_snapshot || 0), 0) * 100
-      ) / 100;
-    const sumReal =
-      Math.round(
-        checklist
-          .filter((item) => item.payment.status === "paid")
-          .reduce((sum, item) => sum + Number(item.payment.real_value || 0), 0) * 100
-      ) / 100;
-    const remainingToPay =
-      Math.round(
-        checklist
-          .filter((item) => item.payment.status === "pending")
-          .reduce((sum, item) => sum + Number(item.payment.base_value_snapshot || 0), 0) * 100
-      ) / 100;
-    return {
-      sumBase,
-      sumReal,
-      paidCount: checklist.filter((item) => item.payment.status === "paid").length,
-      totalCount: checklist.length,
-      remainingToPay,
-    };
-  }, [checklist, items, totals.paidCount, totals.sumBase, totals.sumReal, totals.totalCount]);
-
-  // Progress fills as real payments accumulate against the sum of bases.
-  const ratio = progressRatio(displayTotals.sumReal, displayTotals.sumBase);
-  const remainingToPay = displayTotals.remainingToPay;
+  function shiftMonth(delta: -1 | 1) {
+    setMonthKey((key) => shiftMonthKey(key, delta));
+  }
 
   function openPay(item: FixedExpenseMonthItem) {
-    if (isDemoFixedExpenseItem(item)) return;
     setPayEditing(false);
     setPayTarget(item);
     setPayValue(String(item.payment.base_value_snapshot || 0));
@@ -246,12 +228,12 @@ export default function FixedExpensesManager() {
   }
 
   function openEditPay(item: FixedExpenseMonthItem) {
-    if (isDemoFixedExpenseItem(item)) return;
     setPayEditing(true);
     setPayTarget(item);
     setPayValue(String(item.payment.real_value ?? item.payment.base_value_snapshot ?? 0));
     setPayDate(
-      item.payment.paid_at?.slice(0, 10) && /^\d{4}-\d{2}-\d{2}$/.test(item.payment.paid_at.slice(0, 10))
+      item.payment.paid_at?.slice(0, 10) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(item.payment.paid_at.slice(0, 10))
         ? item.payment.paid_at.slice(0, 10)
         : defaultPayDate(monthKey)
     );
@@ -320,7 +302,6 @@ export default function FixedExpensesManager() {
   }
 
   function openEditForm(item: FixedExpenseMonthItem) {
-    if (isDemoFixedExpenseItem(item)) return;
     setEditingId(item.template.id);
     setFormName(item.template.name);
     setFormBase(String(item.template.base_value));
@@ -354,16 +335,40 @@ export default function FixedExpensesManager() {
     }
   }
 
+  function renderRow(item: FixedExpenseMonthItem) {
+    const isPaid = item.payment.status === "paid";
+    return (
+      <ChecklistRow
+        key={item.payment.id}
+        item={item}
+        isSaving={isSaving}
+        formatCurrency={formatCurrency}
+        onTogglePaid={() => {
+          if (isPaid) {
+            void unmarkPaid(item.payment.id);
+            return;
+          }
+          openPay(item);
+        }}
+        onOpenRow={() => {
+          if (isPaid) openEditPay(item);
+          else openPay(item);
+        }}
+        onEditTemplate={() => openEditForm(item)}
+      />
+    );
+  }
+
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-56"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-48"
         style={{
-          backgroundImage: `radial-gradient(ellipse at bottom, ${ACCENT}2E, transparent 70%)`,
+          backgroundImage: `radial-gradient(ellipse at bottom, ${ACCENT}18, transparent 72%)`,
         }}
       />
 
-      <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-[max(0.75rem,var(--safe-top))]">
+      <header className="relative z-50 flex w-full shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-[max(0.75rem,var(--safe-top))]">
         <Link
           href="/"
           className="rounded-full border border-glass-border bg-glass-strong p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
@@ -371,333 +376,233 @@ export default function FixedExpensesManager() {
         >
           <ChevronLeft size={18} />
         </Link>
-        <div className="min-w-0 text-center">
-          <p className="text-[11px] font-light text-on-surface-variant">Checklist del mes</p>
-          <h1 className="truncate text-[15px] font-medium tracking-tight text-on-surface">
-            Gastos fijos
-          </h1>
+
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
+            aria-label="Mes anterior"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div className="min-w-0 text-center">
+            <p className="text-[10px] font-light uppercase tracking-wider text-on-surface-variant">
+              Gastos fijos
+            </p>
+            <h1 className="truncate text-[15px] font-medium tracking-tight text-on-surface capitalize">
+              {formatMonthLabel(monthKey)}
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
+            aria-label="Mes siguiente"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
-        <div className="h-9 w-9" aria-hidden />
+
+        <button
+          type="button"
+          onClick={openCreateForm}
+          className="rounded-full border border-glass-border bg-glass-strong p-2 text-on-surface shadow-sm backdrop-blur-sm transition-colors hover:bg-glass-soft"
+          aria-label="Agregar gasto fijo"
+        >
+          <Plus size={18} strokeWidth={2.2} />
+        </button>
       </header>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
-        {/* Compact bar: opaque page-colored plate first so list shadows can't show
-            through the rounded corner wedges. */}
+      <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4">
+        {/* Sticky summary — always visible, single surface */}
         <div
-          className={`pointer-events-none absolute inset-x-4 top-1 z-30 ease-out ${
-            cardCollapsed
-              ? "translate-y-0 opacity-100 transition-[opacity,transform] duration-300"
-              : "pointer-events-none invisible -translate-y-1 opacity-0 transition-none"
-          }`}
-          aria-hidden={!cardCollapsed}
+          className="shrink-0 rounded-[1.35rem] border border-glass-border px-4 py-3.5 shadow-[0_8px_20px_rgba(43,52,55,0.08)]"
+          style={{
+            backgroundColor: "var(--surface-lowest)",
+            backgroundImage: tintedGlassGradient(ACCENT, {
+              soft: true,
+              midAlpha: "22",
+              endAlpha: "30",
+              midStop: 55,
+            }),
+          }}
         >
-          <div style={{ backgroundColor: "var(--page-from)" }}>
-            <div
-              className={`rounded-[1.25rem] border border-glass-border px-3.5 py-2.5 ${
-                cardCollapsed ? "pointer-events-auto" : "pointer-events-none"
-              }`}
-              style={{
-                backgroundColor: "var(--surface-lowest)",
-                backgroundImage: tintedGlassGradient(ACCENT, {
-                  soft: true,
-                  midAlpha: "33",
-                  endAlpha: "48",
-                  midStop: 52,
-                }),
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-light text-on-surface-variant">Bolsillo</p>
-                  <p className="truncate text-[15px] font-light leading-tight tracking-tight text-on-surface tabular-nums">
-                    {formatCurrency(totals.pocketBalance)}
-                  </p>
-                </div>
-                <div className="min-w-0 flex-1 text-right">
-                  <p className="text-[10px] font-light text-on-surface-variant">Falta</p>
-                  <p className="truncate text-[15px] font-light leading-tight tracking-tight text-on-surface tabular-nums">
-                    {formatCurrency(remainingToPay)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  tabIndex={cardCollapsed ? 0 : -1}
-                  onClick={openDepositEditor}
-                  className="shrink-0 rounded-full bg-glass-soft px-2.5 py-1 text-[11px] font-medium text-on-surface transition-colors hover:bg-glass-strong"
-                >
-                  Aportar
-                </button>
-              </div>
-            </div>
-          </div>
-          <div
-            className="pointer-events-none h-8"
-            style={{
-              backgroundImage:
-                "linear-gradient(to bottom, var(--page-from), transparent)",
-            }}
-          />
-        </div>
-
-        <section
-          ref={listScrollRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-none pb-[var(--fab-clearance)] no-scrollbar"
-        >
-          <div ref={expandedCardRef} className="mb-3">
-            <div
-              className="relative overflow-hidden rounded-[1.85rem] border border-glass-border p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
-              style={{
-                backgroundImage: tintedGlassGradient(ACCENT, {
-                  soft: true,
-                  midAlpha: "28",
-                  endAlpha: "3D",
-                  midStop: 52,
-                }),
-              }}
-            >
-              <div className="relative z-10 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMonthKey((key) => shiftMonthKey(key, -1));
-                    setCardCollapsed(false);
-                    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
-                  }}
-                  className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
-                  aria-label="Mes anterior"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <p className="text-[11px] font-light text-on-surface-variant">
-                  {formatMonthLabel(monthKey)}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMonthKey((key) => shiftMonthKey(key, 1));
-                    setCardCollapsed(false);
-                    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
-                  }}
-                  className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
-                  aria-label="Mes siguiente"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-
-              <div className="relative z-10 mt-4 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-[11px] font-light text-on-surface-variant">
-                    Bolsillo · {displayTotals.paidCount}/{displayTotals.totalCount} pagados
-                  </p>
-                  <p className="mt-1 text-[2.65rem] font-light leading-none tracking-tight text-on-surface">
-                    {formatCurrency(totals.pocketBalance)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={openDepositEditor}
-                  className="shrink-0 rounded-full bg-glass-soft px-3 py-1.5 text-xs font-medium text-on-surface backdrop-blur-sm transition-colors hover:bg-glass-strong"
-                >
-                  Aportar
-                </button>
-              </div>
-
-              <div className="relative z-10 mt-5">
-                <div className="h-1.5 overflow-hidden rounded-full bg-glass-soft">
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500"
-                    style={{
-                      width: `${ratio * 100}%`,
-                      backgroundImage: `linear-gradient(90deg, ${ACCENT}, ${ACCENT}B8)`,
-                    }}
-                  />
-                </div>
-                <div className="mt-2.5 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-light tracking-tight text-on-surface tabular-nums">
-                      {formatCurrency(displayTotals.sumReal)}
-                    </p>
-                    <p className="mt-0.5 text-[10px] font-light text-on-surface-variant">Pagado</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-light tracking-tight text-on-surface tabular-nums">
-                      {formatCurrency(remainingToPay)}
-                    </p>
-                    <p className="mt-0.5 text-[10px] font-light text-on-surface-variant">Falta</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {error ? (
-            <div className="alert-error mb-3 rounded-2xl px-4 py-3 text-sm">{error}</div>
-          ) : null}
-
-          <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
-            <h2 className="text-xs font-medium text-on-surface">Este mes</h2>
-            <p className="text-xs font-light tabular-nums text-on-surface-variant">
-              {formatCurrency(displayTotals.sumBase)}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] font-light text-on-surface-variant">
+              {totals.paidCount}/{totals.totalCount} pagados
+            </p>
+            <p className="text-[11px] font-light tabular-nums text-on-surface-variant">
+              Base {formatCurrency(totals.sumBase)}
             </p>
           </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-glass-soft">
+            <div
+              className="h-full rounded-full transition-[width] duration-500"
+              style={{
+                width: `${ratio * 100}%`,
+                backgroundImage: `linear-gradient(90deg, ${ACCENT}, ${ACCENT}B0)`,
+              }}
+            />
+          </div>
+
+          <div className="mt-3.5 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
+                Falta
+              </p>
+              <p className="mt-0.5 truncate text-[1.35rem] font-light leading-none tracking-tight text-on-surface tabular-nums">
+                {formatCurrency(remainingToPay)}
+              </p>
+            </div>
+            <div className="min-w-0 text-right">
+              <p className="text-[10px] font-light uppercase tracking-wider text-on-surface-variant">
+                Bolsillo
+              </p>
+              <p className="mt-0.5 truncate text-[15px] font-light leading-none tracking-tight text-on-surface-variant tabular-nums">
+                {formatCurrency(totals.pocketBalance)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openDepositEditor}
+              className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Aportar
+            </button>
+          </div>
+        </div>
+
+        <section className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden pb-[var(--fab-clearance)]">
+          {error ? (
+            <div className="alert-error mb-3 shrink-0 rounded-2xl px-4 py-3 text-sm">{error}</div>
+          ) : null}
 
           {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-sm font-light text-on-surface-variant">
-              <LoaderCircle size={16} className="animate-spin" />
-              Cargando…
+            <div className="space-y-4" aria-hidden>
+              <div className="h-4 w-24 animate-pulse rounded bg-on-surface/8" />
+              <div className="overflow-hidden rounded-[1.35rem] border border-glass-border bg-glass-soft">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 px-3.5 py-3.5 ${
+                      i > 0 ? "border-t border-outline-variant/10" : ""
+                    }`}
+                  >
+                    <div className="h-[1.125rem] w-[1.125rem] animate-pulse rounded-full bg-on-surface/10" />
+                    <div className="h-3.5 flex-1 animate-pulse rounded bg-on-surface/8" />
+                    <div className="h-3.5 w-14 animate-pulse rounded bg-on-surface/8" />
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : checklist.length === 0 ? (
+          ) : items.length === 0 ? (
             <button
               type="button"
               onClick={openCreateForm}
-              className="flex w-full flex-col items-center gap-2 rounded-[1.85rem] border border-dashed bg-glass-soft px-4 py-10 text-center shadow-sm backdrop-blur-md"
-              style={{ borderColor: `${ACCENT}40` }}
+              className="flex w-full flex-col items-center gap-2 px-4 py-14 text-center"
             >
               <span
-                className="flex h-11 w-11 items-center justify-center rounded-full"
+                className="flex h-10 w-10 items-center justify-center rounded-full"
                 style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
               >
                 <Plus size={18} />
               </span>
               <span className="text-sm font-medium text-on-surface">Añade tu primer gasto fijo</span>
-              <span className="max-w-[220px] text-xs font-light text-on-surface-variant">
+              <span className="max-w-[240px] text-xs font-light text-on-surface-variant">
                 Luz, agua, gimnasio… y ve tachándolos cada mes.
               </span>
             </button>
           ) : (
-            <div className="rounded-[1.5rem] border border-glass-border bg-glass-strong shadow-[0_12px_28px_rgba(43,52,55,0.10)] backdrop-blur-xl">
-              {checklist.map((item, index) => {
-                const isPaid = item.payment.status === "paid";
-                const baseAmount = Number(item.payment.base_value_snapshot || 0);
-                const realAmount = Number(item.payment.real_value ?? 0);
-                const rowAmount = isPaid ? realAmount : baseAmount;
-                const variance = isPaid ? realAmount - baseAmount : 0;
-                const isFirst = index === 0;
-                const isLast = index === checklist.length - 1;
+            <>
+              {/* Por pagar: shrinks when Pagados expands (no overlap) */}
+              <div
+                className={`flex min-h-0 flex-col ${
+                  paidExpanded && paidItems.length > 0 ? "min-h-[7rem] flex-1" : "flex-1"
+                }`}
+              >
+                <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 px-1">
+                  <h2 className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">
+                    Por pagar
+                  </h2>
+                  <span className="text-[11px] font-light tabular-nums text-on-surface-variant">
+                    {pendingItems.length}
+                  </span>
+                </div>
 
-                return (
+                {pendingItems.length === 0 ? (
+                  <p className="px-1 py-6 text-center text-sm font-light text-on-surface-variant">
+                    Todo pagado este mes
+                  </p>
+                ) : (
                   <div
-                    key={item.payment.id}
-                    className={`relative flex items-center gap-2.5 px-3 py-2 ${
-                      index > 0 ? "border-t border-outline-variant/15" : ""
-                    } ${isPaid ? "bg-glass-muted" : ""} ${
-                      isFirst ? "rounded-t-[1.5rem]" : ""
-                    } ${isLast ? "rounded-b-[1.5rem]" : ""}`}
+                    ref={pendingScrollRef}
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-none no-scrollbar"
                   >
-                    <button
-                      type="button"
-                      disabled={isSaving || isDemoFixedExpenseItem(item)}
-                      onClick={() => {
-                        if (isDemoFixedExpenseItem(item)) return;
-                        if (isPaid) {
-                          void unmarkPaid(item.payment.id);
-                          return;
-                        }
-                        openPay(item);
-                      }}
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all active:scale-95 ${
-                        isPaid
-                          ? "text-white shadow-sm"
-                          : "border-outline-variant/45 bg-glass-strong text-transparent"
-                      }`}
-                      style={
-                        isPaid
-                          ? { backgroundColor: ACCENT, borderColor: `${ACCENT}66` }
-                          : undefined
-                      }
-                      aria-label={isPaid ? "Deshacer pago" : `Pagar ${item.template.name}`}
-                    >
-                      {isPaid ? <Check size={10} strokeWidth={2.75} /> : null}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => {
-                        if (isPaid) {
-                          openEditPay(item);
-                          return;
-                        }
-                        openPay(item);
-                      }}
-                    >
-                      <p
-                        className={`truncate text-[13px] font-medium tracking-tight ${
-                          isPaid ? "text-on-surface-variant line-through decoration-outline-variant/50" : "text-on-surface"
-                        }`}
-                      >
-                        {item.template.name}
-                      </p>
-                      {isPaid && formatPaidDate(item.payment.paid_at) ? (
-                        <p className="mt-0.5 text-[10px] font-light capitalize text-on-surface-variant">
-                          Pagado · {formatPaidDate(item.payment.paid_at)} · Editar
-                        </p>
-                      ) : null}
-                    </button>
-
-                    <div className="flex shrink-0 items-center gap-1">
-                      {isPaid && variance > 0 ? (
-                        <ArrowUp
-                          size={12}
-                          strokeWidth={2.5}
-                          className="text-red-600"
-                          aria-label="Pagado por encima de la base"
-                        />
-                      ) : null}
-                      {isPaid && variance < 0 ? (
-                        <ArrowDown
-                          size={12}
-                          strokeWidth={2.5}
-                          className="text-emerald-600"
-                          aria-label="Pagado por debajo de la base"
-                        />
-                      ) : null}
-                      {isPaid && variance === 0 ? (
-                        <span
-                          className="text-[12px] font-semibold leading-none text-on-surface"
-                          aria-label="Pagado igual a la base"
-                        >
-                          =
-                        </span>
-                      ) : null}
-                      <span
-                        className={`text-[13px] font-light tabular-nums tracking-tight ${
-                          isPaid ? "text-on-surface-variant" : "text-on-surface"
-                        }`}
-                      >
-                        {formatCurrency(rowAmount)}
-                      </span>
+                    <div className="overflow-hidden rounded-[1.35rem] border border-glass-border bg-glass-strong shadow-[0_8px_22px_rgba(43,52,55,0.08)] backdrop-blur-xl divide-y divide-outline-variant/12">
+                      {pendingItems.map(renderRow)}
                     </div>
-
-                    <button
-                      type="button"
-                      disabled={isDemoFixedExpenseItem(item)}
-                      onClick={() => openEditForm(item)}
-                      className="shrink-0 rounded-full p-1 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface-variant disabled:opacity-40"
-                      aria-label={`Editar ${item.template.name}`}
-                    >
-                      <SquarePen size={14} strokeWidth={2} />
-                    </button>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+
+              {/* Pagados: collapsed = bar; expanded = fixed-height slot that reserves space */}
+              {paidItems.length > 0 ? (
+                <div
+                  className="mt-2 flex min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-glass-border bg-glass-strong shadow-[0_8px_22px_rgba(43,52,55,0.08)] backdrop-blur-xl"
+                  style={
+                    paidExpanded
+                      ? {
+                          // Claims real layout height so Por pagar compresses instead of being covered
+                          flex: "0 0 min(40dvh, calc(100dvh - var(--fab-clearance) - 15rem))",
+                          height: "min(40dvh, calc(100dvh - var(--fab-clearance) - 15rem))",
+                        }
+                      : { flex: "0 0 auto" }
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => setPaidExpanded((open) => !open)}
+                    className={`flex w-full shrink-0 items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-glass-soft ${
+                      paidExpanded ? "border-b border-outline-variant/12" : ""
+                    }`}
+                    aria-expanded={paidExpanded}
+                  >
+                    <ChevronDown
+                      size={16}
+                      className={`shrink-0 text-on-surface-variant transition-transform duration-200 ${
+                        paidExpanded ? "rotate-180" : ""
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium tracking-tight text-on-surface">
+                        Pagados
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
+                        {paidItems.length}{" "}
+                        {paidItems.length === 1 ? "gasto" : "gastos"}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-[14px] font-light tabular-nums tracking-tight text-on-surface">
+                      {formatCurrency(paidTotal)}
+                    </p>
+                  </button>
+
+                  {paidExpanded ? (
+                    <div
+                      ref={paidScrollRef}
+                      className="min-h-0 flex-1 overflow-y-auto overscroll-none no-scrollbar divide-y divide-outline-variant/12"
+                    >
+                      {paidItems.map(renderRow)}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
           )}
         </section>
       </main>
-
-      <button
-        type="button"
-        onClick={openCreateForm}
-        className="fixed bottom-6 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-glass-border text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-transform active:scale-95"
-        style={{
-          backgroundImage: `linear-gradient(145deg, #6B8296 0%, ${ACCENT} 48%, #3A4D5C 100%)`,
-        }}
-        aria-label="Agregar gasto fijo"
-      >
-        <Plus size={18} strokeWidth={2.2} />
-      </button>
 
       <NumericKeypadSheet
         isOpen={Boolean(payTarget)}
@@ -795,9 +700,7 @@ export default function FixedExpensesManager() {
               </div>
 
               {formError ? (
-                <div className="alert-error rounded-2xl px-4 py-3 text-sm">
-                  {formError}
-                </div>
+                <div className="alert-error rounded-2xl px-4 py-3 text-sm">{formError}</div>
               ) : null}
 
               <div className="flex gap-2">

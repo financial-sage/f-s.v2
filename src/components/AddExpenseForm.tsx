@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   CalendarDays,
@@ -29,9 +29,9 @@ import { useExpenseModal, type ExpenseToEdit } from "@/components/ExpenseModalPr
 import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
+import { useFundsStore } from "@/store/useFundsStore";
+import { useAccountsStore } from "@/store/useAccountsStore";
 import { useCategories } from "@/hooks/useCategories";
-import { listFamilyFundsAction } from "@/app/actions/funds";
-import { listFamilyAccountsAction } from "@/app/actions/accounts";
 import type { FamilyFund } from "@/lib/funds";
 import { getDefaultSharedFund, listVariableSharedFunds, resolveFundColor } from "@/lib/funds";
 import type { FamilyAccount } from "@/lib/accounts";
@@ -44,12 +44,53 @@ type PaymentSource = "fund" | "account";
 
 interface AddExpenseFormProps {
   familyId: string;
+  currentUserId?: string;
+  partnerUserId?: string | null;
   familyMemberCount?: number;
   partnerFirstName?: string;
   onClose?: () => void;
   expenseToEdit?: ExpenseToEdit | null;
   financialModel?: string;
   user1SplitPct?: number;
+}
+
+function resolveInitialUserId(propUserId?: string) {
+  return propUserId ?? useExpenseStore.getState().userId ?? null;
+}
+
+function resolveInitialPartnerId(propPartnerId?: string | null) {
+  if (propPartnerId !== undefined) return propPartnerId;
+  return useExpenseStore.getState().partnerId ?? null;
+}
+
+function resolveInitialMemberCount(propCount?: number, partnerId?: string | null) {
+  if (typeof propCount === "number") return propCount;
+  if (partnerId) return 2;
+  const store = useExpenseStore.getState();
+  if (store.partnerId) return 2;
+  if (store.isHydrated) return 1;
+  return 1;
+}
+
+function resolveInitialSharedFunds() {
+  return listVariableSharedFunds(useFundsStore.getState().funds);
+}
+
+function resolveInitialOperableAccounts(userId: string | null) {
+  if (!userId) return [];
+  return listOperableAccountsForUser(useAccountsStore.getState().accounts, userId);
+}
+
+function pickDefaultFundId(
+  shared: FamilyFund[],
+  preferredFundId: string | null,
+  previous: string | null
+) {
+  if (previous && shared.some((fund) => fund.id === previous)) return previous;
+  if (preferredFundId && shared.some((fund) => fund.id === preferredFundId)) {
+    return preferredFundId;
+  }
+  return getDefaultSharedFund(shared)?.id ?? shared[0]?.id ?? null;
 }
 
 interface OptionItem<T extends string> {
@@ -151,6 +192,8 @@ function sanitizeDecimalInput(value: string | number) {
 
 export default function AddExpenseForm({
   familyId,
+  currentUserId,
+  partnerUserId,
   familyMemberCount,
   partnerFirstName,
   onClose,
@@ -168,21 +211,36 @@ export default function AddExpenseForm({
       maximumFractionDigits: 2,
     }).format(Number.isFinite(value) ? value : 0);
   const { preferredFundId } = useExpenseModal();
-  const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
-  const [resolvedFamilyMemberCount, setResolvedFamilyMemberCount] = useState<number>(familyMemberCount ?? 1);
-  const [resolvedPartnerFirstName, setResolvedPartnerFirstName] = useState<string>(
-    getFirstName(partnerFirstName)
+
+  const storeFunds = useFundsStore((s) => s.funds);
+  const loadFunds = useFundsStore((s) => s.load);
+  const storeAccounts = useAccountsStore((s) => s.accounts);
+  const loadAccounts = useAccountsStore((s) => s.load);
+  const storeUserId = useExpenseStore((s) => s.userId);
+  const storePartnerId = useExpenseStore((s) => s.partnerId);
+  const storePartnerName = useExpenseStore((s) => s.partnerName);
+
+  const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(() =>
+    resolveInitialUserId(currentUserId)
   );
-  const [resolvedPartnerUserId, setResolvedPartnerUserId] = useState<string | null>(null);
+  const [resolvedPartnerUserId, setResolvedPartnerUserId] = useState<string | null>(() =>
+    resolveInitialPartnerId(partnerUserId)
+  );
+  const [resolvedFamilyMemberCount, setResolvedFamilyMemberCount] = useState<number>(() =>
+    resolveInitialMemberCount(familyMemberCount, partnerUserId)
+  );
+  const [resolvedPartnerFirstName, setResolvedPartnerFirstName] = useState<string>(() =>
+    getFirstName(partnerFirstName ?? useExpenseStore.getState().partnerName)
+  );
   const resolvedFinancialModel = normalizeFinancialModel(financialModel);
   const isSolo = resolvedFamilyMemberCount <= 1;
   const isCoupleMode = !isSolo;
 
   const [amount, setAmount] = useState("0");
   const [concept, setConcept] = useState("");
-  const [paidBy, setPaidBy] = useState<ExpenseOrigin>(isCoupleMode ? "me" : "me");
-  const [responsibleFor, setResponsibleFor] = useState<ExpenseResponsibleFor>(
-    isCoupleMode ? "joint_fund" : "me"
+  const [paidBy, setPaidBy] = useState<ExpenseOrigin>("me");
+  const [responsibleFor, setResponsibleFor] = useState<ExpenseResponsibleFor>(() =>
+    resolveInitialMemberCount(familyMemberCount, partnerUserId) > 1 ? "joint_fund" : "me"
   );
   const [myContribution, setMyContribution] = useState("");
   const [partnerContribution, setPartnerContribution] = useState("");
@@ -196,93 +254,102 @@ export default function AddExpenseForm({
   const [mounted, setMounted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [balanceWarning, setBalanceWarning] = useState("");
-  const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>([]);
-  const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
+  const sharedFunds = useMemo(() => listVariableSharedFunds(storeFunds), [storeFunds]);
+  const [selectedFundId, setSelectedFundId] = useState<string | null>(() =>
+    pickDefaultFundId(resolveInitialSharedFunds(), preferredFundId, null)
+  );
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("fund");
-  const [operableAccounts, setOperableAccounts] = useState<FamilyAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const operableAccounts = useMemo(() => {
+    if (!resolvedCurrentUserId) return [] as FamilyAccount[];
+    return listOperableAccountsForUser(storeAccounts, resolvedCurrentUserId);
+  }, [storeAccounts, resolvedCurrentUserId]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
+    const operable = resolveInitialOperableAccounts(resolveInitialUserId(currentUserId));
+    return operable[0]?.id ?? null;
+  });
 
   useEffect(() => setMounted(true), []);
 
+  const appliedPreferredFundRef = useRef<string | null>(null);
+
+  // Prefer dashboard pocket when available; keep the user's later choice.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const funds = await listFamilyFundsAction();
-        if (cancelled) return;
-        const shared = listVariableSharedFunds(funds);
-        setSharedFunds(shared);
-        const preferred =
-          preferredFundId && shared.some((fund) => fund.id === preferredFundId)
-            ? preferredFundId
-            : null;
-        const defaultShared = getDefaultSharedFund(shared) ?? shared[0] ?? null;
-        setSelectedFundId((prev) => preferred ?? prev ?? defaultShared?.id ?? null);
-        if (preferred && !expenseToEdit) {
-          setResponsibleFor("joint_fund");
-        }
-      } catch {
-        // Migration may not be applied; form still works with legacy joint_fund.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [expenseToEdit, preferredFundId]);
+    setSelectedFundId((prev) => pickDefaultFundId(sharedFunds, preferredFundId, prev));
+  }, [sharedFunds, preferredFundId]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!resolvedCurrentUserId) return;
-      try {
-        const accounts = await listFamilyAccountsAction();
-        if (cancelled) return;
-        const operable = listOperableAccountsForUser(accounts, resolvedCurrentUserId);
-        setOperableAccounts(operable);
-        setSelectedAccountId((prev) => prev ?? operable[0]?.id ?? null);
-      } catch {
-        // Accounts migration may not be applied yet.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [resolvedCurrentUserId]);
+    if (expenseToEdit || !preferredFundId) return;
+    if (appliedPreferredFundRef.current === preferredFundId) return;
+    if (!sharedFunds.some((fund) => fund.id === preferredFundId)) return;
+    appliedPreferredFundRef.current = preferredFundId;
+    setSelectedFundId(preferredFundId);
+    setResponsibleFor("joint_fund");
+  }, [expenseToEdit, preferredFundId, sharedFunds]);
 
   useEffect(() => {
+    setSelectedAccountId((prev) => prev ?? operableAccounts[0]?.id ?? null);
+  }, [operableAccounts]);
+
+  // Refresh caches in background only when stale (TTL inside stores).
+  useEffect(() => {
+    void loadFunds();
+    void loadAccounts();
+  }, [loadFunds, loadAccounts]);
+
+  // Prefer props / expense store; network only as last resort for standalone page.
+  useEffect(() => {
+    if (typeof familyMemberCount === "number") {
+      setResolvedFamilyMemberCount(familyMemberCount);
+    }
+    if (partnerFirstName?.trim()) {
+      setResolvedPartnerFirstName(getFirstName(partnerFirstName));
+    } else if (storePartnerName?.trim()) {
+      setResolvedPartnerFirstName(getFirstName(storePartnerName));
+    }
+
+    const fromPropsOrStore =
+      currentUserId ?? storeUserId ?? null;
+    const partnerFromPropsOrStore =
+      partnerUserId !== undefined ? partnerUserId : storePartnerId ?? null;
+
+    if (fromPropsOrStore) {
+      setResolvedCurrentUserId(fromPropsOrStore);
+    }
+    if (partnerFromPropsOrStore !== undefined) {
+      setResolvedPartnerUserId(partnerFromPropsOrStore);
+      if (typeof familyMemberCount !== "number") {
+        setResolvedFamilyMemberCount(partnerFromPropsOrStore ? 2 : 1);
+      }
+    }
+
+    const hasCompleteContext =
+      Boolean(fromPropsOrStore) &&
+      typeof familyMemberCount === "number" &&
+      Boolean(partnerFirstName?.trim());
+
+    if (hasCompleteContext) {
+      return;
+    }
+
     let isCancelled = false;
 
     async function resolveFamilyContext() {
-      if (typeof familyMemberCount === "number") {
-        setResolvedFamilyMemberCount(familyMemberCount);
-      }
-
-      if (partnerFirstName?.trim()) {
-        setResolvedPartnerFirstName(getFirstName(partnerFirstName));
-      }
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (typeof familyMemberCount === "number" && partnerFirstName?.trim()) {
-        if (!isCancelled) {
-          setResolvedPartnerUserId(null);
-        }
-      }
-
       if (isCancelled || !user) {
-        setResolvedCurrentUserId(null);
-        if (typeof familyMemberCount !== "number") {
-          setResolvedFamilyMemberCount(1);
-        }
-        if (!partnerFirstName?.trim()) {
-          setResolvedPartnerFirstName("Mi pareja");
-        }
+        if (!fromPropsOrStore) setResolvedCurrentUserId(null);
         return;
       }
 
-      setResolvedCurrentUserId(user.id);
+      if (!fromPropsOrStore) {
+        setResolvedCurrentUserId(user.id);
+      }
+
+      if (typeof familyMemberCount === "number" && partnerFirstName?.trim() && partnerUserId !== undefined) {
+        return;
+      }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -291,16 +358,10 @@ export default function AddExpenseForm({
         .maybeSingle();
 
       if (isCancelled || !profile?.family_id) {
-        if (typeof familyMemberCount !== "number") {
-          setResolvedFamilyMemberCount(1);
-        }
-        if (!partnerFirstName?.trim()) {
-          setResolvedPartnerFirstName("Mi pareja");
-        }
         return;
       }
 
-      if (typeof familyMemberCount !== "number") {
+      if (typeof familyMemberCount !== "number" && partnerFromPropsOrStore == null) {
         const { count } = await supabase
           .from("profiles")
           .select("id", { count: "exact", head: true })
@@ -311,7 +372,7 @@ export default function AddExpenseForm({
         }
       }
 
-      if (partnerFirstName?.trim()) {
+      if (partnerUserId !== undefined && partnerFirstName?.trim()) {
         return;
       }
 
@@ -329,12 +390,21 @@ export default function AddExpenseForm({
         family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;
 
       if (!resolvedPartnerId) {
-        setResolvedPartnerUserId(null);
-        setResolvedPartnerFirstName("Mi pareja");
+        if (partnerUserId === undefined) setResolvedPartnerUserId(null);
+        if (!partnerFirstName?.trim()) setResolvedPartnerFirstName("Mi pareja");
         return;
       }
 
-      setResolvedPartnerUserId(resolvedPartnerId);
+      if (partnerUserId === undefined) {
+        setResolvedPartnerUserId(resolvedPartnerId);
+      }
+      if (typeof familyMemberCount !== "number") {
+        setResolvedFamilyMemberCount(2);
+      }
+
+      if (partnerFirstName?.trim()) {
+        return;
+      }
 
       const { data: partnerProfile } = await supabase
         .from("profiles")
@@ -352,7 +422,16 @@ export default function AddExpenseForm({
     return () => {
       isCancelled = true;
     };
-  }, [familyMemberCount, partnerFirstName, supabase]);
+  }, [
+    currentUserId,
+    familyMemberCount,
+    partnerFirstName,
+    partnerUserId,
+    storePartnerId,
+    storePartnerName,
+    storeUserId,
+    supabase,
+  ]);
 
   useEffect(() => {
     if (expenseToEdit && resolvedCurrentUserId) {
