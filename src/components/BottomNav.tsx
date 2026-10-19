@@ -8,6 +8,7 @@ import {
   History,
   Home,
   Landmark,
+  PiggyBank,
   UserRound,
   Wallet,
   type LucideProps,
@@ -38,7 +39,7 @@ const AUTH_PATHS = new Set([
 type NavIcon = ComponentType<LucideProps>;
 
 type NavModule = {
-  id: "home" | "history" | "accounts" | "fixed-expenses" | "profile";
+  id: "home" | "history" | "accounts" | "savings" | "fixed-expenses" | "profile";
   href: string;
   label: string;
   icon: NavIcon;
@@ -68,6 +69,13 @@ const NAV_MODULES: NavModule[] = [
     match: (pathname) => pathname === "/accounts" || pathname.startsWith("/accounts/"),
   },
   {
+    id: "savings",
+    href: "/savings",
+    label: "Ahorros",
+    icon: PiggyBank,
+    match: (pathname) => pathname === "/savings" || pathname.startsWith("/savings/"),
+  },
+  {
     id: "fixed-expenses",
     href: "/fixed-expenses",
     label: "Gastos fijos",
@@ -84,8 +92,9 @@ const NAV_MODULES: NavModule[] = [
   },
 ];
 
-/** Arc slots around the center FAB (left → top → right). Four satellites when one module is active. */
-const ARC_SLOTS = [-155, -115, -65, -25] as const;
+/** Upper arc around the center FAB (left → top → right), in degrees. */
+const ARC_START_DEG = -155;
+const ARC_END_DEG = -25;
 const ARC_RADIUS_PX = 82;
 
 interface BottomNavProps {
@@ -104,6 +113,17 @@ function polarToOffset(angleDeg: number, radius: number) {
     x: Math.cos(radians) * radius,
     y: Math.sin(radians) * radius,
   };
+}
+
+/** Evenly spaced angles so N satellites stay symmetric with no visual gaps. */
+function arcAnglesForCount(count: number): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [-90];
+  const span = ARC_END_DEG - ARC_START_DEG;
+  return Array.from(
+    { length: count },
+    (_, index) => ARC_START_DEG + (span * index) / (count - 1)
+  );
 }
 
 function resolveCurrentModule(pathname: string): NavModule {
@@ -133,7 +153,7 @@ export default function BottomNav({
   const currentModule = useMemo(() => resolveCurrentModule(pathname), [pathname]);
   const CurrentIcon = currentModule.icon;
 
-  /** Satellites = all modules except current. On dashboard, hide Accounts (reachable from quick actions). */
+  /** Satellites = modules except current. On dashboard, hide Accounts (quick action). */
   const satellites = useMemo(() => {
     const others = NAV_MODULES.filter((module) => {
       if (module.id === currentModule.id) return false;
@@ -142,11 +162,23 @@ export default function BottomNav({
     });
 
     // Keep a stable visual order around the arc
-    const order = ["home", "history", "accounts", "fixed-expenses", "profile"] as const;
+    const order = [
+      "home",
+      "history",
+      "accounts",
+      "savings",
+      "fixed-expenses",
+      "profile",
+    ] as const;
     return [...others].sort(
       (a, b) => order.indexOf(a.id) - order.indexOf(b.id)
     );
   }, [currentModule.id, pathname]);
+
+  const arcAngles = useMemo(
+    () => arcAnglesForCount(satellites.length),
+    [satellites.length]
+  );
 
   useEffect(() => {
     setExpanded(false);
@@ -185,7 +217,7 @@ export default function BottomNav({
       <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-5 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pointer-events-none">
         <div className="relative h-12 w-12 pointer-events-auto">
           {satellites.map((module, index) => {
-            const angleDeg = ARC_SLOTS[index] ?? ARC_SLOTS[ARC_SLOTS.length - 1];
+            const angleDeg = arcAngles[index] ?? -90;
             const { x, y } = polarToOffset(angleDeg, ARC_RADIUS_PX);
             const Icon = module.icon;
             const isActive = module.match(pathname);

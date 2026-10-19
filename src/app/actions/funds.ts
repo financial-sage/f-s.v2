@@ -10,9 +10,12 @@ import {
   DEFAULT_SHARED_FUND_COLOR,
   FIXED_EXPENSES_FUND_COLOR,
   FIXED_EXPENSES_FUND_NAME,
+  SAVINGS_FUND_COLOR,
+  SAVINGS_FUND_NAME,
   getFixedExpensesFund,
   isAllowedFundColor,
   isFixedExpensesFund,
+  isSavingsFund,
 } from "@/lib/funds";
 import { calculateFundCashBalance, getDefaultSharedFund, getPersonalFund } from "@/lib/funds";
 
@@ -142,6 +145,54 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
     }
   }
 
+  const existingSavingsFund = funds.find((f) => isSavingsFund(f));
+  if (!existingSavingsFund) {
+    const savingsPayload = {
+      family_id: familyId,
+      name: SAVINGS_FUND_NAME,
+      scope: "shared" as const,
+      owner_profile_id: null,
+      is_default: false,
+      is_system: true,
+      sort_order: 8,
+      color: SAVINGS_FUND_COLOR,
+      purpose: "savings" as const,
+    };
+    let { data: created, error: createError } = await admin
+      .from("family_funds")
+      .insert(savingsPayload as never)
+      .select("*")
+      .single();
+    if (createError && /purpose/i.test(createError.message)) {
+      // Migration not applied yet — skip until purpose column exists.
+    } else if (createError && /color/i.test(createError.message)) {
+      const { color: _color, ...withoutColor } = savingsPayload;
+      ({ data: created, error: createError } = await admin
+        .from("family_funds")
+        .insert(withoutColor as never)
+        .select("*")
+        .single());
+      if (createError) throw new Error(createError.message);
+      funds = [...funds, created as FamilyFund];
+    } else if (createError) {
+      throw new Error(createError.message);
+    } else if (created) {
+      funds = [...funds, created as FamilyFund];
+    }
+  } else if (
+    (existingSavingsFund.color ?? "").toLowerCase() !== SAVINGS_FUND_COLOR.toLowerCase()
+  ) {
+    const { data: updated, error: colorError } = await admin
+      .from("family_funds")
+      .update({ color: SAVINGS_FUND_COLOR } as never)
+      .eq("id", existingSavingsFund.id)
+      .select("*")
+      .single();
+    if (!colorError && updated) {
+      funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
+    }
+  }
+
   const { data: members } = await admin
     .from("profiles")
     .select("id")
@@ -235,9 +286,16 @@ async function promoteSharedFundAsDefault(familyId: string, fundId: string) {
   if (isFixedExpensesFund(target)) {
     throw new Error("Gastos fijos no puede ser el bolsillo por defecto.");
   }
+  if (isSavingsFund(target)) {
+    throw new Error("Ahorro no puede ser el bolsillo por defecto de gastos.");
+  }
 
   const others = (funds as FamilyFund[]).filter(
-    (f) => f.id !== fundId && f.is_default && !isFixedExpensesFund(f)
+    (f) =>
+      f.id !== fundId &&
+      f.is_default &&
+      !isFixedExpensesFund(f) &&
+      !isSavingsFund(f)
   );
 
   await clearDefaultsAndPromote(familyId, fundId, others, target.is_default);
@@ -283,6 +341,9 @@ export async function createFundAction(input: {
   if (name.length > 40) throw new Error("El nombre es demasiado largo.");
   if (name.trim().toLowerCase() === FIXED_EXPENSES_FUND_NAME.toLowerCase()) {
     throw new Error("Ese nombre está reservado para el módulo de Gastos fijos.");
+  }
+  if (name.trim().toLowerCase() === SAVINGS_FUND_NAME.toLowerCase()) {
+    throw new Error("Ese nombre está reservado para el módulo de Ahorros.");
   }
   if (!isAllowedFundColor(color)) {
     throw new Error("Selecciona un color válido.");
@@ -386,6 +447,9 @@ export async function updateFundAction(input: {
     name.toLowerCase() === FIXED_EXPENSES_FUND_NAME.toLowerCase()
   ) {
     throw new Error("Ese nombre está reservado para el módulo de Gastos fijos.");
+  }
+  if (!isSavingsFund(current) && name.toLowerCase() === SAVINGS_FUND_NAME.toLowerCase()) {
+    throw new Error("Ese nombre está reservado para el módulo de Ahorros.");
   }
 
   if (current.scope === "personal" && current.owner_profile_id !== user.id) {

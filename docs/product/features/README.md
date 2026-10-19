@@ -74,6 +74,12 @@ Simular cuentas bancarias (personales y compartidas), registrar ingresos, transf
 
 ---
 
+## Savings (Ahorros)
+
+Apartar dinero a propósito cada mes (bote familiar), con aportes desde cuentas o bolsillos y comparación vs el mes anterior. Ver [savings/README](./savings/README.md) y [ADR-0007](../../decisions/ADR-0007-savings-vs-funds-accounts.md).
+
+---
+
 ## Financial Timeline
 
 Comprender la evolución financiera.
