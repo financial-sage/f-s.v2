@@ -1,9 +1,5 @@
-const CACHE_NAME = "sindescuadre-v1.0.9";
-const APP_SHELL = [
-  "/",
-  "/icons/v3/icon-192.png",
-  "/icons/v3/icon-512.png",
-];
+const CACHE_NAME = "sindescuadre-v1.1.0";
+const APP_SHELL = ["/"];
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
