@@ -2,67 +2,138 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { Portal } from "@/components/ui/Portal";
 
-const LOCAL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.7";
+const BUILD_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.8";
+const STORAGE_KEY = "sd-app-version";
 
 export default function UpdateNotifier() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [serverVersion, setServerVersion] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function checkVersion() {
       try {
         const res = await fetch("/api/version", { cache: "no-store" });
         if (!res.ok) return;
-        const { version } = await res.json();
-        if (version && version !== LOCAL_VERSION) {
+        const data = (await res.json()) as { version?: string };
+        const version = data.version?.trim();
+        if (!version || cancelled) return;
+
+        setServerVersion(version);
+
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        if (!stored) {
+          // Seed with the running build so the next deploy can detect a mismatch.
+          window.localStorage.setItem(STORAGE_KEY, BUILD_VERSION);
+        }
+
+        const known = window.localStorage.getItem(STORAGE_KEY);
+        if ((known && known !== version) || BUILD_VERSION !== version) {
           setUpdateAvailable(true);
         }
       } catch {
-        // Silently ignore — offline or network error
+        // Offline or network error — ignore
       }
     }
 
-    checkVersion();
+    function onSwUpdate() {
+      setUpdateAvailable(true);
+    }
+
+    async function watchServiceWorker() {
+      if (!("serviceWorker" in navigator)) return;
+
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) return;
+
+        if (registration.waiting) {
+          onSwUpdate();
+        }
+
+        registration.addEventListener("updatefound", () => {
+          const worker = registration.installing;
+          if (!worker) return;
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "installed" && navigator.serviceWorker.controller) {
+              onSwUpdate();
+            }
+          });
+        });
+
+        void registration.update();
+      } catch {
+        // Ignore SW errors
+      }
+    }
+
+    void checkVersion();
+    void watchServiceWorker();
+
+    const intervalId = window.setInterval(() => {
+      void checkVersion();
+      void navigator.serviceWorker?.getRegistration().then((reg) => reg?.update());
+    }, 60_000);
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        checkVersion();
+        void checkVersion();
+        void navigator.serviceWorker?.getRegistration().then((reg) => reg?.update());
       }
     }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
-  const handleUpdate = () => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        regs.forEach((reg) => reg.update());
-      });
+  const handleUpdate = async () => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+
+    try {
+      if (serverVersion) {
+        window.localStorage.setItem(STORAGE_KEY, serverVersion);
+      }
+
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration?.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+        await registration?.update();
+
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+    } catch {
+      // Still reload so the user gets the newest HTML/JS
     }
+
     window.location.reload();
   };
 
   if (!updateAvailable) return null;
 
   return (
-    <div className="fixed bottom-24 left-4 right-4 z-200 flex items-center gap-3 rounded-2xl bg-on-surface/95 px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary">
-        <RefreshCw size={16} className="text-white" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-white leading-tight">Nueva actualización disponible</p>
-        <p className="text-[11px] text-outline-variant leading-tight mt-0.5">
-          Recarga la app. En Android, confirma también el cambio de icono/nombre en el menú ⋮ si aparece.
-        </p>
-      </div>
+    <Portal>
       <button
         type="button"
-        onClick={handleUpdate}
-        className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-on-primary shadow-sm hover:bg-primary-dim transition-colors"
+        onClick={() => void handleUpdate()}
+        disabled={isUpdating}
+        className="fixed top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-[200] inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary px-3 py-2 text-xs font-semibold text-on-primary shadow-[0_8px_20px_rgba(15,23,42,0.22)] animate-in fade-in slide-in-from-top-2 duration-300 active:scale-95 disabled:opacity-70"
+        aria-label="Actualizar app"
       >
-        Actualizar
+        <RefreshCw size={14} className={isUpdating ? "animate-spin" : undefined} />
+        {isUpdating ? "Actualizando…" : "Actualizar app"}
       </button>
-    </div>
+    </Portal>
   );
 }
