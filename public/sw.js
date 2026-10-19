@@ -1,8 +1,8 @@
-const CACHE_NAME = "sindescuadre-v1.0.8";
+const CACHE_NAME = "sindescuadre-v1.0.9";
 const APP_SHELL = [
   "/",
-  "/icons/v2/icon-192.png",
-  "/icons/v2/icon-512.png",
+  "/icons/v3/icon-192.png",
+  "/icons/v3/icon-512.png",
 ];
 
 self.addEventListener("message", (event) => {

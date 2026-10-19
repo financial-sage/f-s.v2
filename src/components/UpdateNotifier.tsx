@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 
-const BUILD_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.8";
+const BUILD_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.9";
 const STORAGE_KEY = "sd-app-version";
 
 export default function UpdateNotifier() {
