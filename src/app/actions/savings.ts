@@ -195,7 +195,9 @@ export async function contributeToSavingsAction(input: {
     throw new Error("Ingresa un importe válido.");
   }
 
-  if (input.source.type === "external") {
+  const source = input.source;
+
+  if (source.type === "external") {
     const result = await depositToFundAction({
       fundId: savings.id,
       amount,
@@ -206,9 +208,9 @@ export async function contributeToSavingsAction(input: {
     return result;
   }
 
-  if (input.source.type === "account") {
+  if (source.type === "account") {
     const result = await transferAccountToFundAction({
-      fromAccountId: input.source.id,
+      fromAccountId: source.id,
       toFundId: savings.id,
       amount,
       date: input.date,
@@ -217,7 +219,7 @@ export async function contributeToSavingsAction(input: {
     return result;
   }
 
-  const from = funds.find((f) => f.id === input.source.id && !f.archived_at);
+  const from = funds.find((f) => f.id === source.id && !f.archived_at);
   if (!from) throw new Error("Bolsillo de origen no encontrado.");
   if (isSavingsFund(from)) throw new Error("Elige un origen distinto al ahorro.");
   if (isFixedExpensesFund(from)) {
@@ -239,7 +241,7 @@ export async function contributeToSavingsAction(input: {
 
 export async function withdrawFromSavingsAction(input: {
   amount: number;
-  destination: SavingsSource;
+  destination: Exclude<SavingsSource, { type: "external" }>;
   date?: string;
 }) {
   const user = await requireUser();
@@ -253,10 +255,12 @@ export async function withdrawFromSavingsAction(input: {
     throw new Error("Ingresa un importe válido.");
   }
 
-  if (input.destination.type === "account") {
+  const destination = input.destination;
+
+  if (destination.type === "account") {
     const result = await transferFundToAccountAction({
       fromFundId: savings.id,
-      toAccountId: input.destination.id,
+      toAccountId: destination.id,
       amount,
       date: input.date,
     });
@@ -264,7 +268,7 @@ export async function withdrawFromSavingsAction(input: {
     return result;
   }
 
-  const to = funds.find((f) => f.id === input.destination.id && !f.archived_at);
+  const to = funds.find((f) => f.id === destination.id && !f.archived_at);
   if (!to) throw new Error("Bolsillo de destino no encontrado.");
   if (isSavingsFund(to)) throw new Error("Elige un destino distinto al ahorro.");
   if (to.scope === "personal" && to.owner_profile_id !== user.id) {
