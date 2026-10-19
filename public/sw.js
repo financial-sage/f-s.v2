@@ -1,8 +1,8 @@
-const CACHE_NAME = "sindescuadre-v1.0.6";
+const CACHE_NAME = "sindescuadre-v1.0.7";
 const APP_SHELL = [
   "/",
-  "/icons/icon-192.png?v=2",
-  "/icons/icon-512.png?v=2",
+  "/icons/v2/icon-192.png",
+  "/icons/v2/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {

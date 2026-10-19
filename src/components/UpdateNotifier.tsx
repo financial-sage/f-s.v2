@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
-const LOCAL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.6";
+const LOCAL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.7";
 
 export default function UpdateNotifier() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -52,7 +52,9 @@ export default function UpdateNotifier() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-white leading-tight">Nueva actualización disponible</p>
-        <p className="text-[11px] text-outline-variant leading-tight mt-0.5">Recarga para obtener la última versión.</p>
+        <p className="text-[11px] text-outline-variant leading-tight mt-0.5">
+          Recarga la app. En Android, confirma también el cambio de icono/nombre en el menú ⋮ si aparece.
+        </p>
       </div>
       <button
         type="button"

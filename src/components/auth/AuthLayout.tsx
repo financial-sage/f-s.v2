@@ -37,7 +37,7 @@ export function AuthLayout({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/img/apple-touch-icon.png?v=2"
+                  src="/icons/v2/apple-touch-icon.png"
                   alt="SinDescuadre"
                   className="mb-5 h-14 w-14 rounded-[1rem] shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
                 />
@@ -59,7 +59,7 @@ export function AuthLayout({
               <div className="mb-6 flex flex-col items-center px-1 text-center lg:hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/img/apple-touch-icon.png?v=2"
+                  src="/icons/v2/apple-touch-icon.png"
                   alt="SinDescuadre"
                   className="mb-4 h-16 w-16 rounded-[1.1rem] shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
                 />

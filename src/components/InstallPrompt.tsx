@@ -55,7 +55,7 @@ export default function InstallPrompt() {
         <div className="flex min-w-0 items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/img/apple-touch-icon.png?v=2"
+            src="/icons/v2/apple-touch-icon.png"
             alt=""
             className="h-11 w-11 shrink-0 rounded-[0.85rem] shadow-sm"
           />
