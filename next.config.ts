@@ -11,6 +11,23 @@ const nextConfig: NextConfig = {
     "*.trycloudflare.com",
     "*.tunnelmole.net",
   ],
+  async headers() {
+    return [
+      {
+        source: "/manifest.json",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
 };
 
 // next-pwa injects a webpack plugin. Wrapping the config during `next dev`

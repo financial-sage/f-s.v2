@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import FamilyNavProvider from "@/components/FamilyNavProvider";
 import InstallPrompt from "@/components/InstallPrompt";
 import PWARegister from "@/components/PWARegister";
+import UpdateNotifier from "@/components/UpdateNotifier";
 import { ExpenseModalProvider } from "@/components/ExpenseModalProvider";
 import PageTransition from "@/components/PageTransition";
 import RealtimeSync from "@/components/RealtimeSync";
@@ -9,12 +10,20 @@ import StoreHydrator from "@/components/StoreHydrator";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
+  applicationName: "SinDescuadre",
   description: "Gestión de finanzas en pareja",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "SinDescuadre",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png?v=2", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/img/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -40,6 +49,7 @@ export default function PwaLayout({
       <StoreHydrator />
       <RealtimeSync />
       <PWARegister />
+      <UpdateNotifier />
       <InstallPrompt />
       {/* Full-bleed paint behind system nav / home indicator (PWA standalone). */}
       <div

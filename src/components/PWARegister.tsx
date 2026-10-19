@@ -10,13 +10,22 @@ export default function PWARegister() {
 
     const register = async () => {
       try {
-        await navigator.serviceWorker.register("/sw.js");
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        await registration.update();
       } catch (error) {
         console.error("Service worker registration failed", error);
       }
     };
 
     void register();
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void navigator.serviceWorker.getRegistration().then((reg) => reg?.update());
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
   return null;
