@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 export default function LoadingBudget() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-surface">
-      <PageHeader title="Presupuesto" backHref="/" />
+      <PageHeader title="Presupuesto" />
       <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
         <div className="mx-auto w-full max-w-md space-y-4">
           <Skeleton className="h-24 rounded-4xl" />

@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 export default function LoadingCards() {
   return (
     <div className="min-h-dvh bg-surface">
-      <PageHeader title="Tarjetas" subtitle="Métodos de pago" backHref="/" />
+      <PageHeader title="Tarjetas" subtitle="Métodos de pago" />
       <div className="flex min-h-[60dvh] flex-col items-center justify-center px-6 pt-8">
         <Skeleton className="mb-4 h-16 w-16 rounded-full" />
         <Skeleton className="mb-2 h-7 w-40 rounded-2xl" />

@@ -19,6 +19,7 @@ import {
 } from "@/lib/accounts";
 import {
   calculateFundCashBalance,
+  calculatePersonalPocketBalance,
   getDefaultSharedFund,
   getSavingsFund,
   isFixedExpensesFund,
@@ -149,6 +150,9 @@ export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
 
   const accounts = await listFamilyAccountsAction();
   const defaultShared = getDefaultSharedFund(funds);
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
   const operableAccounts = listOperableAccountsForUser(accounts, user.id).map(
     (account) => ({
       ...account,
@@ -164,9 +168,13 @@ export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
     )
     .map((fund) => ({
       ...fund,
-      balance: calculateFundCashBalance(rows, fund.id, {
-        treatLegacyJointAsFundId: defaultShared?.id ?? null,
-      }),
+      // Personal pocket matches dashboard / Zustand (legacy rows by responsible_for).
+      balance:
+        fund.scope === "personal"
+          ? calculatePersonalPocketBalance(rows, user.id, sharedFundIds)
+          : calculateFundCashBalance(rows, fund.id, {
+              treatLegacyJointAsFundId: defaultShared?.id ?? null,
+            }),
     }));
 
   return {

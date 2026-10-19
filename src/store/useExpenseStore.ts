@@ -158,7 +158,17 @@ function computeBalances(
             .filter((e) => isPersonalPocketCashOut(e, userId))
             .reduce((s, e) => s + Number(e.amount || 0), 0);
 
-        return income - out;
+        // 3. Retiros / transferencias salientes del bolsillo personal
+        const withdrawals = expenses
+            .filter((e) => !e.account_id)
+            .filter(
+                (e) =>
+                    e.category === "withdrawal" &&
+                    (e.responsible_for === userId || e.responsible_for === "mio")
+            )
+            .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+        return income - out - withdrawals;
     })();
 
     const fundLiquidity = (() => {

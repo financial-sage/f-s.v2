@@ -9,7 +9,6 @@ import {
     Bell,
     Check,
     ChevronDown,
-    ChevronLeft,
     ChevronRight,
     Crown,
     Edit,
@@ -65,7 +64,7 @@ import { isAccountOnlyMovement } from "@/lib/accounts";
 import {
     calculateFundCashBalance,
     calculateFundOwesUser,
-    isPersonalPocketCashOut,
+    calculatePersonalPocketBalance,
     FUND_COLOR_OPTIONS,
     DEFAULT_PERSONAL_FUND_COLOR,
     DEFAULT_SHARED_FUND_COLOR,
@@ -429,34 +428,11 @@ export default function DashboardCouple({
     const acreedorId = fundAmount === 0 || !partner ? null : fundBalance > 0 ? currentUserId : partner.id;
 
 
-    const myTotalIncome = useMemo(
-        () =>
-            expenses
-                .filter((expense) => !expense.account_id)
-                .filter(
-                    (expense) =>
-                        expense.category === "deposit" &&
-                        (expense.responsible_for === currentUserId || expense.responsible_for === "mio")
-                )
-                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
-        [currentUserId, expenses]
-    );
     const sharedFundIds = useMemo(
         () => new Set(sharedFunds.map((fund) => fund.id)),
         [sharedFunds]
     );
 
-    // Dinero que salió del bolsillo personal (no de cajas compartidas / gastos fijos)
-    const moneyOutFromMe = useMemo(
-        () =>
-            expenses
-                .filter((expense) => !expense.account_id)
-                .filter((expense) =>
-                    isPersonalPocketCashOut(expense, currentUserId, sharedFundIds)
-                )
-                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
-        [currentUserId, expenses, sharedFundIds]
-    );
     // mySpent: solo gastos donde el usuario es responsable, para la barra de progreso
     const mySpent = useMemo(
         () =>
@@ -472,7 +448,10 @@ export default function DashboardCouple({
     );
     // Prefer store pocket cash when hydrated (includes account_id filtering).
     // Before hydrate, derive from SSR rows (must carry account_id).
-    const derivedPersonalPocket = myTotalIncome - moneyOutFromMe;
+    const derivedPersonalPocket = useMemo(
+        () => calculatePersonalPocketBalance(expenses, currentUserId, sharedFundIds),
+        [expenses, currentUserId, sharedFundIds]
+    );
     const myAvailableFund = isHydrated ? storePersonalBalance : derivedPersonalPocket;
     const myBudget = Math.max(mySpent, 400);
 

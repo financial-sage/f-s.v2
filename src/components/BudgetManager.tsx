@@ -126,7 +126,7 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
   if (!isHydrated && initialExpenses.length === 0) {
     return (
       <div className="min-h-dvh bg-surface">
-        <PageHeader title="Presupuesto" subtitle={formatMonthLabel(monthKey)} backHref="/" />
+        <PageHeader title="Presupuesto" subtitle={formatMonthLabel(monthKey)} />
         <div className="mx-auto w-full max-w-md space-y-4 px-4 pb-[var(--fab-clearance)] pt-4">
           <Skeleton className="h-24 rounded-4xl" />
           <Skeleton className="h-12 rounded-4xl" />
@@ -143,7 +143,6 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
       <PageHeader
         title="Presupuesto"
         subtitle={formatMonthLabel(monthKey)}
-        backHref="/"
         right={
           <button
             type="button"

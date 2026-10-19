@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   Check,
   ChevronDown,
@@ -370,14 +369,7 @@ export default function FixedExpensesManager() {
       />
 
       <header className="relative z-50 flex w-full shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-[max(0.75rem,var(--safe-top))]">
-        <Link
-          href="/"
-          className="rounded-full border border-glass-border bg-glass-strong p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
-          aria-label="Volver al inicio"
-        >
-          <ChevronLeft size={18} />
-        </Link>
-
+        <div className="w-9" aria-hidden />
         <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
           <button
             type="button"

@@ -22,15 +22,16 @@ import { deleteExpenseAction } from "@/app/actions/expenses";
 import { getCategoryDetails } from "@/lib/categoryMap";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import {
+    calculatePersonalPocketBalance,
     DEFAULT_PERSONAL_FUND_COLOR,
     fundIconChipStyle,
     getPersonalFund,
-    isPersonalPocketCashOut,
     listVariableSharedFunds,
     resolveFundColor,
     resolveFundIdForExpense,
     type FamilyFund,
 } from "@/lib/funds";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useFundsStore } from "@/store/useFundsStore";
@@ -62,12 +63,28 @@ interface Filters {
 }
 
 const DEFAULT_FILTERS: Filters = {
-    timeRange: "all",
+    timeRange: "this_month",
     fundIds: [],
     paidBy: "all",
     status: "all",
     movementType: "all",
 };
+
+function historyMonthHeaderLabel(timeRange: Filters["timeRange"]) {
+    const now = new Date();
+    if (timeRange === "last_month") {
+        now.setMonth(now.getMonth() - 1);
+    }
+    if (timeRange === "this_year") {
+        return String(now.getFullYear());
+    }
+    if (timeRange === "all") {
+        return "TODOS";
+    }
+    return new Intl.DateTimeFormat("es-ES", { month: "long" })
+        .format(now)
+        .toUpperCase();
+}
 
 function StickyDayLabel({
     label,
@@ -251,7 +268,8 @@ export default function HistoryList({
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        if (filters.timeRange !== "all") count += 1;
+        // Default view is current month — don't badge that as an extra filter.
+        if (filters.timeRange !== "all" && filters.timeRange !== "this_month") count += 1;
         if (filters.fundIds.length > 0) count += 1;
         if (filters.movementType !== "all") count += 1;
         if (hasPartner) {
@@ -266,21 +284,10 @@ export default function HistoryList({
 
     // Balance calculations (cash-flow)
     const myAvailableFund = useMemo(() => {
-        const sharedFundIds = new Set(
-            funds.filter((f) => f.scope === "shared" && !f.archived_at).map((f) => f.id)
-        );
-        const fundRows = allExpenses.filter((e) => !e.account_id);
-        const income = fundRows
-            .filter(
-                (e) =>
-                    e.category === "deposit" &&
-                    (e.responsible_for === currentUserId || e.responsible_for === "mio")
-            )
-            .reduce((s, e) => s + Number(e.amount || 0), 0);
-        const out = fundRows
-            .filter((e) => isPersonalPocketCashOut(e, currentUserId, sharedFundIds))
-            .reduce((s, e) => s + Number(e.amount || 0), 0);
-        return income - out;
+        const sharedFundIds = funds
+            .filter((f) => f.scope === "shared" && !f.archived_at)
+            .map((f) => f.id);
+        return calculatePersonalPocketBalance(allExpenses, currentUserId, sharedFundIds);
     }, [allExpenses, currentUserId, funds]);
 
     const fundLiquidity = useMemo(() => {
@@ -490,33 +497,60 @@ export default function HistoryList({
         );
     };
 
+    const monthHeaderLabel = historyMonthHeaderLabel(
+        isHydrated ? effectiveFilters.timeRange : "this_month"
+    );
+
     // Show skeleton only when there are no SSR expenses and store hasn't hydrated yet
     if (!isHydrated && ssrExpenses.length === 0) {
         return (
-            <div className="flex-1 overflow-y-auto px-3 pb-[calc(var(--fab-clearance)+2rem)] pt-4">
-                {/* Balance chips skeleton */}
-                <div className="flex gap-2 mb-4">
-                    <Skeleton className="flex-1 h-14 rounded-2xl" />
-                    <Skeleton className="flex-1 h-14 rounded-2xl" />
-                    <Skeleton className="h-14 w-14 rounded-2xl" />
-                </div>
-                {/* Row skeletons */}
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-surface-lowest rounded-2xl p-4 mb-2 shadow-sm">
-                        <Skeleton className="h-10 w-10 rounded-full shrink-0" />
-                        <div className="flex-1 space-y-2">
-                            <Skeleton className="h-3 w-3/4 rounded" />
-                            <Skeleton className="h-2 w-1/2 rounded" />
-                        </div>
-                        <Skeleton className="h-4 w-14 rounded" />
+            <>
+                <PageHeader
+                    title="Historial"
+                    subtitle="Todos tus movimientos"
+                    right={
+                        <span className="text-[13px] font-light uppercase tracking-[0.14em] text-gray-400">
+                            {monthHeaderLabel}
+                        </span>
+                    }
+                    className="relative z-20 border-b-0 bg-transparent backdrop-blur-0 pt-[max(0,env(safe-area-inset-top))]"
+                />
+                <div className="flex-1 overflow-y-auto px-3 pb-[calc(var(--fab-clearance)+2rem)] pt-4">
+                    {/* Balance chips skeleton */}
+                    <div className="mb-4 flex gap-2">
+                        <Skeleton className="h-14 flex-1 rounded-2xl" />
+                        <Skeleton className="h-14 flex-1 rounded-2xl" />
+                        <Skeleton className="h-14 w-14 rounded-2xl" />
                     </div>
-                ))}
-            </div>
+                    {/* Row skeletons */}
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="mb-2 flex items-center gap-3 rounded-2xl bg-surface-lowest p-4 shadow-sm">
+                            <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-3 w-3/4 rounded" />
+                                <Skeleton className="h-2 w-1/2 rounded" />
+                            </div>
+                            <Skeleton className="h-4 w-14 rounded" />
+                        </div>
+                    ))}
+                </div>
+            </>
         );
     }
 
     return (
         <>
+            <PageHeader
+                title="Historial"
+                subtitle="Todos tus movimientos"
+                right={
+                    <span className="text-[13px] font-light uppercase tracking-[0.14em] text-on-surface">
+                        {monthHeaderLabel}
+                    </span>
+                }
+                className="relative z-20 border-b-0 bg-transparent backdrop-blur-0 pt-[max(0,env(safe-area-inset-top))]"
+            />
+
             <div className="sticky top-0 z-40 px-4 pb-2 pt-1">
                 <div className="flex items-center gap-2">
                     <div className="flex flex-1 overflow-hidden rounded-[1.25rem] border border-glass-border bg-glass-strong shadow-[var(--glass-shadow)] backdrop-blur-xl">

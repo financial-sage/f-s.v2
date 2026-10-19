@@ -17,7 +17,12 @@ import {
   isFixedExpensesFund,
   isSavingsFund,
 } from "@/lib/funds";
-import { calculateFundCashBalance, getDefaultSharedFund, getPersonalFund } from "@/lib/funds";
+import {
+  calculateFundCashBalance,
+  calculatePersonalPocketBalance,
+  getDefaultSharedFund,
+  getPersonalFund,
+} from "@/lib/funds";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -632,9 +637,16 @@ export async function transferBetweenFundsAction(input: {
     .eq("is_active", true);
 
   const defaultShared = getDefaultSharedFund(funds);
-  const balance = calculateFundCashBalance((expenses ?? []) as never[], from.id, {
-    treatLegacyJointAsFundId: defaultShared?.id ?? null,
-  });
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
+  const expenseRows = (expenses ?? []) as never[];
+  const balance =
+    from.scope === "personal"
+      ? calculatePersonalPocketBalance(expenseRows, user.id, sharedFundIds)
+      : calculateFundCashBalance(expenseRows, from.id, {
+          treatLegacyJointAsFundId: defaultShared?.id ?? null,
+        });
 
   if (balance + 0.009 < amount) {
     throw new Error("Saldo insuficiente en el bolsillo de origen.");

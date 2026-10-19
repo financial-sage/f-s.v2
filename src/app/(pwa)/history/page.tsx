@@ -4,7 +4,6 @@ import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import StoreHydrator from "@/components/StoreHydrator";
-import { PageHeader } from "@/components/ui/PageHeader";
 
 const HistoryList = dynamicImport(() => import("@/components/HistoryList"), {
   loading: () => (
@@ -60,12 +59,6 @@ export default async function HistoryPage() {
     <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
       <StoreHydrator userId={user.id} initialFunds={funds} />
-      <PageHeader
-        title="Historial"
-        subtitle="Todos tus movimientos"
-        backHref="/"
-        className="relative z-20 border-b-0 bg-transparent backdrop-blur-0"
-      />
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <HistoryList

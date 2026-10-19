@@ -19,7 +19,6 @@ export default function CategoriesManager({ familyId }: { familyId: string }) {
       <PageHeader
         title="Categorías"
         subtitle={`${activeCount} activas • personaliza tus gastos`}
-        backHref="/"
       />
 
       <main className="mx-auto w-full max-w-xl px-4 pt-4 pb-28">

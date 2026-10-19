@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Archive,
@@ -546,13 +545,7 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
       />
 
       <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-[max(0.75rem,var(--safe-top))]">
-        <Link
-          href="/"
-          className="rounded-full border border-glass-border bg-glass-strong p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
-          aria-label="Volver al inicio"
-        >
-          <ChevronLeft size={18} />
-        </Link>
+        <div className="w-9" aria-hidden />
         <div className="min-w-0 text-center">
           <p className="text-[11px] font-light text-on-surface-variant">Liquidez familiar</p>
           <h1 className="truncate text-[15px] font-medium tracking-tight text-on-surface">

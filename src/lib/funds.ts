@@ -156,6 +156,51 @@ export function isPersonalPocketCashOut(
   return true;
 }
 
+/** Same rules as Zustand `myAvailableFund`: personal deposits − paid spends − withdrawals. */
+export function calculatePersonalPocketBalance(
+  expenses: Array<{
+    amount: number;
+    paid_by: string;
+    category?: string | null;
+    responsible_for?: string | null;
+    paid_from_fund?: boolean | null;
+    fund_id?: string | null;
+    account_id?: string | null;
+    transfer_group_id?: string | null;
+  }>,
+  userId: string,
+  sharedFundIds?: ReadonlySet<string> | readonly string[]
+) {
+  // Any row with account_id belongs to account cash, not "Mi fondo".
+  const fundRows = expenses.filter((e) => !e.account_id);
+
+  // Only personal deposits / reembolsos. Shared-fund withdrawals ("Liquidación de deuda")
+  // must not count: settleFundDebt already credits via the matching deposit.
+  const income = fundRows
+    .filter(
+      (e) =>
+        e.category === "deposit" &&
+        (e.responsible_for === userId || e.responsible_for === "mio")
+    )
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const out = fundRows
+    .filter((e) => isPersonalPocketCashOut(e, userId, sharedFundIds))
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  // Cash leaving the personal pocket (manual withdrawal or transfer to another fund).
+  // Shared-fund withdrawals use responsible_for = joint_fund and are excluded here.
+  const withdrawals = fundRows
+    .filter(
+      (e) =>
+        e.category === "withdrawal" &&
+        (e.responsible_for === userId || e.responsible_for === "mio")
+    )
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  return Math.round((income - out - withdrawals) * 100) / 100;
+}
+
 /** Cash balance of a pocket (caja). */
 export function calculateFundCashBalance(
   expenses: FundExpenseLike[],

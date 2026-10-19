@@ -1,11 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  ChevronLeft,
   Landmark,
   PiggyBank,
   Plus,
@@ -168,15 +166,8 @@ export default function SavingsPanel() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-page-gradient">
-      <header className="mx-auto flex w-full max-w-md items-center gap-2 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <Link
-          href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/25 bg-surface-lowest/80 text-on-surface-variant"
-          aria-label="Volver"
-        >
-          <ChevronLeft size={18} />
-        </Link>
-        <div className="min-w-0 flex-1">
+      <header className="mx-auto flex w-full max-w-md items-center px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="min-w-0 flex-1 text-center">
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-on-surface-variant">
             Familia
           </p>
