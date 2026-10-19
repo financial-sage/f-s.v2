@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Delete, Divide, Equal, Plus, Shapes, X } from "lucide-react";
+import { Portal } from "@/components/ui/Portal";
 
 interface CustomNumpadProps {
   isOpen: boolean;
@@ -143,18 +144,14 @@ export default function CustomNumpad({
     }
   }
 
-  return (
-    <>
-      {isOpen && !embedded && (
-        <div className="fixed inset-0 z-40 bg-on-surface/45 backdrop-blur-sm" onClick={onClose} />
-      )}
+  const keypad = (
       <div
         className={`pointer-events-auto ${
           embedded
             ? embeddedStyle === "flat"
               ? "relative w-full"
               : "relative w-full rounded-2xl border border-glass-border bg-glass px-3 py-2 shadow-md backdrop-blur-xl"
-            : "fixed right-0 bottom-0 left-0 z-50 rounded-t-[2rem] border border-glass-border glass-sheet px-4 pt-3 pb-10 transition-transform duration-300 ease-in-out"
+            : "fixed right-0 bottom-0 left-0 z-[100] rounded-t-[2rem] border border-glass-border glass-sheet px-4 pt-3 pb-10 transition-transform duration-300 ease-in-out"
         } ${!embedded ? (isOpen ? "translate-y-0" : "translate-y-full") : ""}`}
       >
         <div className="mx-auto w-full max-w-md">
@@ -244,6 +241,18 @@ export default function CustomNumpad({
           {!embedded && <div className="h-6 w-full" />}
         </div>
       </div>
-    </>
+  );
+
+  if (embedded) {
+    return keypad;
+  }
+
+  return (
+    <Portal>
+      {isOpen ? (
+        <div className="fixed inset-0 z-[100] bg-on-surface/45 backdrop-blur-sm" onClick={onClose} />
+      ) : null}
+      {keypad}
+    </Portal>
   );
 }

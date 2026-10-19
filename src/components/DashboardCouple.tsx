@@ -53,6 +53,7 @@ import {
 } from "@/components/ExpenseDebtStatus";
 import FundTransferSheet from "@/components/FundTransferSheet";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
+import { Portal } from "@/components/ui/Portal";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useFitItemCount } from "@/hooks/useFitItemCount";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -1462,9 +1463,10 @@ export default function DashboardCouple({
                     )}
                 </section>
 
-                    {/* Modal de Liquidación: SIEMPRE FUERA DEL STACKING CONTEXT */}
+                    {/* Modal de Liquidación: portaled above BottomNav stacking context */}
                     {showSettleModal && (
-                        <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                        <Portal>
+                        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
                             <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isSettleAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeSettleModal} />
                             <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSettleAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
@@ -1573,10 +1575,12 @@ export default function DashboardCouple({
                                 </div>
                             </div>
                         </div>
+                        </Portal>
                     )}
                     {/* Modal P2P: PAGAR */}
                     {showPayModal && (
-                        <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                        <Portal>
+                        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
                             <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isPayAnimated ? "opacity-100" : "opacity-0"}`} onClick={closePayModal} />
                             <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isPayAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
@@ -1641,10 +1645,12 @@ export default function DashboardCouple({
                                 </div>
                             </div>
                         </div>
+                        </Portal>
                     )}
                     {/* Modal P2P: COBRAR */}
                     {showChargeModal && (
-                        <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                        <Portal>
+                        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
                             <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isChargeAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeChargeModal} />
                             <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isChargeAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                                 <div className="flex justify-center pt-4 pb-2">
@@ -1709,6 +1715,7 @@ export default function DashboardCouple({
                                 </div>
                             </div>
                         </div>
+                        </Portal>
                     )}
 
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -1880,7 +1887,8 @@ export default function DashboardCouple({
             </main>
 
             {showBudget && (
-                <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                <Portal>
+                <div className="fixed inset-0 z-[100] flex flex-col justify-end">
                     <div className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isBudgetAnimated ? "opacity-100" : "opacity-0"}`} onClick={closeBudgetModal} />
                     <div className={`relative flex max-h-[90vh] flex-col rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isBudgetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}>
                         <div className="flex justify-center pt-4 pb-2">
@@ -1929,6 +1937,7 @@ export default function DashboardCouple({
                         </div>
                     </div>
                 </div>
+                </Portal>
             )}
 
             {mounted &&
@@ -2083,7 +2092,8 @@ export default function DashboardCouple({
 
 
             {showCreateFundModal && (
-                <div className="fixed inset-0 z-70 flex items-end justify-center sm:items-center">
+                <Portal>
+                <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
                     <div
                         className={`absolute inset-0 bg-on-surface/50 backdrop-blur-sm transition-opacity duration-300 ${
                             isCreateFundAnimated ? "opacity-100" : "opacity-0"
@@ -2175,6 +2185,7 @@ export default function DashboardCouple({
                         </button>
                     </div>
                 </div>
+                </Portal>
             )}
 
             <NumericKeypadSheet
@@ -2212,16 +2223,19 @@ export default function DashboardCouple({
             />
             {/* Toast de notificación del sistema */}
             {systemNotification && (
-                <div className="fixed top-6 left-1/2 z-200 -translate-x-1/2 animate-in slide-in-from-top-3 fade-in duration-300">
+                <Portal>
+                <div className="fixed top-6 left-1/2 z-[200] -translate-x-1/2 animate-in slide-in-from-top-3 fade-in duration-300">
                     <div className="rounded-2xl bg-on-surface/95/95 px-5 py-3 text-sm font-medium text-white shadow-xl backdrop-blur-sm">
                         {systemNotification}
                     </div>
                 </div>
+                </Portal>
             )}
 
             {/* Modal de confirmación de borrado */}
             {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+                <Portal>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div
                         className="absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm"
                         onClick={closeDeleteModal}
@@ -2262,11 +2276,13 @@ export default function DashboardCouple({
                         </div>
                     </div>
                 </div>
+                </Portal>
             )}
 
             {/* Modal de Filtros */}
             {showFilterModal && (
-                <div className="fixed inset-0 z-60 flex flex-col justify-end">
+                <Portal>
+                <div className="fixed inset-0 z-[100] flex flex-col justify-end">
                     <div
                         className={`absolute inset-0 bg-on-surface/95/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterAnimated ? "opacity-100" : "opacity-0"
                             }`}
@@ -2314,6 +2330,7 @@ export default function DashboardCouple({
                         </div>
                     </div>
                 </div>
+                </Portal>
             )}
         </div>
     );

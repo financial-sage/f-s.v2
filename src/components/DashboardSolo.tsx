@@ -27,6 +27,7 @@ import {
 import { createPersonalDeposit } from "@/app/actions/expenses";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
+import { Portal } from "@/components/ui/Portal";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useFitItemCount } from "@/hooks/useFitItemCount";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
@@ -551,7 +552,8 @@ export default function DashboardSolo({
             </main>
 
             {isPartnerJoining && (
-                <div className="fixed inset-0 z-120 overflow-hidden bg-[radial-gradient(circle_at_top,rgba(74,101,73,0.22),transparent_55%),linear-gradient(to_bottom,rgba(248,249,250,0.72),rgba(15,23,42,0.18))] px-6 backdrop-blur-md animate-in fade-in duration-500">
+                <Portal>
+                <div className="fixed inset-0 z-[100] overflow-hidden bg-[radial-gradient(circle_at_top,rgba(74,101,73,0.22),transparent_55%),linear-gradient(to_bottom,rgba(248,249,250,0.72),rgba(15,23,42,0.18))] px-6 backdrop-blur-md animate-in fade-in duration-500">
                     <div className="absolute inset-0 pointer-events-none">
                         <div className="absolute left-1/2 top-[18%] h-56 w-56 -translate-x-1/2 rounded-full bg-emerald-200/35 blur-3xl animate-pulse" />
                         <div className="absolute left-[15%] top-[20%] h-24 w-24 rounded-full border border-glass-border bg-surface-lowest/15 animate-ping" />
@@ -606,6 +608,7 @@ export default function DashboardSolo({
                         </div>
                     </div>
                 </div>
+                </Portal>
             )}
             <NumericKeypadSheet
                 isOpen={showDeposit}

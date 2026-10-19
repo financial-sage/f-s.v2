@@ -4,6 +4,7 @@ import { ChevronRight, SlidersHorizontal, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { updateFamilyFinancialModel } from "@/app/actions/family";
+import { Portal } from "@/components/ui/Portal";
 
 type FinancialModel = "joint_fund" | "p2p_50_50" | "p2p_proportional";
 
@@ -145,7 +146,8 @@ export default function FamilySettings({
       </section>
 
       {isFinancialModalOpen ? (
-        <div className="fixed inset-0 z-80 flex flex-col justify-end">
+        <Portal>
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
           <div
             className={`absolute inset-0 bg-on-surface/40 backdrop-blur-sm transition-opacity duration-300 ${
               isSheetAnimated ? "opacity-100" : "opacity-0"
@@ -257,6 +259,7 @@ export default function FamilySettings({
             </button>
           </div>
         </div>
+        </Portal>
       ) : null}
     </>
   );

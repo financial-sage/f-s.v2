@@ -19,6 +19,7 @@ import { tintedGlassGradient } from "@/lib/glass";
 import { FIXED_EXPENSES_FUND_COLOR } from "@/lib/funds";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Portal } from "@/components/ui/Portal";
 
 const ACCENT = FIXED_EXPENSES_FUND_COLOR;
 
@@ -653,7 +654,8 @@ export default function FixedExpensesManager() {
       />
 
       {formOpen ? (
-        <div className="fixed inset-0 z-[180] flex items-end justify-center bg-on-surface/40 backdrop-blur-sm sm:items-center">
+        <Portal>
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-on-surface/40 backdrop-blur-sm sm:items-center">
           <div className="glass-sheet w-full max-w-md rounded-t-[2rem] border border-glass-border p-5 sm:rounded-[1.85rem]">
             <h3 className="text-lg font-medium tracking-tight text-on-surface">
               {editingId ? "Editar gasto fijo" : "Nuevo gasto fijo"}
@@ -735,6 +737,7 @@ export default function FixedExpensesManager() {
             </form>
           </div>
         </div>
+        </Portal>
       ) : null}
     </div>
   );
