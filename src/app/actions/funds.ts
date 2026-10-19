@@ -189,15 +189,95 @@ export async function listFamilyFundsAction(): Promise<FamilyFund[]> {
   return ensureFamilyFunds(familyId);
 }
 
+async function clearDefaultsAndPromote(
+  familyId: string,
+  fundId: string,
+  others: FamilyFund[],
+  alreadyDefault: boolean
+) {
+  const admin = getSupabaseAdminClient();
+
+  if (others.length > 0) {
+    const { error: clearError } = await admin
+      .from("family_funds")
+      .update({ is_default: false, updated_at: new Date().toISOString() } as never)
+      .in(
+        "id",
+        others.map((f) => f.id)
+      );
+    if (clearError) throw new Error(clearError.message);
+  }
+
+  if (!alreadyDefault) {
+    const { error: setError } = await admin
+      .from("family_funds")
+      .update({ is_default: true, updated_at: new Date().toISOString() } as never)
+      .eq("id", fundId)
+      .eq("family_id", familyId);
+    if (setError) throw new Error(setError.message);
+  }
+}
+
+/** Ensures at most one active shared (non fixed-expenses) default fund per family. */
+async function promoteSharedFundAsDefault(familyId: string, fundId: string) {
+  const admin = getSupabaseAdminClient();
+  const { data: funds, error } = await admin
+    .from("family_funds")
+    .select("*")
+    .eq("family_id", familyId)
+    .eq("scope", "shared")
+    .is("archived_at", null);
+
+  if (error) throw new Error(error.message);
+
+  const target = (funds as FamilyFund[] | null)?.find((f) => f.id === fundId);
+  if (!target) throw new Error("Bolsillo no encontrado.");
+  if (isFixedExpensesFund(target)) {
+    throw new Error("Gastos fijos no puede ser el bolsillo por defecto.");
+  }
+
+  const others = (funds as FamilyFund[]).filter(
+    (f) => f.id !== fundId && f.is_default && !isFixedExpensesFund(f)
+  );
+
+  await clearDefaultsAndPromote(familyId, fundId, others, target.is_default);
+}
+
+/** Ensures at most one active personal default fund per owner. */
+async function promotePersonalFundAsDefault(
+  familyId: string,
+  ownerProfileId: string,
+  fundId: string
+) {
+  const admin = getSupabaseAdminClient();
+  const { data: funds, error } = await admin
+    .from("family_funds")
+    .select("*")
+    .eq("family_id", familyId)
+    .eq("scope", "personal")
+    .eq("owner_profile_id", ownerProfileId)
+    .is("archived_at", null);
+
+  if (error) throw new Error(error.message);
+
+  const target = (funds as FamilyFund[] | null)?.find((f) => f.id === fundId);
+  if (!target) throw new Error("Bolsillo no encontrado.");
+
+  const others = (funds as FamilyFund[]).filter((f) => f.id !== fundId && f.is_default);
+  await clearDefaultsAndPromote(familyId, fundId, others, target.is_default);
+}
+
 export async function createFundAction(input: {
   name: string;
   scope: FundScope;
   color?: string;
+  isDefault?: boolean;
 }): Promise<FamilyFund> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const name = input.name.trim();
   const color = (input.color ?? DEFAULT_SHARED_FUND_COLOR).trim();
+  const wantDefault = Boolean(input.isDefault);
 
   if (!name) throw new Error("El nombre del bolsillo es obligatorio.");
   if (name.length > 40) throw new Error("El nombre es demasiado largo.");
@@ -254,17 +334,28 @@ export async function createFundAction(input: {
     throw new Error(error.message);
   }
 
+  let created = data as FamilyFund;
+  if (wantDefault) {
+    if (created.scope === "shared") {
+      await promoteSharedFundAsDefault(familyId, created.id);
+    } else {
+      await promotePersonalFundAsDefault(familyId, user.id, created.id);
+    }
+    created = { ...created, is_default: true };
+  }
+
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/profile");
 
-  return data as FamilyFund;
+  return created;
 }
 
 export async function updateFundAction(input: {
   fundId: string;
   name: string;
   color: string;
+  isDefault?: boolean;
 }): Promise<FamilyFund> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
@@ -301,6 +392,12 @@ export async function updateFundAction(input: {
     throw new Error("Solo puedes editar tus bolsillos personales.");
   }
 
+  if (input.isDefault === false && current.is_default) {
+    throw new Error(
+      "No puedes quitar el predeterminado. Marca otro bolsillo como por defecto."
+    );
+  }
+
   const { data, error } = await admin
     .from("family_funds")
     .update({
@@ -320,12 +417,23 @@ export async function updateFundAction(input: {
     throw new Error(error.message);
   }
 
+  let updated = data as FamilyFund;
+
+  if (input.isDefault === true) {
+    if (updated.scope === "shared") {
+      await promoteSharedFundAsDefault(familyId, updated.id);
+    } else if (updated.owner_profile_id) {
+      await promotePersonalFundAsDefault(familyId, updated.owner_profile_id, updated.id);
+    }
+    updated = { ...updated, is_default: true };
+  }
+
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/fixed-expenses");
   revalidatePath("/profile");
 
-  return data as FamilyFund;
+  return updated;
 }
 
 export async function archiveFundAction(fundId: string) {

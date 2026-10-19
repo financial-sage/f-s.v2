@@ -133,16 +133,20 @@ export default function BottomNav({
   const currentModule = useMemo(() => resolveCurrentModule(pathname), [pathname]);
   const CurrentIcon = currentModule.icon;
 
-  /** Satellites = all modules except current; if current isn't home, Home takes its place in the arc. */
+  /** Satellites = all modules except current. On dashboard, hide Accounts (reachable from quick actions). */
   const satellites = useMemo(() => {
-    const others = NAV_MODULES.filter((module) => module.id !== currentModule.id);
+    const others = NAV_MODULES.filter((module) => {
+      if (module.id === currentModule.id) return false;
+      if (module.id === "accounts" && pathname === "/") return false;
+      return true;
+    });
 
     // Keep a stable visual order around the arc
     const order = ["home", "history", "accounts", "fixed-expenses", "profile"] as const;
     return [...others].sort(
       (a, b) => order.indexOf(a.id) - order.indexOf(b.id)
     );
-  }, [currentModule.id]);
+  }, [currentModule.id, pathname]);
 
   useEffect(() => {
     setExpanded(false);

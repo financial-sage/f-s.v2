@@ -29,10 +29,10 @@ import {
     Settings,
     SlidersHorizontal,
     Sparkles,
+    Star,
     Trash2,
     User,
     Wallet,
-    WalletCards,
     X,
     type LucideIcon,
 } from "lucide-react";
@@ -278,6 +278,7 @@ export default function DashboardCouple({
     const [editingFund, setEditingFund] = useState<FamilyFund | null>(null);
     const [newFundName, setNewFundName] = useState("");
     const [newFundColor, setNewFundColor] = useState<string>(DEFAULT_SHARED_FUND_COLOR);
+    const [newFundIsDefault, setNewFundIsDefault] = useState(false);
     const [fundActionError, setFundActionError] = useState("");
     const [isCreatingFund, startCreateFundTransition] = useTransition();
     const [balanceVisible, setBalanceVisible] = useState(true);
@@ -626,6 +627,7 @@ export default function DashboardCouple({
         setEditingFund(null);
         setNewFundName("");
         setNewFundColor(DEFAULT_SHARED_FUND_COLOR);
+        setNewFundIsDefault(false);
         setShowFundsMenu(false);
         animateIn(setShowCreateFundModal, setIsCreateFundAnimated);
     };
@@ -634,6 +636,7 @@ export default function DashboardCouple({
         setEditingFund(fund);
         setNewFundName(fund.name);
         setNewFundColor(resolveFundColor(fund));
+        setNewFundIsDefault(Boolean(fund.is_default) && !isFixedExpensesFund(fund));
         setShowFundsMenu(false);
         animateIn(setShowCreateFundModal, setIsCreateFundAnimated);
     };
@@ -642,6 +645,7 @@ export default function DashboardCouple({
             setEditingFund(null);
             setNewFundName("");
             setNewFundColor(DEFAULT_SHARED_FUND_COLOR);
+            setNewFundIsDefault(false);
             setFundActionError("");
         });
 
@@ -698,6 +702,9 @@ export default function DashboardCouple({
                         fundId: editingFund.id,
                         name,
                         color: newFundColor,
+                        isDefault: isFixedExpensesFund(editingFund)
+                            ? undefined
+                            : newFundIsDefault,
                     });
                     const overview = await getFamilyFundsMetaAction();
                     useFundsStore.getState().setFunds(overview.funds);
@@ -706,11 +713,15 @@ export default function DashboardCouple({
                     if (selectedFundId === updated.id) {
                         setSelectedFundId(updated.id);
                     }
+                    if (updated.is_default) {
+                        setPreferredFundId(updated.id);
+                    }
                 } else {
                     const created = await createFundAction({
                         name,
                         scope: "shared",
                         color: newFundColor,
+                        isDefault: newFundIsDefault,
                     });
                     const overview = await getFamilyFundsMetaAction();
                     useFundsStore.getState().setFunds(overview.funds);
@@ -1136,15 +1147,25 @@ export default function DashboardCouple({
                                     {heroLabel}
                                 </p>
                             </div>
-                            <div
-                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-                                style={{
-                                    backgroundColor: `${heroColor}28`,
-                                    color: heroColor,
-                                }}
-                            >
-                                <Wallet size={20} />
-                            </div>
+                            {isJointModel ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFundsMenu((open) => !open)}
+                                    className="icon-chip-fund icon-chip-coin relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl  transition-transform active:scale-95"
+                                    style={fundIconChipStyle(heroColor)}
+                                    aria-label="Seleccionar bolsillo"
+                                    aria-expanded={showFundsMenu}
+                                >
+                                    <Wallet size={20} strokeWidth={2.2} />
+                                </button>
+                            ) : (
+                                <div
+                                    className="icon-chip-fund icon-chip-coin flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border"
+                                    style={fundIconChipStyle(heroColor)}
+                                >
+                                    <Wallet size={20} strokeWidth={2.2} />
+                                </div>
+                            )}
                         </div>
 
                         <div className="relative z-10 mt-4 flex items-center gap-2.5">
@@ -1169,6 +1190,113 @@ export default function DashboardCouple({
                             </button>
                         </div>
                     </div>
+
+                    {isJointModel && showFundsMenu && (
+                        <>
+                            <button
+                                type="button"
+                                aria-label="Cerrar lista de bolsillos"
+                                className="fixed inset-0 z-40 cursor-default"
+                                onClick={() => setShowFundsMenu(false)}
+                            />
+                            <div
+                                className="absolute right-4 top-[4.75rem] z-50 flex w-[17.5rem] max-h-[min(70dvh,calc(100dvh-4.75rem-var(--fab-clearance)-1rem))] flex-col overflow-hidden rounded-2xl border-[0.5px] border-outline-variant/25 bg-glass-soft shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200"
+                            >
+                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pb-1 pt-2.5">
+                                    {menuFunds.length === 0 ? (
+                                        <p className="px-3 py-4 text-sm text-on-surface-variant">
+                                            Aún no hay bolsillos.
+                                        </p>
+                                    ) : (
+                                        <div className="flex flex-col gap-1.5">
+                                            {menuFunds.map((fund) => {
+                                                const isPersonal = fund.scope === "personal";
+                                                const balance = isPersonal
+                                                    ? myAvailableFund
+                                                    : calculateFundCashBalance(expenses, fund.id, {
+                                                          treatLegacyJointAsFundId:
+                                                              getDefaultSharedFund(sharedFunds)?.id ??
+                                                              null,
+                                                      });
+                                                const isActive = selectedFund?.id === fund.id;
+                                                const fundColor = resolveFundColor(fund);
+                                                const displayName = isPersonal ? "Mi bolsillo" : fund.name;
+                                                return (
+                                                    <div
+                                                        key={fund.id}
+                                                        className={`flex w-full items-center gap-1 rounded-2xl px-1 py-0.5 transition-colors ${
+                                                            isActive
+                                                                ? "bg-glass shadow-sm"
+                                                                : "hover:bg-glass-soft"
+                                                        }`}
+                                                        style={
+                                                            isActive
+                                                                ? {
+                                                                      backgroundImage: tintedGlassGradient(fundColor, {
+                                                                          soft: true,
+                                                                          midAlpha: "14",
+                                                                          endOnly: true,
+                                                                      }),
+                                                                  }
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleSelectFund(fund.id)}
+                                                            className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl px-2.5 py-3 text-left"
+                                                        >
+                                                            <span className="flex min-w-0 items-center gap-2.5">
+                                                                <span
+                                                                    className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/10"
+                                                                    style={{ backgroundColor: fundColor }}
+                                                                />
+                                                                <span
+                                                                    className={`truncate text-sm ${
+                                                                        isActive
+                                                                            ? "font-semibold text-on-surface"
+                                                                            : "font-medium text-on-surface"
+                                                                    }`}
+                                                                >
+                                                                    {displayName}
+                                                                </span>
+                                                            </span>
+                                                            <span className="shrink-0 text-xs font-medium text-on-surface-variant">
+                                                                {formatCurrency(balance)}
+                                                            </span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openEditFundModal(fund);
+                                                            }}
+                                                            className="mr-1 shrink-0 rounded-xl p-2 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
+                                                            aria-label={`Editar ${displayName}`}
+                                                            title="Editar"
+                                                        >
+                                                            <Edit size={14} strokeWidth={2.1} />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex shrink-0 justify-center px-2.5 pb-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={openCreateFundModal}
+                                        className="fab-ink flex h-11 w-11 items-center justify-center rounded-full shadow-[0_8px_18px_rgba(43,52,55,0.18)] transition-transform active:scale-95"
+                                        aria-label="Crear bolsillo"
+                                        title="Crear bolsillo"
+                                    >
+                                        <Plus size={20} strokeWidth={2.4} />
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </section>
 
                 {(() => {
@@ -1317,10 +1445,10 @@ export default function DashboardCouple({
                                   },
                             {
                                 key: "funds",
-                                label: isJointModel ? "Bolsillos" : "Filtros",
-                                icon: isJointModel ? WalletCards : SlidersHorizontal,
+                                label: isJointModel ? "Cuentas" : "Filtros",
+                                icon: isJointModel ? Landmark : SlidersHorizontal,
                                 onClick: isJointModel
-                                    ? () => setShowFundsMenu((open) => !open)
+                                    ? () => router.push("/accounts")
                                     : openFilterModal,
                             },
                         ].map(({ key, label, icon: Icon, onClick, darkFab }) => {
@@ -1357,110 +1485,6 @@ export default function DashboardCouple({
                             );
                         })}
                     </div>
-
-                    {isJointModel && showFundsMenu && (
-                        <>
-                            <button
-                                type="button"
-                                aria-label="Cerrar lista de bolsillos"
-                                className="fixed inset-0 z-40 cursor-default"
-                                onClick={() => setShowFundsMenu(false)}
-                            />
-                            <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-2xl border border-glass-border bg-glass-soft shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="max-h-52 overflow-y-auto p-1.5">
-                                    {menuFunds.length === 0 ? (
-                                        <p className="px-2.5 py-2 text-[11px] text-on-surface-variant">
-                                            Aún no hay bolsillos.
-                                        </p>
-                                    ) : (
-                                        menuFunds.map((fund) => {
-                                            const isPersonal = fund.scope === "personal";
-                                            const balance = isPersonal
-                                                ? myAvailableFund
-                                                : calculateFundCashBalance(expenses, fund.id, {
-                                                      treatLegacyJointAsFundId:
-                                                          getDefaultSharedFund(sharedFunds)?.id ??
-                                                          null,
-                                                  });
-                                            const isActive = selectedFund?.id === fund.id;
-                                            const fundColor = resolveFundColor(fund);
-                                            const displayName = isPersonal ? "Mi bolsillo" : fund.name;
-                                            return (
-                                                <div
-                                                    key={fund.id}
-                                                    className={`flex w-full items-center gap-1 rounded-xl px-1 py-0.5 transition-colors ${
-                                                        isActive
-                                                            ? "bg-glass shadow-sm"
-                                                            : "hover:bg-glass-soft"
-                                                    }`}
-                                                    style={
-                                                        isActive
-                                                            ? {
-                                                                  backgroundImage: tintedGlassGradient(fundColor, {
-                                                                      soft: true,
-                                                                      midAlpha: "14",
-                                                                      endOnly: true,
-                                                                  }),
-                                                              }
-                                                            : undefined
-                                                    }
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleSelectFund(fund.id)}
-                                                        className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl px-1.5 py-1.5 text-left"
-                                                    >
-                                                        <span className="flex min-w-0 items-center gap-2">
-                                                            <span
-                                                                className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
-                                                                style={{ backgroundColor: fundColor }}
-                                                            />
-                                                            <span
-                                                                className={`truncate text-[13px] ${
-                                                                    isActive
-                                                                        ? "font-semibold text-on-surface"
-                                                                        : "font-medium text-on-surface"
-                                                                }`}
-                                                            >
-                                                                {displayName}
-                                                            </span>
-                                                        </span>
-                                                        <span className="shrink-0 text-[11px] font-medium text-on-surface-variant">
-                                                            {formatCurrency(balance)}
-                                                        </span>
-                                                    </button>
-                                                    {!isPersonal && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                openEditFundModal(fund);
-                                                            }}
-                                                            className="mr-0.5 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
-                                                            aria-label={`Editar ${fund.name}`}
-                                                            title="Editar"
-                                                        >
-                                                            <Edit size={13} strokeWidth={2.1} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                                <div className="border-t border-glass-border p-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={openCreateFundModal}
-                                        className="fab-ink flex w-full items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold transition-transform active:scale-[0.98]"
-                                    >
-                                        <Plus size={14} strokeWidth={2.2} />
-                                        Crear bolsillo
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    )}
                 </section>
 
                     {/* Modal de Liquidación: portaled above BottomNav stacking context */}
@@ -2116,10 +2140,16 @@ export default function DashboardCouple({
                             <X size={14} />
                         </button>
                         <h3 className="pr-8 text-base font-semibold tracking-tight text-on-surface">
-                            {editingFund ? "Editar bolsillo" : "Crear bolsillo"}
+                            {editingFund
+                                ? editingFund.scope === "personal"
+                                    ? "Editar mi bolsillo"
+                                    : "Editar bolsillo"
+                                : "Crear bolsillo"}
                         </h3>
                         <p className="mt-0.5 text-xs text-on-surface-variant">
-                            Nombre y color del bolsillo compartido.
+                            {editingFund?.scope === "personal"
+                                ? "Nombre y color de tu bolsillo personal."
+                                : "Nombre y color del bolsillo compartido."}
                         </p>
                         <label className="mt-4 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
                             Nombre
@@ -2167,9 +2197,62 @@ export default function DashboardCouple({
                                 Vista previa
                             </p>
                             <p className="mt-1 text-base font-semibold tracking-tight">
-                                {newFundName.trim() || (editingFund ? editingFund.name : "Nuevo bolsillo")}
+                                {newFundName.trim() ||
+                                    (editingFund
+                                        ? editingFund.scope === "personal"
+                                            ? "Mi bolsillo"
+                                            : editingFund.name
+                                        : "Nuevo bolsillo")}
                             </p>
                         </div>
+                        {!(editingFund && isFixedExpensesFund(editingFund)) ? (
+                            <button
+                                type="button"
+                                onClick={() => setNewFundIsDefault((v) => !v)}
+                                className={`mt-3.5 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors ${
+                                    newFundIsDefault
+                                        ? "border-accent/35 bg-accent/10"
+                                        : "border-glass-border bg-surface-low hover:bg-surface-container"
+                                }`}
+                                aria-pressed={newFundIsDefault}
+                            >
+                                <span
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                                        newFundIsDefault
+                                            ? "bg-accent/20 text-accent"
+                                            : "bg-surface-container text-on-surface-variant"
+                                    }`}
+                                >
+                                    <Star
+                                        size={16}
+                                        strokeWidth={2}
+                                        className={newFundIsDefault ? "fill-accent" : undefined}
+                                    />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-medium text-on-surface">
+                                        Bolsillo por defecto
+                                    </span>
+                                    <span className="mt-0.5 block text-[11px] text-on-surface-variant">
+                                        {editingFund?.scope === "personal"
+                                            ? "Tu bolsillo personal principal."
+                                            : "Se usará para gastos compartidos sin bolsillo asignado."}
+                                    </span>
+                                </span>
+                                <span
+                                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                                        newFundIsDefault ? "bg-accent" : "bg-outline-variant/40"
+                                    }`}
+                                    aria-hidden
+                                >
+                                    <span
+                                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                                            newFundIsDefault ? "left-5" : "left-0.5"
+                                        }`}
+                                    />
+                                </span>
+                            </button>
+                        ) : null}
                         {fundActionError && (
                             <p className="alert-error mt-2 rounded-xl px-3 py-2 text-xs">
                                 {fundActionError}
