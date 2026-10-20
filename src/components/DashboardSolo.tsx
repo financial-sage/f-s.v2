@@ -51,6 +51,7 @@ import {
     fundIconChipStyle,
     getPersonalFund,
     listSoloDashboardFunds,
+    personalFundDisplayName,
     resolveFundColor,
     type FamilyFund,
 } from "@/lib/funds";
@@ -172,9 +173,9 @@ export default function DashboardSolo({
 
     const heroColor = resolveFundColor(selectedFund);
     const heroTitle =
-        selectedFund?.is_default || selectedFund?.id === defaultPersonal?.id
-            ? "Mi bolsillo"
-            : selectedFund?.name ?? "Mi bolsillo";
+        personalFundDisplayName(selectedFund, {
+            primaryId: defaultPersonal?.id ?? null,
+        });
 
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [balanceVisible, setBalanceVisible] = useState(true);
@@ -336,7 +337,7 @@ export default function DashboardSolo({
     function openEditFundModal(fund: FamilyFund) {
         setFundActionError("");
         setEditingFund(fund);
-        setNewFundName(fund.is_default ? "Mi bolsillo" : fund.name);
+        setNewFundName(personalFundDisplayName(fund));
         setNewFundColor(resolveFundColor(fund));
         setNewFundIsDefault(Boolean(fund.is_default));
         setShowFundsMenu(false);
@@ -556,11 +557,10 @@ export default function DashboardSolo({
                                                 );
                                                 const isActive = selectedFund?.id === fund.id;
                                                 const fundColor = resolveFundColor(fund);
-                                                const displayName =
-                                                    fund.is_default ||
-                                                    fund.id === defaultPersonal?.id
-                                                        ? "Mi bolsillo"
-                                                        : fund.name;
+                                                const displayName = personalFundDisplayName(
+                                                    fund,
+                                                    { primaryId: defaultPersonal?.id ?? null }
+                                                );
                                                 return (
                                                     <div
                                                         key={fund.id}

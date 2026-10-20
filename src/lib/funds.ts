@@ -391,6 +391,29 @@ export function getPersonalFund(funds: FamilyFund[], userId: string) {
   return personal.find((f) => f.is_default) ?? personal[0] ?? null;
 }
 
+/**
+ * UI label for a personal pocket. System / default rows were stored as "Mi fondo";
+ * product copy is always "Mi bolsillo".
+ */
+export function personalFundDisplayName(
+  fund?: Pick<FamilyFund, "id" | "name" | "scope" | "is_default" | "is_system"> | null,
+  options?: { primaryId?: string | null }
+) {
+  if (!fund) return "Mi bolsillo";
+  if (fund.scope !== "personal") return fund.name;
+  const legacy = fund.name.trim().toLowerCase();
+  if (
+    fund.is_default ||
+    fund.is_system ||
+    (options?.primaryId != null && fund.id === options.primaryId) ||
+    legacy === "mi fondo" ||
+    legacy === "mi bolsillo"
+  ) {
+    return "Mi bolsillo";
+  }
+  return fund.name;
+}
+
 /** Active personal spending pockets for a member (excludes savings / archived). */
 export function listPersonalFunds(funds: FamilyFund[], userId: string) {
   return listActiveFunds(funds).filter(

@@ -76,6 +76,7 @@ import {
     isSharedLegacyResponsible,
     listActiveFunds,
     listDashboardSharedFunds,
+    personalFundDisplayName,
     pickDashboardSelectedFundId,
     resolveFundColor,
     type FamilyFund,
@@ -1233,7 +1234,9 @@ export default function DashboardCouple({
                                                       });
                                                 const isActive = selectedFund?.id === fund.id;
                                                 const fundColor = resolveFundColor(fund);
-                                                const displayName = isPersonal ? "Mi bolsillo" : fund.name;
+                                                const displayName = isPersonal
+                                                    ? personalFundDisplayName(fund)
+                                                    : fund.name;
                                                 return (
                                                     <div
                                                         key={fund.id}

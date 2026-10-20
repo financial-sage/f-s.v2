@@ -37,6 +37,7 @@ import {
   getPersonalFund,
   listSoloDashboardFunds,
   listVariableSharedFunds,
+  personalFundDisplayName,
   resolveFundColor,
   type FamilyFund,
 } from "@/lib/funds";
@@ -892,7 +893,7 @@ export default function AddExpenseForm({
                 {personalFunds.map((fund) => {
                   const isSelected = selectedFundId === fund.id;
                   const fundColor = resolveFundColor(fund);
-                  const label = fund.is_default ? "Mi bolsillo" : fund.name;
+                  const label = personalFundDisplayName(fund);
                   return (
                     <button
                       key={fund.id}
@@ -1357,9 +1358,7 @@ export default function AddExpenseForm({
         title="Importe del gasto"
         subtitle={
           isSolo && paymentSource === "fund"
-            ? selectedFund?.is_default
-              ? "Mi bolsillo"
-              : selectedFund?.name ?? "Bolsillo"
+            ? personalFundDisplayName(selectedFund)
             : !isSolo && responsibleFor === "joint_fund"
               ? selectedFund?.name ?? "Bolsillo"
               : undefined

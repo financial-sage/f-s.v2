@@ -35,7 +35,11 @@ import {
   listVisibleAccountsForUser,
   resolveAccountColor,
 } from "@/lib/accounts";
-import { listAccountTransferFunds, type FamilyFund } from "@/lib/funds";
+import {
+  listAccountTransferFunds,
+  personalFundDisplayName,
+  type FamilyFund,
+} from "@/lib/funds";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -172,12 +176,7 @@ export default function AccountsPanel({
     if (transferKind === "to_fund" || transferKind === "from_fund") {
       return funds.map((f) => ({
         id: f.id,
-        name:
-          f.scope === "personal"
-            ? f.is_default
-              ? "Mi bolsillo"
-              : f.name
-            : f.name,
+        name: personalFundDisplayName(f),
       }));
     }
     return [];

@@ -24,6 +24,7 @@ import {
   calculateSoloPersonalFundBalance,
   getDefaultSharedFund,
   getPersonalFund,
+  personalFundDisplayName,
 } from "@/lib/funds";
 import {
   isIndividualHousehold,
@@ -257,7 +258,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
     if (!hasPersonal) {
       const personalPayload = {
         family_id: familyId,
-        name: "Mi fondo",
+        name: "Mi bolsillo",
         scope: "personal" as const,
         owner_profile_id: member.id,
         // Shared Fondo común keeps the single family default; personal starts unmarked.
@@ -298,6 +299,24 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       .select("*")
       .single();
     if (!colorError && updated) {
+      funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
+    }
+  }
+
+  // Rename legacy system personal label "Mi fondo" → "Mi bolsillo".
+  for (const personal of funds.filter(
+    (f) =>
+      f.scope === "personal" &&
+      f.is_system &&
+      f.name.trim().toLowerCase() === "mi fondo"
+  )) {
+    const { data: updated, error: nameError } = await admin
+      .from("family_funds")
+      .update({ name: "Mi bolsillo", updated_at: new Date().toISOString() } as never)
+      .eq("id", personal.id)
+      .select("*")
+      .single();
+    if (!nameError && updated) {
       funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
     }
   }
@@ -755,10 +774,8 @@ export async function transferBetweenFundsAction(input: {
     from.scope === "shared" ? "joint_fund" : (from.owner_profile_id as string);
   const toResponsible =
     to.scope === "shared" ? "joint_fund" : (to.owner_profile_id as string);
-  const fromLabel =
-    from.scope === "personal" && from.is_default ? "Mi bolsillo" : from.name;
-  const toLabel =
-    to.scope === "personal" && to.is_default ? "Mi bolsillo" : to.name;
+  const fromLabel = personalFundDisplayName(from);
+  const toLabel = personalFundDisplayName(to);
 
   const { error } = await admin.from("expenses").insert([
     {

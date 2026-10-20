@@ -22,7 +22,11 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatMonthLabel } from "@/lib/budget";
 import { resolveAccountColor } from "@/lib/accounts";
-import { resolveFundColor, SAVINGS_FUND_COLOR } from "@/lib/funds";
+import {
+  personalFundDisplayName,
+  resolveFundColor,
+  SAVINGS_FUND_COLOR,
+} from "@/lib/funds";
 import { tintedGlassGradient } from "@/lib/glass";
 import { isIndividualHousehold } from "@/lib/household";
 
@@ -252,7 +256,9 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
           </h2>
           {!overview?.recentMovements.length ? (
             <p className="rounded-2xl border border-dashed border-outline-variant/30 px-4 py-6 text-center text-sm text-on-surface-variant">
-              Aún no hay aportes. Cuando organicéis el mes, apartad aquí el ahorro.
+              {isIndividual
+                ? "Aún no hay aportes. Cuando organices el mes, aparta aquí el ahorro."
+                : "Aún no hay aportes. Cuando organicéis el mes, apartad aquí el ahorro."}
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -435,9 +441,7 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
                           <Wallet size={12} />
                         </span>
                         <span className="w-full truncate text-[11px] font-medium tracking-tight text-on-surface">
-                          {fund.scope === "personal" && fund.is_default
-                            ? "Mi bolsillo"
-                            : fund.name}
+                          {personalFundDisplayName(fund)}
                         </span>
                         <span
                           className={`w-full truncate text-[10px] font-medium tabular-nums ${
