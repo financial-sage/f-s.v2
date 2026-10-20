@@ -7,7 +7,7 @@ Nombres de tablas/columnas, encoding en `expenses` y RLS: [technical-spec.md](./
 1. Una cuenta pertenece a exactamente una familia (`family_id`).
 2. Una cuenta es `personal` (un `owner_profile_id`) o `shared` (unidad familiar).
 3. Cuenta y bolsillo son entidades distintas; un movimiento referencia origen y/o destino de tipo cuenta o fondo según el hecho.
-4. Esta versión de reglas aplica al modo **pareja**; el modo individual se adaptará después.
+4. El modo **pareja** (`memberCount >= 2`) usa cuentas personales y compartidas con visibilidad. El modo **individual** (`memberCount === 1`) solo usa cuentas **personales** del único miembro; no aplica visibilidad de pareja ni creación de cuentas compartidas. Detección: `src/lib/household.ts`.
 
 ## Creación
 
@@ -83,7 +83,14 @@ Nombres de tablas/columnas, encoding en `expenses` y RLS: [technical-spec.md](./
 41. Archivar no borra el historial de movimientos.
 42. Una cuenta archivada no puede ser origen ni destino de nuevos movimientos.
 
+## Individual (family de 1)
+
+43. Solo se crean y operan cuentas personales del único miembro (visibilidad fija `private` en UX).
+44. Está prohibido crear cuentas `shared` mientras `memberCount === 1` (defensa en servidor).
+45. Al crear el espacio individual (o al abrir el overview), se asegura al menos una cuenta personal por defecto (“Mi cuenta”) si no existe ninguna.
+46. Roles tipo Child / modo niños quedan fuera de estas reglas; la extensión prevista es ampliar `HouseholdKind` / roles en authenticated-context, no un segundo modelo de cuentas.
+
 ## Evolución
 
-43. El modo individual reutilizará cuentas personales; las reglas de compartida y visibilidad de pareja se simplificarán o no aplicarán.
-44. Plantillas automáticas de repartición de nómina quedan fuera de estas reglas hasta una decisión de producto posterior.
+47. Plantillas automáticas de repartición de nómina quedan fuera de estas reglas hasta una decisión de producto posterior.
+48. Modo con niños / multi-adulto ampliará permisos y visibilidad; no reescribe la distinción Account ≠ Fund.

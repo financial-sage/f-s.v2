@@ -16,6 +16,7 @@ import { formatMonthLabel, getMonthKey, shiftMonthKey } from "@/lib/budget";
 import type { FixedExpenseMonthItem } from "@/lib/fixed-expenses/types";
 import { tintedGlassGradient } from "@/lib/glass";
 import { FIXED_EXPENSES_FUND_COLOR } from "@/lib/funds";
+import { isIndividualHousehold } from "@/lib/household";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Portal } from "@/components/ui/Portal";
@@ -140,8 +141,15 @@ function ChecklistRow({
   );
 }
 
-export default function FixedExpensesManager() {
+interface FixedExpensesManagerProps {
+  familyMemberCount?: number;
+}
+
+export default function FixedExpensesManager({
+  familyMemberCount = 1,
+}: FixedExpensesManagerProps) {
   const { format: formatCurrency } = useCurrency();
+  const isIndividual = isIndividualHousehold(familyMemberCount);
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const {
     items,
@@ -381,7 +389,7 @@ export default function FixedExpensesManager() {
           </button>
           <div className="min-w-0 text-center">
             <p className="text-[10px] font-light uppercase tracking-wider text-on-surface-variant">
-              Gastos fijos
+              {isIndividual ? "Mis pagos fijos" : "Gastos fijos"}
             </p>
             <h1 className="truncate text-[15px] font-medium tracking-tight text-on-surface capitalize">
               {formatMonthLabel(monthKey)}

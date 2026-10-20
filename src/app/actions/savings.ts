@@ -19,14 +19,19 @@ import {
 } from "@/lib/accounts";
 import {
   calculateFundCashBalance,
-  calculatePersonalPocketBalance,
+  calculateSoloPersonalFundBalance,
   getDefaultSharedFund,
+  getPersonalFund,
   getSavingsFund,
   isFixedExpensesFund,
   isSavingsFund,
   listActiveFunds,
   type FamilyFund,
 } from "@/lib/funds";
+import {
+  isIndividualHousehold,
+  memberCountFromFamilyUsers,
+} from "@/lib/household";
 import {
   calculateSavingsBalance,
   computeSavingsMonthMetrics,
@@ -83,6 +88,16 @@ async function getUserFamilyId(userId: string) {
   }
 
   return profile.family_id as string;
+}
+
+async function getFamilyMemberCount(familyId: string): Promise<number> {
+  const admin = getSupabaseAdminClient();
+  const { data } = await admin
+    .from("families")
+    .select("user_1_id, user_2_id")
+    .eq("id", familyId)
+    .maybeSingle();
+  return memberCountFromFamilyUsers(data?.user_1_id, data?.user_2_id) || 1;
 }
 
 function revalidateSavingsPaths() {
@@ -149,29 +164,35 @@ export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
     });
 
   const accounts = await listFamilyAccountsAction();
+  const memberCount = await getFamilyMemberCount(familyId);
+  const individual = isIndividualHousehold(memberCount);
   const defaultShared = getDefaultSharedFund(funds);
-  const sharedFundIds = funds
-    .filter((f) => f.scope === "shared" && !f.archived_at)
-    .map((f) => f.id);
+  const defaultPersonal = getPersonalFund(funds, user.id);
   const operableAccounts = listOperableAccountsForUser(accounts, user.id).map(
     (account) => ({
       ...account,
       balance: calculateAccountCashBalance(rows, account.id),
     })
   );
+  // Any spending pocket can fund savings (leftover at month end) — not Ahorro / Gastos fijos.
   const operableFunds = listActiveFunds(funds)
-    .filter(
-      (f) =>
-        !isSavingsFund(f) &&
-        !isFixedExpensesFund(f) &&
-        (f.scope === "shared" || f.owner_profile_id === user.id)
-    )
+    .filter((f) => {
+      if (isSavingsFund(f) || isFixedExpensesFund(f)) return false;
+      if (individual) {
+        return f.scope === "personal" && f.owner_profile_id === user.id;
+      }
+      return f.scope === "shared" || f.owner_profile_id === user.id;
+    })
     .map((fund) => ({
       ...fund,
-      // Personal pocket matches dashboard / Zustand (legacy rows by responsible_for).
       balance:
         fund.scope === "personal"
-          ? calculatePersonalPocketBalance(rows, user.id, sharedFundIds)
+          ? calculateSoloPersonalFundBalance(
+              rows,
+              fund,
+              user.id,
+              defaultPersonal?.id ?? null
+            )
           : calculateFundCashBalance(rows, fund.id, {
               treatLegacyJointAsFundId: defaultShared?.id ?? null,
             }),
@@ -233,6 +254,10 @@ export async function contributeToSavingsAction(input: {
   if (isFixedExpensesFund(from)) {
     throw new Error("No se puede aportar desde Gastos fijos.");
   }
+  const memberCount = await getFamilyMemberCount(familyId);
+  if (isIndividualHousehold(memberCount) && from.scope === "shared") {
+    throw new Error("En un espacio individual solo puedes aportar desde tus bolsillos personales.");
+  }
   if (from.scope === "personal" && from.owner_profile_id !== user.id) {
     throw new Error("Solo puedes aportar desde tu bolsillo personal.");
   }
@@ -279,6 +304,12 @@ export async function withdrawFromSavingsAction(input: {
   const to = funds.find((f) => f.id === destination.id && !f.archived_at);
   if (!to) throw new Error("Bolsillo de destino no encontrado.");
   if (isSavingsFund(to)) throw new Error("Elige un destino distinto al ahorro.");
+  const memberCount = await getFamilyMemberCount(familyId);
+  if (isIndividualHousehold(memberCount) && to.scope === "shared") {
+    throw new Error(
+      "En un espacio individual solo puedes retirar hacia tus bolsillos personales."
+    );
+  }
   if (to.scope === "personal" && to.owner_profile_id !== user.id) {
     throw new Error("Solo puedes retirar hacia tu bolsillo personal.");
   }

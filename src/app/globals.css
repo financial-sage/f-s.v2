@@ -74,6 +74,13 @@
   --fab-ink-fg: #e8e2d6;
   --fab-ink-shadow: 0 10px 22px rgba(28, 39, 64, 0.32);
 
+  /* Brand gold FAB (Gasto) — deeper than --accent so it pops on cream */
+  --fab-accent-from: #d2b07a;
+  --fab-accent-via: #b8914e;
+  --fab-accent-to: #8a6a32;
+  --fab-accent-fg: #fff8ee;
+  --fab-accent-shadow: 0 8px 18px rgba(28, 39, 64, 0.28);
+
   /* Safe areas — PWA standalone + gesture / 3-button nav bars */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
@@ -153,6 +160,12 @@ html.dark {
   --fab-ink-to: #151d32;
   --fab-ink-fg: #e8e2d6;
   --fab-ink-shadow: 0 10px 22px rgba(8, 12, 24, 0.55);
+
+  --fab-accent-from: #d2b07a;
+  --fab-accent-via: #b8914e;
+  --fab-accent-to: #8a6a32;
+  --fab-accent-fg: #fff8ee;
+  --fab-accent-shadow: 0 8px 18px rgba(8, 12, 24, 0.45);
 }
 
 @theme inline {
@@ -308,6 +321,18 @@ body {
   );
   color: var(--fab-ink-fg);
   box-shadow: var(--fab-ink-shadow);
+}
+
+.fab-accent {
+  background-color: var(--fab-accent-via);
+  background-image: linear-gradient(
+    145deg,
+    var(--fab-accent-from) 0%,
+    var(--fab-accent-via) 52%,
+    var(--fab-accent-to) 100%
+  );
+  color: var(--fab-accent-fg);
+  box-shadow: var(--fab-accent-shadow);
 }
 
 /* Fund-tinted list icons — light soft chip; dark uses fab-ink coin (no JS theme flash) */

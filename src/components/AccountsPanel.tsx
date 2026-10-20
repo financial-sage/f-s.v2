@@ -36,7 +36,7 @@ import {
   listVisibleAccountsForUser,
   resolveAccountColor,
 } from "@/lib/accounts";
-import type { FamilyFund } from "@/lib/funds";
+import { listAccountTransferFunds, type FamilyFund } from "@/lib/funds";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -44,6 +44,7 @@ import { useAccountsStore } from "@/store/useAccountsStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import { tintedGlassGradient } from "@/lib/glass";
+import { isIndividualHousehold } from "@/lib/household";
 
 const HERO_ACCENT = DEFAULT_PERSONAL_ACCOUNT_COLOR;
 
@@ -52,9 +53,13 @@ type TransferStep = "choose" | "configure";
 
 interface AccountsPanelProps {
   currentUserId: string;
+  familyMemberCount?: number;
 }
 
-function seedFromCaches(userId: string): {
+function seedFromCaches(
+  userId: string,
+  familyMemberCount: number
+): {
   accounts: FamilyAccount[];
   funds: FamilyFund[];
   balances: Record<string, number>;
@@ -64,9 +69,9 @@ function seedFromCaches(userId: string): {
   const accounts = listVisibleAccountsForUser(cachedAccounts, userId);
   const { expenses, isHydrated } = useExpenseStore.getState();
   const cachedFunds = useFundsStore.getState().funds;
-  const funds = cachedFunds.filter(
-    (f) => !f.archived_at && (f.scope === "shared" || f.owner_profile_id === userId)
-  );
+  const funds = listAccountTransferFunds(cachedFunds, userId, {
+    individual: isIndividualHousehold(familyMemberCount),
+  });
 
   if (!isHydrated || accounts.length === 0) {
     return { accounts, funds, balances: {}, totalLiquidity: 0 };
@@ -93,13 +98,17 @@ const TRANSFER_OPTIONS: Array<{
   { id: "external", label: "Fuera", hint: "Sale del sistema", icon: ArrowUpFromLine },
 ];
 
-export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
+export default function AccountsPanel({
+  currentUserId,
+  familyMemberCount = 1,
+}: AccountsPanelProps) {
   const router = useRouter();
   const { format: formatCurrency } = useCurrency();
   const setAccountsCache = useAccountsStore((s) => s.setAccounts);
   const setFundsCache = useFundsStore((s) => s.setFunds);
+  const isIndividual = isIndividualHousehold(familyMemberCount);
 
-  const [seed] = useState(() => seedFromCaches(currentUserId));
+  const [seed] = useState(() => seedFromCaches(currentUserId, familyMemberCount));
   const [accounts, setAccounts] = useState<FamilyAccount[]>(seed.accounts);
   const [funds, setFunds] = useState<FamilyFund[]>(seed.funds);
   const [balances, setBalances] = useState<Record<string, number>>(seed.balances);
@@ -163,7 +172,15 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
         .map((a) => ({ id: a.id, name: a.name }));
     }
     if (transferKind === "to_fund" || transferKind === "from_fund") {
-      return funds.map((f) => ({ id: f.id, name: f.name }));
+      return funds.map((f) => ({
+        id: f.id,
+        name:
+          f.scope === "personal"
+            ? f.is_default
+              ? "Mi bolsillo"
+              : f.name
+            : f.name,
+      }));
     }
     return [];
   }, [accounts, currentUserId, funds, transferAccountId, transferKind]);
@@ -227,6 +244,14 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
     setShowCreateSheet(true);
   }
 
+  function accountSubtitle(account: FamilyAccount) {
+    if (isIndividual) return "Personal";
+    if (account.scope === "shared") return "Compartida";
+    return account.visibility === "private"
+      ? "Personal · solo tú"
+      : "Personal · visible para la pareja";
+  }
+
   function closeCreateSheet() {
     setShowCreateSheet(false);
     setCreateError("");
@@ -243,8 +268,12 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
       try {
         await createAccountAction({
           name,
-          scope: newScope,
-          visibility: newScope === "personal" ? newVisibility : "family_visible",
+          scope: isIndividual ? "personal" : newScope,
+          visibility: isIndividual
+            ? "private"
+            : newScope === "personal"
+              ? newVisibility
+              : "family_visible",
         });
         setNewName("");
         closeCreateSheet();
@@ -468,12 +497,7 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
                       {account.name}
                     </p>
                     <p className="mt-0.5 text-[10px] font-light text-on-surface-variant">
-                      {account.scope === "shared" ? "Compartida" : "Personal"}
-                      {account.scope === "personal"
-                        ? account.visibility === "private"
-                          ? " · solo tú"
-                          : " · visible para la pareja"
-                        : ""}
+                      {accountSubtitle(account)}
                     </p>
                   </div>
                   <p
@@ -529,7 +553,7 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
                             onClick={() => setMenuAccountId(null)}
                           />
                           <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-2xl border border-glass-border bg-glass-soft shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                            {isOwnerPersonal && (
+                            {isOwnerPersonal && !isIndividual && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -587,7 +611,9 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
       <header className="relative z-50 flex w-full shrink-0 items-center justify-between px-4 pb-1.5 pt-[max(0.75rem,var(--safe-top))]">
         <div className="w-9" aria-hidden />
         <div className="min-w-0 text-center">
-          <p className="text-[11px] font-light text-on-surface-variant">Liquidez familiar</p>
+          <p className="text-[11px] font-light text-on-surface-variant">
+            {isIndividual ? "Tu liquidez" : "Liquidez familiar"}
+          </p>
           <h1 className="truncate text-[15px] font-medium tracking-tight text-on-surface">
             Centro de cuentas
           </h1>
@@ -708,25 +734,32 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
               </span>
               <span className="text-sm font-medium text-on-surface">Crea tu primera cuenta</span>
               <span className="max-w-[220px] text-xs font-light text-on-surface-variant">
-                Personal para la nómina, o compartida con tu pareja.
+                {isIndividual
+                  ? "Por ejemplo nómina o efectivo — luego repartes a bolsillos."
+                  : "Personal para la nómina, o compartida con tu pareja."}
               </span>
             </button>
           ) : (
             <>
-              {renderAccountGroup("Compartidas", sharedAccounts)}
+              {!isIndividual && renderAccountGroup("Compartidas", sharedAccounts)}
               {personalAccounts.length === 0 ? (
                 <div className="mb-4">
-                  <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Personales</h2>
+                  <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">
+                    {isIndividual ? "Tus cuentas" : "Personales"}
+                  </h2>
                   <button
                     type="button"
                     onClick={openCreateSheet}
                     className="w-full rounded-[1.5rem] border border-glass-border bg-glass-strong px-4 py-5 text-center text-xs font-light text-on-surface-variant shadow-sm backdrop-blur-xl transition-colors hover:bg-glass"
                   >
-                    Aún no tienes cuentas personales. Toca para crear una.
+                    Aún no tienes cuentas. Toca para crear una.
                   </button>
                 </div>
               ) : (
-                renderAccountGroup("Personales", personalAccounts)
+                renderAccountGroup(
+                  isIndividual ? "Tus cuentas" : "Personales",
+                  personalAccounts
+                )
               )}
             </>
           )}
@@ -971,37 +1004,39 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
             </p>
           </div>
 
-          <div>
-            <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
-              Tipo
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setNewScope("personal")}
-                className={`flex-1 rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors ${
-                  newScope === "personal"
-                    ? "bg-primary/15 text-primary"
-                    : "bg-surface text-on-surface-variant"
-                }`}
-              >
-                Personal
-              </button>
-              <button
-                type="button"
-                onClick={() => setNewScope("shared")}
-                className={`flex-1 rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors ${
-                  newScope === "shared"
-                    ? "bg-primary/15 text-primary"
-                    : "bg-surface text-on-surface-variant"
-                }`}
-              >
-                Compartida
-              </button>
+          {!isIndividual && (
+            <div>
+              <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
+                Tipo
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewScope("personal")}
+                  className={`flex-1 rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors ${
+                    newScope === "personal"
+                      ? "bg-primary/15 text-primary"
+                      : "bg-surface text-on-surface-variant"
+                  }`}
+                >
+                  Personal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewScope("shared")}
+                  className={`flex-1 rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors ${
+                    newScope === "shared"
+                      ? "bg-primary/15 text-primary"
+                      : "bg-surface text-on-surface-variant"
+                  }`}
+                >
+                  Compartida
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {newScope === "personal" && (
+          {!isIndividual && newScope === "personal" && (
             <div>
               <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
                 Visibilidad
@@ -1051,7 +1086,9 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
                 }
               }}
               placeholder={
-                newScope === "shared" ? "Ej. Cuenta conjunta" : "Ej. Nómina"
+                !isIndividual && newScope === "shared"
+                  ? "Ej. Cuenta conjunta"
+                  : "Ej. Nómina"
               }
               autoFocus
               className="w-full rounded-2xl border border-outline-variant/40 bg-surface px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"

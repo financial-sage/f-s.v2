@@ -22,8 +22,14 @@ import { ensureFamilyFunds } from "@/app/actions/funds";
 import {
   calculateFundCashBalance,
   getDefaultSharedFund,
+  isIndividualSharedSystemFund,
+  listAccountTransferFunds,
   type FamilyFund,
 } from "@/lib/funds";
+import {
+  isIndividualHousehold,
+  memberCountFromFamilyUsers,
+} from "@/lib/household";
 
 export type AccountActionResult = {
   success: true;
@@ -84,6 +90,55 @@ async function loadFamilyAccounts(familyId: string): Promise<FamilyAccount[]> {
   }
 
   return (data ?? []) as FamilyAccount[];
+}
+
+async function getFamilyMemberCount(familyId: string): Promise<number> {
+  const admin = getSupabaseAdminClient();
+  const { data } = await admin
+    .from("families")
+    .select("user_1_id, user_2_id")
+    .eq("id", familyId)
+    .maybeSingle();
+  return memberCountFromFamilyUsers(data?.user_1_id, data?.user_2_id) || 1;
+}
+
+/** Ensure the owner has at least one personal account (individual-friendly default). */
+export async function ensurePersonalAccount(
+  familyId: string,
+  userId: string
+): Promise<FamilyAccount[]> {
+  const accounts = await loadFamilyAccounts(familyId);
+  const hasPersonal = accounts.some(
+    (a) => a.scope === "personal" && a.owner_profile_id === userId && !a.archived_at
+  );
+  if (hasPersonal) return accounts;
+
+  const admin = getSupabaseAdminClient();
+  const payload = {
+    family_id: familyId,
+    name: "Mi cuenta",
+    scope: "personal" as const,
+    owner_profile_id: userId,
+    visibility: "private" as const,
+    sort_order: 110,
+    color: DEFAULT_PERSONAL_ACCOUNT_COLOR,
+  };
+
+  const { data, error } = await admin
+    .from("family_accounts")
+    .insert(payload as never)
+    .select("*")
+    .single();
+
+  if (error) {
+    // Race / duplicate name — reload rather than fail the overview.
+    if (/duplicate|unique/i.test(error.message)) {
+      return loadFamilyAccounts(familyId);
+    }
+    throw new Error(migrationHint(error.message));
+  }
+
+  return [...accounts, data as FamilyAccount];
 }
 
 async function loadActiveExpenses(familyId: string) {
@@ -164,10 +219,19 @@ export async function createAccountAction(input: {
 }): Promise<FamilyAccount> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
+  const memberCount = await getFamilyMemberCount(familyId);
   const name = input.name.trim();
   const scope = input.scope;
-  const visibility: AccountVisibility =
-    scope === "shared" ? "family_visible" : (input.visibility ?? "private");
+
+  if (isIndividualHousehold(memberCount) && scope === "shared") {
+    throw new Error("En un espacio individual solo puedes crear cuentas personales.");
+  }
+
+  const visibility: AccountVisibility = isIndividualHousehold(memberCount)
+    ? "private"
+    : scope === "shared"
+      ? "family_visible"
+      : (input.visibility ?? "private");
   const color = (
     input.color ??
     (scope === "shared" ? DEFAULT_SHARED_ACCOUNT_COLOR : DEFAULT_PERSONAL_ACCOUNT_COLOR)
@@ -227,6 +291,10 @@ export async function updateAccountVisibilityAction(input: {
 }): Promise<FamilyAccount> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
+  const memberCount = await getFamilyMemberCount(familyId);
+  if (isIndividualHousehold(memberCount)) {
+    throw new Error("La visibilidad entre miembros no aplica en un espacio individual.");
+  }
   const admin = getSupabaseAdminClient();
 
   const { data: row, error: loadError } = await admin
@@ -442,8 +510,18 @@ export async function transferAccountToFundAction(input: {
   const from = requireOperableAccount(accounts, input.fromAccountId, user.id, "cuenta de origen");
 
   const funds = await ensureFamilyFunds(familyId);
+  const memberCount = await getFamilyMemberCount(familyId);
   const to = funds.find((f) => f.id === input.toFundId && !f.archived_at);
   if (!to) throw new Error("No encontramos ese bolsillo.");
+  if (
+    isIndividualHousehold(memberCount) &&
+    to.scope === "shared" &&
+    !isIndividualSharedSystemFund(to)
+  ) {
+    throw new Error(
+      "En un espacio individual solo puedes usar tus bolsillos, Ahorro o Gastos fijos."
+    );
+  }
   if (to.scope === "personal" && to.owner_profile_id !== user.id) {
     throw new Error("Solo puedes transferir hacia tu bolsillo personal.");
   }
@@ -517,8 +595,18 @@ export async function transferFundToAccountAction(input: {
   }
 
   const funds = await ensureFamilyFunds(familyId);
+  const memberCount = await getFamilyMemberCount(familyId);
   const from = funds.find((f) => f.id === input.fromFundId && !f.archived_at);
   if (!from) throw new Error("No encontramos ese bolsillo.");
+  if (
+    isIndividualHousehold(memberCount) &&
+    from.scope === "shared" &&
+    !isIndividualSharedSystemFund(from)
+  ) {
+    throw new Error(
+      "En un espacio individual solo puedes usar tus bolsillos, Ahorro o Gastos fijos."
+    );
+  }
   if (from.scope === "personal" && from.owner_profile_id !== user.id) {
     throw new Error("Solo puedes transferir desde tu bolsillo personal.");
   }
@@ -639,13 +727,17 @@ export async function registerExternalOutflowAction(input: {
 export async function getAccountsOverviewAction() {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
+  const memberCount = await getFamilyMemberCount(familyId);
 
-  const [accounts, expenses, funds] = await Promise.all([
-    loadFamilyAccounts(familyId),
+  const [rawAccounts, expenses, funds] = await Promise.all([
+    isIndividualHousehold(memberCount)
+      ? ensurePersonalAccount(familyId, user.id)
+      : loadFamilyAccounts(familyId),
     loadActiveExpenses(familyId),
     loadFamilyFundsForAccounts(familyId).catch(() => [] as FamilyFund[]),
   ]);
 
+  const accounts = rawAccounts;
   const visible = listVisibleAccountsForUser(accounts, user.id);
 
   const balances = visible.map((account) => ({
@@ -663,11 +755,9 @@ export async function getAccountsOverviewAction() {
     operableAccountIds: visible
       .filter((a) => canOperateAccount(a, user.id))
       .map((a) => a.id),
-    funds: funds.filter(
-      (f) =>
-        !f.archived_at &&
-        (f.scope === "shared" || f.owner_profile_id === user.id)
-    ),
+    funds: listAccountTransferFunds(funds, user.id, {
+      individual: isIndividualHousehold(memberCount),
+    }),
     currentUserId: user.id,
   };
 }

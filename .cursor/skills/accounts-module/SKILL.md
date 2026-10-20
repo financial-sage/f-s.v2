@@ -49,8 +49,8 @@ Detail checklist: [implementation-checklist.md](implementation-checklist.md)
 | Income destination | Account only |
 | Negative balance | Allowed + warning |
 | Shared account ops | Both members full ops |
-| Personal account ops | Owner only; visibility configurable |
-| Audience | Couples first |
+| Personal account ops | Owner only; visibility configurable (couple only) |
+| Audience | Couples + individual (family de 1: solo personales; `household.ts`) |
 
 If product conflicts with code, **docs win** until the user changes the specs.
 

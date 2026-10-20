@@ -275,9 +275,17 @@ export async function createSoloFamilyAction(userId: string) {
     // Migration may not be applied yet.
   }
 
+  try {
+    const { ensurePersonalAccount } = await import("@/app/actions/accounts");
+    await ensurePersonalAccount(createdFamily.id, user.id);
+  } catch {
+    // Migration may not be applied yet.
+  }
+
   revalidatePath("/");
   revalidatePath("/profile");
   revalidatePath("/onboarding");
+  revalidatePath("/accounts");
 
   return {
     familyId: createdFamily.id,

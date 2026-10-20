@@ -261,17 +261,16 @@ function calculateBudget(expenses: ExpenseRow[]): DashboardBudget {
     monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
   );
 
-  const configuredBudget = Number(process.env.FINANCIAL_SAGE_MONTHLY_BUDGET ?? 2000);
-  const budget = Number.isFinite(configuredBudget) && configuredBudget > 0
-    ? configuredBudget
-    : 2000;
+  // Budget limits live in client localStorage (BudgetManager / useBudget).
+  // SSR only reports spent; the dashboard UI fills target/remaining from useBudget.
+  const budget = 0;
 
   const daysElapsed = Math.max(1, now.getDate());
 
   return {
     spent,
     budget,
-    available: round2(Math.max(budget - spent, 0)),
+    available: 0,
     dailyAverage: round2(spent / daysElapsed),
     monthLabel: new Intl.DateTimeFormat("es-ES", {
       month: "long",

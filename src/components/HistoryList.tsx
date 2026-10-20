@@ -861,39 +861,41 @@ export default function HistoryList({
                                             </div>
                                         ) : null}
 
-                                        <div>
-                                            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-outline-variant">
-                                                Estado
-                                            </p>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {[
-                                                    { v: "all", l: "Todos" },
-                                                    { v: "pending", l: "Pendiente" },
-                                                    { v: "settled", l: "Liquidado" },
-                                                ].map(({ v, l }) => {
-                                                    const isActive = pendingFilters.status === v;
-                                                    return (
-                                                        <button
-                                                            key={v}
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setPendingFilters((f) => ({
-                                                                    ...f,
-                                                                    status: v as Filters["status"],
-                                                                }))
-                                                            }
-                                                            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
-                                                                isActive
-                                                                    ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
-                                                                    : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
-                                                            }`}
-                                                        >
-                                                            {l}
-                                                        </button>
-                                                    );
-                                                })}
+                                        {hasPartner ? (
+                                            <div>
+                                                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-outline-variant">
+                                                    Estado
+                                                </p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {[
+                                                        { v: "all", l: "Todos" },
+                                                        { v: "pending", l: "Pendiente" },
+                                                        { v: "settled", l: "Liquidado" },
+                                                    ].map(({ v, l }) => {
+                                                        const isActive = pendingFilters.status === v;
+                                                        return (
+                                                            <button
+                                                                key={v}
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setPendingFilters((f) => ({
+                                                                        ...f,
+                                                                        status: v as Filters["status"],
+                                                                    }))
+                                                                }
+                                                                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                                                                    isActive
+                                                                        ? "border border-primary/25 bg-primary/15 text-primary shadow-sm"
+                                                                        : "border border-outline-variant/20 bg-glass text-on-surface-variant shadow-sm hover:bg-glass-strong"
+                                                                }`}
+                                                            >
+                                                                {l}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
+                                        ) : null}
                                     </div>
 
                                     <div className="flex shrink-0 gap-2.5 px-5 pb-6 pt-2">

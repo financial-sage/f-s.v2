@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
+import { memberCountFromFamilyUsers } from "@/lib/household";
 import { createClient } from "@/utils/supabase/server";
 
 const SavingsPanel = dynamicImport(() => import("@/components/SavingsPanel"), {
@@ -28,5 +29,16 @@ export default async function SavingsPage() {
 
   if (!profile?.family_id) redirect("/onboarding");
 
-  return <SavingsPanel />;
+  const { data: family } = await supabase
+    .from("families")
+    .select("user_1_id, user_2_id")
+    .eq("id", profile.family_id)
+    .maybeSingle();
+
+  const familyMemberCount = memberCountFromFamilyUsers(
+    family?.user_1_id,
+    family?.user_2_id
+  );
+
+  return <SavingsPanel familyMemberCount={familyMemberCount || 1} />;
 }

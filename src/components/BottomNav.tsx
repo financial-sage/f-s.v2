@@ -135,7 +135,7 @@ export default function BottomNav({
   currentUserId,
   partnerUserId = null,
   familyMemberCount = 1,
-  partnerFirstName = "Mi pareja",
+  partnerFirstName = "",
   financialModel = "joint_fund",
   user1SplitPct = 50,
 }: BottomNavProps) {

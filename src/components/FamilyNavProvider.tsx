@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
+import { memberCountFromFamilyUsers, partnerLabel } from "@/lib/household";
+import { useExpenseStore } from "@/store/useExpenseStore";
 import { createClient } from "@/utils/supabase/client";
 
 type FamilyNavState = {
@@ -17,20 +19,20 @@ type FamilyNavState = {
 const DEFAULT_STATE: FamilyNavState = {
   partnerUserId: null,
   familyMemberCount: 1,
-  partnerFirstName: "Mi pareja",
+  partnerFirstName: "",
   financialModel: "joint_fund",
   user1SplitPct: 50,
 };
-
-function getFirstName(value?: string | null, fallback = "Mi pareja") {
-  const firstName = value?.trim().split(/\s+/)[0];
-  return firstName || fallback;
-}
 
 /** Loads BottomNav family props once on the client so the PWA layout stays sync. */
 export default function FamilyNavProvider() {
   const [nav, setNav] = useState<FamilyNavState>(DEFAULT_STATE);
   const [ready, setReady] = useState(false);
+  const storeFamilyId = useExpenseStore((s) => s.familyId);
+  const storeUserId = useExpenseStore((s) => s.userId);
+  const storePartnerId = useExpenseStore((s) => s.partnerId);
+  const storePartnerName = useExpenseStore((s) => s.partnerName);
+  const storeFinancialModel = useExpenseStore((s) => s.financialModel);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,12 +73,18 @@ export default function FamilyNavProvider() {
 
         if (cancelled) return;
 
+        const familyMemberCount = memberCountFromFamilyUsers(
+          family.user_1_id,
+          family.user_2_id
+        );
+
         setNav({
           familyId: family.id,
           currentUserId: user.id,
           partnerUserId: partnerId,
-          familyMemberCount: partnerId ? 2 : 1,
-          partnerFirstName: getFirstName(partnerProfile?.full_name),
+          familyMemberCount,
+          partnerFirstName:
+            partnerLabel(familyMemberCount, partnerProfile?.full_name) ?? "",
           financialModel: family.financial_model ?? "joint_fund",
           user1SplitPct: Number(family.user_1_split_pct ?? 50),
         });
@@ -109,18 +117,33 @@ export default function FamilyNavProvider() {
     return () => window.clearTimeout(timeoutId);
   }, [ready, nav.familyId]);
 
-  if (!ready) {
-    return null;
-  }
+  const familyId = nav.familyId ?? storeFamilyId ?? undefined;
+  const currentUserId = nav.currentUserId ?? storeUserId ?? undefined;
+  const partnerUserId =
+    nav.partnerUserId !== undefined && nav.partnerUserId !== null
+      ? nav.partnerUserId
+      : storePartnerId;
+  const familyMemberCount = partnerUserId
+    ? 2
+    : nav.familyId
+      ? nav.familyMemberCount
+      : storePartnerId
+        ? 2
+        : 1;
+  const partnerFirstName =
+    nav.partnerFirstName ||
+    partnerLabel(familyMemberCount, storePartnerName) ||
+    "";
 
+  // Always mount so the expense sheet is available (don't wait on ready=null).
   return (
     <BottomNav
-      familyId={nav.familyId}
-      currentUserId={nav.currentUserId}
-      partnerUserId={nav.partnerUserId}
-      familyMemberCount={nav.familyMemberCount}
-      partnerFirstName={nav.partnerFirstName}
-      financialModel={nav.financialModel}
+      familyId={familyId}
+      currentUserId={currentUserId}
+      partnerUserId={partnerUserId}
+      familyMemberCount={familyMemberCount}
+      partnerFirstName={partnerFirstName}
+      financialModel={nav.familyId ? nav.financialModel : storeFinancialModel}
       user1SplitPct={nav.user1SplitPct}
     />
   );

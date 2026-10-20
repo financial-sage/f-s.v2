@@ -11,7 +11,7 @@ import StoreHydrator from "@/components/StoreHydrator";
 export const metadata: Metadata = {
   title: "SinDescuadre",
   applicationName: "SinDescuadre",
-  description: "Gestión de finanzas en pareja",
+  description: "Gestión de finanzas personales y en familia",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

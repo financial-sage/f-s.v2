@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import AccountsPanel from "@/components/AccountsPanel";
+import { memberCountFromFamilyUsers } from "@/lib/household";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function AccountsPage() {
@@ -20,5 +21,21 @@ export default async function AccountsPage() {
 
   if (!profile?.family_id) redirect("/onboarding");
 
-  return <AccountsPanel currentUserId={user.id} />;
+  const { data: family } = await supabase
+    .from("families")
+    .select("user_1_id, user_2_id")
+    .eq("id", profile.family_id)
+    .maybeSingle();
+
+  const familyMemberCount = memberCountFromFamilyUsers(
+    family?.user_1_id,
+    family?.user_2_id
+  );
+
+  return (
+    <AccountsPanel
+      currentUserId={user.id}
+      familyMemberCount={familyMemberCount || 1}
+    />
+  );
 }

@@ -32,8 +32,14 @@ import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import { useAccountsStore } from "@/store/useAccountsStore";
 import { useCategories } from "@/hooks/useCategories";
-import type { FamilyFund } from "@/lib/funds";
-import { getDefaultSharedFund, listVariableSharedFunds, resolveFundColor } from "@/lib/funds";
+import {
+  getDefaultSharedFund,
+  getPersonalFund,
+  listSoloDashboardFunds,
+  listVariableSharedFunds,
+  resolveFundColor,
+  type FamilyFund,
+} from "@/lib/funds";
 import type { FamilyAccount } from "@/lib/accounts";
 import { listOperableAccountsForUser, resolveAccountColor } from "@/lib/accounts";
 import { tintedGlassGradient } from "@/lib/glass";
@@ -82,15 +88,19 @@ function resolveInitialOperableAccounts(userId: string | null) {
 }
 
 function pickDefaultFundId(
-  shared: FamilyFund[],
+  funds: FamilyFund[],
   preferredFundId: string | null,
-  previous: string | null
+  previous: string | null,
+  options?: { preferPersonalDefault?: boolean; userId?: string | null }
 ) {
-  if (previous && shared.some((fund) => fund.id === previous)) return previous;
-  if (preferredFundId && shared.some((fund) => fund.id === preferredFundId)) {
+  if (previous && funds.some((fund) => fund.id === previous)) return previous;
+  if (preferredFundId && funds.some((fund) => fund.id === preferredFundId)) {
     return preferredFundId;
   }
-  return getDefaultSharedFund(shared)?.id ?? shared[0]?.id ?? null;
+  if (options?.preferPersonalDefault && options.userId) {
+    return getPersonalFund(funds, options.userId)?.id ?? funds[0]?.id ?? null;
+  }
+  return getDefaultSharedFund(funds)?.id ?? funds[0]?.id ?? null;
 }
 
 interface OptionItem<T extends string> {
@@ -255,14 +265,29 @@ export default function AddExpenseForm({
   const [errorMessage, setErrorMessage] = useState("");
   const [balanceWarning, setBalanceWarning] = useState("");
   const sharedFunds = useMemo(() => listVariableSharedFunds(storeFunds), [storeFunds]);
-  const [selectedFundId, setSelectedFundId] = useState<string | null>(() =>
-    pickDefaultFundId(resolveInitialSharedFunds(), preferredFundId, null)
-  );
-  const [paymentSource, setPaymentSource] = useState<PaymentSource>("fund");
+  const personalFunds = useMemo(() => {
+    if (!resolvedCurrentUserId) return [] as FamilyFund[];
+    return listSoloDashboardFunds(storeFunds, resolvedCurrentUserId);
+  }, [storeFunds, resolvedCurrentUserId]);
+  const selectableFunds = isSolo ? personalFunds : sharedFunds;
+  const [selectedFundId, setSelectedFundId] = useState<string | null>(() => {
+    const solo = resolveInitialMemberCount(familyMemberCount, partnerUserId) <= 1;
+    const userId = resolveInitialUserId(currentUserId);
+    const funds = solo
+      ? userId
+        ? listSoloDashboardFunds(useFundsStore.getState().funds, userId)
+        : []
+      : resolveInitialSharedFunds();
+    return pickDefaultFundId(funds, preferredFundId, null, {
+      preferPersonalDefault: solo,
+      userId,
+    });
+  });
   const operableAccounts = useMemo(() => {
     if (!resolvedCurrentUserId) return [] as FamilyAccount[];
     return listOperableAccountsForUser(storeAccounts, resolvedCurrentUserId);
   }, [storeAccounts, resolvedCurrentUserId]);
+  const [paymentSource, setPaymentSource] = useState<PaymentSource>("fund");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
     const operable = resolveInitialOperableAccounts(resolveInitialUserId(currentUserId));
     return operable[0]?.id ?? null;
@@ -274,17 +299,22 @@ export default function AddExpenseForm({
 
   // Prefer dashboard pocket when available; keep the user's later choice.
   useEffect(() => {
-    setSelectedFundId((prev) => pickDefaultFundId(sharedFunds, preferredFundId, prev));
-  }, [sharedFunds, preferredFundId]);
+    setSelectedFundId((prev) =>
+      pickDefaultFundId(selectableFunds, preferredFundId, prev, {
+        preferPersonalDefault: isSolo,
+        userId: resolvedCurrentUserId,
+      })
+    );
+  }, [selectableFunds, preferredFundId, isSolo, resolvedCurrentUserId]);
 
   useEffect(() => {
     if (expenseToEdit || !preferredFundId) return;
     if (appliedPreferredFundRef.current === preferredFundId) return;
-    if (!sharedFunds.some((fund) => fund.id === preferredFundId)) return;
+    if (!selectableFunds.some((fund) => fund.id === preferredFundId)) return;
     appliedPreferredFundRef.current = preferredFundId;
     setSelectedFundId(preferredFundId);
-    setResponsibleFor("joint_fund");
-  }, [expenseToEdit, preferredFundId, sharedFunds]);
+    if (!isSolo) setResponsibleFor("joint_fund");
+  }, [expenseToEdit, preferredFundId, selectableFunds, isSolo]);
 
   useEffect(() => {
     setSelectedAccountId((prev) => prev ?? operableAccounts[0]?.id ?? null);
@@ -391,7 +421,10 @@ export default function AddExpenseForm({
 
       if (!resolvedPartnerId) {
         if (partnerUserId === undefined) setResolvedPartnerUserId(null);
-        if (!partnerFirstName?.trim()) setResolvedPartnerFirstName("Mi pareja");
+        if (typeof familyMemberCount !== "number") {
+          setResolvedFamilyMemberCount(1);
+        }
+        setResolvedPartnerFirstName("");
         return;
       }
 
@@ -683,6 +716,11 @@ export default function AddExpenseForm({
                     ? "p2p_debt"
                     : "personal";
 
+            const soloFundId =
+              isSolo && paymentSource === "fund"
+                ? selectedFundId ?? getPersonalFund(personalFunds, resolvedCurrentUserId ?? "")?.id ?? null
+                : null;
+
             await saveExpenseAction({
               amount: finalAmount,
               concept,
@@ -692,11 +730,14 @@ export default function AddExpenseForm({
               category: selectedCategory,
               date,
               splitTypeOverride,
-              fundId:
-                (isCoupleMode ? responsibleFor : "me") === "joint_fund"
+              fundId: isSolo
+                ? soloFundId
+                : (isCoupleMode ? responsibleFor : "me") === "joint_fund"
                   ? selectedFundId
                   : null,
-              paidFromFund: singlePaidBy === "joint_fund",
+              paidFromFund: isSolo
+                ? Boolean(soloFundId)
+                : singlePaidBy === "joint_fund",
             });
           }
         }
@@ -728,12 +769,15 @@ export default function AddExpenseForm({
   }
 
   const selectedFund =
-    sharedFunds.find((fund) => fund.id === selectedFundId) ??
-    getDefaultSharedFund(sharedFunds) ??
-    sharedFunds[0] ??
+    selectableFunds.find((fund) => fund.id === selectedFundId) ??
+    (isSolo
+      ? getPersonalFund(personalFunds, resolvedCurrentUserId ?? "")
+      : getDefaultSharedFund(sharedFunds)) ??
+    selectableFunds[0] ??
     null;
   const amountAccent =
-    !isSolo && responsibleFor === "joint_fund"
+    (isSolo && paymentSource === "fund") ||
+    (!isSolo && responsibleFor === "joint_fund")
       ? resolveFundColor(selectedFund)
       : isDark
         ? "#c4a574"
@@ -803,7 +847,7 @@ export default function AddExpenseForm({
           </div>
         </section>
 
-        {operableAccounts.length > 0 && (
+        {(operableAccounts.length > 0 || (isSolo && personalFunds.length > 0)) && (
           <section className="px-0.5">
             <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface/55">
               Pagar desde
@@ -823,23 +867,65 @@ export default function AddExpenseForm({
                 <Wallet size={13} />
                 Bolsillo
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentSource("account");
-                  if (paidBy === "joint_fund" || paidBy === "both_split") {
-                    setPaidBy("me");
-                  }
-                }}
-                className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
-                  paymentSource === "account",
-                  false
-                )}`}
-              >
-                <Landmark size={13} />
-                Cuenta
-              </button>
+              {operableAccounts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentSource("account");
+                    if (paidBy === "joint_fund" || paidBy === "both_split") {
+                      setPaidBy("me");
+                    }
+                  }}
+                  className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
+                    paymentSource === "account",
+                    false
+                  )}`}
+                >
+                  <Landmark size={13} />
+                  Cuenta
+                </button>
+              )}
             </div>
+
+            {isSolo && paymentSource === "fund" && personalFunds.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5 animate-in fade-in slide-in-from-top-2">
+                {personalFunds.map((fund) => {
+                  const isSelected = selectedFundId === fund.id;
+                  const fundColor = resolveFundColor(fund);
+                  const label = fund.is_default ? "Mi bolsillo" : fund.name;
+                  return (
+                    <button
+                      key={fund.id}
+                      type="button"
+                      onClick={() => setSelectedFundId(fund.id)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
+                        isSelected
+                          ? "text-on-surface"
+                          : "border-glass-border bg-surface-low text-on-surface/65 hover:bg-surface-container"
+                      }`}
+                      style={
+                        isSelected
+                          ? {
+                              backgroundImage: tintedGlassGradient(fundColor, {
+                                midAlpha: "28",
+                                endOnly: true,
+                              }),
+                              borderColor: `${fundColor}55`,
+                              color: fundColor,
+                            }
+                          : undefined
+                      }
+                    >
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: fundColor }}
+                      />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {paymentSource === "account" && (
               <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2">
@@ -1270,9 +1356,13 @@ export default function AddExpenseForm({
         isOpen={showKeypad}
         title="Importe del gasto"
         subtitle={
-          !isSolo && responsibleFor === "joint_fund"
-            ? selectedFund?.name ?? "Bolsillo"
-            : undefined
+          isSolo && paymentSource === "fund"
+            ? selectedFund?.is_default
+              ? "Mi bolsillo"
+              : selectedFund?.name ?? "Bolsillo"
+            : !isSolo && responsibleFor === "joint_fund"
+              ? selectedFund?.name ?? "Bolsillo"
+              : undefined
         }
         accentColor={amountAccent}
         initialValue={amount || "0"}

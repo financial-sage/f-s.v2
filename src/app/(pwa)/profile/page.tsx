@@ -18,6 +18,12 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
 import { ThemeToggleRow } from "@/components/ThemeToggleRow";
 import { sageGlassGradient } from "@/lib/glass";
+import {
+  householdSpaceTitle,
+  isIndividualHousehold,
+  memberCountFromFamilyUsers,
+  partnerLabel,
+} from "@/lib/household";
 
 async function joinFamily(formData: FormData) {
   "use server";
@@ -90,11 +96,6 @@ function getInitials(name: string) {
   );
 }
 
-function getFirstName(value?: string | null, fallback = "Mi pareja") {
-  const firstName = value?.trim().split(/\s+/)[0];
-  return firstName || fallback;
-}
-
 export default async function ProfilePage() {
   const supabase = await createClient();
   const {
@@ -130,9 +131,16 @@ export default async function ProfilePage() {
         .maybeSingle()
     : { data: null };
 
-  const partnerDisplayName = getFirstName(partnerProfile?.full_name);
+  const familyMemberCount = memberCountFromFamilyUsers(
+    family?.user_1_id,
+    family?.user_2_id
+  );
+  const partnerDisplayName =
+    partnerLabel(familyMemberCount, partnerProfile?.full_name) ?? "Mi pareja";
   const hasPartner = Boolean(partnerId);
-  const familyLabel = family?.name?.trim() || "Tu espacio";
+  const isIndividual = isIndividualHousehold(familyMemberCount || 1);
+  const familyLabel = family?.name?.trim() || householdSpaceTitle(familyMemberCount || 1);
+  const spaceTitle = householdSpaceTitle(familyMemberCount || 1);
 
   const preferences = [
     { icon: BellRing, label: "Notificaciones", value: "Activadas" },
@@ -190,7 +198,9 @@ export default async function ProfilePage() {
               <Users size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-medium tracking-tight text-on-surface">Familia</h3>
+              <h3 className="text-sm font-medium tracking-tight text-on-surface">
+                {spaceTitle}
+              </h3>
               {hasPartner ? (
                 <p className="mt-1 text-sm font-light text-on-surface-variant">
                   Espacio compartido con {partnerDisplayName}
@@ -198,10 +208,14 @@ export default async function ProfilePage() {
               ) : (
                 <>
                   <p className="mt-1 text-sm font-light text-on-surface-variant">
-                    Código de invitación
+                    Espacio individual. Cuando quieras, puedes invitar a alguien con este
+                    código.
                   </p>
                   <div className="mt-3 rounded-2xl border border-glass-border bg-glass-strong px-4 py-3 backdrop-blur-md">
-                    <p className="font-mono text-xl font-medium tracking-[0.2em] text-primary">
+                    <p className="text-[11px] font-light text-on-surface-variant">
+                      Código de invitación
+                    </p>
+                    <p className="mt-1 font-mono text-xl font-medium tracking-[0.2em] text-primary">
                       {inviteCode}
                     </p>
                   </div>
@@ -209,7 +223,7 @@ export default async function ProfilePage() {
                   <details className="mt-3 group">
                     <summary className="list-none">
                       <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low/90 px-3.5 py-1.5 text-xs font-medium text-on-surface transition hover:bg-glass-strong">
-                        Ingresar código
+                        Unirme a otro espacio
                       </span>
                     </summary>
 
@@ -237,7 +251,7 @@ export default async function ProfilePage() {
           </div>
         </section>
 
-        {family?.id ? (
+        {family?.id && !isIndividual ? (
           <div className="mb-3">
             <FamilySettings
               familyId={family.id}

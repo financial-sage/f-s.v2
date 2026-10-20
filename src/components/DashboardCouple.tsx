@@ -70,11 +70,13 @@ import {
     DEFAULT_SHARED_FUND_COLOR,
     fundIconChipStyle,
     getDefaultSharedFund,
+    getFavoriteSpendingFund,
     getPersonalFund,
     isFixedExpensesFund,
     isSharedLegacyResponsible,
     listActiveFunds,
     listDashboardSharedFunds,
+    pickDashboardSelectedFundId,
     resolveFundColor,
     type FamilyFund,
 } from "@/lib/funds";
@@ -162,19 +164,9 @@ function getExpenseCategoryPresentation(category?: string | null) {
     return { icon, label };
 }
 
-function pickInitialSharedFunds(initialFunds?: FamilyFund[]) {
-    if (initialFunds?.length) return listDashboardSharedFunds(initialFunds);
-    return listDashboardSharedFunds(useFundsStore.getState().funds);
-}
-
-function pickInitialSelectedFundId(
-    shared: FamilyFund[],
-    sharedDefaultFundId?: string | null,
-) {
-    if (sharedDefaultFundId && shared.some((f) => f.id === sharedDefaultFundId)) {
-        return sharedDefaultFundId;
-    }
-    return getDefaultSharedFund(shared)?.id ?? shared[0]?.id ?? null;
+function pickInitialFunds(initialFunds?: FamilyFund[]) {
+    if (initialFunds?.length) return initialFunds;
+    return useFundsStore.getState().funds;
 }
 
 export default function DashboardCouple({
@@ -264,11 +256,17 @@ export default function DashboardCouple({
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
     const [sharedFunds, setSharedFunds] = useState<FamilyFund[]>(() =>
-        pickInitialSharedFunds(initialFunds),
+        listDashboardSharedFunds(pickInitialFunds(initialFunds)),
     );
     const [selectedFundId, setSelectedFundId] = useState<string | null>(() =>
-        pickInitialSelectedFundId(pickInitialSharedFunds(initialFunds), sharedDefaultFundId),
+        pickDashboardSelectedFundId(
+            pickInitialFunds(initialFunds),
+            currentUserId,
+            sharedDefaultFundId
+        ),
     );
+    /** While true, keep the user's manual fund pick; on remount always reopen the favorite. */
+    const userPickedFundRef = useRef(false);
     const [showFundsMenu, setShowFundsMenu] = useState(false);
     const [showFundTransfer, setShowFundTransfer] = useState(false);
     const [transferFromFundId, setTransferFromFundId] = useState<string | null>(null);
@@ -514,8 +512,13 @@ export default function DashboardCouple({
 
     const selectedFund =
         menuFunds.find((f) => f.id === selectedFundId) ??
+        getFavoriteSpendingFund(
+            storeFunds.length > 0 ? storeFunds : initialFunds,
+            currentUserId
+        ) ??
         getDefaultSharedFund(sharedFunds) ??
         sharedFunds[0] ??
+        personalFund ??
         null;
 
     const selectedIsPersonal = selectedFund?.scope === "personal";
@@ -545,10 +548,21 @@ export default function DashboardCouple({
         const shared = listDashboardSharedFunds(storeFunds);
         setSharedFunds(shared);
         const personal = getPersonalFund(storeFunds, currentUserId);
+        const favoriteId = pickDashboardSelectedFundId(
+            storeFunds,
+            currentUserId,
+            sharedDefaultFundId
+        );
+
+        if (!userPickedFundRef.current) {
+            if (favoriteId) setSelectedFundId(favoriteId);
+            return;
+        }
+
         setSelectedFundId((prev) => {
             if (prev && shared.some((f) => f.id === prev)) return prev;
             if (prev && personal?.id === prev) return prev;
-            return pickInitialSelectedFundId(shared, sharedDefaultFundId);
+            return favoriteId;
         });
     }, [storeFunds, sharedDefaultFundId, currentUserId]);
 
@@ -577,14 +591,30 @@ export default function DashboardCouple({
                 const shared = listDashboardSharedFunds(overview.funds);
                 setSharedFunds(shared);
 
-                let nextSelectedId: string | null = null;
-                setSelectedFundId((prev) => {
-                    nextSelectedId =
-                        prev && shared.some((f) => f.id === prev)
-                            ? prev
-                            : overview.sharedDefaultFundId ?? shared[0]?.id ?? null;
-                    return nextSelectedId;
-                });
+                const favoriteId = pickDashboardSelectedFundId(
+                    overview.funds,
+                    currentUserId,
+                    overview.sharedDefaultFundId
+                );
+                let nextSelectedId: string | null = favoriteId;
+                if (userPickedFundRef.current) {
+                    setSelectedFundId((prev) => {
+                        nextSelectedId =
+                            prev &&
+                            (shared.some((f) => f.id === prev) ||
+                                overview.funds.some(
+                                    (f) =>
+                                        f.id === prev &&
+                                        f.scope === "personal" &&
+                                        f.owner_profile_id === currentUserId
+                                ))
+                                ? prev
+                                : favoriteId;
+                        return nextSelectedId;
+                    });
+                } else {
+                    setSelectedFundId(favoriteId);
+                }
 
                 const preferredFundId =
                     nextSelectedId &&
@@ -629,12 +659,15 @@ export default function DashboardCouple({
         });
 
     const handleSelectFund = (fundId: string) => {
+        userPickedFundRef.current = true;
         setSelectedFundId(fundId);
         const fund =
             sharedFunds.find((f) => f.id === fundId) ??
             (personalFund?.id === fundId ? personalFund : null);
         // Fixed-expenses / personal pockets are not the default for shared variable expenses.
         if (fund && fund.scope === "shared" && !isFixedExpensesFund(fund)) {
+            setPreferredFundId(fundId);
+        } else if (fund?.scope === "personal") {
             setPreferredFundId(fundId);
         }
         setShowFundsMenu(false);
@@ -689,11 +722,12 @@ export default function DashboardCouple({
                     useFundsStore.getState().setFunds(overview.funds);
                     const shared = listDashboardSharedFunds(overview.funds);
                     setSharedFunds(shared);
-                    if (selectedFundId === updated.id) {
-                        setSelectedFundId(updated.id);
-                    }
                     if (updated.is_default) {
+                        userPickedFundRef.current = true;
+                        setSelectedFundId(updated.id);
                         setPreferredFundId(updated.id);
+                    } else if (selectedFundId === updated.id) {
+                        setSelectedFundId(updated.id);
                     }
                 } else {
                     const created = await createFundAction({
@@ -1023,7 +1057,7 @@ export default function DashboardCouple({
         : "Balance P2P";
     const heroColor = isJointModel
         ? resolveFundColor(selectedFund)
-        : "#0F2D91";
+        : DEFAULT_PERSONAL_FUND_COLOR;
     const currentMember =
         members.find((member) => member.id === currentUserId) ?? members[0] ?? null;
 
@@ -1327,7 +1361,7 @@ export default function DashboardCouple({
                                 >
                                     <span
                                         className="h-1.5 w-1.5 shrink-0 rounded-full"
-                                        style={{ backgroundColor: "#0F2D91" }}
+                                        style={{ backgroundColor: DEFAULT_PERSONAL_FUND_COLOR }}
                                     />
                                     <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
                                         Mi bolsillo
@@ -1440,12 +1474,12 @@ export default function DashboardCouple({
                                     className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
                                 >
                                     <span
-                                        className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md transition-[background] duration-500 ${
+                                        className={`flex h-11 w-11 items-center justify-center rounded-full transition-[background] duration-500 ${
                                             darkFab
-                                                ? "fab-ink"
+                                                ? "fab-accent"
                                                 : isAportar
-                                                  ? "border"
-                                                  : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface"
+                                                  ? "border shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md"
+                                                  : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md"
                                         }`}
                                         style={
                                             isAportar && !darkFab
@@ -2213,9 +2247,7 @@ export default function DashboardCouple({
                                         Bolsillo por defecto
                                     </span>
                                     <span className="mt-0.5 block text-[11px] text-on-surface-variant">
-                                        {editingFund?.scope === "personal"
-                                            ? "Tu bolsillo personal principal."
-                                            : "Se usará para gastos compartidos sin bolsillo asignado."}
+                                        Solo uno. Se usará por defecto al registrar gastos.
                                     </span>
                                 </span>
                                 <span

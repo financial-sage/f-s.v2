@@ -126,6 +126,7 @@ Las cuentas viven en el contexto de la familia; ownership y visibilidad respetan
 
 # Evolución
 
-- Adaptar el centro de cuentas al modo **individual** (sin cuenta compartida de pareja, o con reglas simplificadas).
+- Modo **individual** (family de 1): solo cuentas personales; ver business-rules § Individual. Helper de contexto: `src/lib/household.ts` (`memberCount` / `HouseholdKind`).
+- Kids / Child roles: deferred — ver `docs/product/experiences/children.md` (placeholder) y authenticated-context.
 - Plantillas de repartición de nómina quedan fuera de este corte (ver technical-spec → Fuera de MVP).
 - `states.md` y `edge-cases.md` pueden añadirse tras el Slice B de UI.

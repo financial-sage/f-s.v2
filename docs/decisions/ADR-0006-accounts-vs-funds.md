@@ -18,7 +18,7 @@ Sin una capa de cuentas, la familia no puede simular el flujo real banco → org
 4. El flujo canónico de pareja es: ingreso → cuenta personal → cuenta compartida → repartición a bolsillos → gastos.
 5. Los bolsillos siguen pudiendo recibir **aportes directos** (camino actual) **y** transferencias desde cuentas.
 6. Un gasto puede pagarse desde un bolsillo (camino preferido) o desde una cuenta (permitido; la UX empuja a usar bolsillo).
-7. La primera audiencia es **parejas**; el modo individual se adapta después.
+7. La primera audiencia fue **parejas**; el modo **individual** (family de 1) reutiliza cuentas personales sin compartidas ni visibilidad de pareja (`src/lib/household.ts`, business-rules § Individual).
 
 ## Consecuencias
 

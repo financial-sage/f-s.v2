@@ -24,12 +24,18 @@ import { formatMonthLabel } from "@/lib/budget";
 import { resolveAccountColor } from "@/lib/accounts";
 import { resolveFundColor, SAVINGS_FUND_COLOR } from "@/lib/funds";
 import { tintedGlassGradient } from "@/lib/glass";
+import { isIndividualHousehold } from "@/lib/household";
 
 const ACCENT = SAVINGS_FUND_COLOR;
 
 type SourceTab = "account" | "fund" | "external";
 
-export default function SavingsPanel() {
+interface SavingsPanelProps {
+  familyMemberCount?: number;
+}
+
+export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProps) {
+  const isIndividual = isIndividualHousehold(familyMemberCount);
   const { format: formatCurrency } = useCurrency();
   const [overview, setOverview] = useState<SavingsOverview | null>(null);
   const [error, setError] = useState("");
@@ -169,10 +175,10 @@ export default function SavingsPanel() {
       <header className="mx-auto flex w-full max-w-md items-center px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="min-w-0 flex-1 text-center">
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-on-surface-variant">
-            Familia
+            {isIndividual ? "Mi colchón" : "Familia"}
           </p>
           <h1 className="truncate text-lg font-semibold tracking-tight text-on-surface">
-            Ahorros
+            {isIndividual ? "Mi ahorro" : "Ahorros"}
           </h1>
         </div>
       </header>
@@ -431,7 +437,9 @@ export default function SavingsPanel() {
                           <Wallet size={12} />
                         </span>
                         <span className="w-full truncate text-[11px] font-medium tracking-tight text-on-surface">
-                          {fund.scope === "personal" ? "Mi bolsillo" : fund.name}
+                          {fund.scope === "personal" && fund.is_default
+                            ? "Mi bolsillo"
+                            : fund.name}
                         </span>
                         <span
                           className={`w-full truncate text-[10px] font-medium tabular-nums ${

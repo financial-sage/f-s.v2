@@ -10,6 +10,7 @@ import {
   DEFAULT_SHARED_FUND_COLOR,
   FIXED_EXPENSES_FUND_COLOR,
   FIXED_EXPENSES_FUND_NAME,
+  LEGACY_PERSONAL_FUND_COLOR,
   SAVINGS_FUND_COLOR,
   SAVINGS_FUND_NAME,
   getFixedExpensesFund,
@@ -19,10 +20,14 @@ import {
 } from "@/lib/funds";
 import {
   calculateFundCashBalance,
-  calculatePersonalPocketBalance,
+  calculateSoloPersonalFundBalance,
   getDefaultSharedFund,
   getPersonalFund,
 } from "@/lib/funds";
+import {
+  isIndividualHousehold,
+  memberCountFromFamilyUsers,
+} from "@/lib/household";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -69,10 +74,13 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
 
   let funds = (existing ?? []) as FamilyFund[];
 
-  const hasDefaultShared = funds.some(
-    (f) => f.scope === "shared" && f.is_default && !isFixedExpensesFund(f)
+  const hasSharedSpending = funds.some(
+    (f) =>
+      f.scope === "shared" &&
+      !isFixedExpensesFund(f) &&
+      !isSavingsFund(f)
   );
-  if (!hasDefaultShared) {
+  if (!hasSharedSpending) {
     const sharedPayload = {
       family_id: familyId,
       name: "Fondo común",
@@ -213,7 +221,8 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
         name: "Mi fondo",
         scope: "personal" as const,
         owner_profile_id: member.id,
-        is_default: true,
+        // Shared Fondo común keeps the single family default; personal starts unmarked.
+        is_default: false,
         is_system: true,
         sort_order: 10,
         color: DEFAULT_PERSONAL_FUND_COLOR,
@@ -233,6 +242,53 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       }
       if (createError) throw new Error(createError.message);
       funds = [...funds, created as FamilyFund];
+    }
+  }
+
+  // Migrate legacy navy personal defaults to brand gold (logo accent).
+  for (const personal of funds.filter((f) => f.scope === "personal")) {
+    const stored = (personal.color ?? "").trim().toLowerCase();
+    const needsGold =
+      !stored || stored === LEGACY_PERSONAL_FUND_COLOR.toLowerCase();
+    if (!needsGold) continue;
+    if (stored === DEFAULT_PERSONAL_FUND_COLOR.toLowerCase()) continue;
+    const { data: updated, error: colorError } = await admin
+      .from("family_funds")
+      .update({ color: DEFAULT_PERSONAL_FUND_COLOR } as never)
+      .eq("id", personal.id)
+      .select("*")
+      .single();
+    if (!colorError && updated) {
+      funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
+    }
+  }
+
+  // One star only: if a shared spending default exists, clear personal defaults.
+  const hasSharedDefault = funds.some(
+    (f) =>
+      f.scope === "shared" &&
+      f.is_default &&
+      !isFixedExpensesFund(f) &&
+      !isSavingsFund(f)
+  );
+  if (hasSharedDefault) {
+    const personalDefaults = funds.filter(
+      (f) => f.scope === "personal" && f.is_default
+    );
+    if (personalDefaults.length > 0) {
+      const { error: clearPersonalError } = await admin
+        .from("family_funds")
+        .update({ is_default: false, updated_at: new Date().toISOString() } as never)
+        .in(
+          "id",
+          personalDefaults.map((f) => f.id)
+        );
+      if (!clearPersonalError) {
+        const cleared = new Set(personalDefaults.map((f) => f.id));
+        funds = funds.map((f) =>
+          cleared.has(f.id) ? { ...f, is_default: false } : f
+        );
+      }
     }
   }
 
@@ -274,42 +330,14 @@ async function clearDefaultsAndPromote(
   }
 }
 
-/** Ensures at most one active shared (non fixed-expenses) default fund per family. */
-async function promoteSharedFundAsDefault(familyId: string, fundId: string) {
-  const admin = getSupabaseAdminClient();
-  const { data: funds, error } = await admin
-    .from("family_funds")
-    .select("*")
-    .eq("family_id", familyId)
-    .eq("scope", "shared")
-    .is("archived_at", null);
-
-  if (error) throw new Error(error.message);
-
-  const target = (funds as FamilyFund[] | null)?.find((f) => f.id === fundId);
-  if (!target) throw new Error("Bolsillo no encontrado.");
-  if (isFixedExpensesFund(target)) {
-    throw new Error("Gastos fijos no puede ser el bolsillo por defecto.");
-  }
-  if (isSavingsFund(target)) {
-    throw new Error("Ahorro no puede ser el bolsillo por defecto de gastos.");
-  }
-
-  const others = (funds as FamilyFund[]).filter(
-    (f) =>
-      f.id !== fundId &&
-      f.is_default &&
-      !isFixedExpensesFund(f) &&
-      !isSavingsFund(f)
-  );
-
-  await clearDefaultsAndPromote(familyId, fundId, others, target.is_default);
-}
-
-/** Ensures at most one active personal default fund per owner. */
-async function promotePersonalFundAsDefault(
+/**
+ * Only one spending pocket may be "por defecto" for a member at a time:
+ * shared funds (family) + that member's personal funds compete for the star.
+ * The partner's personal defaults are left untouched.
+ */
+async function promoteFundAsExclusiveDefault(
   familyId: string,
-  ownerProfileId: string,
+  actorProfileId: string,
   fundId: string
 ) {
   const admin = getSupabaseAdminClient();
@@ -317,17 +345,41 @@ async function promotePersonalFundAsDefault(
     .from("family_funds")
     .select("*")
     .eq("family_id", familyId)
-    .eq("scope", "personal")
-    .eq("owner_profile_id", ownerProfileId)
     .is("archived_at", null);
 
   if (error) throw new Error(error.message);
 
-  const target = (funds as FamilyFund[] | null)?.find((f) => f.id === fundId);
+  const list = (funds as FamilyFund[] | null) ?? [];
+  const target = list.find((f) => f.id === fundId);
   if (!target) throw new Error("Bolsillo no encontrado.");
+  if (isFixedExpensesFund(target)) {
+    throw new Error("Gastos fijos no puede ser el bolsillo por defecto.");
+  }
+  if (isSavingsFund(target)) {
+    throw new Error("Ahorro no puede ser el bolsillo por defecto de gastos.");
+  }
+  if (target.scope === "personal" && target.owner_profile_id !== actorProfileId) {
+    throw new Error("Solo puedes marcar como favorito tu bolsillo personal.");
+  }
 
-  const others = (funds as FamilyFund[]).filter((f) => f.id !== fundId && f.is_default);
+  const others = list.filter((f) => {
+    if (f.id === fundId || !f.is_default) return false;
+    if (isFixedExpensesFund(f) || isSavingsFund(f)) return false;
+    if (f.scope === "shared") return true;
+    return f.scope === "personal" && f.owner_profile_id === actorProfileId;
+  });
+
   await clearDefaultsAndPromote(familyId, fundId, others, target.is_default);
+}
+
+async function getFamilyMemberCount(familyId: string): Promise<number> {
+  const admin = getSupabaseAdminClient();
+  const { data } = await admin
+    .from("families")
+    .select("user_1_id, user_2_id")
+    .eq("id", familyId)
+    .maybeSingle();
+  return memberCountFromFamilyUsers(data?.user_1_id, data?.user_2_id) || 1;
 }
 
 export async function createFundAction(input: {
@@ -338,8 +390,17 @@ export async function createFundAction(input: {
 }): Promise<FamilyFund> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
+  const memberCount = await getFamilyMemberCount(familyId);
   const name = input.name.trim();
-  const color = (input.color ?? DEFAULT_SHARED_FUND_COLOR).trim();
+  const scope: FundScope =
+    isIndividualHousehold(memberCount) ? "personal" : input.scope;
+  if (isIndividualHousehold(memberCount) && input.scope === "shared") {
+    throw new Error("En un espacio individual solo puedes crear bolsillos personales.");
+  }
+  const color = (
+    input.color ??
+    (scope === "shared" ? DEFAULT_SHARED_FUND_COLOR : DEFAULT_PERSONAL_FUND_COLOR)
+  ).trim();
   const wantDefault = Boolean(input.isDefault);
 
   if (!name) throw new Error("El nombre del bolsillo es obligatorio.");
@@ -358,7 +419,7 @@ export async function createFundAction(input: {
   const admin = getSupabaseAdminClient();
 
   const payload =
-    input.scope === "shared"
+    scope === "shared"
       ? {
           family_id: familyId,
           name,
@@ -402,11 +463,7 @@ export async function createFundAction(input: {
 
   let created = data as FamilyFund;
   if (wantDefault) {
-    if (created.scope === "shared") {
-      await promoteSharedFundAsDefault(familyId, created.id);
-    } else {
-      await promotePersonalFundAsDefault(familyId, user.id, created.id);
-    }
+    await promoteFundAsExclusiveDefault(familyId, user.id, created.id);
     created = { ...created, is_default: true };
   }
 
@@ -489,11 +546,7 @@ export async function updateFundAction(input: {
   let updated = data as FamilyFund;
 
   if (input.isDefault === true) {
-    if (updated.scope === "shared") {
-      await promoteSharedFundAsDefault(familyId, updated.id);
-    } else if (updated.owner_profile_id) {
-      await promotePersonalFundAsDefault(familyId, updated.owner_profile_id, updated.id);
-    }
+    await promoteFundAsExclusiveDefault(familyId, user.id, updated.id);
     updated = { ...updated, is_default: true };
   }
 
@@ -637,13 +690,16 @@ export async function transferBetweenFundsAction(input: {
     .eq("is_active", true);
 
   const defaultShared = getDefaultSharedFund(funds);
-  const sharedFundIds = funds
-    .filter((f) => f.scope === "shared" && !f.archived_at)
-    .map((f) => f.id);
+  const defaultPersonal = getPersonalFund(funds, user.id);
   const expenseRows = (expenses ?? []) as never[];
   const balance =
     from.scope === "personal"
-      ? calculatePersonalPocketBalance(expenseRows, user.id, sharedFundIds)
+      ? calculateSoloPersonalFundBalance(
+          expenseRows,
+          from,
+          user.id,
+          defaultPersonal?.id ?? null
+        )
       : calculateFundCashBalance(expenseRows, from.id, {
           treatLegacyJointAsFundId: defaultShared?.id ?? null,
         });
@@ -660,12 +716,16 @@ export async function transferBetweenFundsAction(input: {
     from.scope === "shared" ? "joint_fund" : (from.owner_profile_id as string);
   const toResponsible =
     to.scope === "shared" ? "joint_fund" : (to.owner_profile_id as string);
+  const fromLabel =
+    from.scope === "personal" && from.is_default ? "Mi bolsillo" : from.name;
+  const toLabel =
+    to.scope === "personal" && to.is_default ? "Mi bolsillo" : to.name;
 
   const { error } = await admin.from("expenses").insert([
     {
       family_id: familyId,
       amount: amountFixed,
-      concept: `Transferencia a ${to.name}`,
+      concept: `Transferencia a ${toLabel}`,
       category: "withdrawal",
       split_type: "personal",
       responsible_for: fromResponsible,
@@ -680,7 +740,7 @@ export async function transferBetweenFundsAction(input: {
     {
       family_id: familyId,
       amount: amountFixed,
-      concept: `Transferencia desde ${from.name}`,
+      concept: `Transferencia desde ${fromLabel}`,
       category: "deposit",
       split_type: "personal",
       responsible_for: toResponsible,

@@ -232,8 +232,19 @@ export async function saveExpenseAction({
 
   const isPaidFromFund = paidFromFund === true || paidBy === "joint_fund";
 
-  if (isPaidFromFund && fund?.scope !== "shared") {
-    throw new Error("Solo se puede pagar desde la caja de un bolsillo compartido.");
+  if (isPaidFromFund) {
+    if (fund?.scope === "shared") {
+      // Couple / shared pocket cash-out — ok
+    } else if (
+      fund?.scope === "personal" &&
+      fund.owner_profile_id === user.id
+    ) {
+      // Individual (or personal) pocket cash-out — ok
+    } else {
+      throw new Error(
+        "Solo puedes pagar desde un bolsillo compartido o desde tu bolsillo personal."
+      );
+    }
   }
 
   const normalizedPayerSharePct = Math.max(0, Math.min(100, Number(payerSharePct)));

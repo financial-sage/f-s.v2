@@ -24,9 +24,10 @@ Nombres fijos: tabla `family_accounts`; ledger `expenses` + `account_id` / `paid
 - Bolsillos: aporte directo **y** transferencia desde cuenta (ambos válidos).
 - Gasto: preferir bolsillo; origen cuenta permitido con nudge UX.
 - Saldo negativo: aviso, no bloqueo.
-- Parejas primero; no diseñar aún el modo individual completo.
-- Cuenta personal: solo el dueño opera; visibilidad `private` | `family_visible`.
-- Cuenta compartida: ambos ven y operan.
+- Pareja (`memberCount >= 2`): personales + compartidas; visibilidad `private` | `family_visible`.
+- Individual (`memberCount === 1`): solo cuentas personales; sin crear `shared` ni toggles de visibilidad (`src/lib/household.ts`).
+- Cuenta personal: solo el dueño opera.
+- Cuenta compartida: ambos ven y operan (solo aplica en pareja).
 
 ## Espejo de Funds
 

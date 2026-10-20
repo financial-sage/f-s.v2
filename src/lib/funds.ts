@@ -25,14 +25,19 @@ export const FUND_COLOR_OPTIONS = [
   { id: "coral", label: "Coral", value: "#C2410C" },
   { id: "orange", label: "Naranja", value: "#EA580C" },
   { id: "amber", label: "Ámbar", value: "#B45309" },
-  { id: "gold", label: "Oro", value: "#A16207" },
+  /** Brand gold — matches `--accent` / logo. */
+  { id: "gold", label: "Dorado", value: "#C4A574" },
+  { id: "amber-deep", label: "Oro oscuro", value: "#A16207" },
   { id: "stone", label: "Piedra", value: "#57534E" },
   { id: "slate", label: "Pizarra", value: "#475569" },
   { id: "graphite", label: "Grafito", value: "#2B3437" },
 ] as const;
 
 export const DEFAULT_SHARED_FUND_COLOR = FUND_COLOR_OPTIONS[0].value;
-export const DEFAULT_PERSONAL_FUND_COLOR = "#0F2D91";
+/** Muted gold from the brand logo (`--accent`). */
+export const DEFAULT_PERSONAL_FUND_COLOR = "#C4A574";
+/** Previous personal default; remapped so existing rows pick up the brand gold. */
+export const LEGACY_PERSONAL_FUND_COLOR = "#0F2D91";
 
 export type FundColor = (typeof FUND_COLOR_OPTIONS)[number]["value"] | string;
 
@@ -51,8 +56,17 @@ export interface FamilyFund {
 }
 
 export function resolveFundColor(fund?: Pick<FamilyFund, "color" | "scope"> | null) {
+  if (fund?.scope === "personal") {
+    const stored = fund.color?.trim();
+    if (
+      !stored ||
+      stored.toLowerCase() === LEGACY_PERSONAL_FUND_COLOR.toLowerCase()
+    ) {
+      return DEFAULT_PERSONAL_FUND_COLOR;
+    }
+    return stored;
+  }
   if (fund?.color) return fund.color;
-  if (fund?.scope === "personal") return DEFAULT_PERSONAL_FUND_COLOR;
   return DEFAULT_SHARED_FUND_COLOR;
 }
 
@@ -343,12 +357,135 @@ export function getDefaultSharedFund(funds: FamilyFund[]) {
   );
 }
 
+/**
+ * The one spending pocket starred as default for this member
+ * (shared family default, or their personal default — exclusive).
+ */
+export function getFavoriteSpendingFund(funds: FamilyFund[], userId: string) {
+  const sharedFavorite = getDefaultSharedFund(funds);
+  if (sharedFavorite) return sharedFavorite;
+  return listPersonalFunds(funds, userId).find((f) => f.is_default) ?? null;
+}
+
+/** Fund to show on the couple dashboard hero after mount / soft navigation. */
+export function pickDashboardSelectedFundId(
+  funds: FamilyFund[],
+  userId: string,
+  sharedDefaultFundId?: string | null
+) {
+  const favorite = getFavoriteSpendingFund(funds, userId);
+  if (favorite) return favorite.id;
+
+  const shared = listDashboardSharedFunds(funds);
+  if (sharedDefaultFundId && shared.some((f) => f.id === sharedDefaultFundId)) {
+    return sharedDefaultFundId;
+  }
+
+  const firstSharedSpending =
+    shared.find((f) => !isFixedExpensesFund(f) && !isSavingsFund(f)) ?? shared[0] ?? null;
+  return firstSharedSpending?.id ?? getPersonalFund(funds, userId)?.id ?? null;
+}
+
 export function getPersonalFund(funds: FamilyFund[], userId: string) {
-  return (
-    funds.find(
-      (f) => f.scope === "personal" && f.owner_profile_id === userId && !f.archived_at
-    ) ?? null
+  const personal = listPersonalFunds(funds, userId);
+  return personal.find((f) => f.is_default) ?? personal[0] ?? null;
+}
+
+/** Active personal spending pockets for a member (excludes savings / archived). */
+export function listPersonalFunds(funds: FamilyFund[], userId: string) {
+  return listActiveFunds(funds).filter(
+    (f) =>
+      f.scope === "personal" &&
+      f.owner_profile_id === userId &&
+      !isSavingsFund(f)
   );
+}
+
+/**
+ * Dashboard pockets for an individual household: personal funds only.
+ * Shared system funds (Fondo común, Gastos fijos, Ahorro) stay in the DB
+ * but are not offered as selectable spending pockets in solo UX.
+ */
+export function listSoloDashboardFunds(funds: FamilyFund[], userId: string) {
+  return listPersonalFunds(funds, userId);
+}
+
+/** System pots that individual households may still use (Ahorro, Gastos fijos). */
+export function isIndividualSharedSystemFund(
+  fund?: Pick<FamilyFund, "purpose" | "name"> | null
+) {
+  return isSavingsFund(fund) || isFixedExpensesFund(fund);
+}
+
+/**
+ * Bolsillos seleccionables en transferencias cuenta ↔ bolsillo.
+ * Individual: personales + Ahorro + Gastos fijos (nunca Fondo común).
+ * Pareja: compartidos operables + personales propios (incluye Ahorro / Gastos fijos).
+ */
+export function listAccountTransferFunds(
+  funds: FamilyFund[],
+  userId: string,
+  options?: { individual?: boolean }
+) {
+  const active = listActiveFunds(funds);
+  if (options?.individual) {
+    return active.filter(
+      (f) =>
+        isIndividualSharedSystemFund(f) ||
+        (f.scope === "personal" && f.owner_profile_id === userId)
+    );
+  }
+  return active.filter(
+    (f) => f.scope === "shared" || f.owner_profile_id === userId
+  );
+}
+
+/**
+ * Balance of a personal pocket for solo UX.
+ * Fund-tagged rows use caja; untagged legacy personal rows count on the default pocket.
+ */
+export function calculateSoloPersonalFundBalance(
+  expenses: FundExpenseLike[],
+  fund: FamilyFund,
+  userId: string,
+  defaultPersonalFundId: string | null
+): number {
+  const tagged = calculateFundCashBalance(expenses, fund.id);
+  if (!defaultPersonalFundId || fund.id !== defaultPersonalFundId) {
+    return tagged;
+  }
+
+  const untagged = expenses.filter(
+    (e) =>
+      e.is_active !== false &&
+      !e.account_id &&
+      !e.fund_id &&
+      (e.responsible_for === userId ||
+        e.responsible_for === "mio" ||
+        e.paid_by === userId)
+  );
+
+  const income = untagged
+    .filter(
+      (e) =>
+        e.category === "deposit" &&
+        (e.responsible_for === userId || e.responsible_for === "mio")
+    )
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const out = untagged
+    .filter((e) => isPersonalPocketCashOut(e, userId))
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const withdrawals = untagged
+    .filter(
+      (e) =>
+        e.category === "withdrawal" &&
+        (e.responsible_for === userId || e.responsible_for === "mio")
+    )
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  return Math.round((tagged + income - out - withdrawals) * 100) / 100;
 }
 
 export function listActiveFunds(funds: FamilyFund[]) {

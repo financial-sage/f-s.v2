@@ -80,6 +80,9 @@ export default async function Home() {
           budget={dashboard.budget}
           transactions={dashboard.transactions}
           pocketBalance={pocketBalance}
+          accountsVisibleLiquidity={accountsVisibleLiquidity}
+          hasVisibleAccounts={hasVisibleAccounts}
+          initialFunds={funds}
         />
       )}
     </>
