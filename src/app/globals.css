@@ -419,6 +419,50 @@ body {
     0 6px 16px rgba(28, 39, 64, 0.28);
 }
 
+/* Already Premium: icon-only, soft border, minimal glow */
+.premium-chip-lux-owned {
+  padding: 0.4rem;
+  background:
+    linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--surface-lowest) 96%, #1c2740) 0%,
+        color-mix(in srgb, var(--surface-lowest) 94%, #c4a574) 100%
+      )
+      padding-box,
+    conic-gradient(
+        from var(--premium-chip-angle),
+        color-mix(in srgb, #c4a574 55%, transparent) 0%,
+        color-mix(in srgb, #1c2740 40%, transparent) 40%,
+        color-mix(in srgb, #c4a574 45%, transparent) 70%,
+        color-mix(in srgb, #c4a574 55%, transparent) 100%
+      )
+      border-box;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, #c4a574 18%, transparent),
+    0 0 6px color-mix(in srgb, #c4a574 10%, transparent);
+  animation: premium-chip-rotate 6s linear infinite;
+}
+
+.dark .premium-chip-lux-owned {
+  background:
+    linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--surface-lowest) 94%, #c4a574) 0%,
+        color-mix(in srgb, var(--surface-lowest) 96%, #1c2740) 100%
+      )
+      padding-box,
+    conic-gradient(
+        from var(--premium-chip-angle),
+        color-mix(in srgb, #c4a574 50%, transparent) 0%,
+        color-mix(in srgb, #e8e2d6 25%, transparent) 50%,
+        color-mix(in srgb, #c4a574 50%, transparent) 100%
+      )
+      border-box;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, #c4a574 22%, transparent),
+    0 0 8px color-mix(in srgb, #c4a574 12%, transparent);
+}
+
 /* Fund-tinted list icons — light soft chip; dark uses fab-ink coin (no JS theme flash) */
 .icon-chip-fund {
   --icon-chip-accent: var(--primary);

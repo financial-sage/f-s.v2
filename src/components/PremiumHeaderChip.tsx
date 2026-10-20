@@ -24,13 +24,13 @@ export default function PremiumHeaderChip({
     if (entitlement?.coupleMode === "couple_trial") {
       const label = formatPremiumTrialChip(entitlement.trialSecondsRemaining);
       if (label) {
-        return { label, tone: "trial" as const };
+        return { label, tone: "trial" as const, showLabel: true };
       }
     }
     if (entitlement?.isPremiumHousehold || isPremiumFallback) {
-      return { label: "Premium", tone: "premium" as const };
+      return { label: "Premium", tone: "premium" as const, showLabel: false };
     }
-    return { label: "Premium", tone: "cta" as const };
+    return { label: "Premium", tone: "cta" as const, showLabel: true };
   }, [entitlement, isPremiumFallback]);
 
   return (
@@ -38,17 +38,17 @@ export default function PremiumHeaderChip({
       <button
         type="button"
         onClick={() => setPaywallOpen(true)}
-        className={`premium-chip-lux inline-flex max-w-[12rem] items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold tracking-tight transition-transform active:scale-[0.98] ${
-          chip.tone === "trial"
-            ? "premium-chip-lux-trial"
-            : chip.tone === "premium"
-              ? "text-accent"
-              : "text-on-surface"
+        className={`premium-chip-lux inline-flex items-center transition-transform active:scale-[0.98] ${
+          chip.tone === "premium"
+            ? "premium-chip-lux-owned text-accent"
+            : chip.tone === "trial"
+              ? "premium-chip-lux-trial max-w-[12rem] gap-1.5 px-3 py-1.5 text-[11px] font-semibold tracking-tight"
+              : "max-w-[12rem] gap-1.5 px-3 py-1.5 text-[11px] font-semibold tracking-tight text-on-surface"
         }`}
         aria-label={chip.label}
       >
         <Crown
-          size={12}
+          size={chip.tone === "premium" ? 14 : 12}
           className={
             chip.tone === "trial"
               ? "text-[#c4a574]"
@@ -57,7 +57,7 @@ export default function PremiumHeaderChip({
                 : "text-accent"
           }
         />
-        <span className="truncate">{chip.label}</span>
+        {chip.showLabel ? <span className="truncate">{chip.label}</span> : null}
       </button>
 
       <PremiumPaywallModal
