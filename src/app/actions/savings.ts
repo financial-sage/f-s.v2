@@ -5,11 +5,11 @@ import { redirect } from "next/navigation";
 import {
   transferAccountToFundAction,
   transferFundToAccountAction,
-  listFamilyAccountsAction,
+  loadFamilyAccountsForFamily,
 } from "@/app/actions/accounts";
 import {
   depositToFundAction,
-  ensureFamilyFunds,
+  getFamilyFundsFast,
   transferBetweenFundsAction,
 } from "@/app/actions/funds";
 import {
@@ -101,7 +101,6 @@ async function getFamilyMemberCount(familyId: string): Promise<number> {
 }
 
 function revalidateSavingsPaths() {
-  revalidatePath("/");
   revalidatePath("/savings");
   revalidatePath("/accounts");
   revalidatePath("/history");
@@ -110,7 +109,23 @@ function revalidateSavingsPaths() {
 export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const funds = await ensureFamilyFunds(familyId);
+  const admin = getSupabaseAdminClient();
+
+  const [funds, memberCount, accounts, expensesResult] = await Promise.all([
+    getFamilyFundsFast(familyId, { requireSavings: true }),
+    getFamilyMemberCount(familyId),
+    loadFamilyAccountsForFamily(familyId),
+    admin
+      .from("expenses")
+      .select(
+        "id, amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id, is_active, expense_date"
+      )
+      .eq("family_id", familyId)
+      .eq("is_active", true)
+      .order("expense_date", { ascending: false })
+      .limit(500),
+  ]);
+
   const savings = getSavingsFund(funds);
   if (!savings) {
     throw new Error(
@@ -118,19 +133,9 @@ export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
     );
   }
 
-  const admin = getSupabaseAdminClient();
-  const { data: expenses, error } = await admin
-    .from("expenses")
-    .select(
-      "id, amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id, is_active, expense_date"
-    )
-    .eq("family_id", familyId)
-    .eq("is_active", true)
-    .order("expense_date", { ascending: false });
+  if (expensesResult.error) throw new Error(expensesResult.error.message);
 
-  if (error) throw new Error(error.message);
-
-  const rows = (expenses ?? []) as Array<{
+  const rows = (expensesResult.data ?? []) as Array<{
     id: string;
     amount: number;
     category: string | null;
@@ -163,8 +168,6 @@ export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
       };
     });
 
-  const accounts = await listFamilyAccountsAction();
-  const memberCount = await getFamilyMemberCount(familyId);
   const individual = isIndividualHousehold(memberCount);
   const defaultShared = getDefaultSharedFund(funds);
   const defaultPersonal = getPersonalFund(funds, user.id);
@@ -215,7 +218,7 @@ export async function contributeToSavingsAction(input: {
 }) {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireSavings: true });
   const savings = getSavingsFund(funds);
   if (!savings) throw new Error("No encontramos el bote de ahorro.");
 
@@ -279,7 +282,7 @@ export async function withdrawFromSavingsAction(input: {
 }) {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireSavings: true });
   const savings = getSavingsFund(funds);
   if (!savings) throw new Error("No encontramos el bote de ahorro.");
 

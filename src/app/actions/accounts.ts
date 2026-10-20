@@ -18,7 +18,7 @@ import {
   listVisibleAccountsForUser,
   responsibleForAccount,
 } from "@/lib/accounts";
-import { ensureFamilyFunds } from "@/app/actions/funds";
+import { getFamilyFundsFast } from "@/app/actions/funds";
 import {
   calculateFundCashBalance,
   getDefaultSharedFund,
@@ -70,13 +70,14 @@ function migrationHint(errorMessage: string) {
 }
 
 function revalidateAccountsPaths() {
-  revalidatePath("/");
+  // Avoid rebuilding home RSC on every account mutation — dashboard uses Zustand.
   revalidatePath("/accounts");
   revalidatePath("/history");
-  revalidatePath("/profile");
 }
 
-async function loadFamilyAccounts(familyId: string): Promise<FamilyAccount[]> {
+export async function loadFamilyAccountsForFamily(
+  familyId: string
+): Promise<FamilyAccount[]> {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("family_accounts")
@@ -90,6 +91,10 @@ async function loadFamilyAccounts(familyId: string): Promise<FamilyAccount[]> {
   }
 
   return (data ?? []) as FamilyAccount[];
+}
+
+async function loadFamilyAccounts(familyId: string): Promise<FamilyAccount[]> {
+  return loadFamilyAccountsForFamily(familyId);
 }
 
 async function getFamilyMemberCount(familyId: string): Promise<number> {
@@ -509,8 +514,10 @@ export async function transferAccountToFundAction(input: {
   const accounts = await loadFamilyAccounts(familyId);
   const from = requireOperableAccount(accounts, input.fromAccountId, user.id, "cuenta de origen");
 
-  const funds = await ensureFamilyFunds(familyId);
-  const memberCount = await getFamilyMemberCount(familyId);
+  const [funds, memberCount] = await Promise.all([
+    getFamilyFundsFast(familyId),
+    getFamilyMemberCount(familyId),
+  ]);
   const to = funds.find((f) => f.id === input.toFundId && !f.archived_at);
   if (!to) throw new Error("No encontramos ese bolsillo.");
   if (
@@ -594,8 +601,10 @@ export async function transferFundToAccountAction(input: {
     throw new Error("Ingresa un importe válido.");
   }
 
-  const funds = await ensureFamilyFunds(familyId);
-  const memberCount = await getFamilyMemberCount(familyId);
+  const [funds, memberCount] = await Promise.all([
+    getFamilyFundsFast(familyId),
+    getFamilyMemberCount(familyId),
+  ]);
   const from = funds.find((f) => f.id === input.fromFundId && !f.archived_at);
   if (!from) throw new Error("No encontramos ese bolsillo.");
   if (
@@ -727,17 +736,24 @@ export async function registerExternalOutflowAction(input: {
 export async function getAccountsOverviewAction() {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const memberCount = await getFamilyMemberCount(familyId);
 
-  const [rawAccounts, expenses, funds] = await Promise.all([
-    isIndividualHousehold(memberCount)
-      ? ensurePersonalAccount(familyId, user.id)
-      : loadFamilyAccounts(familyId),
+  const [memberCount, expenses, funds, loadedAccounts] = await Promise.all([
+    getFamilyMemberCount(familyId),
     loadActiveExpenses(familyId),
     loadFamilyFundsForAccounts(familyId).catch(() => [] as FamilyFund[]),
+    loadFamilyAccounts(familyId),
   ]);
 
-  const accounts = rawAccounts;
+  let accounts = loadedAccounts;
+  if (isIndividualHousehold(memberCount)) {
+    const hasPersonal = accounts.some(
+      (a) => a.scope === "personal" && a.owner_profile_id === user.id && !a.archived_at
+    );
+    if (!hasPersonal) {
+      accounts = await ensurePersonalAccount(familyId, user.id);
+    }
+  }
+
   const visible = listVisibleAccountsForUser(accounts, user.id);
 
   const balances = visible.map((account) => ({

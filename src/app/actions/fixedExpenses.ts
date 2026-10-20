@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { ensureFamilyFunds } from "@/app/actions/funds";
+import { getFamilyFundsFast } from "@/app/actions/funds";
 import {
   calculateFundCashBalance,
   getFixedExpensesFund,
@@ -199,7 +199,7 @@ export async function loadFixedExpensesMonthAction(
   assertMonthKey(monthKey);
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
   return buildMonthSnapshot(familyId, monthKey, funds);
 }
 
@@ -213,7 +213,7 @@ export async function createFixedExpenseAction(input: {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
 
   const name = input.name.trim();
   const baseValue = Number(input.baseValue);
@@ -255,7 +255,7 @@ export async function updateFixedExpenseAction(input: {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
 
   const name = input.name.trim();
   const baseValue = Number(input.baseValue);
@@ -306,7 +306,7 @@ export async function deactivateFixedExpenseAction(input: {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
 
   const { error } = await admin
     .from("fixed_expenses")
@@ -330,7 +330,7 @@ export async function depositToFixedExpensesFundAction(input: {
   assertMonthKey(input.monthKey);
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
   const fixedFund = getFixedExpensesFund(funds);
   if (!fixedFund) {
     throw new Error(
@@ -402,7 +402,7 @@ export async function markFixedExpensePaidAction(input: {
   assertPaidDate(paidDate);
   const paidAt = `${paidDate}T12:00:00.000Z`;
 
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
   const fixedFund = getFixedExpensesFund(funds);
   if (!fixedFund) {
     throw new Error(
@@ -477,7 +477,7 @@ export async function updateFixedExpensePaidAction(input: {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
 
   const realValue = Number(input.realValue);
   if (!Number.isFinite(realValue) || realValue <= 0) {
@@ -538,7 +538,7 @@ export async function unmarkFixedExpensePaidAction(input: {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("fixed_expense_payments")

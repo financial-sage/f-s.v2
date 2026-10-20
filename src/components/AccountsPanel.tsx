@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   Archive,
   ArrowDownToLine,
@@ -102,7 +101,6 @@ export default function AccountsPanel({
   currentUserId,
   familyMemberCount = 1,
 }: AccountsPanelProps) {
-  const router = useRouter();
   const { format: formatCurrency } = useCurrency();
   const setAccountsCache = useAccountsStore((s) => s.setAccounts);
   const setFundsCache = useFundsStore((s) => s.setFunds);
@@ -196,6 +194,14 @@ export default function AccountsPanel({
     setIsLoadingOverview(false);
   }
 
+  /** Local overview + background expense sync — skip router.refresh (home uses Zustand). */
+  async function afterMutation() {
+    await refresh();
+    void import("@/lib/realtimeFamily").then(({ syncFamilyExpenses }) => {
+      void syncFamilyExpenses();
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -277,8 +283,7 @@ export default function AccountsPanel({
         });
         setNewName("");
         closeCreateSheet();
-        await refresh();
-        router.refresh();
+        await afterMutation();
       } catch (err) {
         setCreateError(err instanceof Error ? err.message : "No se pudo crear la cuenta.");
       }
@@ -304,10 +309,7 @@ export default function AccountsPanel({
         setShowIncomeKeypad(false);
         setIncomeAccountId(null);
         setWarning("");
-        await refresh();
-        const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
-        await syncFamilyExpenses();
-        router.refresh();
+        await afterMutation();
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo registrar el ingreso.");
       }
@@ -408,10 +410,7 @@ export default function AccountsPanel({
         showBalanceWarning(result.balanceWarning);
         setShowTransferKeypad(false);
         closeTransferSheet();
-        await refresh();
-        const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
-        await syncFamilyExpenses();
-        router.refresh();
+        await afterMutation();
       } catch (err) {
         setShowTransferKeypad(false);
         setTransferError(
@@ -428,8 +427,7 @@ export default function AccountsPanel({
     startTransition(async () => {
       try {
         await updateAccountVisibilityAction({ accountId: account.id, visibility: next });
-        await refresh();
-        router.refresh();
+        await afterMutation();
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo cambiar la visibilidad.");
       }
@@ -453,8 +451,7 @@ export default function AccountsPanel({
           accountId: account.id,
           confirmNonZeroBalance: needsConfirm,
         });
-        await refresh();
-        router.refresh();
+        await afterMutation();
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo archivar.");
       }

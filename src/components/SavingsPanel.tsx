@@ -162,14 +162,6 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
     });
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-page-gradient text-sm text-on-surface-variant">
-        Cargando ahorros…
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-dvh flex-col bg-page-gradient">
       <header className="mx-auto flex w-full max-w-md items-center px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -183,6 +175,11 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
         </div>
       </header>
 
+      {isLoading && !overview ? (
+        <div className="flex flex-1 items-center justify-center px-4 text-sm text-on-surface-variant">
+          Cargando ahorros…
+        </div>
+      ) : (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-[var(--fab-clearance)] pt-1">
         {error ? (
           <p className="alert-error rounded-2xl px-4 py-3 text-sm">{error}</p>
@@ -304,6 +301,7 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
           )}
         </section>
       </main>
+      )}
 
       <Sheet
         open={contributeOpen}

@@ -14,6 +14,7 @@ import {
   SAVINGS_FUND_COLOR,
   SAVINGS_FUND_NAME,
   getFixedExpensesFund,
+  getSavingsFund,
   isAllowedFundColor,
   isFixedExpensesFund,
   isSavingsFund,
@@ -51,6 +52,44 @@ async function getUserFamilyId(userId: string) {
   }
 
   return profile.family_id as string;
+}
+
+/** Read-only fund list — no inserts/migrations. Prefer on overview / navigation. */
+export async function loadFamilyFunds(familyId: string): Promise<FamilyFund[]> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("family_funds")
+    .select("*")
+    .eq("family_id", familyId)
+    .is("archived_at", null)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      error.message.includes("family_funds")
+        ? "Falta aplicar la migración de fondos (family_funds). Ejecuta database/migrations/001_family_funds.sql"
+        : error.message
+    );
+  }
+
+  return (data ?? []) as FamilyFund[];
+}
+
+/**
+ * Fast path for reads: return existing funds without running ensure bootstrap.
+ * Only bootstraps when the family has no funds (or a required system pot is missing).
+ */
+export async function getFamilyFundsFast(
+  familyId: string,
+  options?: { requireSavings?: boolean; requireFixed?: boolean }
+): Promise<FamilyFund[]> {
+  const funds = await loadFamilyFunds(familyId);
+  const needsBootstrap =
+    funds.length === 0 ||
+    (options?.requireSavings && !getSavingsFund(funds)) ||
+    (options?.requireFixed && !getFixedExpensesFund(funds));
+  if (!needsBootstrap) return funds;
+  return ensureFamilyFunds(familyId);
 }
 
 export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]> {
@@ -298,7 +337,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
 export async function listFamilyFundsAction(): Promise<FamilyFund[]> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  return ensureFamilyFunds(familyId);
+  return getFamilyFundsFast(familyId);
 }
 
 async function clearDefaultsAndPromote(
@@ -768,7 +807,7 @@ export async function transferBetweenFundsAction(input: {
 export async function getFamilyFundsMetaAction() {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId);
   const defaultShared = getDefaultSharedFund(funds);
   const fixedFund = getFixedExpensesFund(funds);
 
@@ -783,7 +822,7 @@ export async function getFamilyFundsMetaAction() {
 export async function getFundsOverviewAction() {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId);
   const admin = getSupabaseAdminClient();
 
   const { data: expenses } = await admin
