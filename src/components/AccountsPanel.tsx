@@ -29,9 +29,11 @@ import {
 } from "@/app/actions/accounts";
 import type { AccountScope, AccountVisibility, FamilyAccount } from "@/lib/accounts";
 import {
+  calculateAccountCashBalance,
   canOperateAccount,
   DEFAULT_PERSONAL_ACCOUNT_COLOR,
   listOperableAccountsForUser,
+  listVisibleAccountsForUser,
   resolveAccountColor,
 } from "@/lib/accounts";
 import type { FamilyFund } from "@/lib/funds";
@@ -39,6 +41,8 @@ import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useAccountsStore } from "@/store/useAccountsStore";
+import { useExpenseStore } from "@/store/useExpenseStore";
+import { useFundsStore } from "@/store/useFundsStore";
 import { tintedGlassGradient } from "@/lib/glass";
 
 const HERO_ACCENT = DEFAULT_PERSONAL_ACCOUNT_COLOR;
@@ -48,6 +52,33 @@ type TransferStep = "choose" | "configure";
 
 interface AccountsPanelProps {
   currentUserId: string;
+}
+
+function seedFromCaches(userId: string): {
+  accounts: FamilyAccount[];
+  funds: FamilyFund[];
+  balances: Record<string, number>;
+  totalLiquidity: number;
+} {
+  const cachedAccounts = useAccountsStore.getState().accounts;
+  const accounts = listVisibleAccountsForUser(cachedAccounts, userId);
+  const { expenses, isHydrated } = useExpenseStore.getState();
+  const cachedFunds = useFundsStore.getState().funds;
+  const funds = cachedFunds.filter(
+    (f) => !f.archived_at && (f.scope === "shared" || f.owner_profile_id === userId)
+  );
+
+  if (!isHydrated || accounts.length === 0) {
+    return { accounts, funds, balances: {}, totalLiquidity: 0 };
+  }
+
+  const balances = Object.fromEntries(
+    accounts.map((account) => [account.id, calculateAccountCashBalance(expenses, account.id)])
+  );
+  const totalLiquidity =
+    Math.round(Object.values(balances).reduce((s, b) => s + b, 0) * 100) / 100;
+
+  return { accounts, funds, balances, totalLiquidity };
 }
 
 const TRANSFER_OPTIONS: Array<{
@@ -66,11 +97,14 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
   const router = useRouter();
   const { format: formatCurrency } = useCurrency();
   const setAccountsCache = useAccountsStore((s) => s.setAccounts);
+  const setFundsCache = useFundsStore((s) => s.setFunds);
 
-  const [accounts, setAccounts] = useState<FamilyAccount[]>([]);
-  const [funds, setFunds] = useState<FamilyFund[]>([]);
-  const [balances, setBalances] = useState<Record<string, number>>({});
-  const [totalLiquidity, setTotalLiquidity] = useState(0);
+  const [seed] = useState(() => seedFromCaches(currentUserId));
+  const [accounts, setAccounts] = useState<FamilyAccount[]>(seed.accounts);
+  const [funds, setFunds] = useState<FamilyFund[]>(seed.funds);
+  const [balances, setBalances] = useState<Record<string, number>>(seed.balances);
+  const [totalLiquidity, setTotalLiquidity] = useState(seed.totalLiquidity);
+  const [isLoadingOverview, setIsLoadingOverview] = useState(seed.accounts.length === 0);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -139,19 +173,23 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
     setAccounts(overview.accounts);
     setAccountsCache(overview.accounts);
     setFunds(overview.funds);
+    setFundsCache(overview.funds);
     setBalances(Object.fromEntries(overview.balances.map((b) => [b.account.id, b.balance])));
     setTotalLiquidity(overview.totalVisibleLiquidity);
+    setIsLoadingOverview(false);
   }
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        // Soft-refresh: paint from Zustand first (seed), then reconcile with server.
         const overview = await getAccountsOverviewAction();
         if (cancelled) return;
         setAccounts(overview.accounts);
         setAccountsCache(overview.accounts);
         setFunds(overview.funds);
+        setFundsCache(overview.funds);
         setBalances(
           Object.fromEntries(overview.balances.map((b) => [b.account.id, b.balance]))
         );
@@ -162,12 +200,14 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
             err instanceof Error ? err.message : "No se pudieron cargar las cuentas."
           );
         }
+      } finally {
+        if (!cancelled) setIsLoadingOverview(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [setAccountsCache]);
+  }, [setAccountsCache, setFundsCache]);
 
   function showBalanceWarning(flag?: boolean) {
     if (flag) {
@@ -648,7 +688,12 @@ export default function AccountsPanel({ currentUserId }: AccountsPanelProps) {
         )}
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-none pb-[var(--fab-clearance)] no-scrollbar">
-          {accounts.length === 0 ? (
+          {accounts.length === 0 && isLoadingOverview ? (
+            <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
+              <LoaderCircle className="h-5 w-5 animate-spin text-on-surface-variant" />
+              <p className="text-xs font-light text-on-surface-variant">Cargando cuentas…</p>
+            </div>
+          ) : accounts.length === 0 ? (
             <button
               type="button"
               onClick={openCreateSheet}

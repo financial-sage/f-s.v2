@@ -94,7 +94,9 @@ async function loadActiveExpenses(familyId: string) {
       "amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id, is_active, is_settled"
     )
     .eq("family_id", familyId)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    // Balances only need ledger rows tied to an account.
+    .not("account_id", "is", null);
 
   if (error) {
     throw new Error(migrationHint(error.message));
@@ -114,6 +116,23 @@ async function loadActiveExpenses(familyId: string) {
     is_active?: boolean | null;
     is_settled?: boolean | null;
   }>;
+}
+
+/** Read-only fund list for the accounts transfer sheet (no ensure/create side effects). */
+async function loadFamilyFundsForAccounts(familyId: string): Promise<FamilyFund[]> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("family_funds")
+    .select("*")
+    .eq("family_id", familyId)
+    .is("archived_at", null)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as FamilyFund[];
 }
 
 function requireOperableAccount(
@@ -620,16 +639,14 @@ export async function registerExternalOutflowAction(input: {
 export async function getAccountsOverviewAction() {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
-  const accounts = await loadFamilyAccounts(familyId);
-  const visible = listVisibleAccountsForUser(accounts, user.id);
-  const expenses = await loadActiveExpenses(familyId);
 
-  let funds: FamilyFund[] = [];
-  try {
-    funds = await ensureFamilyFunds(familyId);
-  } catch {
-    funds = [];
-  }
+  const [accounts, expenses, funds] = await Promise.all([
+    loadFamilyAccounts(familyId),
+    loadActiveExpenses(familyId),
+    loadFamilyFundsForAccounts(familyId).catch(() => [] as FamilyFund[]),
+  ]);
+
+  const visible = listVisibleAccountsForUser(accounts, user.id);
 
   const balances = visible.map((account) => ({
     account,

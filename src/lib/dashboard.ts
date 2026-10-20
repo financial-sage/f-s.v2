@@ -545,6 +545,8 @@ export async function getHomePageData(): Promise<
       )
       .eq("family_id", familyId)
       .eq("is_active", true)
+      // Match client store order so Home does not flash a wrong top-N on hydration.
+      .order("expense_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(400),
     supabase
@@ -597,6 +599,7 @@ export async function getHomePageData(): Promise<
       )
       .eq("family_id", familyId)
       .eq("is_active", true)
+      .order("expense_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(400);
     expenseData = legacy.data;
