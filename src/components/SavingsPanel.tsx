@@ -56,7 +56,7 @@ export default function SavingsPanel({
         title: isIndividual ? "Tu colchón" : "El ahorro compartido",
         body: isIndividual
           ? "Aquí acumulas lo que apartas del día a día. No es para gastos sueltos: es tu reserva."
-          : "Aquí veis juntos lo que habéis apartado. Misma cifra, mismos acuerdos.",
+          : "Aquí ven juntos lo que han apartado. Misma cifra, mismos acuerdos.",
       },
       {
         target: "savings-contribute",
@@ -288,7 +288,7 @@ export default function SavingsPanel({
             <p className="rounded-2xl border border-dashed border-outline-variant/30 px-4 py-6 text-center text-sm text-on-surface-variant">
               {isIndividual
                 ? "Aún no hay aportes. Cuando organices el mes, aparta aquí el ahorro."
-                : "Aún no hay aportes. Cuando organicéis el mes, apartad aquí el ahorro."}
+                : "Aún no hay aportes. Cuando organicen el mes, aparten aquí el ahorro."}
             </p>
           ) : (
             <ul className="space-y-1.5">

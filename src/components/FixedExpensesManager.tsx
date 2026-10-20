@@ -163,12 +163,12 @@ export default function FixedExpensesManager({
         title: "Mes a mes",
         body: isIndividual
           ? "Cambia de mes para ver qué tienes pendiente y qué ya pagaste."
-          : "El mismo mes para los dos: veis qué falta y qué ya está pagado.",
+          : "El mismo mes para los dos: ven qué falta y qué ya está pagado.",
       },
       {
         target: "fixed-summary",
         title: "Cuánto falta",
-        body: "Aquí ves lo que queda por pagar y el saldo del bolsillo de fijos. Aporta cuando organicéis el mes.",
+        body: "Aquí ves lo que queda por pagar y el saldo del bolsillo de fijos. Aporta cuando organicen el mes.",
       },
     ],
     [isIndividual]

@@ -38,8 +38,8 @@ export default async function AddExpensePage() {
       .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
       .maybeSingle();
 
-    financialModel = family?.financial_model ?? "joint_fund";
-    user1SplitPct = Number(family?.user_1_split_pct ?? 50);
+    financialModel = "joint_fund";
+    user1SplitPct = 50;
 
     partnerUserId =
       family?.user_1_id === user.id ? family.user_2_id : family?.user_1_id ?? null;

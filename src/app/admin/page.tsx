@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { isSuperAdminUser } from "@/lib/admin";
 import { broadcastAppUpdate } from "@/lib/push-server";
 import { isPushConfigured } from "@/lib/push";
 
@@ -22,9 +23,7 @@ async function getAuthorizedUser() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const adminEmail = process.env.ADMIN_EMAIL;
-
-  if (!user || !adminEmail || user.email !== adminEmail) {
+  if (!user || !(await isSuperAdminUser({ userId: user.id, email: user.email }))) {
     redirect("/");
   }
 

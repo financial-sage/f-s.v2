@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
     ArrowLeftRight,
     BarChart3,
-    Bell,
     Bolt,
     CalendarClock,
     CarFront,
@@ -62,6 +61,9 @@ import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
 import { useIsDark } from "@/hooks/useIsDark";
+import HouseholdStatusBanner from "@/components/HouseholdStatusBanner";
+import PremiumHeaderChip from "@/components/PremiumHeaderChip";
+import type { HouseholdEntitlement } from "@/lib/premium";
 
 interface DashboardSoloProps {
     currentUserId: string;
@@ -74,6 +76,7 @@ interface DashboardSoloProps {
     accountsVisibleLiquidity?: number;
     hasVisibleAccounts?: boolean;
     initialFunds?: FamilyFund[];
+    entitlement?: HouseholdEntitlement | null;
 }
 
 const iconMap: Record<DashboardTransaction["iconKey"], LucideIcon> = {
@@ -111,6 +114,7 @@ export default function DashboardSolo({
     accountsVisibleLiquidity = 0,
     hasVisibleAccounts = false,
     initialFunds = [],
+    entitlement = null,
 }: DashboardSoloProps) {
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
@@ -469,6 +473,10 @@ export default function DashboardSolo({
                 closeDepositModal();
                 const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
                 await syncFamilyExpenses();
+                const { requestFirstMoveCelebrationCheck } = await import(
+                    "@/components/PartnerFirstMoveCelebration"
+                );
+                requestFirstMoveCelebrationCheck();
             } catch (err) {
                 setDepositError(err instanceof Error ? err.message : "No se pudo registrar el aporte.");
             }
@@ -508,17 +516,12 @@ export default function DashboardSolo({
                     </div>
                 </Link>
                 <div className="flex items-center gap-1.5">
-                    <button
-                        type="button"
-                        className="relative rounded-full border border-outline-variant/30 bg-surface-lowest/80 p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
-                        aria-label="Notificaciones"
-                    >
-                        <Bell size={16} />
-                    </button>
+                    <PremiumHeaderChip entitlement={entitlement} />
                 </div>
             </header>
 
             <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col gap-[clamp(0.75rem,2.5dvh,1.25rem)] overflow-hidden px-4 pb-[var(--fab-clearance)] pt-1">
+                <HouseholdStatusBanner entitlement={entitlement} />
                 <section className="relative shrink-0" data-tour="dash-balance">
                     <div
                         className="relative overflow-hidden rounded-[1.85rem] border-[0.5px] border-glass-border p-6 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-[background] duration-500"

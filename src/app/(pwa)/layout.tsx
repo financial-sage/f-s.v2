@@ -8,6 +8,7 @@ import PageTransition from "@/components/PageTransition";
 import RealtimeSync from "@/components/RealtimeSync";
 import StoreHydrator from "@/components/StoreHydrator";
 import FirstRunGate from "@/components/FirstRunGate";
+import PartnerFirstMoveCelebration from "@/components/PartnerFirstMoveCelebration";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
@@ -49,6 +50,7 @@ export default function PwaLayout({
     <ExpenseModalProvider>
       <StoreHydrator />
       <FirstRunGate />
+      <PartnerFirstMoveCelebration />
       <RealtimeSync />
       <PWARegister />
       <UpdateNotifier />

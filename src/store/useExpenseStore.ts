@@ -306,7 +306,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
             if (!familyId) { set({ isFetching: false, isHydrated: true }); return; }
 
             const family = familyResult.data as FamilyInfo | null;
-            const financialModel = family?.financial_model ?? "joint_fund";
+            const financialModel = "joint_fund";
             const partnerId = family
                 ? (family.user_1_id === userId ? family.user_2_id : family.user_1_id)
                 : null;

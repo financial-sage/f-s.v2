@@ -49,7 +49,7 @@ export default async function HistoryPage() {
   ]);
 
   const familyProfiles = familyProfilesResult.data ?? [];
-  const financialModel = familyResult.data?.financial_model ?? "joint_fund";
+  const financialModel = "joint_fund";
   const partner = familyProfiles.find((p) => p.id !== user.id);
   const partnerName = partner?.full_name?.trim().split(/\s+/)[0] ?? "Pareja";
   const partnerId = partner?.id ?? null;

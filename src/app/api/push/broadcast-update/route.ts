@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { isSuperAdminUser } from "@/lib/admin";
 import { broadcastAppUpdate } from "@/lib/push-server";
 import { isPushConfigured } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
-function isAuthorized(request: Request, userEmail: string | undefined): boolean {
-  const adminEmail = process.env.ADMIN_EMAIL?.trim();
-  if (adminEmail && userEmail && userEmail === adminEmail) {
-    return true;
-  }
-
+function isSecretAuthorized(request: Request): boolean {
   const secret = process.env.PUSH_BROADCAST_SECRET?.trim();
   if (!secret) return false;
 
@@ -34,7 +30,11 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!isAuthorized(request, user?.email ?? undefined)) {
+  const userOk =
+    Boolean(user) &&
+    (await isSuperAdminUser({ userId: user!.id, email: user!.email }));
+
+  if (!userOk && !isSecretAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

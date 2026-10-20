@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { joinFamilyWithCode } from "@/app/actions/family";
 import { CurrencySelectRow } from "@/components/CurrencySelectRow";
-import FamilySettings from "@/components/FamilySettings";
 import SignOutButton from "@/components/SignOutButton";
 import { createClient } from "@/utils/supabase/client";
 import { ThemeToggleRow } from "@/components/ThemeToggleRow";
@@ -23,9 +22,6 @@ interface DrawerProfileState {
   avatarUrl: string | null;
   familyId: string | null;
   inviteCode: string;
-  financialModel: string;
-  user1SplitPct: number;
-  isUserOne: boolean;
   partnerDisplayName: string;
   hasPartner: boolean;
 }
@@ -83,7 +79,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
       const { data: profile } = await supabase
         .from("profiles")
         .select(
-          "full_name, avatar_url, family_id, family:families!profiles_family_id_fkey(id, invite_code, user_1_id, user_2_id, financial_model, user_1_split_pct)"
+          "full_name, avatar_url, family_id, family:families!profiles_family_id_fkey(id, invite_code, user_1_id, user_2_id)"
         )
         .eq("id", user.id)
         .maybeSingle();
@@ -113,9 +109,6 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
         avatarUrl: profile?.avatar_url ?? null,
         familyId: family?.id ?? null,
         inviteCode: family?.invite_code ?? "------",
-        financialModel: family?.financial_model ?? "joint_fund",
-        user1SplitPct: Number(family?.user_1_split_pct ?? 50),
-        isUserOne: family?.user_1_id === user.id,
         partnerDisplayName: getFirstName(partnerProfile?.full_name),
         hasPartner: Boolean(partnerId),
       });
@@ -263,15 +256,6 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                   </div>
                 </div>
               </section>
-
-              {profileState.familyId ? (
-                <FamilySettings
-                  familyId={profileState.familyId}
-                  initialModel={profileState.financialModel}
-                  initialSplitPct={profileState.user1SplitPct}
-                  isUserOne={profileState.isUserOne}
-                />
-              ) : null}
 
               <section className="overflow-hidden rounded-3xl bg-surface-lowest shadow-sm">
                 <div className="px-4 pt-4">

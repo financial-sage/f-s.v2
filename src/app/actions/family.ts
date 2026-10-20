@@ -434,8 +434,8 @@ export async function getCurrentFamilyState() {
 
 export async function updateFamilyFinancialModel(
   familyId: string,
-  model: string,
-  splitPct: number = 50
+  _model: string = "joint_fund",
+  _splitPct: number = 50
 ) {
   const user = await getCurrentUser();
 
@@ -443,15 +443,8 @@ export async function updateFamilyFinancialModel(
     redirect("/login");
   }
 
-  const normalizedModel = model.trim();
-  const allowedModels = new Set(["joint_fund", "p2p_50_50", "p2p_proportional"]);
-
   if (!familyId) {
     return { error: "Familia inválida." };
-  }
-
-  if (!allowedModels.has(normalizedModel)) {
-    return { error: "Modelo financiero inválido." };
   }
 
   const currentFamily = await findCurrentFamily(user.id);
@@ -460,21 +453,13 @@ export async function updateFamilyFinancialModel(
     return { error: "No autorizado para actualizar esta familia." };
   }
 
-  const normalizedSplitPct =
-    normalizedModel === "p2p_proportional"
-      ? Math.min(100, Math.max(0, Math.round(Number(splitPct))))
-      : 50;
-
-  if (!Number.isFinite(normalizedSplitPct)) {
-    return { error: "Porcentaje inválido." };
-  }
-
+  // Couples only use shared/personal pockets (modelo de reparto removed).
   const admin = getSupabaseAdminClient();
   const { error } = await admin
     .from("families")
     .update({
-      financial_model: normalizedModel,
-      user_1_split_pct: normalizedSplitPct,
+      financial_model: "joint_fund",
+      user_1_split_pct: 50,
     } as never)
     .eq("id", familyId);
 

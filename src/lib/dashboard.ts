@@ -10,6 +10,8 @@ import {
   type FamilyAccount,
 } from "@/lib/accounts";
 import { createClient } from "@/utils/supabase/server";
+import type { HouseholdEntitlement } from "@/lib/premium";
+import { getHouseholdEntitlement } from "@/lib/premiumServer";
 
 interface UserRow {
   id: string;
@@ -385,6 +387,8 @@ export interface HomePageData {
   accountsVisibleLiquidity: number;
   /** True when the family already has at least one visible account. */
   hasVisibleAccounts: boolean;
+  /** Premium / trial entitlement for home UI routing. */
+  entitlement: HouseholdEntitlement | null;
 }
 
 function sumMemberShare(expenses: HomeExpenseRow[], memberId: string) {
@@ -656,6 +660,7 @@ export async function getHomePageData(): Promise<
   const currentMember = members.find((member) => member.id === user.id);
   const funds = ((fundsResult.data ?? []) as FamilyFund[]).filter((f) => !f.archived_at);
   const sharedDefaultFundId = getDefaultSharedFund(funds)?.id ?? null;
+  const entitlement = await getHouseholdEntitlement(familyId);
 
   const allAccounts = ((accountsResult.data ?? []) as FamilyAccount[]).filter(
     (a) => !a.archived_at
@@ -688,7 +693,7 @@ export async function getHomePageData(): Promise<
       userEmail: user.email ?? null,
       familyId,
       familyMemberCount,
-      financialModel: family.financial_model ?? "joint_fund",
+      financialModel: "joint_fund",
       currentUserName:
         profile.full_name?.trim() ||
         currentMember?.name ||
@@ -707,6 +712,7 @@ export async function getHomePageData(): Promise<
       sharedDefaultFundId,
       accountsVisibleLiquidity,
       hasVisibleAccounts: visibleAccounts.length > 0,
+      entitlement,
     },
   };
 }

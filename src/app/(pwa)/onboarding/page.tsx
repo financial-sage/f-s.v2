@@ -342,10 +342,10 @@ export default function OnboardingPage() {
                     <span className="rounded-xl bg-surface-lowest p-1.5 shadow-sm">
                       <Users size={16} />
                     </span>
-                    <p className="text-sm font-semibold">Si lo usáis en pareja</p>
+                    <p className="text-sm font-semibold">Si lo usan en pareja</p>
                   </div>
                   <p className="text-sm leading-relaxed text-on-surface-variant">
-                    Compartís la misma foto del dinero: lo común, lo de cada uno y lo que
+                    Comparten la misma foto del dinero: lo común, lo de cada uno y lo que
                     aún no está saldado. No se trata de controlar al otro, sino de ver lo
                     mismo y hablar con más honestidad. Menos “¿en qué nos gastamos eso?” y
                     más acuerdos tranquilos al final del mes.
@@ -404,7 +404,7 @@ export default function OnboardingPage() {
                 <span>
                   <span className="block text-base font-semibold text-on-surface">Pareja</span>
                   <span className="mt-1 block text-sm text-on-surface-variant">
-                    Compartís la misma foto del dinero: lo común, lo personal y las conversaciones
+                    Comparten la misma foto del dinero: lo común, lo personal y las conversaciones
                     difíciles con más calma.
                   </span>
                 </span>
@@ -439,7 +439,7 @@ export default function OnboardingPage() {
                   reparte y qué queda para cada uno.
                 </p>
                 <p>
-                  En SinDescuadre podéis tener lo compartido y también un rincón personal. La
+                  En SinDescuadre pueden tener lo compartido y también un rincón personal. La
                   confianza crece cuando no hay sorpresas al final del mes.
                 </p>
               </div>
@@ -459,7 +459,7 @@ export default function OnboardingPage() {
           {step === "couple_choice" && (
             <div className="space-y-4">
               <h1 className="text-[1.55rem] font-light tracking-tight text-on-surface">
-                ¿Cómo empezáis?
+                ¿Cómo empiezan?
               </h1>
               <p className="text-sm text-on-surface-variant">
                 Si tu pareja ya creó el espacio, únete con su código. Si no, créalo tú e
@@ -554,7 +554,7 @@ export default function OnboardingPage() {
                   Invita a tu pareja
                 </h1>
                 <p className="mt-2 text-sm text-on-surface-variant">
-                  Comparte este código de 6 caracteres para que se una a vuestro espacio.
+                  Comparte este código de 6 caracteres para que se una a su espacio.
                 </p>
               </div>
               <div className="rounded-3xl bg-primary/8 px-4 py-5 text-center">
@@ -581,7 +581,7 @@ export default function OnboardingPage() {
                 <p className="mt-1.5 text-sm leading-relaxed text-on-surface-variant">
                   Es normal: hasta que tu pareja introduzca el código y se una, SinDescuadre
                   te muestra el perfil y el dashboard en modo individual. En cuanto se una,
-                  el espacio pasará automáticamente a modo pareja y veréis el mismo dinero
+                  el espacio pasará automáticamente a modo pareja y verán el mismo dinero
                   juntos.
                 </p>
               </div>
@@ -712,7 +712,7 @@ export default function OnboardingPage() {
               </h1>
               <p className="text-sm text-on-surface-variant">
                 {mode === "couple"
-                  ? "Podéis usar el bolsillo común o crear uno con nombre (gasolina, casa…)."
+                  ? "Pueden usar el bolsillo común o crear uno con nombre (gasolina, casa…)."
                   : "Usa tu bolsillo personal o crea uno con nombre para un gasto concreto."}
               </p>
 

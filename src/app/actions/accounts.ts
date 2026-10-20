@@ -36,6 +36,7 @@ export type AccountActionResult = {
   balanceWarning?: boolean;
   transferGroupId?: string;
   accountId?: string;
+  firstMoveTrialStarted?: boolean;
 };
 
 async function requireUser() {
@@ -251,6 +252,9 @@ export async function createAccountAction(input: {
     throw new Error("Selecciona un color válido.");
   }
 
+  const { assertCanCreateAccount } = await import("@/lib/premiumServer");
+  await assertCanCreateAccount(familyId);
+
   const admin = getSupabaseAdminClient();
   const payload =
     scope === "shared"
@@ -411,8 +415,20 @@ export async function registerAccountIncomeAction(input: {
   const { error } = await admin.from("expenses").insert(payload as never);
   if (error) throw new Error(migrationHint(error.message));
 
+  const { maybeStartCoupleTrialOnFirstMovement } = await import("@/lib/premiumServer");
+  const trial = await maybeStartCoupleTrialOnFirstMovement({
+    familyId,
+    actorUserId: user.id,
+    kind: "income",
+  });
+
   revalidateAccountsPaths();
-  return { success: true, accountId: account.id };
+  const result: AccountActionResult = {
+    success: true,
+    accountId: account.id,
+    firstMoveTrialStarted: trial.started,
+  };
+  return result;
 }
 
 export async function transferBetweenAccountsAction(input: {

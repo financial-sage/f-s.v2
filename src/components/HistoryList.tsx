@@ -179,7 +179,7 @@ export default function HistoryList({
             {
                 target: "history-summary",
                 title: "Vista rápida",
-                body: "Resumen de tu bolsillo y, si vais en pareja, el estado compartido o el balance entre vosotros.",
+                body: "Resumen de tu bolsillo y, si van en pareja, el estado compartido o el balance entre ustedes.",
             },
             {
                 target: "history-filters",
@@ -273,7 +273,8 @@ export default function HistoryList({
         });
     };
 
-    const isJointModel = financialModel === "joint_fund";
+    // Couples only use shared/personal pockets (modelo de reparto removed).
+    const isJointModel = true;
     const hasPartner = Boolean(partnerId);
 
     const effectiveFilters = useMemo(() => {

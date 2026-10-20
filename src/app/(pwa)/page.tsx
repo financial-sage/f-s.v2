@@ -47,12 +47,16 @@ export default async function Home() {
     sharedDefaultFundId,
     accountsVisibleLiquidity,
     hasVisibleAccounts,
+    entitlement,
   } = home.data;
+
+  const showCoupleUi =
+    entitlement?.showCoupleUi ?? (familyMemberCount >= 2 && Boolean(familyId));
 
   return (
     <>
       <StoreHydrator userId={userId} initialFunds={funds} />
-      {familyMemberCount >= 2 && familyId ? (
+      {showCoupleUi && familyId ? (
         <DashboardCouple
           familyId={familyId}
           currentUserId={userId}
@@ -70,6 +74,7 @@ export default async function Home() {
           sharedDefaultFundId={sharedDefaultFundId}
           accountsVisibleLiquidity={accountsVisibleLiquidity}
           hasVisibleAccounts={hasVisibleAccounts}
+          entitlement={entitlement}
         />
       ) : (
         <DashboardSolo
@@ -83,6 +88,7 @@ export default async function Home() {
           accountsVisibleLiquidity={accountsVisibleLiquidity}
           hasVisibleAccounts={hasVisibleAccounts}
           initialFunds={funds}
+          entitlement={entitlement}
         />
       )}
     </>

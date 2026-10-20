@@ -12,12 +12,13 @@ import {
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CurrencySelectRow } from "@/components/CurrencySelectRow";
-import FamilySettings from "@/components/FamilySettings";
 import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
 import { ThemeToggleRow } from "@/components/ThemeToggleRow";
+import ActivatePremiumRow from "@/components/ActivatePremiumRow";
 import { sageGlassGradient } from "@/lib/glass";
+import { getHouseholdEntitlement } from "@/lib/premiumServer";
 import {
   householdSpaceTitle,
   isIndividualHousehold,
@@ -109,7 +110,7 @@ export default async function ProfilePage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "full_name, avatar_url, family_id, family:families!profiles_family_id_fkey(id, invite_code, name, user_1_id, user_2_id, financial_model, user_1_split_pct)"
+      "full_name, avatar_url, family_id, family:families!profiles_family_id_fkey(id, invite_code, name, user_1_id, user_2_id)"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -118,9 +119,6 @@ export default async function ProfilePage() {
   const initials = getInitials(displayName);
   const family = Array.isArray(profile?.family) ? profile.family[0] : profile?.family;
   const inviteCode = family?.invite_code ?? "------";
-  const currentFinancialModel = family?.financial_model ?? "joint_fund";
-  const currentSplitPct = Number(family?.user_1_split_pct ?? 50);
-  const isUserOne = family?.user_1_id === user.id;
   const partnerId = family?.user_1_id === user.id ? family?.user_2_id : family?.user_1_id ?? null;
 
   const { data: partnerProfile } = partnerId
@@ -141,6 +139,9 @@ export default async function ProfilePage() {
   const isIndividual = isIndividualHousehold(familyMemberCount || 1);
   const familyLabel = family?.name?.trim() || householdSpaceTitle(familyMemberCount || 1);
   const spaceTitle = householdSpaceTitle(familyMemberCount || 1);
+  const entitlement = family?.id
+    ? await getHouseholdEntitlement(family.id)
+    : null;
 
   const preferences = [
     { icon: BellRing, label: "Notificaciones", value: "Activadas" },
@@ -251,17 +252,6 @@ export default async function ProfilePage() {
           </div>
         </section>
 
-        {family?.id && !isIndividual ? (
-          <div className="mb-3">
-            <FamilySettings
-              familyId={family.id}
-              initialModel={currentFinancialModel}
-              initialSplitPct={currentSplitPct}
-              isUserOne={isUserOne}
-            />
-          </div>
-        ) : null}
-
         <section className="mb-4 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
           <div className="px-4 pt-3.5 pb-1">
             <p className="text-[11px] font-light text-on-surface-variant">Preferencias</p>
@@ -270,6 +260,10 @@ export default async function ProfilePage() {
           <div className="divide-y divide-outline-variant/15">
             <ThemeToggleRow />
             <CurrencySelectRow />
+            <ActivatePremiumRow
+              inviteCode={family?.invite_code}
+              isPremiumHousehold={Boolean(entitlement?.isPremiumHousehold)}
+            />
             <Link
               href="/accounts"
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"

@@ -6,11 +6,9 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
     BarChart3,
-    Bell,
     Check,
     ChevronDown,
     ChevronRight,
-    Crown,
     Edit,
     Eye,
     EyeOff,
@@ -88,6 +86,9 @@ import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
 import { useIsDark } from "@/hooks/useIsDark";
+import HouseholdStatusBanner from "@/components/HouseholdStatusBanner";
+import PremiumHeaderChip from "@/components/PremiumHeaderChip";
+import type { HouseholdEntitlement } from "@/lib/premium";
 
 
 interface CoupleDashboardExpense {
@@ -136,6 +137,7 @@ interface DashboardCoupleProps {
     sharedDefaultFundId?: string | null;
     accountsVisibleLiquidity?: number;
     hasVisibleAccounts?: boolean;
+    entitlement?: HouseholdEntitlement | null;
 }
 
 
@@ -193,6 +195,7 @@ export default function DashboardCouple({
     sharedDefaultFundId = null,
     accountsVisibleLiquidity = 0,
     hasVisibleAccounts = false,
+    entitlement = null,
 }: DashboardCoupleProps) {
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
@@ -211,12 +214,12 @@ export default function DashboardCouple({
             {
                 target: "dash-balance",
                 title: "Saldo del bolsillo",
-                body: "Aquí veis el dinero disponible del bolsillo activo. En pareja podéis cambiar entre lo común y lo personal.",
+                body: "Aquí ven el dinero disponible del bolsillo activo. En pareja pueden cambiar entre lo común y lo personal.",
             },
             {
                 target: "dash-actions",
                 title: "Acciones rápidas",
-                body: "Registrad un gasto, aportad o ajustad saldos sin perder el hilo.",
+                body: "Registren un gasto, aporten o ajusten saldos sin perder el hilo.",
             },
             {
                 target: "dash-modules",
@@ -529,7 +532,8 @@ export default function DashboardCouple({
     const legacyFundLiquidity = fundIncome - fundDirectExpenses - fundWithdrawals;
     const fundSpent = Math.max(legacyFundLiquidity, 0);
     const fundBudget = Math.max(fundSpent, 1000);
-    const isJointModel = financialModel === "joint_fund";
+    // Product decision: couples only use shared/personal pockets (no P2P split models).
+    const isJointModel = true;
     const hasP2PBalance = iOwePartner > 0 || partnerOwesMe > 0;
 
     const personalFund = useMemo(
@@ -950,6 +954,10 @@ export default function DashboardCouple({
             closeDepositModal();
             const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
             await syncFamilyExpenses();
+            const { requestFirstMoveCelebrationCheck } = await import(
+                "@/components/PartnerFirstMoveCelebration"
+            );
+            requestFirstMoveCelebrationCheck();
         });
     }
 
@@ -1011,31 +1019,48 @@ export default function DashboardCouple({
     }
 
     useEffect(() => {
-        if (typeof window === "undefined") {
-            return;
+        if (typeof window === "undefined") return;
+
+        const pending = window.sessionStorage.getItem("fsage:shared-welcome");
+        const playing = window.sessionStorage.getItem("fsage:shared-welcome-playing");
+        if (!pending && !playing) return;
+
+        if (pending) {
+            window.sessionStorage.removeItem("fsage:shared-welcome");
+            window.sessionStorage.setItem("fsage:shared-welcome-playing", "1");
         }
 
-        const pendingWelcome = window.sessionStorage.getItem("fsage:shared-welcome");
-
-        if (!pendingWelcome) {
-            return;
-        }
-
-        window.sessionStorage.removeItem("fsage:shared-welcome");
         setShowSharedWelcome(true);
         setHighlightFundCard(true);
         setAnimateSharedEntrance(true);
-        setWelcomeProgress(0);
-        requestAnimationFrame(() => requestAnimationFrame(() => setWelcomeProgress(100)));
+    }, []);
 
-        const timeoutId = window.setTimeout(() => {
+    // Hide when the progress bar finishes — separate effect so remounts
+    // (React Strict Mode) reschedule the dismiss timer.
+    useEffect(() => {
+        if (!showSharedWelcome) return;
+
+        setWelcomeProgress(0);
+        const raf = window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => setWelcomeProgress(100));
+        });
+
+        const hideId = window.setTimeout(() => {
             setShowSharedWelcome(false);
             setWelcomeProgress(0);
             setHighlightFundCard(false);
+            try {
+                window.sessionStorage.removeItem("fsage:shared-welcome-playing");
+            } catch {
+                // ignore
+            }
         }, 2600);
 
-        return () => window.clearTimeout(timeoutId);
-    }, []);
+        return () => {
+            window.cancelAnimationFrame(raf);
+            window.clearTimeout(hideId);
+        };
+    }, [showSharedWelcome]);
 
     // Expenses realtime lives in layout RealtimeSync → Zustand only.
     // Family settings still need a light RSC refresh when model/split changes.
@@ -1133,33 +1158,20 @@ export default function DashboardCouple({
                     </div>
                 </Link>
                 <div className="flex items-center gap-1.5">
-                    {isPremium ? (
-                        <div className="flex items-center rounded-full border border-accent/25 bg-accent/15 px-1.5 py-1 shadow-sm">
-                            <Crown size={12} className="fill-accent text-accent" />
-                        </div>
-                    ) : (
-                        <button
-                            type="button"
-                            className="rounded-full border border-outline-variant/40 bg-surface-lowest/80 p-1.5 text-outline-variant shadow-sm backdrop-blur-sm"
-                            aria-label="Hazte Premium"
-                        >
-                            <Lock size={13} strokeWidth={2} />
-                        </button>
-                    )}
-                    <button
-                        type="button"
-                        className="relative rounded-full border border-outline-variant/30 bg-surface-lowest/80 p-2 text-on-surface-variant shadow-sm backdrop-blur-sm"
-                        aria-label="Notificaciones"
-                    >
-                        <Bell size={16} />
-                        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-page-from" />
-                    </button>
+                    <PremiumHeaderChip
+                        entitlement={entitlement}
+                        isPremiumFallback={isPremium}
+                    />
                 </div>
             </header>
 
             <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col gap-[clamp(0.75rem,2.5dvh,1.25rem)] overflow-hidden px-4 pb-[var(--fab-clearance)] pt-1">
+                <HouseholdStatusBanner entitlement={entitlement} />
                 {showSharedWelcome && (
-                    <div className="pointer-events-none shrink-0 animate-in slide-in-from-top-4 fade-in duration-500">
+                    <div
+                        key="shared-welcome"
+                        className="pointer-events-none shrink-0 animate-in fade-in slide-in-from-top-4 duration-500"
+                    >
                         <div className="overflow-hidden rounded-3xl border border-primary/25 bg-glass-strong p-3 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary shadow-sm">

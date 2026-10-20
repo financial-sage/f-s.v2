@@ -118,11 +118,8 @@ function getFirstName(value?: string | null, fallback = "Mi pareja") {
   return firstName || fallback;
 }
 
-function normalizeFinancialModel(value?: string | null): FinancialModel {
-  if (value === "p2p_50_50" || value === "p2p_proportional") {
-    return value;
-  }
-
+function normalizeFinancialModel(_value?: string | null): FinancialModel {
+  // Couples only use shared/personal pockets (modelo de reparto removed).
   return "joint_fund";
 }
 
@@ -144,17 +141,10 @@ function buildPaidByOptions(
 
 function buildResponsibleOptions(
   partnerLabel: string,
-  financialModel: FinancialModel
+  _financialModel: FinancialModel
 ): OptionItem<ExpenseResponsibleFor>[] {
-  const sharedLabel =
-    financialModel === "joint_fund"
-      ? "Bolsillos"
-      : financialModel === "p2p_50_50"
-        ? "A medias (50/50)"
-        : "Proporcional";
-
   return [
-    { value: "joint_fund", label: sharedLabel, icon: Home },
+    { value: "joint_fund", label: "Bolsillos", icon: Home },
     { value: "me", label: "Mío", icon: User },
     { value: "partner", label: partnerLabel, icon: Heart },
   ];
@@ -750,15 +740,20 @@ export default function AddExpenseForm({
 
       // Refresh local store + pulse partner Realtime channel
       const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+      const { requestFirstMoveCelebrationCheck } = await import(
+        "@/components/PartnerFirstMoveCelebration"
+      );
 
       if (onClose) {
         onClose();
         window.setTimeout(() => {
           void syncFamilyExpenses();
+          requestFirstMoveCelebrationCheck();
         }, 460);
       } else {
         router.push("/");
         void syncFamilyExpenses();
+        requestFirstMoveCelebrationCheck();
       }
     } catch (error) {
       setErrorMessage(

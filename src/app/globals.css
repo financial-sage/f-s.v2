@@ -335,6 +335,90 @@ body {
   box-shadow: var(--fab-accent-shadow);
 }
 
+/* Premium header chip — thin animated gold/navy border */
+@property --premium-chip-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes premium-chip-rotate {
+  to {
+    --premium-chip-angle: 360deg;
+  }
+}
+
+.premium-chip-lux {
+  position: relative;
+  isolation: isolate;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--surface-lowest) 92%, #1c2740) 0%,
+        color-mix(in srgb, var(--surface-lowest) 88%, #c4a574) 100%
+      )
+      padding-box,
+    conic-gradient(
+        from var(--premium-chip-angle),
+        #c4a574 0%,
+        #1c2740 28%,
+        #e8e2d6 52%,
+        #c4a574 72%,
+        #2a3a5c 88%,
+        #c4a574 100%
+      )
+      border-box;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, #c4a574 35%, transparent),
+    0 0 12px color-mix(in srgb, #c4a574 28%, transparent),
+    0 4px 14px rgba(28, 39, 64, 0.12);
+  animation: premium-chip-rotate 2.8s linear infinite;
+}
+
+.dark .premium-chip-lux {
+  background:
+    linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--surface-lowest) 88%, #c4a574) 0%,
+        color-mix(in srgb, var(--surface-lowest) 92%, #1c2740) 100%
+      )
+      padding-box,
+    conic-gradient(
+        from var(--premium-chip-angle),
+        #c4a574 0%,
+        #e8e2d6 24%,
+        #c4a574 48%,
+        #1e3a8a 70%,
+        #c4a574 100%
+      )
+      border-box;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, #c4a574 45%, transparent),
+    0 0 16px color-mix(in srgb, #c4a574 22%, transparent),
+    0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.premium-chip-lux-trial {
+  background:
+    linear-gradient(145deg, #1c2740 0%, #2a3a5c 100%) padding-box,
+    conic-gradient(
+        from var(--premium-chip-angle),
+        #c4a574 0%,
+        #e8e2d6 30%,
+        #c4a574 55%,
+        #8a6a32 78%,
+        #c4a574 100%
+      )
+      border-box;
+  color: #f4f6fb;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, #c4a574 50%, transparent),
+    0 0 14px color-mix(in srgb, #c4a574 35%, transparent),
+    0 6px 16px rgba(28, 39, 64, 0.28);
+}
+
 /* Fund-tinted list icons — light soft chip; dark uses fab-ink coin (no JS theme flash) */
 .icon-chip-fund {
   --icon-chip-accent: var(--primary);

@@ -184,12 +184,23 @@ export async function saveExpenseAction({
       );
     }
 
+    const { maybeStartCoupleTrialOnFirstMovement } = await import("@/lib/premiumServer");
+    const trial = await maybeStartCoupleTrialOnFirstMovement({
+      familyId: profile.family_id,
+      actorUserId: user.id,
+      kind: "expense",
+    });
+
     revalidatePath("/");
     revalidatePath("/add-expense");
     revalidatePath("/history");
     revalidatePath("/accounts");
 
-    return { success: true as const, balanceWarning };
+    return {
+      success: true as const,
+      balanceWarning,
+      firstMoveTrialStarted: trial.started,
+    };
   }
 
   let funds: Awaited<ReturnType<typeof ensureFamilyFunds>> = [];
@@ -216,6 +227,17 @@ export async function saveExpenseAction({
   const fund = resolvedFundId ? funds.find((f) => f.id === resolvedFundId) : null;
   if (resolvedFundId && !fund) {
     throw new Error("El bolsillo seleccionado no existe.");
+  }
+
+  if (
+    fund?.scope === "shared" ||
+    responsibleFor === "joint_fund" ||
+    paidBy === "joint_fund" ||
+    paidBy === "partner" ||
+    responsibleFor === "partner"
+  ) {
+    const { assertCoupleFeaturesAllowed } = await import("@/lib/premiumServer");
+    await assertCoupleFeaturesAllowed(profile.family_id);
   }
   if (fund?.scope === "personal" && fund.owner_profile_id !== user.id && responsibleFor !== "partner") {
     // partner personal fund only when explicitly charging partner
@@ -302,11 +324,18 @@ export async function saveExpenseAction({
     throw new Error(insertError.message);
   }
 
+  const { maybeStartCoupleTrialOnFirstMovement } = await import("@/lib/premiumServer");
+  const trial = await maybeStartCoupleTrialOnFirstMovement({
+    familyId: profile.family_id,
+    actorUserId: user.id,
+    kind: "expense",
+  });
+
   revalidatePath("/");
   revalidatePath("/add-expense");
   revalidatePath("/history");
 
-  return { success: true as const };
+  return { success: true as const, firstMoveTrialStarted: trial.started };
 }
 
 export async function createDeposit({
@@ -380,6 +409,14 @@ export async function createDeposit({
     } as never);
 
     if (insertError) throw new Error(insertError.message);
+
+    const { maybeStartCoupleTrialOnFirstMovement } = await import("@/lib/premiumServer");
+    await maybeStartCoupleTrialOnFirstMovement({
+      familyId: profile.family_id,
+      actorUserId: user.id,
+      kind: "income",
+    });
+
     revalidatePath("/");
     revalidatePath("/history");
     return { success: true };

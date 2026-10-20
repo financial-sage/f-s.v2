@@ -223,6 +223,9 @@ export async function createFixedExpenseAction(input: {
     throw new Error("Ingresa un valor base válido.");
   }
 
+  const { assertCanCreateFixedExpense } = await import("@/lib/premiumServer");
+  await assertCanCreateFixedExpense(familyId);
+
   const dueDay =
     input.dueDay == null || Number.isNaN(Number(input.dueDay))
       ? null

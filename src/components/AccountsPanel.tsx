@@ -120,7 +120,7 @@ export default function AccountsPanel({
         title: isIndividual ? "Tu liquidez" : "Liquidez familiar",
         body: isIndividual
           ? "Suma lo que tienes en tus cuentas visibles. Aquí empieza el dinero antes de repartirlo a bolsillos."
-          : "Suma lo que veis en cuentas personales y compartidas. Es el dinero “en el banco” antes de ir a bolsillos.",
+          : "Suma lo que ven en cuentas personales y compartidas. Es el dinero “en el banco” antes de ir a bolsillos.",
       },
       {
         target: "accounts-list",

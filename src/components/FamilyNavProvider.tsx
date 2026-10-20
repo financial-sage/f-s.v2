@@ -85,7 +85,7 @@ export default function FamilyNavProvider() {
           familyMemberCount,
           partnerFirstName:
             partnerLabel(familyMemberCount, partnerProfile?.full_name) ?? "",
-          financialModel: family.financial_model ?? "joint_fund",
+          financialModel: "joint_fund",
           user1SplitPct: Number(family.user_1_split_pct ?? 50),
         });
       } finally {

@@ -474,6 +474,8 @@ export async function createFundAction(input: {
   }
 
   await ensureFamilyFunds(familyId);
+  const { assertCanCreateExtraFund } = await import("@/lib/premiumServer");
+  await assertCanCreateExtraFund(familyId);
   const admin = getSupabaseAdminClient();
 
   const payload =
@@ -700,15 +702,31 @@ export async function depositToFundAction(input: {
     expense_date: input.date ?? new Date().toISOString().slice(0, 10),
   };
 
+  if (fund.scope === "shared") {
+    const { assertCoupleFeaturesAllowed } = await import("@/lib/premiumServer");
+    await assertCoupleFeaturesAllowed(familyId);
+  }
+
   const { error } = await admin.from("expenses").insert(payload as never);
   if (error) throw new Error(error.message);
+
+  const { maybeStartCoupleTrialOnFirstMovement } = await import("@/lib/premiumServer");
+  const trial = await maybeStartCoupleTrialOnFirstMovement({
+    familyId,
+    actorUserId: user.id,
+    kind: "income",
+  });
 
   revalidatePath("/");
   revalidatePath("/history");
   if (isFixedExpensesFund(fund)) {
     revalidatePath("/fixed-expenses");
   }
-  return { success: true, fundId: fund.id };
+  return {
+    success: true,
+    fundId: fund.id,
+    firstMoveTrialStarted: trial.started,
+  };
 }
 
 export async function transferBetweenFundsAction(input: {
