@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ensurePushSubscription } from "@/lib/push-client";
 
 export default function PWARegister() {
   useEffect(() => {
@@ -12,6 +13,8 @@ export default function PWARegister() {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js");
         await registration.update();
+        // Prompt once on first register when VAPID is configured.
+        void ensurePushSubscription(registration, { promptIfNeeded: true });
       } catch (error) {
         console.error("Service worker registration failed", error);
       }
@@ -21,7 +24,11 @@ export default function PWARegister() {
 
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      void navigator.serviceWorker.getRegistration().then((reg) => reg?.update());
+      void navigator.serviceWorker.getRegistration().then((reg) => {
+        void reg?.update();
+        // Refresh endpoint silently if already granted (never re-prompt).
+        if (reg) void ensurePushSubscription(reg);
+      });
     };
 
     document.addEventListener("visibilitychange", onVisible);

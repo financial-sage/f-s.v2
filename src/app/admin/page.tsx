@@ -1,7 +1,19 @@
 import { redirect } from "next/navigation";
-import { Crown, Home, Receipt, Users, Zap, ZapOff, CalendarClock, UserCheck2 } from "lucide-react";
+import {
+  Crown,
+  Home,
+  Receipt,
+  RefreshCw,
+  Users,
+  Zap,
+  ZapOff,
+  CalendarClock,
+  UserCheck2,
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { broadcastAppUpdate } from "@/lib/push-server";
+import { isPushConfigured } from "@/lib/push";
 
 // ─── Auth guard ──────────────────────────────────────────────────────────────
 async function getAuthorizedUser() {
@@ -56,6 +68,13 @@ async function deactivateCampaign() {
   redirect("/admin");
 }
 
+async function broadcastAppUpdateAction() {
+  "use server";
+  await getAuthorizedUser();
+  await broadcastAppUpdate();
+  redirect("/admin?push=sent");
+}
+
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 async function fetchMetrics() {
   const admin = createAdminClient();
@@ -101,9 +120,16 @@ async function fetchCampaign(): Promise<Campaign | null> {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ push?: string }>;
+}) {
   await getAuthorizedUser();
   const [metrics, campaign] = await Promise.all([fetchMetrics(), fetchCampaign()]);
+  const params = searchParams ? await searchParams : undefined;
+  const pushSent = params?.push === "sent";
+  const pushReady = isPushConfigured();
 
   const cards = [
     {
@@ -286,6 +312,48 @@ export default async function AdminPage() {
             </form>
           )}
         </div>
+      </section>
+
+      {/* App update push */}
+      <section
+        className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-surface-lowest border border-outline-variant/20 shadow-sm p-6"
+        style={{ animationDuration: "600ms", animationDelay: "420ms" }}
+      >
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-bold text-on-surface">Actualización PWA</h2>
+            <p className="text-sm text-on-surface-variant">
+              Envía un push a los dispositivos suscritos. Si la app está abierta, habilita el
+              botón “Actualizar app”; si no, muestra la notificación del sistema.
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${
+              pushReady
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-surface-low text-on-surface-variant"
+            }`}
+          >
+            {pushReady ? "VAPID listo" : "Sin VAPID"}
+          </span>
+        </div>
+
+        {pushSent && (
+          <p className="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Broadcast enviado.
+          </p>
+        )}
+
+        <form action={broadcastAppUpdateAction}>
+          <button
+            type="submit"
+            disabled={!pushReady}
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-sm transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw size={14} />
+            Avisar actualización
+          </button>
+        </form>
       </section>
 
       {/* Footer */}

@@ -1,3 +1,5 @@
+importScripts("/push-sw.js");
+
 const CACHE_NAME = "sindescuadre-v1.1.0";
 const APP_SHELL = ["/"];
 

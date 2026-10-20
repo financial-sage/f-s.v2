@@ -48,8 +48,11 @@ if (isProd) {
   const withPWA = require("next-pwa")({
     dest: "public",
     disable: false,
-    register: true,
+    // Registration is handled by PWARegister (also primes Web Push).
+    register: false,
     skipWaiting: true,
+    // Appends worker/index.js (importScripts push handlers) to the generated SW.
+    customWorkerDir: "worker",
     buildExcludes: [/middleware-manifest\.json$/],
   });
   exportedConfig = withPWA(nextConfig);

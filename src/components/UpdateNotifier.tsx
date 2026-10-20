@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
+import { APP_UPDATE_MESSAGE_TYPE } from "@/lib/push";
 
 const BUILD_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.1.0";
 const STORAGE_KEY = "sd-app-version";
@@ -44,6 +45,17 @@ export default function UpdateNotifier() {
       setUpdateAvailable(true);
     }
 
+    function onControllerMessage(event: MessageEvent) {
+      const data = event.data as { type?: string; version?: string | null } | null;
+      if (data?.type !== APP_UPDATE_MESSAGE_TYPE) return;
+      if (data.version) {
+        setServerVersion(String(data.version));
+      }
+      setUpdateAvailable(true);
+      void checkVersion();
+      void navigator.serviceWorker?.getRegistration().then((reg) => reg?.update());
+    }
+
     async function watchServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
 
@@ -74,6 +86,8 @@ export default function UpdateNotifier() {
     void checkVersion();
     void watchServiceWorker();
 
+    navigator.serviceWorker?.addEventListener("message", onControllerMessage);
+
     const intervalId = window.setInterval(() => {
       void checkVersion();
       void navigator.serviceWorker?.getRegistration().then((reg) => reg?.update());
@@ -91,6 +105,7 @@ export default function UpdateNotifier() {
       cancelled = true;
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      navigator.serviceWorker?.removeEventListener("message", onControllerMessage);
     };
   }, []);
 
