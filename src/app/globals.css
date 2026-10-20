@@ -74,11 +74,11 @@
   --fab-ink-fg: #e8e2d6;
   --fab-ink-shadow: 0 10px 22px rgba(28, 39, 64, 0.32);
 
-  /* Brand gold FAB (Gasto) — deeper than --accent so it pops on cream */
-  --fab-accent-from: #d2b07a;
-  --fab-accent-via: #b8914e;
-  --fab-accent-to: #8a6a32;
-  --fab-accent-fg: #fff8ee;
+  /* Gasto FAB — navy in light (matches Mi bolsillo); gold stays in .dark */
+  --fab-accent-from: #2f4fa3;
+  --fab-accent-via: #1e3a8a;
+  --fab-accent-to: #152a66;
+  --fab-accent-fg: #f4f6fb;
   --fab-accent-shadow: 0 8px 18px rgba(28, 39, 64, 0.28);
 
   /* Safe areas — PWA standalone + gesture / 3-button nav bars */

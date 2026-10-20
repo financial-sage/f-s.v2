@@ -43,5 +43,10 @@ export default async function FixedExpensesPage() {
     family?.user_2_id
   );
 
-  return <FixedExpensesManager familyMemberCount={familyMemberCount || 1} />;
+  return (
+    <FixedExpensesManager
+      currentUserId={user.id}
+      familyMemberCount={familyMemberCount || 1}
+    />
+  );
 }

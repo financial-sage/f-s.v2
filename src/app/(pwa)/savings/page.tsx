@@ -40,5 +40,10 @@ export default async function SavingsPage() {
     family?.user_2_id
   );
 
-  return <SavingsPanel familyMemberCount={familyMemberCount || 1} />;
+  return (
+    <SavingsPanel
+      currentUserId={user.id}
+      familyMemberCount={familyMemberCount || 1}
+    />
+  );
 }

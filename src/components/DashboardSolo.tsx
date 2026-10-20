@@ -53,10 +53,15 @@ import {
     listSoloDashboardFunds,
     personalFundDisplayName,
     resolveFundColor,
+    resolveFundUiColor,
     type FamilyFund,
 } from "@/lib/funds";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
+import ProductTour from "@/components/ProductTour";
+import { useProductTour } from "@/hooks/useProductTour";
+import type { ProductTourStep } from "@/components/ProductTour";
+import { useIsDark } from "@/hooks/useIsDark";
 
 interface DashboardSoloProps {
     currentUserId: string;
@@ -110,12 +115,42 @@ export default function DashboardSolo({
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const { format: formatCurrency } = useCurrency();
+    const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
     const refreshData = useExpenseStore((s) => s.refreshData);
     const storeFunds = useFundsStore((s) => s.funds);
     const displayName = userName?.trim() || "Usuario";
+
+    const dashboardTourSteps = useMemo<ProductTourStep[]>(
+        () => [
+            {
+                target: "dash-balance",
+                title: "Tu saldo del bolsillo",
+                body: "Aquí ves cuánto tienes disponible en el bolsillo seleccionado. Toca el icono para cambiar o crear bolsillos.",
+            },
+            {
+                target: "dash-actions",
+                title: "Acciones del día a día",
+                body: "Registra un gasto, aporta dinero o transfiere entre bolsillos en un momento.",
+            },
+            {
+                target: "dash-modules",
+                title: "Cuentas, ahorro y fijos",
+                body: "Desde aquí entras a tus cuentas bancarias, al colchón de ahorro y a los pagos fijos del mes.",
+            },
+            {
+                target: "bottom-nav",
+                title: "Menú inferior",
+                body: "Toca el botón central para abrir el menú y moverte entre inicio, historial y perfil.",
+            },
+        ],
+        []
+    );
+    const dashTour = useProductTour(currentUserId, "dashboard", dashboardTourSteps, {
+        hasFamily: true,
+    });
 
     const personalFunds = useMemo(() => {
         const source = storeFunds.length > 0 ? storeFunds : initialFunds;
@@ -171,7 +206,7 @@ export default function DashboardSolo({
         defaultPersonal?.id,
     ]);
 
-    const heroColor = resolveFundColor(selectedFund);
+    const heroColor = resolveFundUiColor(selectedFund, isDark);
     const heroTitle =
         personalFundDisplayName(selectedFund, {
             primaryId: defaultPersonal?.id ?? null,
@@ -228,7 +263,8 @@ export default function DashboardSolo({
                     gravity: 0.9,
                     scalar: 0.9,
                     zIndex: 9999,
-                    colors: ["#4a6549", "#ccebc7", "#d4af37", "#f3e7b3"],
+                    // Brand navy + muted gold (SinDescuadre)
+                    colors: ["#1c2740", "#1e3a8a", "#c4a574", "#e8e2d6"],
                 };
 
                 confetti({ ...sharedConfig, particleCount: 90, origin: { x: 0.18, y: 0.78 } });
@@ -483,7 +519,7 @@ export default function DashboardSolo({
             </header>
 
             <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col gap-[clamp(0.75rem,2.5dvh,1.25rem)] overflow-hidden px-4 pb-[var(--fab-clearance)] pt-1">
-                <section className="relative shrink-0">
+                <section className="relative shrink-0" data-tour="dash-balance">
                     <div
                         className="relative overflow-hidden rounded-[1.85rem] border-[0.5px] border-glass-border p-6 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-[background] duration-500"
                         style={{
@@ -495,7 +531,12 @@ export default function DashboardSolo({
                                 <p className="text-[11px] font-light text-on-surface-variant">
                                     Saldo disponible
                                 </p>
-                                <p className="truncate text-base font-medium text-on-surface">
+                                <p
+                                    className={`truncate text-base font-medium ${
+                                        isDark ? "text-on-surface" : ""
+                                    }`}
+                                    style={isDark ? undefined : { color: heroColor }}
+                                >
                                     {heroTitle}
                                 </p>
                             </div>
@@ -556,7 +597,7 @@ export default function DashboardSolo({
                                                     defaultPersonal?.id ?? null
                                                 );
                                                 const isActive = selectedFund?.id === fund.id;
-                                                const fundColor = resolveFundColor(fund);
+                                                const fundColor = resolveFundUiColor(fund, isDark);
                                                 const displayName = personalFundDisplayName(
                                                     fund,
                                                     { primaryId: defaultPersonal?.id ?? null }
@@ -651,7 +692,7 @@ export default function DashboardSolo({
                     )}
                 </section>
 
-                <section className="relative shrink-0">
+                <section className="relative shrink-0" data-tour="dash-modules">
                     <div className="grid grid-cols-3 gap-1.5">
                         {[
                             {
@@ -697,7 +738,7 @@ export default function DashboardSolo({
                     </div>
                 </section>
 
-                <section className="relative shrink-0">
+                <section className="relative shrink-0" data-tour="dash-actions">
                     <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
                     <div className="grid grid-cols-4 gap-1.5">
                         {[
@@ -1118,6 +1159,8 @@ export default function DashboardSolo({
                     </div>
                 </Portal>
             )}
+
+            <ProductTour open={dashTour.open} steps={dashTour.steps} onClose={dashTour.close} />
         </div>
     );
 }

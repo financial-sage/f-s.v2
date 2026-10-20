@@ -35,6 +35,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useFundsStore } from "@/store/useFundsStore";
+import ProductTour from "@/components/ProductTour";
+import { useProductTour } from "@/hooks/useProductTour";
+import type { ProductTourStep } from "@/components/ProductTour";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface HistoryExpenseRow {
@@ -170,6 +173,25 @@ export default function HistoryList({
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
     const storeFinancialModel = useExpenseStore((s) => s.financialModel);
+
+    const historyTourSteps = useMemo<ProductTourStep[]>(
+        () => [
+            {
+                target: "history-summary",
+                title: "Vista rápida",
+                body: "Resumen de tu bolsillo y, si vais en pareja, el estado compartido o el balance entre vosotros.",
+            },
+            {
+                target: "history-filters",
+                title: "Filtros",
+                body: "Acota por mes, bolsillo o quién pagó. Así encuentras un movimiento sin perderte.",
+            },
+        ],
+        []
+    );
+    const historyTour = useProductTour(currentUserId, "history", historyTourSteps, {
+        hasFamily: true,
+    });
 
     // Use store data when hydrated (instant on navigation), fall back to SSR props
     const allExpenses = (isHydrated ? storeExpenses : ssrExpenses) as HistoryExpenseRow[];
@@ -551,7 +573,7 @@ export default function HistoryList({
                 className="relative z-20 border-b-0 bg-transparent backdrop-blur-0 pt-[max(0,env(safe-area-inset-top))]"
             />
 
-            <div className="sticky top-0 z-40 px-4 pb-2 pt-1">
+            <div className="sticky top-0 z-40 px-4 pb-2 pt-1" data-tour="history-summary">
                 <div className="flex items-center gap-2">
                     <div className="flex flex-1 overflow-hidden rounded-[1.25rem] border border-glass-border bg-glass-strong shadow-[var(--glass-shadow)] backdrop-blur-xl">
                         <div
@@ -604,6 +626,7 @@ export default function HistoryList({
 
                     <button
                         type="button"
+                        data-tour="history-filters"
                         onClick={openFilterModal}
                         className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                             activeFilterCount > 0
@@ -963,6 +986,12 @@ export default function HistoryList({
                     </>,
                     document.body
                 )}
+
+            <ProductTour
+                open={historyTour.open}
+                steps={historyTour.steps}
+                onClose={historyTour.close}
+            />
         </>
     );
 }

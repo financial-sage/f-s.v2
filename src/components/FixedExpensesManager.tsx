@@ -20,6 +20,9 @@ import { isIndividualHousehold } from "@/lib/household";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Portal } from "@/components/ui/Portal";
+import ProductTour from "@/components/ProductTour";
+import { useProductTour } from "@/hooks/useProductTour";
+import type { ProductTourStep } from "@/components/ProductTour";
 
 const ACCENT = FIXED_EXPENSES_FUND_COLOR;
 
@@ -142,14 +145,38 @@ function ChecklistRow({
 }
 
 interface FixedExpensesManagerProps {
+  currentUserId: string;
   familyMemberCount?: number;
 }
 
 export default function FixedExpensesManager({
+  currentUserId,
   familyMemberCount = 1,
 }: FixedExpensesManagerProps) {
   const { format: formatCurrency } = useCurrency();
   const isIndividual = isIndividualHousehold(familyMemberCount);
+
+  const fixedTourSteps = useMemo<ProductTourStep[]>(
+    () => [
+      {
+        target: "fixed-month",
+        title: "Mes a mes",
+        body: isIndividual
+          ? "Cambia de mes para ver qué tienes pendiente y qué ya pagaste."
+          : "El mismo mes para los dos: veis qué falta y qué ya está pagado.",
+      },
+      {
+        target: "fixed-summary",
+        title: "Cuánto falta",
+        body: "Aquí ves lo que queda por pagar y el saldo del bolsillo de fijos. Aporta cuando organicéis el mes.",
+      },
+    ],
+    [isIndividual]
+  );
+  const fixedTour = useProductTour(currentUserId, "fixedExpenses", fixedTourSteps, {
+    hasFamily: true,
+  });
+
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const {
     items,
@@ -378,7 +405,10 @@ export default function FixedExpensesManager({
 
       <header className="relative z-50 flex w-full shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-[max(0.75rem,var(--safe-top))]">
         <div className="w-9" aria-hidden />
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+        <div
+          className="flex min-w-0 flex-1 items-center justify-center gap-1"
+          data-tour="fixed-month"
+        >
           <button
             type="button"
             onClick={() => shiftMonth(-1)}
@@ -418,6 +448,7 @@ export default function FixedExpensesManager({
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4">
         {/* Sticky summary — always visible, single surface */}
         <div
+          data-tour="fixed-summary"
           className="shrink-0 rounded-[1.35rem] border border-glass-border px-4 py-3.5 shadow-[0_8px_20px_rgba(43,52,55,0.08)]"
           style={{
             backgroundColor: "var(--surface-lowest)",
@@ -739,6 +770,12 @@ export default function FixedExpensesManager({
         </div>
         </Portal>
       ) : null}
+
+      <ProductTour
+        open={fixedTour.open}
+        steps={fixedTour.steps}
+        onClose={fixedTour.close}
+      />
     </div>
   );
 }

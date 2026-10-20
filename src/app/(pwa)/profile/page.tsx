@@ -194,7 +194,7 @@ export default async function ProfilePage() {
 
         <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-on-primary shadow-sm">
               <Users size={18} />
             </div>
             <div className="min-w-0 flex-1">
@@ -275,7 +275,7 @@ export default async function ProfilePage() {
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
                   <Landmark size={16} />
                 </div>
                 <span className="text-sm font-medium text-on-surface">Centro de cuentas</span>
@@ -290,7 +290,7 @@ export default async function ProfilePage() {
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
                   <Wallet size={16} />
                 </div>
                 <span className="text-sm font-medium text-on-surface">Gastos fijos</span>
@@ -305,7 +305,7 @@ export default async function ProfilePage() {
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
                   <Coins size={16} />
                 </div>
                 <span className="text-sm font-medium text-on-surface">Categorías</span>
@@ -318,7 +318,7 @@ export default async function ProfilePage() {
             {preferences.map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
                     <Icon size={16} />
                   </div>
                   <span className="text-sm font-medium text-on-surface">{label}</span>

@@ -48,6 +48,9 @@ import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import { tintedGlassGradient } from "@/lib/glass";
 import { isIndividualHousehold } from "@/lib/household";
+import ProductTour from "@/components/ProductTour";
+import { useProductTour } from "@/hooks/useProductTour";
+import type { ProductTourStep } from "@/components/ProductTour";
 
 const HERO_ACCENT = DEFAULT_PERSONAL_ACCOUNT_COLOR;
 
@@ -109,6 +112,27 @@ export default function AccountsPanel({
   const setAccountsCache = useAccountsStore((s) => s.setAccounts);
   const setFundsCache = useFundsStore((s) => s.setFunds);
   const isIndividual = isIndividualHousehold(familyMemberCount);
+
+  const accountsTourSteps = useMemo<ProductTourStep[]>(
+    () => [
+      {
+        target: "accounts-hero",
+        title: isIndividual ? "Tu liquidez" : "Liquidez familiar",
+        body: isIndividual
+          ? "Suma lo que tienes en tus cuentas visibles. Aquí empieza el dinero antes de repartirlo a bolsillos."
+          : "Suma lo que veis en cuentas personales y compartidas. Es el dinero “en el banco” antes de ir a bolsillos.",
+      },
+      {
+        target: "accounts-list",
+        title: "Tus cuentas",
+        body: "Registra un ingreso o transfiere hacia un bolsillo, ahorro o gastos fijos.",
+      },
+    ],
+    [isIndividual]
+  );
+  const accountsTour = useProductTour(currentUserId, "accounts", accountsTourSteps, {
+    hasFamily: true,
+  });
 
   const [seed] = useState(() => seedFromCaches(currentUserId, familyMemberCount));
   const [accounts, setAccounts] = useState<FamilyAccount[]>(seed.accounts);
@@ -457,11 +481,15 @@ export default function AccountsPanel({
     });
   }
 
-  function renderAccountGroup(title: string, rows: FamilyAccount[]) {
+  function renderAccountGroup(
+    title: string,
+    rows: FamilyAccount[],
+    tourAnchor?: boolean
+  ) {
     if (rows.length === 0) return null;
 
     return (
-      <div className="mb-4">
+      <div className="mb-4" data-tour={tourAnchor ? "accounts-list" : undefined}>
         <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">{title}</h2>
         <div className="overflow-hidden rounded-[1.5rem] border border-glass-border bg-glass-strong shadow-[0_12px_28px_rgba(43,52,55,0.10)] backdrop-blur-xl">
           {rows.map((account, index) => {
@@ -626,7 +654,7 @@ export default function AccountsPanel({
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4 pt-1">
-        <section className="mb-3 shrink-0">
+        <section className="mb-3 shrink-0" data-tour="accounts-hero">
           <div
             className="relative overflow-hidden rounded-[1.85rem] border border-glass-border p-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
             style={{
@@ -718,6 +746,7 @@ export default function AccountsPanel({
           ) : accounts.length === 0 ? (
             <button
               type="button"
+              data-tour="accounts-list"
               onClick={openCreateSheet}
               className="flex w-full flex-col items-center gap-2 rounded-[1.85rem] border border-dashed bg-glass-soft px-4 py-10 text-center shadow-sm backdrop-blur-md"
               style={{ borderColor: `${HERO_ACCENT}40` }}
@@ -737,9 +766,21 @@ export default function AccountsPanel({
             </button>
           ) : (
             <>
-              {!isIndividual && renderAccountGroup("Compartidas", sharedAccounts)}
+              {!isIndividual &&
+                renderAccountGroup(
+                  "Compartidas",
+                  sharedAccounts,
+                  personalAccounts.length === 0
+                )}
               {personalAccounts.length === 0 ? (
-                <div className="mb-4">
+                <div
+                  className="mb-4"
+                  data-tour={
+                    isIndividual || sharedAccounts.length === 0
+                      ? "accounts-list"
+                      : undefined
+                  }
+                >
                   <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">
                     {isIndividual ? "Tus cuentas" : "Personales"}
                   </h2>
@@ -754,7 +795,8 @@ export default function AccountsPanel({
               ) : (
                 renderAccountGroup(
                   isIndividual ? "Tus cuentas" : "Personales",
-                  personalAccounts
+                  personalAccounts,
+                  true
                 )
               )}
             </>
@@ -1127,6 +1169,12 @@ export default function AccountsPanel({
         onClose={() => setShowTransferKeypad(false)}
         onValueChange={setTransferAmount}
         onConfirm={confirmTransfer}
+      />
+
+      <ProductTour
+        open={accountsTour.open}
+        steps={accountsTour.steps}
+        onClose={accountsTour.close}
       />
     </div>
   );

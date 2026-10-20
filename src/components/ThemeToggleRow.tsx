@@ -53,7 +53,7 @@ export function ThemeToggleRow() {
   return (
     <div className="flex items-center justify-between px-4 py-3">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
           {isDark ? <Moon size={16} /> : <Sun size={16} />}
         </div>
         <span className="text-sm font-medium text-on-surface">Modo oscuro</span>
@@ -62,14 +62,12 @@ export function ThemeToggleRow() {
       <button
         type="button"
         onClick={toggle}
-        className={`relative inline-flex h-8 w-14 items-center rounded-full border p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
-          isDark ? "border-primary/40 bg-primary" : "border-outline-variant/30 bg-glass"
-        }`}
+        className="relative inline-flex h-8 w-14 items-center rounded-full border border-primary/40 bg-primary p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
         aria-label={isDark ? "Desactivar modo oscuro" : "Activar modo oscuro"}
       >
         <span
-          className={`inline-block h-6 w-6 transform rounded-full shadow-sm transition-transform ${
-            isDark ? "translate-x-6 bg-on-primary" : "translate-x-0 bg-surface-lowest"
+          className={`inline-block h-6 w-6 transform rounded-full bg-on-primary shadow-sm transition-transform ${
+            isDark ? "translate-x-6" : "translate-x-0"
           }`}
         />
       </button>

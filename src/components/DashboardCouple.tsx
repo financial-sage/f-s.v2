@@ -78,10 +78,16 @@ import {
     listDashboardSharedFunds,
     personalFundDisplayName,
     pickDashboardSelectedFundId,
+    PERSONAL_FUND_COLOR_LIGHT,
     resolveFundColor,
+    resolveFundUiColor,
     type FamilyFund,
 } from "@/lib/funds";
 import { tintedGlassGradient } from "@/lib/glass";
+import ProductTour from "@/components/ProductTour";
+import { useProductTour } from "@/hooks/useProductTour";
+import type { ProductTourStep } from "@/components/ProductTour";
+import { useIsDark } from "@/hooks/useIsDark";
 
 
 interface CoupleDashboardExpense {
@@ -191,6 +197,7 @@ export default function DashboardCouple({
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const { format: formatCurrency } = useCurrency();
+    const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
@@ -198,6 +205,35 @@ export default function DashboardCouple({
     const storeFundLiquidity = useExpenseStore((s) => s.fundLiquidity);
     const isPremium = useExpenseStore((s) => s.isPremium);
     const storeFunds = useFundsStore((s) => s.funds);
+
+    const dashboardTourSteps = useMemo<ProductTourStep[]>(
+        () => [
+            {
+                target: "dash-balance",
+                title: "Saldo del bolsillo",
+                body: "Aquí veis el dinero disponible del bolsillo activo. En pareja podéis cambiar entre lo común y lo personal.",
+            },
+            {
+                target: "dash-actions",
+                title: "Acciones rápidas",
+                body: "Registrad un gasto, aportad o ajustad saldos sin perder el hilo.",
+            },
+            {
+                target: "dash-modules",
+                title: "Cuentas y bolsillos",
+                body: "Atajos a cuentas, ahorro y gastos fijos: la misma vista para los dos.",
+            },
+            {
+                target: "bottom-nav",
+                title: "Menú inferior",
+                body: "El botón central abre el menú para ir a historial, ahorro, gastos fijos o perfil.",
+            },
+        ],
+        []
+    );
+    const dashTour = useProductTour(currentUserId, "dashboard", dashboardTourSteps, {
+        hasFamily: true,
+    });
 
     // Prefer Zustand once warm so Home↔History navigations skip waiting on RSC.
     const expenses = useMemo<CoupleDashboardExpense[]>(() => {
@@ -1057,8 +1093,10 @@ export default function DashboardCouple({
             : selectedFund?.name ?? "Bolsillo"
         : "Balance P2P";
     const heroColor = isJointModel
-        ? resolveFundColor(selectedFund)
-        : DEFAULT_PERSONAL_FUND_COLOR;
+        ? resolveFundUiColor(selectedFund, isDark)
+        : isDark
+          ? DEFAULT_PERSONAL_FUND_COLOR
+          : PERSONAL_FUND_COLOR_LIGHT;
     const currentMember =
         members.find((member) => member.id === currentUserId) ?? members[0] ?? null;
 
@@ -1143,6 +1181,7 @@ export default function DashboardCouple({
                 )}
 
                 <section
+                    data-tour="dash-balance"
                     className={`relative shrink-0 ${animateSharedEntrance ? "animate-in slide-in-from-bottom-4 fade-in duration-700" : ""}`}
                     style={animateSharedEntrance ? { animationDelay: "80ms" } : undefined}
                 >
@@ -1157,7 +1196,12 @@ export default function DashboardCouple({
                                 <p className="text-[11px] font-light text-on-surface-variant">
                                     Saldo disponible
                                 </p>
-                                <p className="truncate text-base font-medium text-on-surface">
+                                <p
+                                    className={`truncate text-base font-medium ${
+                                        isDark ? "text-on-surface" : ""
+                                    }`}
+                                    style={isDark ? undefined : { color: heroColor }}
+                                >
                                     {heroLabel}
                                 </p>
                             </div>
@@ -1233,7 +1277,7 @@ export default function DashboardCouple({
                                                               null,
                                                       });
                                                 const isActive = selectedFund?.id === fund.id;
-                                                const fundColor = resolveFundColor(fund);
+                                                const fundColor = resolveFundUiColor(fund, isDark);
                                                 const displayName = isPersonal
                                                     ? personalFundDisplayName(fund)
                                                     : fund.name;
@@ -1324,6 +1368,7 @@ export default function DashboardCouple({
 
                     return (
                         <section
+                            data-tour="dash-modules"
                             className={`relative shrink-0 ${
                                 animateSharedEntrance
                                     ? "animate-in fade-in slide-in-from-bottom-3 duration-700"
@@ -1364,7 +1409,11 @@ export default function DashboardCouple({
                                 >
                                     <span
                                         className="h-1.5 w-1.5 shrink-0 rounded-full"
-                                        style={{ backgroundColor: DEFAULT_PERSONAL_FUND_COLOR }}
+                                        style={{
+                                            backgroundColor: isDark
+                                                ? DEFAULT_PERSONAL_FUND_COLOR
+                                                : PERSONAL_FUND_COLOR_LIGHT,
+                                        }}
                                     />
                                     <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
                                         Mi bolsillo
@@ -1419,6 +1468,7 @@ export default function DashboardCouple({
                 })()}
 
                 <section
+                    data-tour="dash-actions"
                     className={`relative shrink-0 ${animateSharedEntrance ? "animate-in fade-in slide-in-from-bottom-3 duration-700" : ""}`}
                     style={animateSharedEntrance ? { animationDelay: "160ms" } : undefined}
                 >
@@ -2297,7 +2347,9 @@ export default function DashboardCouple({
                 }
                 accentColor={
                     depositTarget === "personal" || selectedIsPersonal
-                        ? DEFAULT_PERSONAL_FUND_COLOR
+                        ? isDark
+                            ? DEFAULT_PERSONAL_FUND_COLOR
+                            : PERSONAL_FUND_COLOR_LIGHT
                         : heroColor
                 }
                 initialValue={depositAmount || "0"}
@@ -2429,6 +2481,8 @@ export default function DashboardCouple({
                 </div>
                 </Portal>
             )}
+
+            <ProductTour open={dashTour.open} steps={dashTour.steps} onClose={dashTour.close} />
         </div>
     );
 }

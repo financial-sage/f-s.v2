@@ -36,6 +36,8 @@ export const FUND_COLOR_OPTIONS = [
 export const DEFAULT_SHARED_FUND_COLOR = FUND_COLOR_OPTIONS[0].value;
 /** Muted gold from the brand logo (`--accent`). */
 export const DEFAULT_PERSONAL_FUND_COLOR = "#C4A574";
+/** Navy used for “Mi bolsillo” / personal default in light mode UI. */
+export const PERSONAL_FUND_COLOR_LIGHT = "#1E3A8A";
 /** Previous personal default; remapped so existing rows pick up the brand gold. */
 export const LEGACY_PERSONAL_FUND_COLOR = "#0F2D91";
 
@@ -68,6 +70,25 @@ export function resolveFundColor(fund?: Pick<FamilyFund, "color" | "scope"> | nu
   }
   if (fund?.color) return fund.color;
   return DEFAULT_SHARED_FUND_COLOR;
+}
+
+/**
+ * UI color for chips / hero tint. Personal default gold stays gold in dark mode;
+ * in light mode it renders as navy for contrast on cream surfaces.
+ */
+export function resolveFundUiColor(
+  fund: Pick<FamilyFund, "color" | "scope"> | null | undefined,
+  isDark: boolean
+) {
+  const color = resolveFundColor(fund);
+  if (
+    !isDark &&
+    fund?.scope === "personal" &&
+    color.toLowerCase() === DEFAULT_PERSONAL_FUND_COLOR.toLowerCase()
+  ) {
+    return PERSONAL_FUND_COLOR_LIGHT;
+  }
+  return color;
 }
 
 /**

@@ -29,18 +29,46 @@ import {
 } from "@/lib/funds";
 import { tintedGlassGradient } from "@/lib/glass";
 import { isIndividualHousehold } from "@/lib/household";
+import ProductTour from "@/components/ProductTour";
+import { useProductTour } from "@/hooks/useProductTour";
+import type { ProductTourStep } from "@/components/ProductTour";
 
 const ACCENT = SAVINGS_FUND_COLOR;
 
 type SourceTab = "account" | "fund" | "external";
 
 interface SavingsPanelProps {
+  currentUserId: string;
   familyMemberCount?: number;
 }
 
-export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProps) {
+export default function SavingsPanel({
+  currentUserId,
+  familyMemberCount = 1,
+}: SavingsPanelProps) {
   const isIndividual = isIndividualHousehold(familyMemberCount);
   const { format: formatCurrency } = useCurrency();
+
+  const savingsTourSteps = useMemo<ProductTourStep[]>(
+    () => [
+      {
+        target: "savings-hero",
+        title: isIndividual ? "Tu colchón" : "El ahorro compartido",
+        body: isIndividual
+          ? "Aquí acumulas lo que apartas del día a día. No es para gastos sueltos: es tu reserva."
+          : "Aquí veis juntos lo que habéis apartado. Misma cifra, mismos acuerdos.",
+      },
+      {
+        target: "savings-contribute",
+        title: "Aportar",
+        body: "Puedes mover dinero desde una cuenta, un bolsillo o registrar un ingreso externo.",
+      },
+    ],
+    [isIndividual]
+  );
+  const savingsTour = useProductTour(currentUserId, "savings", savingsTourSteps, {
+    hasFamily: true,
+  });
   const [overview, setOverview] = useState<SavingsOverview | null>(null);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
@@ -195,6 +223,7 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
         ) : null}
 
         <section
+          data-tour="savings-hero"
           className="relative overflow-hidden rounded-[1.85rem] border-[0.5px] border-glass-border p-6 shadow-[var(--glass-shadow)] backdrop-blur-2xl"
           style={{ backgroundImage: tintedGlassGradient(ACCENT) }}
         >
@@ -243,6 +272,7 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
 
         <button
           type="button"
+          data-tour="savings-contribute"
           onClick={openContribute}
           className="fab-ink flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold transition-transform active:scale-[0.98]"
         >
@@ -503,6 +533,12 @@ export default function SavingsPanel({ familyMemberCount = 1 }: SavingsPanelProp
           setAmount(value ?? amount);
           setKeypadOpen(false);
         }}
+      />
+
+      <ProductTour
+        open={savingsTour.open}
+        steps={savingsTour.steps}
+        onClose={savingsTour.close}
       />
     </div>
   );

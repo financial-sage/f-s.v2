@@ -42,7 +42,7 @@ export function CurrencySelectRow() {
         className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-glass-strong text-primary shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
             <Coins size={16} />
           </div>
           <span className="text-sm font-medium text-on-surface">Moneda</span>
