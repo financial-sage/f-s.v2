@@ -1,14 +1,5 @@
 import { revalidatePath } from "next/cache";
-import {
-  BellRing,
-  ChevronRight,
-  CircleHelp,
-  Coins,
-  Landmark,
-  ShieldCheck,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { ChevronRight, CircleHelp, ShieldCheck, Users } from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CurrencySelectRow } from "@/components/CurrencySelectRow";
@@ -21,7 +12,6 @@ import { sageGlassGradient } from "@/lib/glass";
 import { getHouseholdEntitlement } from "@/lib/premiumServer";
 import {
   householdSpaceTitle,
-  isIndividualHousehold,
   memberCountFromFamilyUsers,
   partnerLabel,
 } from "@/lib/household";
@@ -136,18 +126,11 @@ export default async function ProfilePage() {
   const partnerDisplayName =
     partnerLabel(familyMemberCount, partnerProfile?.full_name) ?? "Mi pareja";
   const hasPartner = Boolean(partnerId);
-  const isIndividual = isIndividualHousehold(familyMemberCount || 1);
   const familyLabel = family?.name?.trim() || householdSpaceTitle(familyMemberCount || 1);
   const spaceTitle = householdSpaceTitle(familyMemberCount || 1);
   const entitlement = family?.id
     ? await getHouseholdEntitlement(family.id)
     : null;
-
-  const preferences = [
-    { icon: BellRing, label: "Notificaciones", value: "Activadas" },
-    { icon: CircleHelp, label: "Soporte", value: "Disponible" },
-    { icon: ShieldCheck, label: "Privacidad", value: "Protegida" },
-  ];
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
@@ -265,64 +248,35 @@ export default async function ProfilePage() {
               isPremiumHousehold={Boolean(entitlement?.isPremiumHousehold)}
             />
             <Link
-              href="/accounts"
+              href="/profile/support"
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
-                  <Landmark size={16} />
+                  <CircleHelp size={16} />
                 </div>
-                <span className="text-sm font-medium text-on-surface">Centro de cuentas</span>
+                <span className="text-sm font-medium text-on-surface">Soporte</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
-                <span>Abrir</span>
+                <span>Ayuda</span>
                 <ChevronRight size={14} />
               </div>
             </Link>
             <Link
-              href="/fixed-expenses"
+              href="/profile/privacy"
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
-                  <Wallet size={16} />
+                  <ShieldCheck size={16} />
                 </div>
-                <span className="text-sm font-medium text-on-surface">Gastos fijos</span>
+                <span className="text-sm font-medium text-on-surface">Privacidad</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
-                <span>Abrir</span>
+                <span>Ver</span>
                 <ChevronRight size={14} />
               </div>
             </Link>
-            <Link
-              href="/categories"
-              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
-                  <Coins size={16} />
-                </div>
-                <span className="text-sm font-medium text-on-surface">Categorías</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
-                <span>Administrar</span>
-                <ChevronRight size={14} />
-              </div>
-            </Link>
-            {preferences.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
-                    <Icon size={16} />
-                  </div>
-                  <span className="text-sm font-medium text-on-surface">{label}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
-                  <span>{value}</span>
-                  <ChevronRight size={14} />
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 

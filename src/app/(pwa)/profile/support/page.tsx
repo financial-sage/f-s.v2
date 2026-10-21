@@ -1,0 +1,91 @@
+import Link from "next/link";
+import { ChevronLeft, Mail } from "lucide-react";
+import packageJson from "../../../../../package.json";
+
+const SUPPORT_EMAIL = "soporte@sindescuadre.app";
+const APP_VERSION = packageJson.version;
+
+export default function SupportPage() {
+  const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+    `Ayuda SinDescuadre (v${APP_VERSION})`
+  )}`;
+
+  return (
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-28 pt-4">
+        <header className="mb-4 flex items-center gap-2 px-1">
+          <Link
+            href="/profile"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-glass text-on-surface transition hover:bg-glass-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+            aria-label="Volver a perfil"
+          >
+            <ChevronLeft size={18} />
+          </Link>
+          <div className="min-w-0">
+            <p className="text-[11px] font-light text-on-surface-variant">Perfil</p>
+            <h1 className="text-[17px] font-medium tracking-tight text-on-surface">Soporte</h1>
+          </div>
+        </header>
+
+        <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
+          <h2 className="text-sm font-medium text-on-surface">Contacto</h2>
+          <p className="mt-1.5 text-sm font-light text-on-surface-variant">
+            Escríbenos si algo no funciona o tienes una duda. Incluye qué ocurrió, en qué
+            pantalla estabas y el dispositivo o navegador.
+          </p>
+          <a
+            href={mailto}
+            className="mt-4 flex items-center gap-3 rounded-2xl border border-glass-border bg-glass-strong px-4 py-3 transition hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
+              <Mail size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-on-surface">Enviar correo</p>
+              <p className="truncate text-xs font-light text-on-surface-variant">
+                {SUPPORT_EMAIL}
+              </p>
+            </div>
+          </a>
+        </section>
+
+        <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
+          <h2 className="text-sm font-medium text-on-surface">Preguntas frecuentes</h2>
+          <dl className="mt-3 space-y-3.5">
+            <div>
+              <dt className="text-sm font-medium text-on-surface">
+                ¿Cómo invito a mi pareja?
+              </dt>
+              <dd className="mt-1 text-sm font-light text-on-surface-variant">
+                En Perfil verás tu código de 6 caracteres. Tu pareja lo introduce al unirse a
+                otro espacio.
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-on-surface">¿Qué incluye Premium?</dt>
+              <dd className="mt-1 text-sm font-light text-on-surface-variant">
+                Se activa por hogar con el código de familia. Cualquier miembro puede
+                desbloquear Premium para ambos.
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-on-surface">
+                ¿Cómo edito o borro un gasto?
+              </dt>
+              <dd className="mt-1 text-sm font-light text-on-surface-variant">
+                Abre Historial, elige el movimiento y usa editar o eliminar cuando esté
+                disponible.
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <p className="px-1 text-center text-[11px] font-light text-on-surface-variant">
+          SinDescuadre · versión {APP_VERSION}
+        </p>
+      </div>
+    </div>
+  );
+}
