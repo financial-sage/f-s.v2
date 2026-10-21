@@ -17,6 +17,8 @@ import {
   memberCountFromFamilyUsers,
   partnerLabel,
 } from "@/lib/household";
+import { requireRequestUser } from "@/lib/request-context";
+import { perfLog, perfNow } from "@/lib/perf";
 
 async function joinFamily(formData: FormData) {
   "use server";
@@ -90,14 +92,9 @@ function getInitials(name: string) {
 }
 
 export default async function ProfilePage() {
+  const start = perfNow();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await requireRequestUser();
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -113,24 +110,29 @@ export default async function ProfilePage() {
   const inviteCode = family?.invite_code ?? "------";
   const partnerId = family?.user_1_id === user.id ? family?.user_2_id : family?.user_1_id ?? null;
 
-  const { data: partnerProfile } = partnerId
-    ? await supabase
-        .from("profiles")
-        .select("full_name, avatar_url")
-        .eq("id", partnerId)
-        .maybeSingle()
-    : { data: null };
+  const [partnerProfileResult, partnerEmail, entitlement] = await Promise.all([
+    partnerId
+      ? supabase
+          .from("profiles")
+          .select("full_name, avatar_url")
+          .eq("id", partnerId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    partnerId
+      ? (async () => {
+          try {
+            const admin = getSupabaseAdminClient();
+            const { data: partnerAuth } = await admin.auth.admin.getUserById(partnerId);
+            return partnerAuth.user?.email ?? null;
+          } catch {
+            return null;
+          }
+        })()
+      : Promise.resolve(null),
+    family?.id ? getHouseholdEntitlement(family.id) : Promise.resolve(null),
+  ]);
 
-  let partnerEmail: string | null = null;
-  if (partnerId) {
-    try {
-      const admin = getSupabaseAdminClient();
-      const { data: partnerAuth } = await admin.auth.admin.getUserById(partnerId);
-      partnerEmail = partnerAuth.user?.email ?? null;
-    } catch {
-      partnerEmail = null;
-    }
-  }
+  const partnerProfile = partnerProfileResult.data;
 
   const familyMemberCount = memberCountFromFamilyUsers(
     family?.user_1_id,
@@ -141,9 +143,7 @@ export default async function ProfilePage() {
   const hasPartner = Boolean(partnerId);
   const familyLabel = family?.name?.trim() || householdSpaceTitle(familyMemberCount || 1);
   const spaceTitle = householdSpaceTitle(familyMemberCount || 1);
-  const entitlement = family?.id
-    ? await getHouseholdEntitlement(family.id)
-    : null;
+  perfLog("ProfilePage", { ms: perfNow() - start });
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">

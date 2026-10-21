@@ -1,9 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import { createClient } from "@/utils/supabase/server";
 import type {
   AccountScope,
   AccountVisibility,
@@ -26,10 +24,13 @@ import {
   listAccountTransferFunds,
   type FamilyFund,
 } from "@/lib/funds";
+import { isIndividualHousehold } from "@/lib/household";
+import { perfLog, perfNow } from "@/lib/perf";
 import {
-  isIndividualHousehold,
-  memberCountFromFamilyUsers,
-} from "@/lib/household";
+  getRequestFamilyMemberCount,
+  requireRequestFamilyId,
+  requireRequestUser,
+} from "@/lib/request-context";
 
 export type AccountActionResult = {
   success: true;
@@ -40,27 +41,11 @@ export type AccountActionResult = {
 };
 
 async function requireUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  return user;
+  return requireRequestUser();
 }
 
 async function getUserFamilyId(userId: string) {
-  const admin = getSupabaseAdminClient();
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("family_id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error || !profile?.family_id) {
-    throw new Error("Debes pertenecer a una familia.");
-  }
-
-  return profile.family_id as string;
+  return requireRequestFamilyId(userId);
 }
 
 function migrationHint(errorMessage: string) {
@@ -99,13 +84,7 @@ async function loadFamilyAccounts(familyId: string): Promise<FamilyAccount[]> {
 }
 
 async function getFamilyMemberCount(familyId: string): Promise<number> {
-  const admin = getSupabaseAdminClient();
-  const { data } = await admin
-    .from("families")
-    .select("user_1_id, user_2_id")
-    .eq("id", familyId)
-    .maybeSingle();
-  return memberCountFromFamilyUsers(data?.user_1_id, data?.user_2_id) || 1;
+  return getRequestFamilyMemberCount(familyId);
 }
 
 /** Ensure the owner has at least one personal account (individual-friendly default). */
@@ -184,7 +163,9 @@ async function loadFamilyFundsForAccounts(familyId: string): Promise<FamilyFund[
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("family_funds")
-    .select("*")
+    .select(
+      "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose, created_at, updated_at"
+    )
     .eq("family_id", familyId)
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
@@ -749,7 +730,17 @@ export async function registerExternalOutflowAction(input: {
   return { success: true, balanceWarning, accountId: account.id };
 }
 
-export async function getAccountsOverviewAction() {
+export type AccountsOverview = {
+  accounts: FamilyAccount[];
+  balances: Array<{ account: FamilyAccount; balance: number }>;
+  totalVisibleLiquidity: number;
+  operableAccountIds: string[];
+  funds: FamilyFund[];
+  currentUserId: string;
+};
+
+export async function getAccountsOverviewAction(): Promise<AccountsOverview> {
+  const start = perfNow();
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
 
@@ -780,7 +771,7 @@ export async function getAccountsOverviewAction() {
   const totalVisibleLiquidity =
     Math.round(balances.reduce((s, b) => s + b.balance, 0) * 100) / 100;
 
-  return {
+  const overview: AccountsOverview = {
     accounts: visible,
     balances,
     totalVisibleLiquidity,
@@ -792,4 +783,10 @@ export async function getAccountsOverviewAction() {
     }),
     currentUserId: user.id,
   };
+  perfLog("getAccountsOverviewAction", {
+    ms: perfNow() - start,
+    accounts: visible.length,
+    expenses: expenses.length,
+  });
+  return overview;
 }

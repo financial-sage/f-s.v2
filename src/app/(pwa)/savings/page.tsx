@@ -1,9 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import dynamicImport from "next/dynamic";
-import { redirect } from "next/navigation";
-import { memberCountFromFamilyUsers } from "@/lib/household";
-import { createClient } from "@/utils/supabase/server";
+import {
+  getRequestFamilyMemberCount,
+  requirePwaSession,
+} from "@/lib/request-context";
+import { perfLog, perfNow } from "@/lib/perf";
 
 const SavingsPanel = dynamicImport(() => import("@/components/SavingsPanel"), {
   loading: () => (
@@ -14,36 +16,15 @@ const SavingsPanel = dynamicImport(() => import("@/components/SavingsPanel"), {
 });
 
 export default async function SavingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("family_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile?.family_id) redirect("/onboarding");
-
-  const { data: family } = await supabase
-    .from("families")
-    .select("user_1_id, user_2_id")
-    .eq("id", profile.family_id)
-    .maybeSingle();
-
-  const familyMemberCount = memberCountFromFamilyUsers(
-    family?.user_1_id,
-    family?.user_2_id
-  );
+  const start = perfNow();
+  const { user, familyId } = await requirePwaSession();
+  const familyMemberCount = await getRequestFamilyMemberCount(familyId);
+  perfLog("SavingsPage", { ms: perfNow() - start });
 
   return (
     <SavingsPanel
       currentUserId={user.id}
-      familyMemberCount={familyMemberCount || 1}
+      familyMemberCount={familyMemberCount}
     />
   );
 }

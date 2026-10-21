@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import dynamicImport from "next/dynamic";
-import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
 import StoreHydrator from "@/components/StoreHydrator";
+import { createClient } from "@/utils/supabase/server";
+import { requirePwaSession } from "@/lib/request-context";
+import { perfLog, perfNow } from "@/lib/perf";
 
 const HistoryList = dynamicImport(() => import("@/components/HistoryList"), {
   loading: () => (
@@ -14,36 +15,21 @@ const HistoryList = dynamicImport(() => import("@/components/HistoryList"), {
 });
 
 export default async function HistoryPage() {
+  const start = perfNow();
+  const { user, familyId } = await requirePwaSession();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("family_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.family_id) redirect("/onboarding");
-
-  const [familyProfilesResult, familyResult, fundsResult] = await Promise.all([
+  const [familyProfilesResult, fundsResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, full_name")
-      .eq("family_id", profile.family_id),
-    supabase
-      .from("families")
-      .select("financial_model")
-      .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
-      .maybeSingle(),
+      .eq("family_id", familyId),
     supabase
       .from("family_funds")
       .select(
         "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose",
       )
-      .eq("family_id", profile.family_id)
+      .eq("family_id", familyId)
       .is("archived_at", null)
       .order("sort_order", { ascending: true }),
   ]);
@@ -54,6 +40,7 @@ export default async function HistoryPage() {
   const partnerName = partner?.full_name?.trim().split(/\s+/)[0] ?? "Pareja";
   const partnerId = partner?.id ?? null;
   const funds = (fundsResult.data ?? []).filter((f) => !f.archived_at);
+  perfLog("HistoryPage", { ms: perfNow() - start });
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">

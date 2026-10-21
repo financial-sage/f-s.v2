@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { getFamilyFundsFast } from "@/app/actions/funds";
 import {
   calculateFundCashBalance,
@@ -15,30 +14,17 @@ import type {
   FixedExpenseTemplate,
 } from "@/lib/fixed-expenses/types";
 import { getMonthKey } from "@/lib/budget";
-import { createClient } from "@/utils/supabase/server";
+import {
+  requireRequestFamilyId,
+  requireRequestUser,
+} from "@/lib/request-context";
 
 async function requireUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  return user;
+  return requireRequestUser();
 }
 
 async function getUserFamilyId(userId: string) {
-  const admin = getSupabaseAdminClient();
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("family_id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error || !profile?.family_id) {
-    throw new Error("Debes pertenecer a una familia.");
-  }
-
-  return profile.family_id as string;
+  return requireRequestFamilyId(userId);
 }
 
 function mapTemplate(row: Record<string, unknown>): FixedExpenseTemplate {

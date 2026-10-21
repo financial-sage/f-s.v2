@@ -38,6 +38,7 @@ import { createDeposit, createPersonalDeposit, deleteExpenseAction } from "@/app
 import {
     createFundAction,
     getFamilyFundsMetaAction,
+    setDefaultFundAction,
     updateFundAction,
 } from "@/app/actions/funds";
 import { settleFundDebtAction } from "@/app/actions/settleFundDebt";
@@ -751,24 +752,57 @@ export default function DashboardCouple({
         startCreateFundTransition(async () => {
             try {
                 if (editingFund) {
-                    const updated = await updateFundAction({
-                        fundId: editingFund.id,
-                        name,
-                        color: newFundColor,
-                        isDefault: isFixedExpensesFund(editingFund)
-                            ? undefined
-                            : newFundIsDefault,
-                    });
-                    const overview = await getFamilyFundsMetaAction();
-                    useFundsStore.getState().setFunds(overview.funds);
-                    const shared = listDashboardSharedFunds(overview.funds);
-                    setSharedFunds(shared);
-                    if (updated.is_default) {
+                    const onlyDefault =
+                        !isFixedExpensesFund(editingFund) &&
+                        newFundIsDefault &&
+                        !editingFund.is_default &&
+                        name === editingFund.name &&
+                        newFundColor === (editingFund.color ?? newFundColor);
+
+                    if (onlyDefault) {
+                        // Optimistic star flip — no expense refetch.
+                        const optimistic = (useFundsStore.getState().funds.length
+                            ? useFundsStore.getState().funds
+                            : sharedFunds
+                        ).map((f) => ({
+                            ...f,
+                            is_default:
+                                f.id === editingFund.id
+                                    ? true
+                                    : f.scope === "shared" ||
+                                        f.owner_profile_id === currentUserId
+                                      ? false
+                                      : f.is_default,
+                        }));
+                        useFundsStore.getState().setFunds(optimistic);
+                        setSharedFunds(listDashboardSharedFunds(optimistic));
                         userPickedFundRef.current = true;
-                        setSelectedFundId(updated.id);
-                        setPreferredFundId(updated.id);
-                    } else if (selectedFundId === updated.id) {
-                        setSelectedFundId(updated.id);
+                        setSelectedFundId(editingFund.id);
+                        setPreferredFundId(editingFund.id);
+
+                        const { funds } = await setDefaultFundAction(editingFund.id);
+                        useFundsStore.getState().setFunds(funds);
+                        setSharedFunds(listDashboardSharedFunds(funds));
+                    } else {
+                        const updated = await updateFundAction({
+                            fundId: editingFund.id,
+                            name,
+                            color: newFundColor,
+                            isDefault: isFixedExpensesFund(editingFund)
+                                ? undefined
+                                : newFundIsDefault,
+                        });
+                        const overview = await getFamilyFundsMetaAction();
+                        useFundsStore.getState().setFunds(overview.funds);
+                        const shared = listDashboardSharedFunds(overview.funds);
+                        setSharedFunds(shared);
+                        if (updated.is_default) {
+                            userPickedFundRef.current = true;
+                            setSelectedFundId(updated.id);
+                            setPreferredFundId(updated.id);
+                        } else if (selectedFundId === updated.id) {
+                            setSelectedFundId(updated.id);
+                        }
                     }
                 } else {
                     const created = await createFundAction({
@@ -785,7 +819,7 @@ export default function DashboardCouple({
                     setPreferredFundId(created.id);
                 }
                 closeCreateFundModal();
-                await useExpenseStore.getState().refreshData();
+                // Fund meta (name/color/default) does not change the expense ledger.
             } catch (err) {
                 setFundActionError(
                     err instanceof Error

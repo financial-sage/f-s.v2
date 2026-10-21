@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/utils/supabase/server";
 import {
   activatePremiumForFamilyId,
   clearPendingFirstMoveCelebration,
@@ -10,26 +9,19 @@ import {
   loadFamilyBillingRow,
 } from "@/lib/premiumServer";
 import type { FirstMoveCelebration, HouseholdEntitlement } from "@/lib/premium";
+import {
+  getRequestUser,
+  requireRequestFamilyId,
+} from "@/lib/request-context";
 
 async function requireUserId() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) throw new Error("Debes iniciar sesión.");
   return user.id;
 }
 
 async function getUserFamilyId(userId: string) {
-  const { getSupabaseAdminClient } = await import("@/lib/supabase/server");
-  const admin = getSupabaseAdminClient();
-  const { data } = await admin
-    .from("profiles")
-    .select("family_id")
-    .eq("id", userId)
-    .maybeSingle();
-  if (!data?.family_id) throw new Error("No perteneces a una familia.");
-  return data.family_id as string;
+  return requireRequestFamilyId(userId);
 }
 
 export async function getMyHouseholdEntitlementAction(): Promise<HouseholdEntitlement | null> {

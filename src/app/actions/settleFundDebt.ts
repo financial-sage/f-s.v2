@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import { ensureFamilyFunds } from "@/app/actions/funds";
+import { getFamilyFundsFast } from "@/app/actions/funds";
 import { getDefaultSharedFund, getPersonalFund } from "@/lib/funds";
 
 interface SettleFundDebtInput {
@@ -21,7 +21,7 @@ export async function settleFundDebtAction({
   fundId,
 }: SettleFundDebtInput) {
   const admin = getSupabaseAdminClient();
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId);
   const personalFund = getPersonalFund(funds, currentUserId);
 
   if (!fundId) {

@@ -20,6 +20,8 @@ export default function SignOutButton({
   const router = useRouter();
 
   async function handleSignOut() {
+    const { clearFirstRunGateCache } = await import("@/components/FirstRunGate");
+    clearFirstRunGateCache();
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");

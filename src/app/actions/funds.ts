@@ -1,9 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import { createClient } from "@/utils/supabase/server";
 import type { FamilyFund, FundScope } from "@/lib/funds";
 import {
   DEFAULT_PERSONAL_FUND_COLOR,
@@ -26,33 +24,31 @@ import {
   getPersonalFund,
   personalFundDisplayName,
 } from "@/lib/funds";
+import { isIndividualHousehold } from "@/lib/household";
+import { perfLog, perfNow } from "@/lib/perf";
 import {
-  isIndividualHousehold,
-  memberCountFromFamilyUsers,
-} from "@/lib/household";
+  requireRequestFamilyId,
+  requireRequestUser,
+} from "@/lib/request-context";
+
+/** Explicit columns for hot-path fund reads (avoid select *). */
+const FUND_COLUMNS =
+  "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose, created_at, updated_at";
+
+function revalidateFundPaths(options?: { includeHome?: boolean; includeFixed?: boolean }) {
+  // Dashboard lives in Zustand — skip "/" unless the mutation changes ledger data.
+  if (options?.includeHome) revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/profile");
+  if (options?.includeFixed) revalidatePath("/fixed-expenses");
+}
 
 async function requireUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  return user;
+  return requireRequestUser();
 }
 
 async function getUserFamilyId(userId: string) {
-  const admin = getSupabaseAdminClient();
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("family_id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error || !profile?.family_id) {
-    throw new Error("Debes pertenecer a una familia.");
-  }
-
-  return profile.family_id as string;
+  return requireRequestFamilyId(userId);
 }
 
 /** Read-only fund list — no inserts/migrations. Prefer on overview / navigation. */
@@ -60,7 +56,7 @@ export async function loadFamilyFunds(familyId: string): Promise<FamilyFund[]> {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("family_funds")
-    .select("*")
+    .select(FUND_COLUMNS)
     .eq("family_id", familyId)
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
@@ -98,7 +94,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
 
   const { data: existing, error } = await admin
     .from("family_funds")
-    .select("*")
+    .select(FUND_COLUMNS)
     .eq("family_id", familyId)
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
@@ -135,14 +131,14 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
     let { data: created, error: createError } = await admin
       .from("family_funds")
       .insert(sharedPayload as never)
-      .select("*")
+      .select(FUND_COLUMNS)
       .single();
     if (createError && /color|purpose/i.test(createError.message)) {
       const { color: _color, purpose: _purpose, ...withoutOptional } = sharedPayload;
       ({ data: created, error: createError } = await admin
         .from("family_funds")
         .insert(withoutOptional as never)
-        .select("*")
+        .select(FUND_COLUMNS)
         .single());
     }
     if (createError) throw new Error(createError.message);
@@ -165,7 +161,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
     let { data: created, error: createError } = await admin
       .from("family_funds")
       .insert(fixedPayload as never)
-      .select("*")
+      .select(FUND_COLUMNS)
       .single();
     if (createError && /purpose/i.test(createError.message)) {
       // Migration not applied yet — skip system fund until purpose column exists.
@@ -174,7 +170,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       ({ data: created, error: createError } = await admin
         .from("family_funds")
         .insert(withoutColor as never)
-        .select("*")
+        .select(FUND_COLUMNS)
         .single());
       if (createError) throw new Error(createError.message);
       funds = [...funds, created as FamilyFund];
@@ -191,7 +187,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       .from("family_funds")
       .update({ color: FIXED_EXPENSES_FUND_COLOR } as never)
       .eq("id", existingFixedFund.id)
-      .select("*")
+      .select(FUND_COLUMNS)
       .single();
     if (!colorError && updated) {
       funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
@@ -214,7 +210,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
     let { data: created, error: createError } = await admin
       .from("family_funds")
       .insert(savingsPayload as never)
-      .select("*")
+      .select(FUND_COLUMNS)
       .single();
     if (createError && /purpose/i.test(createError.message)) {
       // Migration not applied yet — skip until purpose column exists.
@@ -223,7 +219,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       ({ data: created, error: createError } = await admin
         .from("family_funds")
         .insert(withoutColor as never)
-        .select("*")
+        .select(FUND_COLUMNS)
         .single());
       if (createError) throw new Error(createError.message);
       funds = [...funds, created as FamilyFund];
@@ -239,7 +235,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       .from("family_funds")
       .update({ color: SAVINGS_FUND_COLOR } as never)
       .eq("id", existingSavingsFund.id)
-      .select("*")
+      .select(FUND_COLUMNS)
       .single();
     if (!colorError && updated) {
       funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
@@ -270,14 +266,14 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       let { data: created, error: createError } = await admin
         .from("family_funds")
         .insert(personalPayload as never)
-        .select("*")
+        .select(FUND_COLUMNS)
         .single();
       if (createError && /color/i.test(createError.message)) {
         const { color: _color, ...withoutColor } = personalPayload;
         ({ data: created, error: createError } = await admin
           .from("family_funds")
           .insert(withoutColor as never)
-          .select("*")
+          .select(FUND_COLUMNS)
           .single());
       }
       if (createError) throw new Error(createError.message);
@@ -296,7 +292,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       .from("family_funds")
       .update({ color: DEFAULT_PERSONAL_FUND_COLOR } as never)
       .eq("id", personal.id)
-      .select("*")
+      .select(FUND_COLUMNS)
       .single();
     if (!colorError && updated) {
       funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
@@ -314,7 +310,7 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
       .from("family_funds")
       .update({ name: "Mi bolsillo", updated_at: new Date().toISOString() } as never)
       .eq("id", personal.id)
-      .select("*")
+      .select(FUND_COLUMNS)
       .single();
     if (!nameError && updated) {
       funds = funds.map((f) => (f.id === updated.id ? (updated as FamilyFund) : f));
@@ -401,7 +397,7 @@ async function promoteFundAsExclusiveDefault(
   const admin = getSupabaseAdminClient();
   const { data: funds, error } = await admin
     .from("family_funds")
-    .select("*")
+    .select(FUND_COLUMNS)
     .eq("family_id", familyId)
     .is("archived_at", null);
 
@@ -431,13 +427,8 @@ async function promoteFundAsExclusiveDefault(
 }
 
 async function getFamilyMemberCount(familyId: string): Promise<number> {
-  const admin = getSupabaseAdminClient();
-  const { data } = await admin
-    .from("families")
-    .select("user_1_id, user_2_id")
-    .eq("id", familyId)
-    .maybeSingle();
-  return memberCountFromFamilyUsers(data?.user_1_id, data?.user_2_id) || 1;
+  const { getRequestFamilyMemberCount } = await import("@/lib/request-context");
+  return getRequestFamilyMemberCount(familyId);
 }
 
 export async function createFundAction(input: {
@@ -506,7 +497,7 @@ export async function createFundAction(input: {
   const { data, error } = await admin
     .from("family_funds")
     .insert(payload as never)
-    .select("*")
+    .select(FUND_COLUMNS)
     .single();
 
   if (error) {
@@ -527,9 +518,7 @@ export async function createFundAction(input: {
     created = { ...created, is_default: true };
   }
 
-  revalidatePath("/");
-  revalidatePath("/history");
-  revalidatePath("/profile");
+  revalidateFundPaths();
 
   return created;
 }
@@ -554,7 +543,7 @@ export async function updateFundAction(input: {
 
   const { data: fund, error: fundError } = await admin
     .from("family_funds")
-    .select("*")
+    .select(FUND_COLUMNS)
     .eq("id", input.fundId)
     .eq("family_id", familyId)
     .maybeSingle();
@@ -593,7 +582,7 @@ export async function updateFundAction(input: {
     } as never)
     .eq("id", input.fundId)
     .eq("family_id", familyId)
-    .select("*")
+    .select(FUND_COLUMNS)
     .single();
 
   if (error) {
@@ -610,12 +599,30 @@ export async function updateFundAction(input: {
     updated = { ...updated, is_default: true };
   }
 
-  revalidatePath("/");
-  revalidatePath("/history");
-  revalidatePath("/fixed-expenses");
-  revalidatePath("/profile");
+  revalidateFundPaths({ includeFixed: true });
 
   return updated;
+}
+
+/**
+ * Thin path: mark a fund as the exclusive default ("favorito") without
+ * rewriting name/color or refetching expenses on the client.
+ */
+export async function setDefaultFundAction(fundId: string): Promise<{
+  funds: FamilyFund[];
+  defaultFundId: string;
+}> {
+  const start = perfNow();
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+
+  await promoteFundAsExclusiveDefault(familyId, user.id, fundId);
+  const funds = await loadFamilyFunds(familyId);
+
+  revalidateFundPaths({ includeFixed: true });
+  perfLog("setDefaultFundAction", { ms: perfNow() - start });
+
+  return { funds, defaultFundId: fundId };
 }
 
 export async function archiveFundAction(fundId: string) {
@@ -625,7 +632,7 @@ export async function archiveFundAction(fundId: string) {
 
   const { data: fund, error } = await admin
     .from("family_funds")
-    .select("*")
+    .select(FUND_COLUMNS)
     .eq("id", fundId)
     .eq("family_id", familyId)
     .maybeSingle();
@@ -654,8 +661,7 @@ export async function archiveFundAction(fundId: string) {
 
   if (updateError) throw new Error(updateError.message);
 
-  revalidatePath("/");
-  revalidatePath("/profile");
+  revalidateFundPaths();
   return { success: true };
 }
 
@@ -673,7 +679,7 @@ export async function depositToFundAction(input: {
     throw new Error("Ingresa un importe válido.");
   }
 
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId);
   const fund = funds.find((f) => f.id === input.fundId && !f.archived_at);
   if (!fund) throw new Error("Bolsillo no encontrado.");
 
@@ -717,11 +723,10 @@ export async function depositToFundAction(input: {
     kind: "income",
   });
 
-  revalidatePath("/");
-  revalidatePath("/history");
-  if (isFixedExpensesFund(fund)) {
-    revalidatePath("/fixed-expenses");
-  }
+  revalidateFundPaths({
+    includeHome: true,
+    includeFixed: isFixedExpensesFund(fund),
+  });
   return {
     success: true,
     fundId: fund.id,
@@ -746,7 +751,7 @@ export async function transferBetweenFundsAction(input: {
     throw new Error("Elige dos bolsillos distintos.");
   }
 
-  const funds = await ensureFamilyFunds(familyId);
+  const funds = await getFamilyFundsFast(familyId);
   const from = funds.find((f) => f.id === input.fromFundId && !f.archived_at);
   const to = funds.find((f) => f.id === input.toFundId && !f.archived_at);
   if (!from || !to) throw new Error("Bolsillo no encontrado.");
@@ -830,11 +835,10 @@ export async function transferBetweenFundsAction(input: {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/");
-  revalidatePath("/history");
-  if (isFixedExpensesFund(from) || isFixedExpensesFund(to)) {
-    revalidatePath("/fixed-expenses");
-  }
+  revalidateFundPaths({
+    includeHome: true,
+    includeFixed: isFixedExpensesFund(from) || isFixedExpensesFund(to),
+  });
   return { success: true, transferGroupId };
 }
 

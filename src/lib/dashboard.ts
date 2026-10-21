@@ -12,6 +12,8 @@ import {
 import { createClient } from "@/utils/supabase/server";
 import type { HouseholdEntitlement } from "@/lib/premium";
 import { getHouseholdEntitlement } from "@/lib/premiumServer";
+import { perfLog, perfNow } from "@/lib/perf";
+import { getRequestUser } from "@/lib/request-context";
 
 interface UserRow {
   id: string;
@@ -510,20 +512,21 @@ export async function getHomePageData(): Promise<
   | { ok: true; data: HomePageData }
   | { ok: false; reason: "unauthenticated" | "no_family" }
 > {
+  const totalStart = perfNow();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getRequestUser();
 
   if (!user) {
     return { ok: false, reason: "unauthenticated" };
   }
 
+  const profileStart = perfNow();
   const { data: profile } = await supabase
     .from("profiles")
     .select("family_id, full_name, avatar_url")
     .eq("id", user.id)
     .single();
+  perfLog("getHomePageData.profile", { ms: perfNow() - profileStart });
 
   if (!profile?.family_id) {
     return { ok: false, reason: "no_family" };
@@ -531,7 +534,15 @@ export async function getHomePageData(): Promise<
 
   const familyId = profile.family_id;
 
-  const [familyResult, membersResult, expensesResult, fundsResult, accountsResult] = await Promise.all([
+  const batchStart = perfNow();
+  const [
+    familyResult,
+    membersResult,
+    expensesResult,
+    fundsResult,
+    accountsResult,
+    entitlement,
+  ] = await Promise.all([
     supabase
       .from("families")
       .select("id, name, user_1_id, user_2_id, financial_model")
@@ -567,7 +578,9 @@ export async function getHomePageData(): Promise<
       )
       .eq("family_id", familyId)
       .is("archived_at", null),
+    getHouseholdEntitlement(familyId),
   ]);
+  perfLog("getHomePageData.batch", { ms: perfNow() - batchStart });
 
   const family = familyResult.data as (FamilyRow & { financial_model?: string | null }) | null;
   if (!family?.id) {
@@ -660,7 +673,6 @@ export async function getHomePageData(): Promise<
   const currentMember = members.find((member) => member.id === user.id);
   const funds = ((fundsResult.data ?? []) as FamilyFund[]).filter((f) => !f.archived_at);
   const sharedDefaultFundId = getDefaultSharedFund(funds)?.id ?? null;
-  const entitlement = await getHouseholdEntitlement(familyId);
 
   const allAccounts = ((accountsResult.data ?? []) as FamilyAccount[]).filter(
     (a) => !a.archived_at
@@ -685,6 +697,12 @@ export async function getHomePageData(): Promise<
         0
       ) * 100
     ) / 100;
+
+  perfLog("getHomePageData", {
+    ms: perfNow() - totalStart,
+    expenses: coupleExpenses.length,
+    funds: funds.length,
+  });
 
   return {
     ok: true,

@@ -5,7 +5,10 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
 import type { ExpenseSplitType } from "@/lib/expenses";
-import { ensureFamilyFunds, depositToFundAction } from "@/app/actions/funds";
+import {
+  depositToFundAction,
+  getFamilyFundsFast,
+} from "@/app/actions/funds";
 import { getDefaultSharedFund, getPersonalFund } from "@/lib/funds";
 import {
   calculateAccountCashBalance,
@@ -203,9 +206,9 @@ export async function saveExpenseAction({
     };
   }
 
-  let funds: Awaited<ReturnType<typeof ensureFamilyFunds>> = [];
+  let funds: Awaited<ReturnType<typeof getFamilyFundsFast>> = [];
   try {
-    funds = await ensureFamilyFunds(profile.family_id);
+    funds = await getFamilyFundsFast(profile.family_id);
   } catch {
     funds = [];
   }
@@ -364,7 +367,7 @@ export async function createDeposit({
       throw new Error("Debes pertenecer a una familia para guardar aportes.");
     }
 
-    const funds = await ensureFamilyFunds(profile.family_id);
+    const funds = await getFamilyFundsFast(profile.family_id);
     const targetId = fundId ?? getDefaultSharedFund(funds)?.id;
     if (!targetId) throw new Error("No hay Bolsillos disponible.");
 
@@ -446,7 +449,7 @@ export async function createPersonalDeposit({
     throw new Error("Debes pertenecer a una familia para guardar aportes.");
   }
 
-  const funds = await ensureFamilyFunds(profile.family_id);
+  const funds = await getFamilyFundsFast(profile.family_id);
   const personal = getPersonalFund(funds, user.id);
   if (!personal) throw new Error("No hay bolsillo personal disponible.");
 

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   transferAccountToFundAction,
   transferFundToAccountAction,
@@ -28,17 +27,18 @@ import {
   listActiveFunds,
   type FamilyFund,
 } from "@/lib/funds";
-import {
-  isIndividualHousehold,
-  memberCountFromFamilyUsers,
-} from "@/lib/household";
+import { isIndividualHousehold } from "@/lib/household";
 import {
   calculateSavingsBalance,
   computeSavingsMonthMetrics,
   type SavingsMonthMetrics,
 } from "@/lib/savings";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import { createClient } from "@/utils/supabase/server";
+import {
+  getRequestFamilyMemberCount,
+  requireRequestFamilyId,
+  requireRequestUser,
+} from "@/lib/request-context";
 
 export type SavingsSource =
   | { type: "account"; id: string }
@@ -67,37 +67,15 @@ export type SavingsOverview = {
 };
 
 async function requireUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  return user;
+  return requireRequestUser();
 }
 
 async function getUserFamilyId(userId: string) {
-  const admin = getSupabaseAdminClient();
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("family_id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error || !profile?.family_id) {
-    throw new Error("Debes pertenecer a una familia.");
-  }
-
-  return profile.family_id as string;
+  return requireRequestFamilyId(userId);
 }
 
 async function getFamilyMemberCount(familyId: string): Promise<number> {
-  const admin = getSupabaseAdminClient();
-  const { data } = await admin
-    .from("families")
-    .select("user_1_id, user_2_id")
-    .eq("id", familyId)
-    .maybeSingle();
-  return memberCountFromFamilyUsers(data?.user_1_id, data?.user_2_id) || 1;
+  return getRequestFamilyMemberCount(familyId);
 }
 
 function revalidateSavingsPaths() {

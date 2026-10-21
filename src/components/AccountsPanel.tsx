@@ -25,6 +25,7 @@ import {
   transferBetweenAccountsAction,
   transferFundToAccountAction,
   updateAccountVisibilityAction,
+  type AccountsOverview,
 } from "@/app/actions/accounts";
 import type { AccountScope, AccountVisibility, FamilyAccount } from "@/lib/accounts";
 import {
@@ -60,6 +61,8 @@ type TransferStep = "choose" | "configure";
 interface AccountsPanelProps {
   currentUserId: string;
   familyMemberCount?: number;
+  /** Server-loaded overview — avoids a second server-action round-trip on mount. */
+  initialOverview?: AccountsOverview;
 }
 
 function seedFromCaches(
@@ -104,9 +107,21 @@ const TRANSFER_OPTIONS: Array<{
   { id: "external", label: "Fuera", hint: "Sale del sistema", icon: ArrowUpFromLine },
 ];
 
+function overviewToSeed(overview: AccountsOverview) {
+  return {
+    accounts: overview.accounts,
+    funds: overview.funds,
+    balances: Object.fromEntries(
+      overview.balances.map((b) => [b.account.id, b.balance])
+    ),
+    totalLiquidity: overview.totalVisibleLiquidity,
+  };
+}
+
 export default function AccountsPanel({
   currentUserId,
   familyMemberCount = 1,
+  initialOverview,
 }: AccountsPanelProps) {
   const { format: formatCurrency } = useCurrency();
   const setAccountsCache = useAccountsStore((s) => s.setAccounts);
@@ -134,15 +149,27 @@ export default function AccountsPanel({
     hasFamily: true,
   });
 
-  const [seed] = useState(() => seedFromCaches(currentUserId, familyMemberCount));
+  const [seed] = useState(() =>
+    initialOverview
+      ? overviewToSeed(initialOverview)
+      : seedFromCaches(currentUserId, familyMemberCount)
+  );
   const [accounts, setAccounts] = useState<FamilyAccount[]>(seed.accounts);
   const [funds, setFunds] = useState<FamilyFund[]>(seed.funds);
   const [balances, setBalances] = useState<Record<string, number>>(seed.balances);
   const [totalLiquidity, setTotalLiquidity] = useState(seed.totalLiquidity);
-  const [isLoadingOverview, setIsLoadingOverview] = useState(seed.accounts.length === 0);
+  const [isLoadingOverview, setIsLoadingOverview] = useState(
+    !initialOverview && seed.accounts.length === 0
+  );
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!initialOverview) return;
+    setAccountsCache(initialOverview.accounts);
+    setFundsCache(initialOverview.funds);
+  }, [initialOverview, setAccountsCache, setFundsCache]);
 
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [newName, setNewName] = useState("");
@@ -226,6 +253,11 @@ export default function AccountsPanel({
   }
 
   useEffect(() => {
+    // Page already loaded overview via RSC — skip duplicate server-action on mount.
+    if (initialOverview) {
+      setIsLoadingOverview(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -253,7 +285,7 @@ export default function AccountsPanel({
     return () => {
       cancelled = true;
     };
-  }, [setAccountsCache, setFundsCache]);
+  }, [initialOverview, setAccountsCache, setFundsCache]);
 
   function showBalanceWarning(flag?: boolean) {
     if (flag) {

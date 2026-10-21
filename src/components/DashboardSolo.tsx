@@ -32,6 +32,7 @@ import {
     createFundAction,
     depositToFundAction,
     getFamilyFundsMetaAction,
+    setDefaultFundAction,
     updateFundAction,
 } from "@/app/actions/funds";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
@@ -123,7 +124,6 @@ export default function DashboardSolo({
     const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
     const storeExpenses = useExpenseStore((s) => s.expenses);
-    const refreshData = useExpenseStore((s) => s.refreshData);
     const storeFunds = useFundsStore((s) => s.funds);
     const displayName = userName?.trim() || "Usuario";
 
@@ -407,16 +407,36 @@ export default function DashboardSolo({
         startSaveFundTransition(async () => {
             try {
                 if (editingFund) {
-                    const updated = await updateFundAction({
-                        fundId: editingFund.id,
-                        name,
-                        color: newFundColor,
-                        isDefault: newFundIsDefault,
-                    });
-                    const overview = await getFamilyFundsMetaAction();
-                    useFundsStore.getState().setFunds(overview.funds);
-                    userPickedFundRef.current = true;
-                    setSelectedFundId(updated.id);
+                    const onlyDefault =
+                        newFundIsDefault &&
+                        !editingFund.is_default &&
+                        name === editingFund.name &&
+                        newFundColor === (editingFund.color ?? newFundColor);
+
+                    if (onlyDefault) {
+                        const currentFunds = useFundsStore.getState().funds;
+                        const optimistic = currentFunds.map((f) => ({
+                            ...f,
+                            is_default: f.id === editingFund.id,
+                        }));
+                        useFundsStore.getState().setFunds(optimistic);
+                        userPickedFundRef.current = true;
+                        setSelectedFundId(editingFund.id);
+
+                        const { funds } = await setDefaultFundAction(editingFund.id);
+                        useFundsStore.getState().setFunds(funds);
+                    } else {
+                        const updated = await updateFundAction({
+                            fundId: editingFund.id,
+                            name,
+                            color: newFundColor,
+                            isDefault: newFundIsDefault,
+                        });
+                        const overview = await getFamilyFundsMetaAction();
+                        useFundsStore.getState().setFunds(overview.funds);
+                        userPickedFundRef.current = true;
+                        setSelectedFundId(updated.id);
+                    }
                 } else {
                     const created = await createFundAction({
                         name,
@@ -430,7 +450,7 @@ export default function DashboardSolo({
                     setSelectedFundId(created.id);
                 }
                 closeCreateFundModal();
-                await refreshData();
+                // Fund meta does not change the expense ledger — skip refreshData.
             } catch (err) {
                 setFundActionError(
                     err instanceof Error
