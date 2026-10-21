@@ -6,8 +6,8 @@ import { createClient } from "@/utils/supabase/client";
 import {
   AVATAR_ACCEPT,
   AVATARS_BUCKET,
-  assertValidAvatarFile,
   avatarObjectPath,
+  prepareAvatarFile,
   withAvatarCacheBust,
 } from "@/lib/avatar";
 
@@ -38,15 +38,15 @@ export default function ProfileAvatarEditor({
     setIsUploading(true);
 
     try {
-      assertValidAvatarFile(file);
+      const prepared = await prepareAvatarFile(file);
       const supabase = createClient();
-      const path = avatarObjectPath(userId, file.type);
+      const path = avatarObjectPath(userId, prepared.type);
 
       const { error: uploadError } = await supabase.storage
         .from(AVATARS_BUCKET)
-        .upload(path, file, {
+        .upload(path, prepared, {
           upsert: true,
-          contentType: file.type,
+          contentType: prepared.type,
           cacheControl: "3600",
         });
 

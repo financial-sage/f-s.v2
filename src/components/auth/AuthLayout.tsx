@@ -19,7 +19,7 @@ export function AuthLayout({
   quoteLabel,
   children,
   footer,
-  showBackLink = true,
+  showBackLink = false,
 }: AuthLayoutProps) {
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
@@ -41,10 +41,12 @@ export function AuthLayout({
                   alt="SinDescuadre"
                   className="mb-5 h-14 w-14 rounded-[1rem] shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
                 />
-                <p className="text-[11px] font-light text-on-surface-variant">{quoteLabel}</p>
-                <h2 className="mt-2 text-4xl font-light leading-tight tracking-tight text-on-surface">
+                <h2 className="text-4xl font-light leading-tight tracking-tight text-on-surface">
                   {title}
                 </h2>
+                <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">
+                  {quoteLabel}
+                </p>
                 <p className="mt-3 text-base font-light text-on-surface-variant">{subtitle}</p>
 
                 <div className="mt-10 overflow-hidden rounded-3xl border border-emerald-100/70 bg-surface-lowest/90 p-5 shadow-[0_16px_40px_rgba(96,133,92,0.16)] backdrop-blur-xl">
@@ -63,10 +65,12 @@ export function AuthLayout({
                   alt="SinDescuadre"
                   className="mb-4 h-16 w-16 rounded-[1.1rem] shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
                 />
-                <p className="text-[11px] font-light text-on-surface-variant">{quoteLabel}</p>
-                <h1 className="mt-1 text-[2rem] font-light leading-tight tracking-tight text-on-surface">
+                <h1 className="text-[2rem] font-light leading-tight tracking-tight text-on-surface">
                   {title}
                 </h1>
+                <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">
+                  {quoteLabel}
+                </p>
                 <p className="mt-2 text-sm font-light text-on-surface-variant">{subtitle}</p>
               </div>
 

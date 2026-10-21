@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
       title="Recupera tu acceso"
       subtitle="Te enviaremos un enlace seguro para crear una nueva contraseña."
       quote="Un momento de calma también es parte del control."
-      quoteLabel="Seguridad Sage"
+      quoteLabel="SinDescuadre"
       footer={
         isSuccess ? null : (
           <p className="text-sm font-light text-on-surface-variant">

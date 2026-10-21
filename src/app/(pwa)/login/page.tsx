@@ -51,10 +51,11 @@ export default function LoginPage() {
   return (
     <>
       <AuthLayout
-        title="Bienvenido de nuevo"
-        subtitle="Controla tus finanzas con calma y claridad."
-        quote='"La paz financiera comienza con una conversación honesta."'
-        quoteLabel="Filosofía Sage"
+        title="SinDescuadre"
+        subtitle="Organiza tus finanzas y llega a fin de mes sin descuadres. Te mostramos qué está pasando con tu dinero — y qué conviene hacer después."
+        quote="Cada movimiento cuenta una historia. Pronto te ayudaremos a leerla y a elegir el siguiente paso con más seguridad."
+        quoteLabel="Tu dinero en orden"
+        showBackLink={false}
         footer={
           <p className="text-sm font-light text-on-surface-variant">
             ¿No tienes cuenta?

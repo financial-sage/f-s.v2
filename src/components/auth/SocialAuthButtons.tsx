@@ -23,6 +23,7 @@ export default function SocialAuthButtons(_props: SocialAuthButtonsProps) {
         provider: "google",
         options: {
           redirectTo,
+          scopes: "openid email profile",
           queryParams: { access_type: "offline", prompt: "select_account" },
         },
       });

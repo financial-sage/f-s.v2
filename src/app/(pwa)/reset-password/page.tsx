@@ -85,7 +85,7 @@ export default function ResetPasswordPage() {
       title="Nueva contraseña"
       subtitle="Elige una contraseña segura para tu cuenta."
       quote="Un nuevo comienzo empieza con un paso simple."
-      quoteLabel="Acceso Sage"
+      quoteLabel="SinDescuadre"
       footer={
         <p className="text-sm font-light text-on-surface-variant">
           <Link href="/login" className="font-medium text-primary hover:underline">

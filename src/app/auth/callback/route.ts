@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { syncOauthProfileDefaults } from "@/lib/oauth-profile";
 import { createClient } from "@/utils/supabase/server";
 
 function safeNextPath(nextParam: string | null) {
@@ -30,31 +31,9 @@ export async function GET(request: NextRequest) {
       } = await supabase.auth.getUser();
 
       if (user) {
-        const meta = user.user_metadata ?? {};
-        const fullName =
-          (typeof meta.full_name === "string" && meta.full_name.trim()) ||
-          (typeof meta.name === "string" && meta.name.trim()) ||
-          null;
-        const avatarUrl =
-          (typeof meta.avatar_url === "string" && meta.avatar_url) ||
-          (typeof meta.picture === "string" && meta.picture) ||
-          null;
+        const { familyId } = await syncOauthProfileDefaults(supabase, user);
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name, avatar_url, family_id")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        const patch: { full_name?: string; avatar_url?: string } = {};
-        if (!profile?.full_name && fullName) patch.full_name = fullName;
-        if (!profile?.avatar_url && avatarUrl) patch.avatar_url = avatarUrl;
-
-        if (Object.keys(patch).length > 0) {
-          await supabase.from("profiles").update(patch as never).eq("id", user.id);
-        }
-
-        if (!profile?.family_id) {
+        if (!familyId) {
           return NextResponse.redirect(`${origin}/onboarding`);
         }
       }
