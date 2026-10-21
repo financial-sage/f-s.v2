@@ -67,6 +67,7 @@ import HouseholdStatusBanner from "@/components/HouseholdStatusBanner";
 import PremiumHeaderChip from "@/components/PremiumHeaderChip";
 import { buildDecisionContext } from "@/lib/decision/context";
 import { selectPrimaryInsight } from "@/lib/decision/insights";
+import { sumMonthSpend } from "@/lib/decision/spend";
 import type { HouseholdEntitlement } from "@/lib/premium";
 
 interface DashboardSoloProps {
@@ -215,14 +216,37 @@ export default function DashboardSolo({
         defaultPersonal?.id,
     ]);
 
+    const heroColor = resolveFundUiColor(selectedFund, isDark);
+    const heroTitle =
+        personalFundDisplayName(selectedFund, {
+            primaryId: defaultPersonal?.id ?? null,
+        });
+
     const guidanceInsight = useMemo(() => {
         const fundsCount = (storeFunds.length > 0 ? storeFunds : initialFunds).length;
+        const preferStore = isHydrated && storeExpenses.length > 0;
+        const rows = preferStore ? storeExpenses : [];
+        const pockets = personalFunds.map((fund) => ({
+            name: personalFundDisplayName(fund, {
+                primaryId: defaultPersonal?.id ?? null,
+            }),
+            balance: calculateSoloPersonalFundBalance(
+                rows,
+                fund,
+                currentUserId,
+                defaultPersonal?.id ?? null
+            ),
+        }));
+        const monthSpent =
+            rows.length > 0 ? sumMonthSpend(rows) : Number(_budget?.spent) || 0;
         return selectPrimaryInsight(
             buildDecisionContext({
                 hasVisibleAccounts,
                 accountsVisibleLiquidity,
                 pocketOrHeroBalance: displayBalance,
-                monthSpent: _budget?.spent ?? 0,
+                activePocketName: heroTitle,
+                pockets,
+                monthSpent,
                 fundsCount,
                 memberCount: entitlement?.memberCount ?? 1,
                 isCoupleUi: false,
@@ -232,17 +256,17 @@ export default function DashboardSolo({
         hasVisibleAccounts,
         accountsVisibleLiquidity,
         displayBalance,
+        heroTitle,
+        personalFunds,
+        isHydrated,
+        storeExpenses,
+        currentUserId,
+        defaultPersonal?.id,
         _budget?.spent,
         storeFunds,
         initialFunds,
         entitlement?.memberCount,
     ]);
-
-    const heroColor = resolveFundUiColor(selectedFund, isDark);
-    const heroTitle =
-        personalFundDisplayName(selectedFund, {
-            primaryId: defaultPersonal?.id ?? null,
-        });
 
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
     const [balanceVisible, setBalanceVisible] = useState(true);

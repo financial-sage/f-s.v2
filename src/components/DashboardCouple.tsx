@@ -91,6 +91,7 @@ import GuidanceWhyTrigger from "@/components/GuidanceWhyTrigger";
 import HouseholdStatusBanner from "@/components/HouseholdStatusBanner";
 import { buildDecisionContext } from "@/lib/decision/context";
 import { selectPrimaryInsight } from "@/lib/decision/insights";
+import { sumMonthSpend } from "@/lib/decision/spend";
 import PremiumHeaderChip from "@/components/PremiumHeaderChip";
 import type { HouseholdEntitlement } from "@/lib/premium";
 
@@ -1168,13 +1169,33 @@ export default function DashboardCouple({
         members.find((member) => member.id === currentUserId) ?? members[0] ?? null;
 
     const guidanceInsight = useMemo(() => {
-        const fundsCount = (storeFunds.length > 0 ? storeFunds : initialFunds).length;
-        const monthSpent = (typeof _mySpent === "number" ? _mySpent : 0) + (typeof _partnerSpent === "number" ? _partnerSpent : 0);
+        const fundsSource = storeFunds.length > 0 ? storeFunds : initialFunds;
+        const fundsCount = fundsSource.length;
+        const monthSpentFromLedger = sumMonthSpend(expenses);
+        const monthSpentFallback =
+            (typeof _mySpent === "number" ? _mySpent : 0) +
+            (typeof _partnerSpent === "number" ? _partnerSpent : 0);
+        const monthSpent =
+            expenses.length > 0 ? monthSpentFromLedger : monthSpentFallback;
+        const dashboardFunds = listActiveFunds(fundsSource).filter(
+            (f) => !isFixedExpensesFund(f)
+        );
+        const pockets = dashboardFunds.map((fund) => ({
+            name:
+                fund.scope === "personal"
+                    ? personalFundDisplayName(fund)
+                    : fund.name,
+            balance: calculateFundCashBalance(expenses, fund.id, {
+                treatLegacyJointAsFundId: getDefaultSharedFund(fundsSource)?.id ?? null,
+            }),
+        }));
         return selectPrimaryInsight(
             buildDecisionContext({
                 hasVisibleAccounts,
                 accountsVisibleLiquidity,
                 pocketOrHeroBalance: heroBalance,
+                activePocketName: heroLabel,
+                pockets,
                 monthSpent,
                 fundsCount,
                 memberCount: entitlement?.memberCount ?? members.length,
@@ -1185,6 +1206,8 @@ export default function DashboardCouple({
         hasVisibleAccounts,
         accountsVisibleLiquidity,
         heroBalance,
+        heroLabel,
+        expenses,
         _mySpent,
         _partnerSpent,
         storeFunds,

@@ -28,7 +28,7 @@ export default function GuidanceWhyTrigger({ insight, className }: Props) {
         </span>
         <span className="min-w-0">
           <span className="block truncate text-[12px] font-light leading-snug tracking-tight text-on-surface/85">
-            ¿Cómo está tu realidad hoy?
+            ¿Tu realidad hoy?
           </span>
           <span className="mt-0.5 block truncate text-[10px] font-light text-on-surface-variant/75">
             Toca para una lectura breve

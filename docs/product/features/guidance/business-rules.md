@@ -36,15 +36,18 @@ Implementación y rutas: [technical-spec.md](./technical-spec.md).
 
 Al elegir el insight principal, evaluar en orden; usar el primero aplicable:
 
-19. Sin cuentas visibles y sin liquidez de cuentas → invitar a abrir/registrar cuentas (CTA `/accounts`) con tono calmado.
-20. Hay liquidez en cuentas visible pero bolsillo/hero bajo relativo al contexto → explicar separación cuenta vs bolsillo (sin juzgar).
-21. Hay gastos del mes y datos de bolsillo → insight de margen/compromiso con hechos citados (spent / balance disponibles).
-22. Si no hay base suficiente → insight `unknown` genérico (“cuando registres movimientos, podremos explicar mejor tu margen”).
+19. Saldo negativo en bolsillo activo, algún bolsillo listado o liquidez de cuentas → alertar con hechos y tono calmado (sin culpa ni alarma). Si la cuenta está en negativo, priorizar ese foco frente al bolsillo. CTA a orientación detallada / cuentas / historial según el caso.
+19b. Cuenta visible con liquidez exactamente 0 → informar con calma (“cuenta en cero”); si hay saldo en bolsillos, aclarar que el dinero está ahí. No tratar el cero como fracaso.
+20. Sin cuentas visibles → invitar a abrir/registrar cuentas (CTA `/accounts`) con tono calmado.
+21. Hay liquidez en cuentas visible pero bolsillo/hero bajo relativo al contexto → explicar separación cuenta vs bolsillo (sin juzgar).
+22. Hay gastos del mes y datos de bolsillo → insight de margen/compromiso con hechos citados (spent / balance disponibles).
+23. Si no hay base suficiente → insight `unknown` genérico (“cuando registres movimientos, podremos explicar mejor tu margen”).
 
-23. Nunca más de un insight “urgente”; si varios aplican, gana el de mayor prioridad en esta lista.
+24. Nunca más de un insight “urgente”; si varios aplican, gana el de mayor prioridad en esta lista.
 
 ## Prohibido
 
-24. Inventar saldos, proyecciones o “capacidad de decisión” sin fórmula documentada y datos de entrada.
-25. Ejecutar acciones financieras desde Guidance sin confirmación en el flujo de dominio correspondiente.
-26. Mezclar Guidance V1 con UI conversacional del AI Assistant.
+25. Inventar saldos, proyecciones o “capacidad de decisión” sin fórmula documentada y datos de entrada.
+26. Ejecutar acciones financieras desde Guidance sin confirmación en el flujo de dominio correspondiente.
+27. Mezclar Guidance V1 con UI conversacional del AI Assistant.
+28. Tratar un saldo negativo como fracaso moral del usuario; solo como hecho a explicar y acción posible.
