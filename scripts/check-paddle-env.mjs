@@ -93,3 +93,20 @@ const dupMonthly = [...raw.matchAll(/^NEXT_PUBLIC_PADDLE_PRICE_MONTHLY=/gm)];
 const dupYearly = [...raw.matchAll(/^NEXT_PUBLIC_PADDLE_PRICE_YEARLY=/gm)];
 console.log(`duplicate_monthly_lines: ${dupMonthly.length}`);
 console.log(`duplicate_yearly_lines: ${dupYearly.length}`);
+
+const webhook = get("PADDLE_WEBHOOK_SECRET");
+console.log("--- webhook ---");
+console.log(
+  `webhook_same_as_api: ${Boolean(webhook && api && webhook === api)}`
+);
+console.log(
+  `webhook_prefix: ${webhook ? JSON.stringify(webhook.slice(0, 12)) : "null"}`
+);
+console.log(
+  `webhook_looks_endpoint_secret: ${Boolean(
+    webhook &&
+      (webhook.startsWith("pdl_ntf") ||
+        webhook.startsWith("pdl_") ||
+        /^[A-Za-z0-9+/=_-]{20,}$/.test(webhook))
+  )}`
+);

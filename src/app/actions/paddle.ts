@@ -1,11 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { getRequestUser, getRequestFamilyId } from "@/lib/request-context";
 import {
   getPaddlePriceId,
   isPaddleConfigured,
   type PaddlePlanId,
 } from "@/lib/paddle/config";
+import { confirmPaddleTransactionForUser } from "@/lib/paddle/confirm";
 
 export type PaddleCheckoutPayload = {
   priceId: string;
@@ -46,4 +48,25 @@ export async function getPaddleCheckoutPayloadAction(
     email: user.email ?? null,
     customData,
   };
+}
+
+/** Called from the client when Overlay fires checkout.completed. */
+export async function confirmPaddleCheckoutAction(transactionId: string) {
+  const user = await getRequestUser();
+  if (!user) throw new Error("Debes iniciar sesión.");
+  if (!transactionId?.startsWith("txn_")) {
+    throw new Error("Transacción inválida.");
+  }
+
+  const result = await confirmPaddleTransactionForUser({
+    userId: user.id,
+    transactionId,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/profile");
+  revalidatePath("/web");
+  revalidatePath("/admin");
+
+  return result;
 }

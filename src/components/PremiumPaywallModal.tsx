@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Crown, X, LoaderCircle } from "lucide-react";
-import { initializePaddle, type Paddle } from "@paddle/paddle-js";
+import {
+  CheckoutEventNames,
+  initializePaddle,
+  type Paddle,
+} from "@paddle/paddle-js";
 import { Portal } from "@/components/ui/Portal";
-import { getPaddleCheckoutPayloadAction } from "@/app/actions/paddle";
+import {
+  confirmPaddleCheckoutAction,
+  getPaddleCheckoutPayloadAction,
+} from "@/app/actions/paddle";
 import type { PaddlePlanId } from "@/lib/paddle/config";
 
 type Props = {
@@ -43,15 +51,18 @@ function planPriceId(plan: PaddlePlanId): string | null {
 }
 
 export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props) {
+  const router = useRouter();
   const [paddle, setPaddle] = useState<Paddle | null>(null);
   const [initError, setInitError] = useState("");
   const [checkoutError, setCheckoutError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [priceLabels, setPriceLabels] = useState<
     Partial<Record<PaddlePlanId, string>>
   >({});
   const [pricesLoading, setPricesLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [pendingPlan, setPendingPlan] = useState<PaddlePlanId | null>(null);
+  const [activating, setActivating] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -73,10 +84,40 @@ export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props
 
     let cancelled = false;
     setPricesLoading(true);
+    setSuccessMsg("");
 
     initializePaddle({
       token,
       environment: env,
+      eventCallback: (event) => {
+        if (event.name !== CheckoutEventNames.CHECKOUT_COMPLETED) return;
+
+        const transactionId = event.data?.transaction_id;
+        if (!transactionId) return;
+
+        setActivating(true);
+        setSuccessMsg("Pago recibido. Activando Premium…");
+
+        void confirmPaddleCheckoutAction(transactionId)
+          .then(() => {
+            setSuccessMsg("¡Premium activado!");
+            onClose();
+            router.refresh();
+            // Hard reload so store + chips pick up entitlement.
+            window.setTimeout(() => {
+              window.location.href = "/";
+            }, 400);
+          })
+          .catch((err) => {
+            console.error("[paddle] confirm failed", err);
+            setActivating(false);
+            setCheckoutError(
+              err instanceof Error
+                ? err.message
+                : "Pago OK, pero no pudimos activar Premium. Recarga en unos segundos o revisa el webhook."
+            );
+          });
+      },
     })
       .then(async (instance) => {
         if (cancelled || !instance) return;
@@ -117,7 +158,7 @@ export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, onClose, router]);
 
   if (!open) return null;
 
@@ -131,12 +172,13 @@ export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props
           throw new Error("Checkout no listo. Espera un segundo e inténtalo.");
         }
 
+        // Keep our sheet open underneath; Overlay handles the payment UI.
+        // Premium unlock happens on checkout.completed via eventCallback.
         paddle.Checkout.open({
           items: [{ priceId: payload.priceId, quantity: 1 }],
           customer: payload.email ? { email: payload.email } : undefined,
           customData: payload.customData,
         });
-        onClose();
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "No se pudo abrir el checkout.";
@@ -233,8 +275,21 @@ export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props
             </div>
           )}
 
+          {successMsg ? (
+            <p className="mt-3 text-[11px] font-medium text-emerald-700">
+              {successMsg}
+            </p>
+          ) : null}
+
           {checkoutError ? (
             <p className="mt-3 text-[11px] text-red-600">{checkoutError}</p>
+          ) : null}
+
+          {activating ? (
+            <div className="mt-3 flex items-center gap-2 text-xs text-on-surface-variant">
+              <LoaderCircle size={14} className="animate-spin" />
+              Activando tu hogar…
+            </div>
           ) : null}
 
           <p className="mt-4 text-[11px] leading-relaxed text-on-surface-variant">
