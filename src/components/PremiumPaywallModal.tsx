@@ -99,14 +99,18 @@ export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props
         setSuccessMsg("Pago recibido. Activando Premium…");
 
         void confirmPaddleCheckoutAction(transactionId)
-          .then(() => {
+          .then(async () => {
             setSuccessMsg("¡Premium activado!");
             onClose();
+            const { requestPremiumWelcomeCheck } = await import(
+              "@/components/PremiumWelcomeCelebration"
+            );
+            requestPremiumWelcomeCheck();
             router.refresh();
-            // Hard reload so store + chips pick up entitlement.
+            // Hard reload so store + welcome modal pick up entitlement.
             window.setTimeout(() => {
               window.location.href = "/";
-            }, 400);
+            }, 500);
           })
           .catch((err) => {
             console.error("[paddle] confirm failed", err);

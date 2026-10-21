@@ -373,6 +373,20 @@ export async function joinFamilyAction(userId: string, inviteCode: string) {
     // Billing tables may not exist yet.
   }
 
+  try {
+    const { getHouseholdEntitlement, queuePremiumWelcomeForUsers } =
+      await import("@/lib/premiumServer");
+    const entitlement = await getHouseholdEntitlement(family.id);
+    if (entitlement?.isPremiumHousehold) {
+      await queuePremiumWelcomeForUsers([user.id], {
+        variant: entitlement.memberCount >= 2 ? "couple" : "solo",
+        source: "joined_premium_home",
+      });
+    }
+  } catch {
+    // ignore
+  }
+
   revalidatePath("/");
   revalidatePath("/profile");
   revalidatePath("/onboarding");
@@ -566,6 +580,20 @@ export async function joinFamilyWithCode(inviteCode: string) {
     await syncFamilyPremiumFromBilling(targetFamily.id);
   } catch {
     // Billing tables may not exist yet.
+  }
+
+  try {
+    const { getHouseholdEntitlement, queuePremiumWelcomeForUsers } =
+      await import("@/lib/premiumServer");
+    const entitlement = await getHouseholdEntitlement(targetFamily.id);
+    if (entitlement?.isPremiumHousehold) {
+      await queuePremiumWelcomeForUsers([user.id], {
+        variant: entitlement.memberCount >= 2 ? "couple" : "solo",
+        source: "joined_premium_home",
+      });
+    }
+  } catch {
+    // ignore
   }
 
   revalidatePath("/");

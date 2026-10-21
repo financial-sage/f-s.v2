@@ -4,11 +4,17 @@ import { revalidatePath } from "next/cache";
 import {
   activatePremiumForFamilyId,
   clearPendingFirstMoveCelebration,
+  clearPendingPremiumWelcome,
   getHouseholdEntitlement,
   getPendingFirstMoveCelebration,
+  getPendingPremiumWelcome,
   loadFamilyBillingRow,
 } from "@/lib/premiumServer";
-import type { FirstMoveCelebration, HouseholdEntitlement } from "@/lib/premium";
+import type {
+  FirstMoveCelebration,
+  HouseholdEntitlement,
+  PremiumWelcomeCelebration,
+} from "@/lib/premium";
 import {
   getRequestUser,
   requireRequestFamilyId,
@@ -38,6 +44,16 @@ export async function getPendingFirstMoveCelebrationAction(): Promise<FirstMoveC
 export async function dismissFirstMoveCelebrationAction() {
   const userId = await requireUserId();
   await clearPendingFirstMoveCelebration(userId);
+}
+
+export async function getPendingPremiumWelcomeAction(): Promise<PremiumWelcomeCelebration | null> {
+  const userId = await requireUserId();
+  return getPendingPremiumWelcome(userId);
+}
+
+export async function dismissPremiumWelcomeAction() {
+  const userId = await requireUserId();
+  await clearPendingPremiumWelcome(userId);
 }
 
 /**

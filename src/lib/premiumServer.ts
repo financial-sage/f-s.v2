@@ -7,10 +7,12 @@ import {
   FREE_FIXED_EXPENSES_LIMIT,
   PREMIUM_REQUIRED_MESSAGE,
   parseFirstMoveCelebration,
+  parsePremiumWelcomeCelebration,
   resolveHouseholdEntitlement,
   type FamilyBillingRow,
   type FirstMoveCelebration,
   type HouseholdEntitlement,
+  type PremiumWelcomeCelebration,
 } from "@/lib/premium";
 
 const FAMILY_BILLING_SELECT =
@@ -286,6 +288,79 @@ export async function clearPendingFirstMoveCelebration(userId: string) {
     .eq("id", userId);
 }
 
+export async function getPendingPremiumWelcome(
+  userId: string
+): Promise<PremiumWelcomeCelebration | null> {
+  const admin = getSupabaseAdminClient();
+  const { data } = await admin
+    .from("profiles")
+    .select("pending_premium_welcome")
+    .eq("id", userId)
+    .maybeSingle();
+
+  return parsePremiumWelcomeCelebration(
+    (data as { pending_premium_welcome?: unknown } | null)
+      ?.pending_premium_welcome
+  );
+}
+
+export async function clearPendingPremiumWelcome(userId: string) {
+  const admin = getSupabaseAdminClient();
+  await admin
+    .from("profiles")
+    .update({ pending_premium_welcome: null } as never)
+    .eq("id", userId);
+}
+
+/** Queue welcome modal for specific users (e.g. partner who just joined a Premium home). */
+export async function queuePremiumWelcomeForUsers(
+  userIds: string[],
+  opts: {
+    variant: "solo" | "couple";
+    source?: string;
+  }
+) {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (!ids.length) return;
+
+  const admin = getSupabaseAdminClient();
+  const payload = {
+    at: new Date().toISOString(),
+    variant: opts.variant,
+    source: opts.source ?? null,
+  };
+
+  await Promise.all(
+    ids.map((id) =>
+      admin
+        .from("profiles")
+        .update({ pending_premium_welcome: payload } as never)
+        .eq("id", id)
+    )
+  );
+}
+
+/** Queue welcome for all current household members. */
+export async function queuePremiumWelcomeForFamily(
+  familyId: string,
+  source?: string
+) {
+  const admin = getSupabaseAdminClient();
+  const { data: family } = await admin
+    .from("families")
+    .select("user_1_id, user_2_id")
+    .eq("id", familyId)
+    .maybeSingle();
+
+  if (!family) return;
+
+  const memberIds = [family.user_1_id, family.user_2_id].filter(
+    Boolean
+  ) as string[];
+  const variant = memberIds.length >= 2 ? "couple" : "solo";
+  await queuePremiumWelcomeForUsers(memberIds, { variant, source });
+}
+
 /** Stub / beta: activate household Premium by invite code (any member). */
 export async function activatePremiumForFamilyId(
   familyId: string,
@@ -296,6 +371,15 @@ export async function activatePremiumForFamilyId(
   const until = new Date();
   until.setUTCMonth(until.getUTCMonth() + months);
   const source: PremiumGrantSource = options?.source ?? "stub";
+
+  const { data: before } = await admin
+    .from("families")
+    .select("is_premium_household")
+    .eq("id", familyId)
+    .maybeSingle();
+  const wasPremium =
+    (before as { is_premium_household?: boolean } | null)
+      ?.is_premium_household === true;
 
   const { data: family, error } = await admin
     .from("families")
@@ -319,6 +403,10 @@ export async function activatePremiumForFamilyId(
       .from("profiles")
       .update({ is_premium: true } as never)
       .in("id", ids);
+  }
+
+  if (!wasPremium) {
+    await queuePremiumWelcomeForFamily(familyId, source);
   }
 
   return until.toISOString();

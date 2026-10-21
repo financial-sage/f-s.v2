@@ -29,7 +29,15 @@ export function getPaddleApiKey(): string | null {
 }
 
 export function getPaddleWebhookSecret(): string | null {
-  return process.env.PADDLE_WEBHOOK_SECRET?.trim() || null;
+  const raw = process.env.PADDLE_WEBHOOK_SECRET?.trim() || null;
+  if (!raw) return null;
+  // Endpoint secret looks like pdl_ntfset_… — ntfset_ alone is the destination ID.
+  return raw.replace(/^["']|["']$/g, "").trim() || null;
+}
+
+export function paddleWebhookSecretLooksValid(secret: string | null): boolean {
+  if (!secret) return false;
+  return secret.startsWith("pdl_ntfset_") || secret.startsWith("pdl_");
 }
 
 /** Active-enough statuses that unlock Premium. */

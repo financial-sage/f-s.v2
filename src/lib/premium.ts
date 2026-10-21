@@ -59,6 +59,14 @@ export type FirstMoveCelebration = {
   role?: "actor" | "partner";
 };
 
+export type PremiumWelcomeVariant = "solo" | "couple";
+
+export type PremiumWelcomeCelebration = {
+  at: string;
+  variant: PremiumWelcomeVariant;
+  source?: "paid" | "vip" | "stub" | "campaign" | string;
+};
+
 export const PREMIUM_REQUIRED_MESSAGE =
   "Has alcanzado el límite de la versión gratuita. Desbloquea Premium para continuar.";
 
@@ -179,4 +187,18 @@ export function formatPremiumTrialChip(seconds: number | null): string | null {
   const days = Math.ceil(seconds / 86400);
   if (days <= 1) return "Último día Premium";
   return `${days} días Premium`;
+}
+
+export function parsePremiumWelcomeCelebration(
+  raw: unknown
+): PremiumWelcomeCelebration | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.at !== "string") return null;
+  if (o.variant !== "solo" && o.variant !== "couple") return null;
+  return {
+    at: o.at,
+    variant: o.variant,
+    source: typeof o.source === "string" ? o.source : undefined,
+  };
 }

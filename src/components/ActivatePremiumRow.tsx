@@ -79,7 +79,9 @@ export default function ActivatePremiumRow({
                 try {
                   await activatePremiumByInviteCodeAction(code);
                   setOk(true);
-                  window.setTimeout(() => window.location.reload(), 600);
+                  window.setTimeout(() => {
+                    window.location.href = "/";
+                  }, 600);
                 } catch (err) {
                   setError(err instanceof Error ? err.message : "No se pudo activar.");
                 }

@@ -2,7 +2,10 @@ import { EventName } from "@paddle/paddle-node-sdk";
 import type { EventEntity } from "@paddle/paddle-node-sdk";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { getPaddleServer } from "@/lib/paddle/client";
-import { getPaddleWebhookSecret } from "@/lib/paddle/config";
+import {
+  getPaddleWebhookSecret,
+  paddleWebhookSecretLooksValid,
+} from "@/lib/paddle/config";
 import { syncUserPremiumFromBilling } from "@/lib/paddle/sync";
 
 type CustomData = {
@@ -205,8 +208,25 @@ export async function processPaddleWebhook(
     throw new Error("Falta PADDLE_WEBHOOK_SECRET.");
   }
 
+  if (!paddleWebhookSecretLooksValid(secret)) {
+    console.error(
+      "[paddle/webhook] PADDLE_WEBHOOK_SECRET looks like a notification ID (ntfset_…), not the endpoint secret (pdl_ntfset_…). Reveal the secret key in Paddle → Notifications."
+    );
+  }
+
   const paddle = getPaddleServer();
-  const event = await paddle.webhooks.unmarshal(rawBody, secret, signature);
+  let event;
+  try {
+    event = await paddle.webhooks.unmarshal(rawBody, secret, signature);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("signature verification failed")) {
+      throw new Error(
+        "[Paddle] Webhook signature verification failed. Usa el Endpoint secret key (pdl_ntfset_…), no el ID ntfset_…. Debe coincidir en el hosting de sindescuadre.es."
+      );
+    }
+    throw err;
+  }
 
   switch (event.eventType) {
     case EventName.SubscriptionCreated:

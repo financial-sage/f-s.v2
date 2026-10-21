@@ -29,6 +29,9 @@ export async function syncFamilyPremiumFromBilling(familyId: string) {
   ) as string[];
   if (!memberIds.length) return;
 
+  const wasPremium =
+    (family as { is_premium_household?: boolean }).is_premium_household === true;
+
   const { data: subs } = await admin
     .from("billing_subscriptions")
     .select("user_id, family_id, status, current_period_end")
@@ -77,6 +80,13 @@ export async function syncFamilyPremiumFromBilling(familyId: string) {
       .update({ family_id: familyId, updated_at: new Date().toISOString() } as never)
       .in("user_id", memberIds);
 
+    if (!wasPremium) {
+      const { queuePremiumWelcomeForFamily } = await import(
+        "@/lib/premiumServer"
+      );
+      await queuePremiumWelcomeForFamily(familyId, "paid");
+    }
+
     return;
   }
 
@@ -98,6 +108,13 @@ export async function syncFamilyPremiumFromBilling(familyId: string) {
       .from("profiles")
       .update({ is_premium: true } as never)
       .in("id", memberIds);
+
+    if (!wasPremium) {
+      const { queuePremiumWelcomeForFamily } = await import(
+        "@/lib/premiumServer"
+      );
+      await queuePremiumWelcomeForFamily(familyId, "vip");
+    }
     return;
   }
 
