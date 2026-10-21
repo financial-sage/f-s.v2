@@ -30,7 +30,7 @@ export default function PremiumHeaderChip({
     if (entitlement?.isPremiumHousehold || isPremiumFallback) {
       return { label: "Premium", tone: "premium" as const, showLabel: false };
     }
-    return { label: "Premium", tone: "cta" as const, showLabel: true };
+    return { label: "Hazte Premium", tone: "cta" as const, showLabel: true };
   }, [entitlement, isPremiumFallback]);
 
   return (
@@ -43,7 +43,7 @@ export default function PremiumHeaderChip({
             ? "premium-chip-lux-owned text-accent"
             : chip.tone === "trial"
               ? "premium-chip-lux-trial max-w-[12rem] gap-1.5 px-3 py-1.5 text-[11px] font-semibold tracking-tight"
-              : "max-w-[12rem] gap-1.5 px-3 py-1.5 text-[11px] font-semibold tracking-tight text-on-surface"
+              : "max-w-[13rem] gap-1.5 px-3 py-1.5 text-[11px] font-medium tracking-tight text-on-surface"
         }`}
         aria-label={chip.label}
       >

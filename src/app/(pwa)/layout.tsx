@@ -35,10 +35,9 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f4ee" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1729" },
-  ],
+  // Default dark; ThemeScript / applyThemeClass sync to the real app theme at runtime
+  // so Android standalone chrome matches light/dark (not only OS prefers-color-scheme).
+  themeColor: "#0f1729",
 };
 
 export default function PwaLayout({
