@@ -36,6 +36,13 @@ const AUTH_PATHS = new Set([
   "/reset-password",
 ]);
 
+/** Legal / help pages reachable before login — no FAB. */
+const PUBLIC_CONTENT_PATHS = new Set(["/profile/privacy", "/profile/support"]);
+
+function shouldHideBottomNav(pathname: string) {
+  return AUTH_PATHS.has(pathname) || PUBLIC_CONTENT_PATHS.has(pathname);
+}
+
 type NavIcon = ComponentType<LucideProps>;
 
 type NavModule = {
@@ -184,7 +191,7 @@ export default function BottomNav({
     setExpanded(false);
   }, [pathname]);
 
-  if (AUTH_PATHS.has(pathname)) {
+  if (shouldHideBottomNav(pathname)) {
     return null;
   }
 

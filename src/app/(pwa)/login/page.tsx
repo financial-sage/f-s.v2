@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
+import CookieConsentModal from "@/components/CookieConsentModal";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -42,67 +43,71 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout
-      title="Bienvenido de nuevo"
-      subtitle="Controla tus finanzas con calma y claridad."
-      quote='"La paz financiera comienza con una conversación honesta."'
-      quoteLabel="Filosofía Sage"
-      footer={
-        <p className="text-sm font-light text-on-surface-variant">
-          ¿No tienes cuenta?
-          <Link href="/register" className="ml-1 font-medium text-primary hover:underline">
-            Regístrate aquí
-          </Link>
-        </p>
-      }
-    >
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Input
-          label="Correo electrónico"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="nombre@ejemplo.com"
-          type="email"
-          required
-        />
-
-        <div className="space-y-2">
-          <div className="ml-1 flex items-center justify-between">
-            <label className="block text-[11px] font-light text-on-surface-variant">
-              Contraseña
-            </label>
-            <Link
-              href="/forgot-password"
-              className="text-[11px] font-medium text-primary hover:underline"
-            >
-              ¿Olvidaste tu contraseña?
+    <>
+      <AuthLayout
+        title="Bienvenido de nuevo"
+        subtitle="Controla tus finanzas con calma y claridad."
+        quote='"La paz financiera comienza con una conversación honesta."'
+        quoteLabel="Filosofía Sage"
+        footer={
+          <p className="text-sm font-light text-on-surface-variant">
+            ¿No tienes cuenta?
+            <Link href="/register" className="ml-1 font-medium text-primary hover:underline">
+              Regístrate aquí
             </Link>
-          </div>
+          </p>
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
           <Input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            type="password"
+            label="Correo electrónico"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="nombre@ejemplo.com"
+            type="email"
             required
           />
-        </div>
 
-        {error && (
-          <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700">
-            {error}
+          <div className="space-y-2">
+            <div className="ml-1 flex items-center justify-between">
+              <label className="block text-[11px] font-light text-on-surface-variant">
+                Contraseña
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-[11px] font-medium text-primary hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+            <Input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              type="password"
+              required
+            />
           </div>
-        )}
 
-        <Button
-          type="submit"
-          size="lg"
-          className="w-full shadow-[0_8px_18px_rgba(43,52,55,0.18)]"
-          isLoading={isLoading}
-        >
-          {isLoading && <LoaderCircle size={18} className="animate-spin" />}
-          {isLoading ? "Entrando..." : "Entrar"}
-        </Button>
-      </form>
-    </AuthLayout>
+          {error && (
+            <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full shadow-[0_8px_18px_rgba(43,52,55,0.18)]"
+            isLoading={isLoading}
+          >
+            {isLoading && <LoaderCircle size={18} className="animate-spin" />}
+            {isLoading ? "Entrando..." : "Entrar"}
+          </Button>
+        </form>
+      </AuthLayout>
+
+      <CookieConsentModal />
+    </>
   );
 }
