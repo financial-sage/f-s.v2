@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Crown } from "lucide-react";
 import PremiumPaywallModal from "@/components/PremiumPaywallModal";
+import PremiumBenefitsModal from "@/components/PremiumBenefitsModal";
 import {
   formatPremiumTrialChip,
   type HouseholdEntitlement,
@@ -18,7 +19,10 @@ export default function PremiumHeaderChip({
   entitlement,
   isPremiumFallback = false,
 }: Props) {
-  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const isPremium =
+    Boolean(entitlement?.isPremiumHousehold) || isPremiumFallback;
 
   const chip = useMemo(() => {
     if (entitlement?.coupleMode === "couple_trial") {
@@ -27,17 +31,17 @@ export default function PremiumHeaderChip({
         return { label, tone: "trial" as const, showLabel: true };
       }
     }
-    if (entitlement?.isPremiumHousehold || isPremiumFallback) {
+    if (isPremium) {
       return { label: "Premium", tone: "premium" as const, showLabel: false };
     }
     return { label: "Hazte Premium", tone: "cta" as const, showLabel: true };
-  }, [entitlement, isPremiumFallback]);
+  }, [entitlement, isPremium]);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setPaywallOpen(true)}
+        onClick={() => setSheetOpen(true)}
         className={`premium-chip-lux inline-flex items-center transition-transform active:scale-[0.98] ${
           chip.tone === "premium"
             ? "premium-chip-lux-owned text-accent"
@@ -60,11 +64,19 @@ export default function PremiumHeaderChip({
         {chip.showLabel ? <span className="truncate">{chip.label}</span> : null}
       </button>
 
-      <PremiumPaywallModal
-        open={paywallOpen}
-        onClose={() => setPaywallOpen(false)}
-        inviteCode={entitlement?.inviteCode}
-      />
+      {isPremium ? (
+        <PremiumBenefitsModal
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          entitlement={entitlement}
+        />
+      ) : (
+        <PremiumPaywallModal
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          inviteCode={entitlement?.inviteCode}
+        />
+      )}
     </>
   );
 }

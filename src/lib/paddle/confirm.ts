@@ -112,5 +112,18 @@ export async function confirmPaddleTransactionForUser(input: {
 
   await syncUserPremiumFromBilling(input.userId);
 
+  // Always queue welcome on successful checkout confirm (webhook may have
+  // marked the household Premium a moment earlier and skipped the queue).
+  const { queuePremiumWelcomeForFamily, queuePremiumWelcomeForUsers } =
+    await import("@/lib/premiumServer");
+  if (familyId) {
+    await queuePremiumWelcomeForFamily(familyId, "paid");
+  } else {
+    await queuePremiumWelcomeForUsers([input.userId], {
+      variant: "solo",
+      source: "paid",
+    });
+  }
+
   return { ok: true as const, subscriptionId, familyId };
 }

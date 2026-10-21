@@ -64,11 +64,11 @@ export default function PremiumWelcomeCelebration() {
     let attempts = 0;
 
     const run = async () => {
-      if (cancelled || open) return;
+      if (cancelled) return;
       const shown = await tryShow();
       attempts += 1;
-      if (!shown && attempts < 6) {
-        window.setTimeout(() => void run(), 700);
+      if (!shown && !cancelled && attempts < 8) {
+        window.setTimeout(() => void run(), 600);
       }
     };
 
@@ -88,7 +88,7 @@ export default function PremiumWelcomeCelebration() {
       window.removeEventListener("focus", onCheck);
       document.removeEventListener("visibilitychange", onCheck);
     };
-  }, [tryShow, open]);
+  }, [tryShow]);
 
   async function dismiss() {
     setOpen(false);
