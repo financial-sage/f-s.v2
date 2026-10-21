@@ -513,3 +513,40 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Bottom nav — panel + bubble items from FAB */
+@keyframes nav-panel-in {
+  0% {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nav-bubble-in {
+  0% {
+    opacity: 0;
+    transform: translate(var(--nav-bx, 0px), var(--nav-by, 2.75rem)) scale(0.18);
+  }
+  72% {
+    opacity: 1;
+    transform: translate(0, -0.12rem) scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.nav-panel-in {
+  animation: nav-panel-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: bottom center;
+}
+
+.nav-bubble-in {
+  animation: nav-bubble-in 480ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  will-change: transform, opacity;
+}

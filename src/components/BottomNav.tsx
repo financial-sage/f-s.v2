@@ -3,7 +3,13 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+} from "react";
 import {
   History,
   Home,
@@ -99,11 +105,6 @@ const NAV_MODULES: NavModule[] = [
   },
 ];
 
-/** Upper arc around the center FAB (left → top → right), in degrees. */
-const ARC_START_DEG = -155;
-const ARC_END_DEG = -25;
-const ARC_RADIUS_PX = 82;
-
 interface BottomNavProps {
   familyId?: string;
   currentUserId?: string;
@@ -112,25 +113,6 @@ interface BottomNavProps {
   partnerFirstName?: string;
   financialModel?: string;
   user1SplitPct?: number;
-}
-
-function polarToOffset(angleDeg: number, radius: number) {
-  const radians = (angleDeg * Math.PI) / 180;
-  return {
-    x: Math.cos(radians) * radius,
-    y: Math.sin(radians) * radius,
-  };
-}
-
-/** Evenly spaced angles so N satellites stay symmetric with no visual gaps. */
-function arcAnglesForCount(count: number): number[] {
-  if (count <= 0) return [];
-  if (count === 1) return [-90];
-  const span = ARC_END_DEG - ARC_START_DEG;
-  return Array.from(
-    { length: count },
-    (_, index) => ARC_START_DEG + (span * index) / (count - 1)
-  );
 }
 
 function resolveCurrentModule(pathname: string): NavModule {
@@ -151,7 +133,6 @@ export default function BottomNav({
     useExpenseModal();
   const [expanded, setExpanded] = useState(false);
 
-  // Prefetch form chunk on first interaction with the nav (covers cases idle prefetch missed).
   useEffect(() => {
     if (!expanded && !isExpenseModalOpen) return;
     void import("@/components/AddExpenseForm");
@@ -159,33 +140,6 @@ export default function BottomNav({
 
   const currentModule = useMemo(() => resolveCurrentModule(pathname), [pathname]);
   const CurrentIcon = currentModule.icon;
-
-  /** Satellites = modules except current. On dashboard, hide Accounts (quick action). */
-  const satellites = useMemo(() => {
-    const others = NAV_MODULES.filter((module) => {
-      if (module.id === currentModule.id) return false;
-      if (module.id === "accounts" && pathname === "/") return false;
-      return true;
-    });
-
-    // Keep a stable visual order around the arc
-    const order = [
-      "home",
-      "history",
-      "accounts",
-      "savings",
-      "fixed-expenses",
-      "profile",
-    ] as const;
-    return [...others].sort(
-      (a, b) => order.indexOf(a.id) - order.indexOf(b.id)
-    );
-  }, [currentModule.id, pathname]);
-
-  const arcAngles = useMemo(
-    () => arcAnglesForCount(satellites.length),
-    [satellites.length]
-  );
 
   useEffect(() => {
     setExpanded(false);
@@ -201,13 +155,7 @@ export default function BottomNav({
   }
 
   function handleCenterClick() {
-    if (!expanded) {
-      setExpanded(true);
-      return;
-    }
-
-    // Expanded + tap center again: collapse (already on this module)
-    setExpanded(false);
+    setExpanded((prev) => !prev);
   }
 
   return (
@@ -216,54 +164,73 @@ export default function BottomNav({
         <button
           type="button"
           aria-label="Cerrar menú"
-          className="fixed inset-0 z-40 bg-on-surface/20 backdrop-blur-[2px] animate-in fade-in duration-200"
+          className="fixed inset-0 z-40 bg-on-surface/25 backdrop-blur-[2px] animate-in fade-in duration-200"
           onClick={() => setExpanded(false)}
         />
       ) : null}
 
       <nav
         data-tour="bottom-nav"
-        className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-5 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pointer-events-none"
+        className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pointer-events-none"
       >
-        <div className="relative h-12 w-12 pointer-events-auto">
-          {satellites.map((module, index) => {
-            const angleDeg = arcAngles[index] ?? -90;
-            const { x, y } = polarToOffset(angleDeg, ARC_RADIUS_PX);
-            const Icon = module.icon;
-            const isActive = module.match(pathname);
+        <div className="relative flex w-full max-w-sm flex-col items-center pointer-events-auto">
+          {expanded ? (
+            <div
+              className="nav-panel-in mb-2.5 w-[min(100%,16.5rem)] overflow-hidden rounded-[1.35rem] border border-glass-border bg-glass/95 px-2.5 pb-2.5 pt-2.5 shadow-[0_14px_36px_rgba(15,23,42,0.16)] backdrop-blur-2xl"
+              role="menu"
+              aria-label="Navegación"
+            >
+              <div
+                className="pointer-events-none mx-auto mb-1.5 h-px w-8 bg-gradient-to-r from-transparent via-[#c4a574]/55 to-transparent"
+                aria-hidden
+              />
+              <div className="grid grid-cols-3 gap-x-0.5 gap-y-0.5">
+                {NAV_MODULES.filter((module) => module.id !== currentModule.id).map(
+                  (module, index) => {
+                    const Icon = module.icon;
+                    const col = index % 3;
+                    const row = Math.floor(index / 3);
+                    // Originate near the FAB (below-center of the panel).
+                    const fromX = `${(1 - col) * 2.1}rem`;
+                    const fromY = `${1.8 + (1 - row) * 1.15}rem`;
 
-            return (
-              <Link
-                key={module.id}
-                href={module.href}
-                onClick={() => setExpanded(false)}
-                aria-label={module.label}
-                title={module.label}
-                className={`absolute left-1/2 top-1/2 flex h-10 w-10 items-center justify-center rounded-full border shadow-[0_8px_20px_rgba(15,23,42,0.14)] backdrop-blur-xl transition-all duration-300 ease-out active:scale-95 ${
-                  isActive
-                    ? "border-primary/30 bg-primary text-on-primary"
-                    : "border-outline-variant/25 bg-surface-lowest/95 text-on-surface-variant"
-                } ${expanded ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
-                style={{
-                  transform: expanded
-                    ? `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(1)`
-                    : "translate(-50%, -50%) scale(0.55)",
-                  transitionDelay: expanded ? `${index * 40}ms` : "0ms",
-                }}
-              >
-                <Icon size={16} strokeWidth={isActive ? 2.4 : 1.9} />
-              </Link>
-            );
-          })}
+                    return (
+                      <Link
+                        key={module.id}
+                        href={module.href}
+                        role="menuitem"
+                        onClick={() => setExpanded(false)}
+                        className="nav-bubble-in group flex flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-on-surface transition-colors hover:bg-glass-soft active:scale-[0.98]"
+                        style={
+                          {
+                            "--nav-bx": fromX,
+                            "--nav-by": fromY,
+                            animationDelay: `${90 + index * 48}ms`,
+                          } as CSSProperties
+                        }
+                      >
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-low/80 text-on-surface-variant transition-colors group-hover:text-primary">
+                          <Icon size={14} strokeWidth={1.75} />
+                        </span>
+                        <span className="w-full truncate text-center text-[10px] font-light leading-tight tracking-tight">
+                          {module.label}
+                        </span>
+                      </Link>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+          ) : null}
 
           <button
             type="button"
             onClick={handleCenterClick}
-            className="absolute left-1/2 top-1/2 z-10 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/30 bg-primary text-on-primary shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-all duration-200 active:scale-95"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/30 bg-primary text-on-primary shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-all duration-200 active:scale-95"
             aria-label={
               expanded
                 ? `Cerrar menú · ${currentModule.label}`
-                : `Menú · ${currentModule.label}`
+                : `Abrir menú · ${currentModule.label}`
             }
             aria-expanded={expanded}
             title={currentModule.label}
