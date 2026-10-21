@@ -1,9 +1,10 @@
 import { revalidatePath } from "next/cache";
-import { ChevronRight, CircleHelp, ShieldCheck, Users } from "lucide-react";
+import { ChevronRight, CircleHelp, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CurrencySelectRow } from "@/components/CurrencySelectRow";
 import ProfileAvatarEditor from "@/components/ProfileAvatarEditor";
+import SharedSpaceCard from "@/components/SharedSpaceCard";
 import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
@@ -115,10 +116,21 @@ export default async function ProfilePage() {
   const { data: partnerProfile } = partnerId
     ? await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, avatar_url")
         .eq("id", partnerId)
         .maybeSingle()
     : { data: null };
+
+  let partnerEmail: string | null = null;
+  if (partnerId) {
+    try {
+      const admin = getSupabaseAdminClient();
+      const { data: partnerAuth } = await admin.auth.admin.getUserById(partnerId);
+      partnerEmail = partnerAuth.user?.email ?? null;
+    } catch {
+      partnerEmail = null;
+    }
+  }
 
   const familyMemberCount = memberCountFromFamilyUsers(
     family?.user_1_id,
@@ -168,70 +180,55 @@ export default async function ProfilePage() {
                 {user.email}
               </p>
               <p className="mt-1 text-[11px] font-light text-on-surface-variant/80">
-                Toca la cámara para cambiar tu foto
+                Toca la foto para cambiarla
               </p>
             </div>
           </div>
         </section>
 
-        <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-on-primary shadow-sm">
-              <Users size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-medium tracking-tight text-on-surface">
-                {spaceTitle}
-              </h3>
-              {hasPartner ? (
-                <p className="mt-1 text-sm font-light text-on-surface-variant">
-                  Espacio compartido con {partnerDisplayName}
-                </p>
-              ) : (
-                <>
-                  <p className="mt-1 text-sm font-light text-on-surface-variant">
-                    Espacio individual. Cuando quieras, puedes invitar a alguien con este
-                    código.
-                  </p>
-                  <div className="mt-3 rounded-2xl border border-glass-border bg-glass-strong px-4 py-3 backdrop-blur-md">
-                    <p className="text-[11px] font-light text-on-surface-variant">
-                      Código de invitación
-                    </p>
-                    <p className="mt-1 font-mono text-xl font-medium tracking-[0.2em] text-primary">
-                      {inviteCode}
-                    </p>
-                  </div>
+        <SharedSpaceCard
+          spaceTitle={spaceTitle}
+          hasPartner={hasPartner}
+          partnerDisplayName={partnerDisplayName}
+          partner={
+            partnerId
+              ? {
+                  id: partnerId,
+                  fullName: partnerDisplayName,
+                  email: partnerEmail,
+                  avatarUrl: partnerProfile?.avatar_url ?? null,
+                }
+              : null
+          }
+          inviteCode={inviteCode}
+          joinForm={
+            <details className="mt-3 group">
+              <summary className="list-none">
+                <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low/90 px-3.5 py-1.5 text-xs font-medium text-on-surface transition hover:bg-glass-strong">
+                  Unirme a otro espacio
+                </span>
+              </summary>
 
-                  <details className="mt-3 group">
-                    <summary className="list-none">
-                      <span className="inline-flex cursor-pointer items-center rounded-full bg-surface-low/90 px-3.5 py-1.5 text-xs font-medium text-on-surface transition hover:bg-glass-strong">
-                        Unirme a otro espacio
-                      </span>
-                    </summary>
-
-                    <form action={joinFamily} className="mt-3 flex flex-col gap-2.5">
-                      <input
-                        name="inviteCode"
-                        type="text"
-                        inputMode="text"
-                        maxLength={6}
-                        placeholder="Código de 6 caracteres"
-                        className="w-full rounded-2xl border border-outline-variant/30 bg-glass-strong px-4 py-3 text-center font-mono text-on-surface uppercase outline-none backdrop-blur-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
-                        required
-                      />
-                      <button
-                        type="submit"
-                        className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-on-primary shadow-[0_8px_18px_rgba(43,52,55,0.16)] transition hover:brightness-110"
-                      >
-                        Unirse
-                      </button>
-                    </form>
-                  </details>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
+              <form action={joinFamily} className="mt-3 flex flex-col gap-2.5">
+                <input
+                  name="inviteCode"
+                  type="text"
+                  inputMode="text"
+                  maxLength={6}
+                  placeholder="Código de 6 caracteres"
+                  className="w-full rounded-2xl border border-outline-variant/30 bg-glass-strong px-4 py-3 text-center font-mono text-on-surface uppercase outline-none backdrop-blur-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-on-primary shadow-[0_8px_18px_rgba(43,52,55,0.16)] transition hover:brightness-110"
+                >
+                  Unirse
+                </button>
+              </form>
+            </details>
+          }
+        />
 
         <section className="mb-4 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
           <div className="px-4 pt-3.5 pb-1">

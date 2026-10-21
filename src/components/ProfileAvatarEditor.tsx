@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import {
   AVATAR_ACCEPT,
@@ -75,7 +75,13 @@ export default function ProfileAvatarEditor({
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={isUploading}
+        className="relative shrink-0 rounded-full transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-60"
+        aria-label="Cambiar foto de perfil"
+      >
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -89,19 +95,11 @@ export default function ProfileAvatarEditor({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={isUploading}
-          className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-glass-border bg-surface-lowest text-on-surface shadow-sm transition hover:bg-glass-strong disabled:opacity-60"
-          aria-label="Cambiar foto de perfil"
-        >
-          {isUploading ? (
-            <LoaderCircle size={14} className="animate-spin" />
-          ) : (
-            <Camera size={14} />
-          )}
-        </button>
+        {isUploading ? (
+          <span className="absolute inset-0 flex items-center justify-center rounded-full bg-on-surface/35 backdrop-blur-[1px]">
+            <LoaderCircle size={18} className="animate-spin text-on-primary" />
+          </span>
+        ) : null}
 
         <input
           ref={inputRef}
@@ -110,7 +108,7 @@ export default function ProfileAvatarEditor({
           className="sr-only"
           onChange={handleFileChange}
         />
-      </div>
+      </button>
 
       {error ? (
         <p className="max-w-[16rem] text-[11px] font-light text-error">{error}</p>
