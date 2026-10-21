@@ -220,6 +220,10 @@ export default function BottomNav({
                   }
                 )}
               </div>
+              <div
+                className="pointer-events-none mx-auto mt-1.5 h-px w-8 bg-gradient-to-r from-transparent via-[#c4a574]/55 to-transparent"
+                aria-hidden
+              />
             </div>
           ) : null}
 
