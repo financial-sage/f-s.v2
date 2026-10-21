@@ -1,22 +1,31 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import {
   Crown,
   Home,
-  Receipt,
-  RefreshCw,
+  Moon,
+  Sparkles,
   Users,
-  Zap,
-  ZapOff,
-  CalendarClock,
   UserCheck2,
+  HeartHandshake,
+  RefreshCw,
+  Wallet,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
 import { isSuperAdminUser } from "@/lib/admin";
-import { broadcastAppUpdate } from "@/lib/push-server";
+import {
+  getAdminInactiveList,
+  getAdminOverview,
+  getAdminPremiumList,
+  getAdminRevenueSnapshot,
+  getAdminVipList,
+  searchAdminDirectory,
+} from "@/lib/admin-metrics";
+import { broadcastAppUpdateAdminAction } from "@/app/actions/admin";
 import { isPushConfigured } from "@/lib/push";
+import AdminSearchForm from "@/components/admin/AdminSearchForm";
+import AdminVipToggle from "@/components/admin/AdminVipToggle";
 
-// ─── Auth guard ──────────────────────────────────────────────────────────────
 async function getAuthorizedUser() {
   const supabase = await createClient();
   const {
@@ -30,335 +39,498 @@ async function getAuthorizedUser() {
   return user;
 }
 
-// ─── Server Actions ───────────────────────────────────────────────────────────
-async function activateCampaign(formData: FormData) {
-  "use server";
-  const maxUsers = Number(formData.get("maxUsers") ?? 100);
-  const admin = createAdminClient();
-  const endsAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return d.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
-  // Deactivate all first, then activate (only one campaign active at a time)
-  await admin.from("promotional_campaigns").update({ is_active: false } as never).neq("id", "");
-
-  const { data: existing } = await admin
-    .from("promotional_campaigns")
-    .select("id")
-    .limit(1)
-    .maybeSingle();
-
-  if (existing?.id) {
-    await admin
-      .from("promotional_campaigns")
-      .update({ is_active: true, current_users: 0, max_users: maxUsers, ends_at: endsAt } as never)
-      .eq("id", existing.id);
-  } else {
-    await admin
-      .from("promotional_campaigns")
-      .insert({ is_active: true, current_users: 0, max_users: maxUsers, ends_at: endsAt } as never);
+function sourceLabel(source: string) {
+  switch (source) {
+    case "vip":
+      return "VIP";
+    case "stub":
+      return "Stub";
+    case "campaign":
+      return "Campaña";
+    case "paid":
+      return "Pago";
+    default:
+      return "—";
   }
-
-  redirect("/admin");
 }
 
-async function deactivateCampaign() {
-  "use server";
-  const admin = createAdminClient();
-  await admin.from("promotional_campaigns").update({ is_active: false } as never).neq("id", "");
-  redirect("/admin");
-}
-
-async function broadcastAppUpdateAction() {
-  "use server";
-  await getAuthorizedUser();
-  await broadcastAppUpdate();
-  redirect("/admin?push=sent");
-}
-
-// ─── Metrics ─────────────────────────────────────────────────────────────────
-async function fetchMetrics() {
-  const admin = createAdminClient();
-
-  const [profiles, families, expenses, premium] = await Promise.all([
-    admin.from("profiles").select("*", { count: "exact", head: true }),
-    admin.from("families").select("*", { count: "exact", head: true }),
-    admin.from("expenses").select("*", { count: "exact", head: true }),
-    admin
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("is_premium", true),
-  ]);
-
-  return {
-    users: profiles.count ?? 0,
-    families: families.count ?? 0,
-    expenses: expenses.count ?? 0,
-    premium: premium.error ? 0 : (premium.count ?? 0),
-  };
-}
-
-// ─── Campaign fetch ───────────────────────────────────────────────────────────
-interface Campaign {
-  id: string;
-  is_active: boolean;
-  current_users: number;
-  max_users: number;
-  ends_at: string | null;
-}
-
-async function fetchCampaign(): Promise<Campaign | null> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("promotional_campaigns")
-    .select("id, is_active, current_users, max_users, ends_at")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return data as Campaign;
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ push?: string }>;
+  searchParams?: Promise<{ q?: string; push?: string }>;
 }) {
   await getAuthorizedUser();
-  const [metrics, campaign] = await Promise.all([fetchMetrics(), fetchCampaign()]);
   const params = searchParams ? await searchParams : undefined;
+  const q = params?.q?.trim() ?? "";
   const pushSent = params?.push === "sent";
   const pushReady = isPushConfigured();
 
-  const cards = [
+  const [overview, premiumList, vipList, inactiveList, searchHits, revenue] =
+    await Promise.all([
+      getAdminOverview(),
+      getAdminPremiumList(),
+      getAdminVipList(),
+      getAdminInactiveList(),
+      q ? searchAdminDirectory(q) : Promise.resolve([]),
+      getAdminRevenueSnapshot(),
+    ]);
+
+  function formatMoney(cents: number, currency: string) {
+    try {
+      return new Intl.NumberFormat("es-ES", {
+        style: "currency",
+        currency: currency || "EUR",
+      }).format(cents / 100);
+    } catch {
+      return `${(cents / 100).toFixed(2)} ${currency}`;
+    }
+  }
+
+  const kpiCards = [
     {
       icon: Users,
-      label: "Usuarios registrados",
-      value: metrics.users,
-      color: "text-secondary",
-      bg: "bg-secondary/10",
+      label: "Usuarios",
+      value: overview.users,
+      hint: "Perfiles registrados",
     },
     {
       icon: Home,
-      label: "Familias creadas",
-      value: metrics.families,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-    },
-    {
-      icon: Receipt,
-      label: "Gastos registrados",
-      value: metrics.expenses,
-      color: "text-accent",
-      bg: "bg-accent/15",
+      label: "Familias",
+      value: overview.families,
+      hint: "Hogares creados",
     },
     {
       icon: Crown,
-      label: "Usuarios Premium",
-      value: metrics.premium,
-      color: "text-accent",
-      bg: "bg-accent/15",
+      label: "Premium",
+      value: overview.premiumHouseholds,
+      hint: `${overview.premiumVipHouseholds} por VIP`,
+    },
+    {
+      icon: Sparkles,
+      label: "VIP",
+      value: overview.vipUsers,
+      hint: "Amigos / testers",
+    },
+    {
+      icon: Moon,
+      label: "Inactivos",
+      value: overview.inactiveUsers,
+      hint: "Sin ningún gasto",
     },
   ] as const;
 
-  const campaignProgress = campaign
-    ? Math.min(100, Math.round((campaign.current_users / Math.max(campaign.max_users, 1)) * 100))
-    : 0;
-
-  const isExpired = campaign?.ends_at
-    ? new Date(campaign.ends_at) < new Date()
-    : false;
-
-  const campaignIsActive = campaign?.is_active && !isExpired;
+  async function notifyUpdate() {
+    "use server";
+    await broadcastAppUpdateAdminAction();
+    redirect("/admin?push=sent");
+  }
 
   return (
     <div className="space-y-10">
-
-      {/* Header */}
-      <header>
+      <header className="space-y-2">
         <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary/70">
-          SinDescuadre
+          Operaciones
         </p>
-        <h1 className="mt-1 font-headline text-3xl font-extrabold tracking-tight text-on-surface">
-          Centro de Mando
+        <h1 className="font-headline text-3xl font-semibold tracking-tight text-on-surface">
+          Panel admin
         </h1>
-        <p className="mt-1 text-sm text-on-surface-variant">
-          Métricas globales de la plataforma
+        <p className="max-w-2xl text-sm text-on-surface-variant">
+          Usuarios, Premium, VIP e inactivos. La recaudación llegará con Stripe.
         </p>
       </header>
 
-      {/* Metric cards */}
-      <section>
-        <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-outline-variant">Métricas</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {cards.map(({ icon: Icon, label, value, color, bg }, index) => (
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {kpiCards.map((card) => (
+          <article
+            key={card.label}
+            className="rounded-2xl border border-outline-variant/25 bg-surface-lowest p-4 shadow-sm"
+          >
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <card.icon size={18} />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+              {card.label}
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-on-surface">
+              {card.value}
+            </p>
+            <p className="mt-1 text-[11px] text-on-surface-variant">{card.hint}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="rounded-2xl border border-outline-variant/25 bg-surface-lowest p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Wallet size={16} className="text-primary" />
+          <h2 className="text-sm font-semibold text-on-surface">
+            Recaudación Paddle
+          </h2>
+        </div>
+        <p className="mb-4 text-xs text-on-surface-variant">
+          Solo cobros reales (VIP y stub no cuentan). Mes en curso · Europe/Madrid.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl bg-surface-low px-4 py-3">
+            <p className="text-[11px] text-on-surface-variant">Este mes</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-on-surface">
+              {formatMoney(revenue.monthRevenueCents, revenue.currency)}
+            </p>
+          </div>
+          <div className="rounded-xl bg-surface-low px-4 py-3">
+            <p className="text-[11px] text-on-surface-variant">Suscripciones activas</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-on-surface">
+              {revenue.activeSubscriptions}
+            </p>
+          </div>
+          <div className="rounded-xl bg-surface-low px-4 py-3">
+            <p className="text-[11px] text-on-surface-variant">MRR aprox.</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-on-surface">
+              {formatMoney(revenue.mrrCentsApprox, revenue.currency)}
+            </p>
+          </div>
+        </div>
+        {revenue.recentTransactions.length > 0 ? (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-outline-variant/20">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-surface-low text-[11px] uppercase tracking-wide text-on-surface-variant">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Fecha</th>
+                  <th className="px-3 py-2 font-semibold">Importe</th>
+                  <th className="px-3 py-2 font-semibold">Estado</th>
+                  <th className="px-3 py-2 font-semibold">Tx</th>
+                </tr>
+              </thead>
+              <tbody>
+                {revenue.recentTransactions.map((tx) => (
+                  <tr
+                    key={tx.transactionId}
+                    className="border-t border-outline-variant/15"
+                  >
+                    <td className="px-3 py-2 text-on-surface-variant">
+                      {formatDate(tx.billedAt)}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums">
+                      {formatMoney(tx.amountCents, tx.currency)}
+                    </td>
+                    <td className="px-3 py-2">{tx.status}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-on-surface-variant">
+                      {tx.transactionId.slice(0, 12)}…
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-on-surface-variant">
+            Aún no hay cobros Paddle registrados. Configura el webhook y los price
+            IDs para empezar a ver ingresos aquí.
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-outline-variant/25 bg-surface-lowest p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <HeartHandshake size={16} className="text-primary" />
+          <h2 className="text-sm font-semibold text-on-surface">Embudo pareja</h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Solo / esperando", value: overview.funnel.solo },
+            { label: "Trial / pre-trial", value: overview.funnel.coupleTrial },
+            { label: "Premium pareja", value: overview.funnel.couplePremium },
+            { label: "Pausados", value: overview.funnel.couplePaused },
+          ].map((item) => (
             <div
-              key={label}
-              className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-surface-lowest p-5 shadow-sm border border-outline-variant/20"
-              style={{ animationDuration: "600ms", animationDelay: `${index * 80}ms` }}
+              key={item.label}
+              className="rounded-xl bg-surface-low px-4 py-3"
             >
-              <div className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full ${bg}`}>
-                <Icon size={22} className={color} strokeWidth={1.8} />
-              </div>
-              <p className="text-[11px] font-medium uppercase tracking-widest text-outline-variant">
-                {label}
-              </p>
-              <p className={`mt-1 text-4xl font-extrabold tracking-tight ${color}`}>
-                {value.toLocaleString("es-MX")}
+              <p className="text-[11px] text-on-surface-variant">{item.label}</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums text-on-surface">
+                {item.value}
               </p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Campaign panel */}
-      <section className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-surface-lowest border border-outline-variant/20 shadow-sm p-6"
-        style={{ animationDuration: "600ms", animationDelay: "360ms" }}>
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-base font-bold text-on-surface">Campaña de Marketing Activa</h2>
-            <p className="text-sm text-on-surface-variant">
-              Otorga Premium automáticamente a los primeros registros durante 24 h.
-            </p>
-          </div>
-          <span
-            className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${
-              campaignIsActive
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-surface-low text-on-surface-variant"
-            }`}
-          >
-            {campaignIsActive ? "Activa" : isExpired && campaign?.is_active ? "Expirada" : "Inactiva"}
-          </span>
+      <section className="space-y-3 rounded-2xl border border-outline-variant/25 bg-surface-lowest p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <UserCheck2 size={16} className="text-primary" />
+          <h2 className="text-sm font-semibold text-on-surface">
+            Buscar usuario o familia
+          </h2>
         </div>
-
-        {/* Campaign stats */}
-        {campaign ? (
-          <div className="mb-6 space-y-4">
-            {/* Progress bar */}
-            <div>
-              <div className="mb-1.5 flex items-center justify-between text-xs text-on-surface-variant">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <UserCheck2 size={13} />
-                  Cupos usados
-                </span>
-                <span className="font-bold text-on-surface">
-                  {campaign.current_users} / {campaign.max_users}
-                </span>
-              </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-surface-low">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    campaignProgress >= 100 ? "bg-rose-400" : "bg-emerald-400"
-                  }`}
-                  style={{ width: `${campaignProgress}%` }}
-                />
-              </div>
-            </div>
-
-            {/* End date */}
-            {campaign.ends_at && (
-              <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-                <CalendarClock size={14} />
-                <span>
-                  {isExpired ? "Finalizó" : "Finaliza"} el{" "}
-                  <strong className={isExpired ? "text-rose-600" : "text-on-surface"}>
-                    {new Date(campaign.ends_at).toLocaleString("es-MX", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </strong>
-                </span>
-              </div>
-            )}
+        <Suspense fallback={<div className="h-11 animate-pulse rounded-xl bg-surface-low" />}>
+          <AdminSearchForm />
+        </Suspense>
+        {q ? (
+          <div className="overflow-x-auto rounded-xl border border-outline-variant/20">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-surface-low text-[11px] uppercase tracking-wide text-on-surface-variant">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Resultado</th>
+                  <th className="px-3 py-2 font-semibold">Email / código</th>
+                  <th className="px-3 py-2 font-semibold">Premium</th>
+                  <th className="px-3 py-2 font-semibold">VIP</th>
+                  <th className="px-3 py-2 font-semibold">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {searchHits.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-3 py-4 text-on-surface-variant"
+                    >
+                      Sin resultados para “{q}”.
+                    </td>
+                  </tr>
+                ) : (
+                  searchHits.map((hit, idx) => (
+                    <tr
+                      key={`${hit.kind}-${hit.userId ?? hit.familyId}-${idx}`}
+                      className="border-t border-outline-variant/15"
+                    >
+                      <td className="px-3 py-2.5">
+                        {hit.kind === "family"
+                          ? "Familia"
+                          : hit.fullName || "Usuario"}
+                      </td>
+                      <td className="px-3 py-2.5 text-on-surface-variant">
+                        {hit.kind === "family"
+                          ? hit.inviteCode
+                          : hit.email || hit.inviteCode || "—"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {hit.isPremiumHousehold
+                          ? sourceLabel(hit.premiumSource ?? "unknown")
+                          : "No"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {hit.kind === "user" ? (hit.isVip ? "Sí" : "No") : "—"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {hit.kind === "user" && hit.userId ? (
+                          <AdminVipToggle
+                            userId={hit.userId}
+                            isVip={Boolean(hit.isVip)}
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <p className="mb-6 text-sm text-outline-variant">No hay campañas registradas aún.</p>
-        )}
+        ) : null}
+      </section>
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-3">
-          {/* Activate form */}
-          <form action={activateCampaign} className="flex items-center gap-2">
-            <input
-              name="maxUsers"
-              type="number"
-              min={1}
-              max={10000}
-              defaultValue={100}
-              className="w-24 rounded-xl border border-outline-variant/30 bg-surface px-3 py-2 text-sm font-semibold text-on-surface outline-none focus:border-emerald-400"
-              placeholder="Cupos"
-            />
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-on-surface">
+          Hogares Premium ({premiumList.length}
+          {overview.premiumHouseholds > premiumList.length ? "+" : ""})
+        </h2>
+        <div className="overflow-x-auto rounded-2xl border border-outline-variant/25 bg-surface-lowest shadow-sm">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-surface-low text-[11px] uppercase tracking-wide text-on-surface-variant">
+              <tr>
+                <th className="px-3 py-2.5 font-semibold">Código</th>
+                <th className="px-3 py-2.5 font-semibold">Miembros</th>
+                <th className="px-3 py-2.5 font-semibold">Hasta</th>
+                <th className="px-3 py-2.5 font-semibold">Origen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {premiumList.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-3 py-4 text-on-surface-variant">
+                    No hay hogares Premium.
+                  </td>
+                </tr>
+              ) : (
+                premiumList.map((row) => (
+                  <tr
+                    key={row.familyId}
+                    className="border-t border-outline-variant/15"
+                  >
+                    <td className="px-3 py-2.5 font-mono tracking-wider">
+                      {row.inviteCode ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="text-on-surface">
+                        {row.memberNames.join(" · ")}
+                      </span>
+                      <span className="ml-1 text-[11px] text-on-surface-variant">
+                        ({row.memberCount})
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-on-surface-variant">
+                      {formatDate(row.premiumUntil)}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          row.source === "vip"
+                            ? "bg-accent/15 text-accent"
+                            : "bg-surface-low text-on-surface-variant"
+                        }`}
+                      >
+                        {sourceLabel(row.source)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-on-surface">
+          VIP ({vipList.length}
+          {overview.vipUsers > vipList.length ? "+" : ""})
+        </h2>
+        <div className="overflow-x-auto rounded-2xl border border-outline-variant/25 bg-surface-lowest shadow-sm">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-surface-low text-[11px] uppercase tracking-wide text-on-surface-variant">
+              <tr>
+                <th className="px-3 py-2.5 font-semibold">Nombre</th>
+                <th className="px-3 py-2.5 font-semibold">Email</th>
+                <th className="px-3 py-2.5 font-semibold">Familia</th>
+                <th className="px-3 py-2.5 font-semibold">Actualizado</th>
+                <th className="px-3 py-2.5 font-semibold">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vipList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-4 text-on-surface-variant">
+                    Aún no hay VIP. Búscalos por email arriba.
+                  </td>
+                </tr>
+              ) : (
+                vipList.map((row) => (
+                  <tr
+                    key={row.userId}
+                    className="border-t border-outline-variant/15"
+                  >
+                    <td className="px-3 py-2.5">{row.fullName || "—"}</td>
+                    <td className="px-3 py-2.5 text-on-surface-variant">
+                      {row.email || "—"}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono tracking-wider">
+                      {row.inviteCode || "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-on-surface-variant">
+                      {formatDate(row.updatedAt)}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <AdminVipToggle userId={row.userId} isVip />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-on-surface">
+          Inactivos ({inactiveList.length}
+          {overview.inactiveUsers > inactiveList.length ? "+" : ""})
+        </h2>
+        <p className="text-xs text-on-surface-variant">
+          Registrados sin ningún gasto propio (`paid_by`).
+        </p>
+        <div className="overflow-x-auto rounded-2xl border border-outline-variant/25 bg-surface-lowest shadow-sm">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-surface-low text-[11px] uppercase tracking-wide text-on-surface-variant">
+              <tr>
+                <th className="px-3 py-2.5 font-semibold">Nombre</th>
+                <th className="px-3 py-2.5 font-semibold">Email</th>
+                <th className="px-3 py-2.5 font-semibold">Alta</th>
+                <th className="px-3 py-2.5 font-semibold">Familia</th>
+                <th className="px-3 py-2.5 font-semibold">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inactiveList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-4 text-on-surface-variant">
+                    Todos los usuarios tienen al menos un gasto.
+                  </td>
+                </tr>
+              ) : (
+                inactiveList.map((row) => (
+                  <tr
+                    key={row.userId}
+                    className="border-t border-outline-variant/15"
+                  >
+                    <td className="px-3 py-2.5">{row.fullName || "—"}</td>
+                    <td className="px-3 py-2.5 text-on-surface-variant">
+                      {row.email || "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-on-surface-variant">
+                      {formatDate(row.createdAt)}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-on-surface-variant">
+                      {row.familyId ? row.familyId.slice(0, 8) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <AdminVipToggle userId={row.userId} isVip={false} />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <details className="rounded-2xl border border-outline-variant/25 bg-surface-lowest p-5 shadow-sm">
+        <summary className="cursor-pointer text-sm font-semibold text-on-surface">
+          Herramientas
+        </summary>
+        <div className="mt-4 space-y-3">
+          {pushSent ? (
+            <p className="text-xs font-medium text-emerald-700">
+              Aviso de actualización enviado a los dispositivos suscritos.
+            </p>
+          ) : null}
+          <form action={notifyUpdate}>
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600 active:scale-95"
+              disabled={!pushReady}
+              className="inline-flex items-center gap-2 rounded-xl bg-surface-low px-4 py-2.5 text-sm font-semibold text-on-surface transition hover:bg-surface-container disabled:opacity-50"
             >
-              <Zap size={14} />
-              Activar (24 h)
+              <RefreshCw size={14} />
+              Avisar actualización (push)
             </button>
           </form>
-
-          {/* Deactivate */}
-          {campaignIsActive && (
-            <form action={deactivateCampaign}>
-              <button
-                type="submit"
-                className="flex items-center gap-2 rounded-xl bg-surface-low px-4 py-2 text-sm font-bold text-on-surface-variant transition hover:bg-rose-50 hover:text-rose-600 active:scale-95"
-              >
-                <ZapOff size={14} />
-                Desactivar
-              </button>
-            </form>
-          )}
-        </div>
-      </section>
-
-      {/* App update push */}
-      <section
-        className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both rounded-3xl bg-surface-lowest border border-outline-variant/20 shadow-sm p-6"
-        style={{ animationDuration: "600ms", animationDelay: "420ms" }}
-      >
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold text-on-surface">Actualización PWA</h2>
-            <p className="text-sm text-on-surface-variant">
-              Envía un push a los dispositivos suscritos. Si la app está abierta, habilita el
-              botón “Actualizar app”; si no, muestra la notificación del sistema.
+          {!pushReady ? (
+            <p className="text-[11px] text-on-surface-variant">
+              Push no configurado (faltan claves VAPID).
             </p>
-          </div>
-          <span
-            className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${
-              pushReady
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-surface-low text-on-surface-variant"
-            }`}
-          >
-            {pushReady ? "VAPID listo" : "Sin VAPID"}
-          </span>
+          ) : null}
         </div>
-
-        {pushSent && (
-          <p className="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Broadcast enviado.
-          </p>
-        )}
-
-        <form action={broadcastAppUpdateAction}>
-          <button
-            type="submit"
-            disabled={!pushReady}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-sm transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <RefreshCw size={14} />
-            Avisar actualización
-          </button>
-        </form>
-      </section>
-
-      {/* Footer */}
-      <p className="text-center text-[10px] text-outline-variant">
-        Solo visible para administradores autorizados · SinDescuadre
-      </p>
+      </details>
     </div>
   );
 }

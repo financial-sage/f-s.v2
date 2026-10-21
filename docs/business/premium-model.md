@@ -1,8 +1,10 @@
-# Premium v1 — modelo de lanzamiento
+# Premium — modelo de negocio
 
 ## Resumen
 
-SinDescuadre lanza con un free usable en **modo individual** y un **trial de pareja de 7 días** que arranca con el primer gasto/ingreso del hogar. El pago es **por código de familia**: cualquier miembro puede activar Premium y desbloquea el hogar entero.
+SinDescuadre ofrece un free usable en **modo individual** y un **trial de pareja de 7 días** que arranca con el primer gasto/ingreso del hogar.
+
+El pago real es una **suscripción individual vía Paddle** (mensual o anual). Si el suscriptor invita a su pareja al hogar, **ambos** quedan Premium sin un segundo cobro.
 
 ## Free
 
@@ -15,41 +17,40 @@ SinDescuadre lanza con un free usable en **modo individual** y un **trial de par
 
 ## Pareja y trial
 
-1. Un usuario crea la familia (código). Mientras no haya pareja, ve **modo individual** (esperado).
+1. Un usuario crea la familia (código). Mientras no haya pareja, ve **modo individual**.
 2. Cuando la pareja se une, ven **modo pareja** sin reloj todavía.
-3. Al registrar el **primer gasto o ingreso** (cualquier miembro), arranca el trial:
-   - `couple_trial_started_at` / `couple_trial_ends_at` (+7 días)
-   - El otro miembro recibe un mensaje de felicitación (confeti sutil) al abrir la app.
-4. Durante el trial: countdown visible; pareja activa; límites free de bolsillos/cuentas/fijos **no** aplican (mismo tratamiento que Premium para cupos v1).
-5. Si vence sin pago: **pareja en pausa**
-   - UX vuelve a individual + límites free
-   - Datos de pareja **conservados** (no se borra ni desvincula)
-   - Movimientos compartidos nuevos: bloqueados hasta Premium
-6. Cualquier miembro puede pagar / activar Premium **por el código de familia** → hogar desbloqueado.
+3. Al registrar el **primer gasto o ingreso**, arranca el trial de 7 días.
+4. Si vence sin pago: **pareja en pausa** (datos conservados).
+5. Cualquier miembro puede pagar Premium en la app móvil → el hogar queda Premium.
 
-## Entitlement (orden de evaluación)
+## Pago (Paddle)
 
-1. Hogar Premium (`premium_until` futuro o `is_premium_household`) → pareja + sin límites free.
-2. Trial activo (`now < couple_trial_ends_at`) → pareja activa.
-3. Dos miembros, trial aún no iniciado → pareja UI sin countdown.
+- Checkout **solo en móvil** (paywall PWA) con Overlay de Paddle.
+- Planes: **mensual** y **anual**.
+- La suscripción pertenece al usuario pagador (`billing_subscriptions`).
+- Entitlement del hogar: si **cualquier** miembro tiene sub activa → Premium compartido (`premium_source=paid`).
+- Webhooks en `/api/paddle/webhook` sincronizan estado y cobros (`billing_transactions`).
+- Admin muestra recaudación del mes (VIP/stub excluidos).
+
+## Otros orígenes de Premium
+
+| Origen | Uso |
+|--------|-----|
+| `paid` | Suscripción Paddle |
+| `vip` | Amigos/testers (admin); Premium gratis, no es ingreso |
+| `stub` | Activación por código de familia (ops/beta) |
+| `campaign` | Campañas promo de registro (legacy) |
+
+## Entitlement (orden)
+
+1. Hogar Premium (`is_premium_household` / `premium_until` / sub Paddle activa de un miembro).
+2. Trial activo.
+3. Dos miembros, trial no iniciado → pareja UI sin countdown.
 4. Dos miembros, trial vencido → pareja en pausa.
 5. Un solo miembro → individual.
 
-## Celebración primer movimiento
+## Fuera de alcance actual
 
-Cuando se crea el primer expense/deposit del family con dos miembros:
-
-- Se inicia el trial (si no estaba iniciado).
-- Se guarda celebración pendiente para el **otro** usuario.
-- Al abrir la app, modal: “{nombre} registró su primer gasto/ingreso” + confeti sutil (navy + dorado).
-- Se marca como vista (no se repite).
-
-## Pago (v1)
-
-- Stub / activación por código de familia hasta Stripe o IAP.
-- Activar Premium marca el hogar (`is_premium_household` / `premium_until`) y, por compatibilidad, `profiles.is_premium` de ambos miembros.
-
-## Fuera de alcance v1
-
-- Pasarela de pago real (Stripe / App Store / Play).
-- Analytics avanzados de conversión.
+- Checkout en escritorio (`/web`).
+- IAP App Store / Play.
+- Portal de cliente avanzado (cancelación vía email/flujo Paddle).

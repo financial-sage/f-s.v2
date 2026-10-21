@@ -100,13 +100,19 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Desktop production: web shell, admin console, and onboarding stay reachable.
-  if (isWebShellPath(pathname) || isAdminConsolePath(pathname) || isOnboardingPath(pathname)) {
-    return response;
+  // Desktop production: admins land in the admin console.
+  if (await isSessionAdmin(supabase, user)) {
+    if (isAdminConsolePath(pathname)) {
+      return response;
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
-  // Desktop production + authenticated: admins keep the full PWA; everyone else → /web.
-  if (await isSessionAdmin(supabase, user)) {
+  // Desktop production: web shell and onboarding stay reachable for non-admins.
+  if (isWebShellPath(pathname) || isOnboardingPath(pathname)) {
     return response;
   }
 

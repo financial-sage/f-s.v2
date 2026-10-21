@@ -366,6 +366,13 @@ export async function joinFamilyAction(userId: string, inviteCode: string) {
     // Migration may not be applied yet.
   }
 
+  try {
+    const { syncFamilyPremiumFromBilling } = await import("@/lib/paddle/sync");
+    await syncFamilyPremiumFromBilling(family.id);
+  } catch {
+    // Billing tables may not exist yet.
+  }
+
   revalidatePath("/");
   revalidatePath("/profile");
   revalidatePath("/onboarding");
@@ -552,6 +559,13 @@ export async function joinFamilyWithCode(inviteCode: string) {
 
   if (profileError) {
     throw new Error(profileError.message);
+  }
+
+  try {
+    const { syncFamilyPremiumFromBilling } = await import("@/lib/paddle/sync");
+    await syncFamilyPremiumFromBilling(targetFamily.id);
+  } catch {
+    // Billing tables may not exist yet.
   }
 
   revalidatePath("/");

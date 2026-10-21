@@ -1,7 +1,11 @@
 "use client";
 
-import { Crown, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Crown, X, LoaderCircle } from "lucide-react";
+import { initializePaddle, type Paddle } from "@paddle/paddle-js";
 import { Portal } from "@/components/ui/Portal";
+import { getPaddleCheckoutPayloadAction } from "@/app/actions/paddle";
+import type { PaddlePlanId } from "@/lib/paddle/config";
 
 type Props = {
   open: boolean;
@@ -10,9 +14,8 @@ type Props = {
 };
 
 const PLANS: {
-  id: string;
+  id: PaddlePlanId;
   label: string;
-  price: string;
   period: string;
   hint: string;
   featured?: boolean;
@@ -20,22 +23,130 @@ const PLANS: {
   {
     id: "monthly",
     label: "Mensual",
-    price: "$4.99",
     period: "/ mes",
     hint: "Cancela cuando quieras",
   },
   {
     id: "yearly",
     label: "Anual",
-    price: "$39.99",
     period: "/ año",
-    hint: "2 meses gratis · mockup",
+    hint: "Un pago al año · recomendado",
     featured: true,
   },
 ];
 
+function planPriceId(plan: PaddlePlanId): string | null {
+  if (plan === "monthly") {
+    return process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY?.trim() || null;
+  }
+  return process.env.NEXT_PUBLIC_PADDLE_PRICE_YEARLY?.trim() || null;
+}
+
 export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props) {
+  const [paddle, setPaddle] = useState<Paddle | null>(null);
+  const [initError, setInitError] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [priceLabels, setPriceLabels] = useState<
+    Partial<Record<PaddlePlanId, string>>
+  >({});
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [pendingPlan, setPendingPlan] = useState<PaddlePlanId | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim();
+    const env =
+      process.env.NEXT_PUBLIC_PADDLE_ENV === "production"
+        ? "production"
+        : "sandbox";
+    const monthlyId = planPriceId("monthly");
+    const yearlyId = planPriceId("yearly");
+
+    if (!token || !monthlyId || !yearlyId) {
+      setInitError(
+        "Paddle aún no está configurado. Pronto podrás suscribirte desde aquí."
+      );
+      return;
+    }
+
+    let cancelled = false;
+    setPricesLoading(true);
+
+    initializePaddle({
+      token,
+      environment: env,
+    })
+      .then(async (instance) => {
+        if (cancelled || !instance) return;
+        setPaddle(instance);
+
+        try {
+          const preview = await instance.PricePreview({
+            items: [
+              { priceId: monthlyId, quantity: 1 },
+              { priceId: yearlyId, quantity: 1 },
+            ],
+          });
+
+          const next: Partial<Record<PaddlePlanId, string>> = {};
+          for (const item of preview.data.details.lineItems) {
+            const formatted =
+              item.formattedTotals?.total ||
+              item.formattedUnitTotals?.total ||
+              null;
+            if (!formatted) continue;
+            if (item.price.id === monthlyId) next.monthly = formatted;
+            if (item.price.id === yearlyId) next.yearly = formatted;
+          }
+          if (!cancelled) setPriceLabels(next);
+        } catch (err) {
+          console.warn("[paddle] price preview failed", err);
+        } finally {
+          if (!cancelled) setPricesLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setInitError("No se pudo cargar el checkout. Inténtalo de nuevo.");
+          setPricesLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   if (!open) return null;
+
+  function startCheckout(plan: PaddlePlanId) {
+    setCheckoutError("");
+    setPendingPlan(plan);
+    startTransition(async () => {
+      try {
+        const payload = await getPaddleCheckoutPayloadAction(plan);
+        if (!paddle) {
+          throw new Error("Checkout no listo. Espera un segundo e inténtalo.");
+        }
+
+        paddle.Checkout.open({
+          items: [{ priceId: payload.priceId, quantity: 1 }],
+          customer: payload.email ? { email: payload.email } : undefined,
+          customData: payload.customData,
+        });
+        onClose();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "No se pudo abrir el checkout.";
+        console.error("[paddle] checkout failed", err);
+        setCheckoutError(message);
+      } finally {
+        setPendingPlan(null);
+      }
+    });
+  }
 
   return (
     <Portal>
@@ -64,8 +175,8 @@ export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props
             SinDescuadre Premium
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
-            Desbloquea el modo pareja sin límites, más bolsillos, cuentas y gastos
-            fijos. El pago es por código de familia: con uno basta para los dos.
+            Te suscribes tú. Si invitas a tu pareja al hogar, ambos disfrutan
+            Premium sin un segundo cobro.
           </p>
 
           {inviteCode ? (
@@ -74,41 +185,69 @@ export default function PremiumPaywallModal({ open, onClose, inviteCode }: Props
             </p>
           ) : null}
 
-          <div className="mt-4 space-y-2">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.id}
-                className={`rounded-2xl border px-4 py-3 ${
-                  plan.featured
-                    ? "border-primary/40 bg-primary/8"
-                    : "border-outline-variant/30 bg-surface-low"
-                }`}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-sm font-semibold text-on-surface">{plan.label}</p>
-                  <p className="text-sm font-medium text-on-surface">
-                    {plan.price}
-                    <span className="text-xs font-light text-on-surface-variant">
-                      {plan.period}
-                    </span>
-                  </p>
-                </div>
-                <p className="mt-0.5 text-[11px] text-on-surface-variant">{plan.hint}</p>
-              </div>
-            ))}
-          </div>
+          {initError ? (
+            <p className="mt-4 rounded-2xl bg-surface-low px-3 py-3 text-sm text-on-surface-variant">
+              {initError}
+            </p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {PLANS.map((plan) => {
+                const amount = priceLabels[plan.id];
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    disabled={isPending || !paddle}
+                    onClick={() => startCheckout(plan.id)}
+                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition disabled:opacity-60 ${
+                      plan.featured
+                        ? "border-primary/40 bg-primary/8"
+                        : "border-outline-variant/30 bg-surface-low"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-on-surface">
+                        {plan.label}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-on-surface-variant">
+                        {plan.hint}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
+                      {pendingPlan === plan.id || (pricesLoading && !amount) ? (
+                        <LoaderCircle size={16} className="animate-spin" />
+                      ) : (
+                        <span className="text-right">
+                          <span className="tabular-nums">
+                            {amount ?? "—"}
+                          </span>
+                          <span className="text-xs font-light text-on-surface-variant">
+                            {plan.period}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {checkoutError ? (
+            <p className="mt-3 text-[11px] text-red-600">{checkoutError}</p>
+          ) : null}
 
           <p className="mt-4 text-[11px] leading-relaxed text-on-surface-variant">
-            Los precios son de ejemplo mientras definimos la pasarela de pago. Pronto
-            podrás suscribirte desde aquí.
+            El pago lo gestiona Paddle de forma segura. Puedes cancelar cuando
+            quieras desde el correo de confirmación de Paddle.
           </p>
 
           <button
             type="button"
             onClick={onClose}
-            className="mt-4 w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-on-primary"
+            className="mt-4 w-full rounded-full border border-outline-variant/40 bg-surface-low px-4 py-3 text-sm font-semibold text-on-surface"
           >
-            Entendido
+            Ahora no
           </button>
         </div>
       </div>

@@ -21,6 +21,8 @@
     "env:use-cloud": "node -e \"require('fs').copyFileSync('.env.cloud.local','.env.local'); console.log('Using cloud Supabase (.env.cloud.local)')\""
   },
   "dependencies": {
+    "@paddle/paddle-js": "^1.6.5",
+    "@paddle/paddle-node-sdk": "^3.10.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.102.1",
     "@types/canvas-confetti": "^1.9.0",

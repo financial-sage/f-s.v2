@@ -34,6 +34,8 @@ export type HouseholdEntitlement = {
   trialSecondsRemaining: number | null;
 };
 
+export type PremiumSource = "vip" | "stub" | "campaign" | "paid" | "unknown";
+
 export type FamilyBillingRow = {
   id: string;
   user_1_id: string;
@@ -45,6 +47,7 @@ export type FamilyBillingRow = {
   premium_until: string | null;
   first_movement_at: string | null;
   first_movement_by: string | null;
+  premium_source?: PremiumSource | string | null;
 };
 
 export type FirstMoveCelebration = {

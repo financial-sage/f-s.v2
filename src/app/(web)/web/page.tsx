@@ -40,7 +40,7 @@ export default async function WebMetricsPage() {
   }
 
   if (await isAdminUser(user)) {
-    redirect("/");
+    redirect("/admin");
   }
 
   const familyId = await getRequestFamilyId(user.id);

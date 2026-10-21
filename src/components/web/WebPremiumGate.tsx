@@ -1,7 +1,6 @@
-import { Crown } from "lucide-react";
+import { Crown, Smartphone } from "lucide-react";
 import ActivatePremiumRow from "@/components/ActivatePremiumRow";
-import SignOutButton from "@/components/SignOutButton";
-import { sageGlassGradient } from "@/lib/glass";
+import WebChrome from "@/components/web/WebChrome";
 
 type Props = {
   inviteCode?: string | null;
@@ -9,46 +8,43 @@ type Props = {
 
 export default function WebPremiumGate({ inviteCode }: Props) {
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-8">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/icons/v3/apple-touch-icon.png"
-            alt="SinDescuadre"
-            className="mb-4 h-12 w-12 rounded-[0.9rem] shadow-[0_12px_28px_rgba(43,52,55,0.18)]"
-          />
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">
-            Experiencia web
-          </p>
-          <h1 className="mt-1 text-3xl font-light tracking-tight text-on-surface">
-            SinDescuadre
-          </h1>
-        </div>
-        <SignOutButton compact />
-      </header>
+    <>
+      <WebChrome eyebrow="Métricas web" subtitle="Disponible con Premium" />
 
-      <section
-        className="overflow-hidden rounded-[1.85rem] border border-glass-border p-6 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl sm:p-8"
-        style={{ backgroundImage: sageGlassGradient() }}
-      >
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-on-primary shadow-sm">
-          <Crown size={22} />
-        </div>
-        <h2 className="text-xl font-light tracking-tight text-on-surface">
-          Métricas web solo con Premium
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
-          En el ordenador te mostramos el pulso de tu hogar: saldos, ritmo de
-          gasto y lo que conviene mirar. Esa vista forma parte de Premium. En el
-          móvil tienes la app completa; aquí, en escritorio, activamos Premium
-          para desbloquear las métricas.
-        </p>
-      </section>
+      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:py-14">
+        <section className="space-y-6">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-on-primary">
+            <Crown size={20} />
+          </div>
+          <div className="max-w-xl space-y-3">
+            <h1 className="font-headline text-3xl font-semibold tracking-tight text-on-surface lg:text-4xl">
+              Las métricas del hogar viven aquí
+            </h1>
+            <p className="text-base leading-relaxed text-on-surface-variant">
+              En el ordenador verás el pulso de tu hogar con más espacio: saldos,
+              ritmo de gasto y señales claras. Esa vista forma parte de Premium.
+            </p>
+          </div>
 
-      <div className="overflow-hidden rounded-[1.5rem] border border-glass-border bg-surface-lowest/90 shadow-[0_10px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
-        <ActivatePremiumRow inviteCode={inviteCode} isPremiumHousehold={false} />
+          <div className="flex items-start gap-3 rounded-xl border border-outline-variant/30 bg-surface-lowest px-4 py-3 text-sm text-on-surface-variant">
+            <Smartphone size={18} className="mt-0.5 shrink-0 text-primary" />
+            <p>
+              En el móvil sigue disponible la app completa. Aquí, en escritorio,
+              activamos Premium para desbloquear las métricas.
+            </p>
+          </div>
+        </section>
+
+        <aside className="self-start rounded-2xl border border-outline-variant/30 bg-surface-lowest p-2 shadow-sm">
+          <div className="border-b border-outline-variant/20 px-4 pb-3 pt-4">
+            <p className="text-sm font-semibold text-on-surface">Activar Premium</p>
+            <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">
+              Usa el código de familia. Con uno basta para todo el hogar.
+            </p>
+          </div>
+          <ActivatePremiumRow inviteCode={inviteCode} isPremiumHousehold={false} />
+        </aside>
       </div>
-    </div>
+    </>
   );
 }

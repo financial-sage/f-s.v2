@@ -24,25 +24,28 @@ async function resolvePostAuthPath(
     return next;
   }
 
-  if (isEnvAdminEmail(user.email)) {
+  let isAdmin = isEnvAdminEmail(user.email);
+
+  if (!isAdmin) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("is_superadmin")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    isAdmin =
+      (data as { is_superadmin?: boolean | null } | null)?.is_superadmin === true;
+  }
+
+  // Desktop production: admins → console; everyone else → web metrics shell.
+  if (isAdmin) {
+    if (!nextParam || next === "/" || next === "/web") {
+      return "/admin";
+    }
     return next;
   }
 
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("is_superadmin")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const isSuperadmin =
-    (data as { is_superadmin?: boolean | null } | null)?.is_superadmin === true;
-
-  if (isSuperadmin) {
-    return next;
-  }
-
-  // Desktop production, non-admin: default destination is the web metrics shell.
   if (!nextParam || next === "/") {
     return "/web";
   }

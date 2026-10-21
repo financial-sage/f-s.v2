@@ -14,7 +14,9 @@ import {
 } from "@/lib/premium";
 
 const FAMILY_BILLING_SELECT =
-  "id, user_1_id, user_2_id, invite_code, couple_trial_started_at, couple_trial_ends_at, is_premium_household, premium_until, first_movement_at, first_movement_by";
+  "id, user_1_id, user_2_id, invite_code, couple_trial_started_at, couple_trial_ends_at, is_premium_household, premium_until, first_movement_at, first_movement_by, premium_source";
+
+export type PremiumGrantSource = "vip" | "stub" | "campaign" | "paid";
 
 export async function loadFamilyBillingRow(
   familyId: string
@@ -27,6 +29,22 @@ export async function loadFamilyBillingRow(
     .maybeSingle();
 
   if (!error && data) return data as FamilyBillingRow;
+
+  // premium_source may be missing before admin VIP migration.
+  const { data: withoutSource } = await admin
+    .from("families")
+    .select(
+      "id, user_1_id, user_2_id, invite_code, couple_trial_started_at, couple_trial_ends_at, is_premium_household, premium_until, first_movement_at, first_movement_by"
+    )
+    .eq("id", familyId)
+    .maybeSingle();
+
+  if (withoutSource) {
+    return {
+      ...(withoutSource as FamilyBillingRow),
+      premium_source: null,
+    };
+  }
 
   // Migration not applied yet — fall back to core columns.
   const { data: basic } = await admin
@@ -47,6 +65,7 @@ export async function loadFamilyBillingRow(
     premium_until: null,
     first_movement_at: null,
     first_movement_by: null,
+    premium_source: null,
   };
 }
 
@@ -55,6 +74,24 @@ export async function getHouseholdEntitlement(
 ): Promise<HouseholdEntitlement | null> {
   const row = await loadFamilyBillingRow(familyId);
   if (!row) return null;
+
+  // Defense in depth: active Paddle sub on either member unlocks Premium
+  // even if the household flag is briefly out of sync with webhooks.
+  if (!resolveHouseholdEntitlement(row).isPremiumHousehold) {
+    const { householdHasActivePaidSubscription } = await import(
+      "@/lib/paddle/sync"
+    );
+    const memberIds = [row.user_1_id, row.user_2_id].filter(Boolean) as string[];
+    const hasPaid = await householdHasActivePaidSubscription(memberIds);
+    if (hasPaid) {
+      return resolveHouseholdEntitlement({
+        ...row,
+        is_premium_household: true,
+        premium_source: "paid",
+      });
+    }
+  }
+
   return resolveHouseholdEntitlement(row);
 }
 
@@ -252,17 +289,20 @@ export async function clearPendingFirstMoveCelebration(userId: string) {
 /** Stub / beta: activate household Premium by invite code (any member). */
 export async function activatePremiumForFamilyId(
   familyId: string,
-  months = 12
+  months = 12,
+  options?: { source?: PremiumGrantSource }
 ) {
   const admin = getSupabaseAdminClient();
   const until = new Date();
   until.setUTCMonth(until.getUTCMonth() + months);
+  const source: PremiumGrantSource = options?.source ?? "stub";
 
   const { data: family, error } = await admin
     .from("families")
     .update({
       is_premium_household: true,
       premium_until: until.toISOString(),
+      premium_source: source,
       updated_at: new Date().toISOString(),
     } as never)
     .eq("id", familyId)

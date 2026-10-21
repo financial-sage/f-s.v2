@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { LayoutDashboard, LogOut } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
+import SignOutButton from "@/components/SignOutButton";
 
 export default function AdminLayout({
   children,
@@ -26,13 +26,10 @@ export default function AdminLayout({
           </div>
 
           <nav className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:bg-surface-container"
-            >
-              <LogOut size={13} />
-              Volver a la app
-            </Link>
+            <SignOutButton
+              compact
+              className="border-outline-variant/40 bg-surface-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+            />
           </nav>
         </div>
       </header>
