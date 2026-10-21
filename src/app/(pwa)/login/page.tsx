@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
+import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import CookieConsentModal from "@/components/CookieConsentModal";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +17,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get("error");
+    if (param) setError(param);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,21 +96,23 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
               {error}
             </div>
           )}
 
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full shadow-[0_8px_18px_rgba(43,52,55,0.18)]"
-            isLoading={isLoading}
-          >
-            {isLoading && <LoaderCircle size={18} className="animate-spin" />}
-            {isLoading ? "Entrando..." : "Entrar"}
-          </Button>
-        </form>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full shadow-[0_8px_18px_rgba(43,52,55,0.18)]"
+          isLoading={isLoading}
+        >
+          {isLoading && <LoaderCircle size={18} className="animate-spin" />}
+          {isLoading ? "Entrando..." : "Entrar"}
+        </Button>
+
+        <SocialAuthButtons mode="login" />
+      </form>
       </AuthLayout>
 
       <CookieConsentModal />

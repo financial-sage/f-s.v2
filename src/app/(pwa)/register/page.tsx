@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LoaderCircle, MailCheck } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
+import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -132,6 +133,8 @@ export default function RegisterPage() {
             {isLoading && <LoaderCircle size={18} className="animate-spin" />}
             {isLoading ? "Creando cuenta..." : "Crear cuenta"}
           </Button>
+
+          <SocialAuthButtons mode="register" />
         </form>
       )}
     </AuthLayout>

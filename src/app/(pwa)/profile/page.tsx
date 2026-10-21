@@ -3,6 +3,7 @@ import { ChevronRight, CircleHelp, ShieldCheck, Users } from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CurrencySelectRow } from "@/components/CurrencySelectRow";
+import ProfileAvatarEditor from "@/components/ProfileAvatarEditor";
 import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
@@ -152,18 +153,12 @@ export default async function ProfilePage() {
           }}
         >
           <div className="flex items-center gap-3.5">
-            {profile?.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.avatar_url}
-                alt={displayName}
-                className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-glass-border"
-              />
-            ) : (
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container text-lg font-medium text-on-primary-container shadow-sm ring-2 ring-glass-border">
-                {initials}
-              </div>
-            )}
+            <ProfileAvatarEditor
+              userId={user.id}
+              displayName={displayName}
+              initials={initials}
+              avatarUrl={profile?.avatar_url ?? null}
+            />
             <div className="min-w-0">
               <p className="text-[11px] font-light text-on-surface-variant">{familyLabel}</p>
               <h2 className="truncate text-xl font-light tracking-tight text-on-surface">
@@ -171,6 +166,9 @@ export default async function ProfilePage() {
               </h2>
               <p className="mt-0.5 truncate text-xs font-light text-on-surface-variant">
                 {user.email}
+              </p>
+              <p className="mt-1 text-[11px] font-light text-on-surface-variant/80">
+                Toca la cámara para cambiar tu foto
               </p>
             </div>
           </div>
