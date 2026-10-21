@@ -239,9 +239,12 @@ export default function DashboardCouple({
         hasFamily: true,
     });
 
-    // Prefer Zustand once warm so Home↔History navigations skip waiting on RSC.
+    // Prefer Zustand when it has data; if hydrated-but-empty while SSR has rows,
+    // keep SSR so a failed client refetch cannot blank the dashboard.
+    const preferStoreExpenses =
+        isHydrated && (storeExpenses.length > 0 || ssrExpenses.length === 0);
     const expenses = useMemo<CoupleDashboardExpense[]>(() => {
-        if (!isHydrated) return ssrExpenses;
+        if (!preferStoreExpenses) return ssrExpenses;
         return storeExpenses.map((e) => ({
             id: e.id,
             concept: e.concept,
@@ -260,10 +263,12 @@ export default function DashboardCouple({
             paid_from_account: e.paid_from_account,
             transfer_group_id: e.transfer_group_id,
         }));
-    }, [isHydrated, storeExpenses, ssrExpenses]);
+    }, [preferStoreExpenses, storeExpenses, ssrExpenses]);
 
-    const personalBalance = isHydrated ? storePersonalBalance : ssrPersonalBalance;
-    const fundBalance = isHydrated ? storeFundLiquidity : ssrFundBalance;
+    const preferStoreBalances =
+        isHydrated && (storeExpenses.length > 0 || ssrExpenses.length === 0);
+    const personalBalance = preferStoreBalances ? storePersonalBalance : ssrPersonalBalance;
+    const fundBalance = preferStoreBalances ? storeFundLiquidity : ssrFundBalance;
 
     const [currentFilter, setCurrentFilter] = useState<ActivityFilter>("all");
     const [showFilterModal, setShowFilterModal] = useState(false);
@@ -491,7 +496,7 @@ export default function DashboardCouple({
         () => calculatePersonalPocketBalance(expenses, currentUserId, sharedFundIds),
         [expenses, currentUserId, sharedFundIds]
     );
-    const myAvailableFund = isHydrated ? storePersonalBalance : derivedPersonalPocket;
+    const myAvailableFund = preferStoreBalances ? storePersonalBalance : derivedPersonalPocket;
     const myBudget = Math.max(mySpent, 400);
 
     const fundIncome = useMemo(

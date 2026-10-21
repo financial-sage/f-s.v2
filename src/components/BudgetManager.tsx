@@ -37,7 +37,9 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
   const isHydrated = useExpenseStore((s) => s.isHydrated);
 
   const expenses = useMemo(() => {
-    if (isHydrated) return storeExpenses as BudgetExpenseRow[];
+    const preferStore =
+      isHydrated && (storeExpenses.length > 0 || initialExpenses.length === 0);
+    if (preferStore) return storeExpenses as BudgetExpenseRow[];
     return initialExpenses;
   }, [initialExpenses, isHydrated, storeExpenses]);
 

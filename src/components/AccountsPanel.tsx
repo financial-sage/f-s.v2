@@ -167,8 +167,14 @@ export default function AccountsPanel({
 
   useEffect(() => {
     if (!initialOverview) return;
+    const next = overviewToSeed(initialOverview);
+    setAccounts(next.accounts);
+    setFunds(next.funds);
+    setBalances(next.balances);
+    setTotalLiquidity(next.totalLiquidity);
     setAccountsCache(initialOverview.accounts);
     setFundsCache(initialOverview.funds);
+    setIsLoadingOverview(false);
   }, [initialOverview, setAccountsCache, setFundsCache]);
 
   const [showCreateSheet, setShowCreateSheet] = useState(false);

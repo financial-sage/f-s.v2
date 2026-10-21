@@ -254,6 +254,9 @@ function sortExpensesNewestFirst(rows: StoreExpenseRow[]) {
     });
 }
 
+/** Ignore stale completions when overlapping refreshData / Realtime sync. */
+let expenseFetchGeneration = 0;
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
@@ -272,8 +275,9 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
     remoteNotice: null,
 
     fetchData: async (passedUserId?: string) => {
-        if (get().isFetching) return;
+        const gen = ++expenseFetchGeneration;
         set({ isFetching: true });
+        const stillCurrent = () => gen === expenseFetchGeneration;
 
         try {
             const supabase = createClient();
@@ -282,12 +286,14 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
             let userId = passedUserId ?? get().userId;
             if (!userId) {
                 const { data: { user } } = await supabase.auth.getUser();
-                if (!user) { set({ isFetching: false }); return; }
+                if (!user) {
+                    if (stillCurrent()) set({ isFetching: false });
+                    return;
+                }
                 userId = user.id;
             }
 
-            // Fetch profile, family and expenses in parallel
-            const [profileResult, familyResult, expensesResult] = await Promise.all([
+            const [profileResult, familyResult] = await Promise.all([
                 supabase
                     .from("profiles")
                     .select("family_id, full_name, avatar_url, is_premium")
@@ -298,12 +304,26 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                     .select("financial_model, user_1_id, user_2_id")
                     .or(`user_1_id.eq.${userId},user_2_id.eq.${userId}`)
                     .maybeSingle(),
-                // Expenses query is run after we have familyId — handled below
-                Promise.resolve(null),
             ]);
 
+            if (!stillCurrent()) return;
+
+            // Transient profile errors: keep prior data, do not latch empty hydrate.
+            if (profileResult.error) {
+                set({ isFetching: false });
+                return;
+            }
+
             const familyId = profileResult.data?.family_id ?? null;
-            if (!familyId) { set({ isFetching: false, isHydrated: true }); return; }
+            if (!familyId) {
+                set({
+                    isFetching: false,
+                    isHydrated: true,
+                    userId,
+                    familyId: null,
+                });
+                return;
+            }
 
             const family = familyResult.data as FamilyInfo | null;
             const financialModel = "joint_fund";
@@ -332,6 +352,8 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                     .is("archived_at", null),
             ]);
 
+            if (!stillCurrent()) return;
+
             // If account columns/table missing, retry expenses without them
             let expenseRows: unknown = rawExpensesResult.data;
             if (rawExpensesResult.error && /account_id|paid_from_account|column/i.test(rawExpensesResult.error.message)) {
@@ -343,7 +365,16 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                     .order("expense_date", { ascending: false })
                     .order("created_at", { ascending: false })
                     .limit(400);
+                if (!stillCurrent()) return;
+                if (legacy.error) {
+                    // Keep previous expenses — never wipe UI on query failure.
+                    set({ isFetching: false });
+                    return;
+                }
                 expenseRows = legacy.data;
+            } else if (rawExpensesResult.error) {
+                set({ isFetching: false });
+                return;
             }
 
             const accountsById = new Map(
@@ -370,6 +401,8 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
 
             const isPremium = (profileResult.data as { is_premium?: boolean | null } | null)?.is_premium === true;
 
+            if (!stillCurrent()) return;
+
             set({
                 userId,
                 familyId,
@@ -385,14 +418,14 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                 isFetching: false,
             });
         } catch {
-            set({ isFetching: false, isHydrated: true });
+            // Keep prior expenses / hydrate flags so soft-nav does not go blank.
+            if (stillCurrent()) set({ isFetching: false });
         }
     },
 
     refreshData: async () => {
-        // Re-run the same fetch without resetting isHydrated (keeps UI visible)
+        // Generation bump inside fetchData supersedes in-flight work.
         const { userId } = get();
-        set({ isFetching: false }); // reset lock so fetchData runs
         await get().fetchData(userId ?? undefined);
     },
 

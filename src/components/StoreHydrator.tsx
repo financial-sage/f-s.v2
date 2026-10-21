@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import type { FamilyFund } from "@/lib/funds";
 import { useAccountsStore } from "@/store/useAccountsStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -17,10 +18,14 @@ export default function StoreHydrator({
   userId?: string;
   initialFunds?: FamilyFund[];
 }) {
+  const pathname = usePathname();
   const isHydrated = useExpenseStore((s) => s.isHydrated);
+  const expenseCount = useExpenseStore((s) => s.expenses.length);
+  const isFetching = useExpenseStore((s) => s.isFetching);
   const fetchData = useExpenseStore((s) => s.fetchData);
   const loadFunds = useFundsStore((s) => s.load);
   const loadAccounts = useAccountsStore((s) => s.load);
+  const lastEmptyFetchPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (initialFunds?.length) {
@@ -31,8 +36,27 @@ export default function StoreHydrator({
   useEffect(() => {
     if (!isHydrated) {
       void fetchData(userId);
+      return;
     }
-  }, [isHydrated, fetchData, userId]);
+    // Self-heal on nav: hydrated-but-empty is usually a failed wipe.
+    // History relies on the store (SSR passes []), so recovery matters here.
+    if (expenseCount === 0 && !isFetching && lastEmptyFetchPath.current !== pathname) {
+      lastEmptyFetchPath.current = pathname;
+      void fetchData(userId);
+    }
+  }, [isHydrated, expenseCount, isFetching, fetchData, userId, pathname]);
+
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      const state = useExpenseStore.getState();
+      if (state.isHydrated && state.expenses.length === 0 && !state.isFetching) {
+        void fetchData(userId);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchData, userId]);
 
   useEffect(() => {
     void loadFunds();

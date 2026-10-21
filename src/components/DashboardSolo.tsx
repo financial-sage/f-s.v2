@@ -186,15 +186,16 @@ export default function DashboardSolo({
         personalFunds.find((f) => f.id === selectedFundId) ?? defaultPersonal ?? personalFunds[0] ?? null;
 
     const displayBalance = useMemo(() => {
+        const preferStore = isHydrated && storeExpenses.length > 0;
         if (!selectedFund) {
-            return isHydrated
+            return preferStore
                 ? useExpenseStore.getState().myAvailableFund
                 : pocketBalance;
         }
-        const rows = isHydrated ? storeExpenses : [];
-        if (!isHydrated && selectedFund.id === defaultPersonal?.id) {
+        if (!preferStore && selectedFund.id === defaultPersonal?.id) {
             return pocketBalance;
         }
+        const rows = preferStore ? storeExpenses : [];
         return calculateSoloPersonalFundBalance(
             rows,
             selectedFund,
@@ -614,7 +615,9 @@ export default function DashboardSolo({
                                         <div className="flex flex-col gap-1.5">
                                             {personalFunds.map((fund) => {
                                                 const balance = calculateSoloPersonalFundBalance(
-                                                    isHydrated ? storeExpenses : [],
+                                                    isHydrated && storeExpenses.length > 0
+                                                        ? storeExpenses
+                                                        : [],
                                                     fund,
                                                     currentUserId,
                                                     defaultPersonal?.id ?? null

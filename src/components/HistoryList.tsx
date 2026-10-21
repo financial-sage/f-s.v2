@@ -193,9 +193,11 @@ export default function HistoryList({
         hasFamily: true,
     });
 
-    // Use store data when hydrated (instant on navigation), fall back to SSR props
-    const allExpenses = (isHydrated ? storeExpenses : ssrExpenses) as HistoryExpenseRow[];
-    const financialModel = isHydrated ? storeFinancialModel : ssrFinancialModel;
+    // Prefer store when warm with data; never blank History if SSR still has rows.
+    const preferStore =
+        isHydrated && (storeExpenses.length > 0 || ssrExpenses.length === 0);
+    const allExpenses = (preferStore ? storeExpenses : ssrExpenses) as HistoryExpenseRow[];
+    const financialModel = preferStore ? storeFinancialModel : ssrFinancialModel;
 
     const [mounted, setMounted] = useState(false);
     const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null);
