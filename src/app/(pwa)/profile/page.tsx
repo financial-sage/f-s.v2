@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { ChevronRight, CircleHelp, ShieldCheck } from "lucide-react";
+import { ChevronRight, CircleHelp, Compass, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CurrencySelectRow } from "@/components/CurrencySelectRow";
@@ -242,6 +242,21 @@ export default async function ProfilePage() {
               inviteCode={family?.invite_code}
               isPremiumHousehold={Boolean(entitlement?.isPremiumHousehold)}
             />
+            <Link
+              href="/guidance"
+              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
+                  <Compass size={16} />
+                </div>
+                <span className="text-sm font-medium text-on-surface">Orientación</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">
+                <span>Ver</span>
+                <ChevronRight size={14} />
+              </div>
+            </Link>
             <Link
               href="/profile/support"
               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"

@@ -1,0 +1,41 @@
+---
+description: Invariantes de Guidance (IA contextual V1). Usar al implementar o tocar insights, modal ¿Por qué?, /guidance, decision context o ADR-0008.
+globs: docs/product/features/guidance/**,docs/decisions/ADR-0008*,**/decision/**,**/guidance/**,**/Guidance*
+alwaysApply: false
+---
+
+# Guidance module
+
+## Fuente de verdad
+
+Antes de código, leer:
+
+1. `docs/product/features/guidance/README.md`
+2. `docs/product/features/guidance/business-rules.md`
+3. `docs/product/features/guidance/technical-spec.md`
+4. `docs/decisions/ADR-0008-contextual-guidance-v1.md`
+
+Nombres fijos: `src/lib/decision/context.ts`, `src/lib/decision/insights.ts`, `GuidanceWhyModal`, ruta `/guidance`.
+
+## Invariantes
+
+- V1 **sin LLM** ni chat.
+- Dashboard **sin** card/banner/strip de insight; solo microenlace de texto.
+- Guidance **no muta** hechos financieros.
+- Cifras solo desde decision context; si faltan datos → `unknown` / “aún no sabemos”.
+- Un insight principal por visita en el modal.
+- No nuevo ítem en BottomNav.
+- AI Assistant y Recommendations persistentes quedan fuera de este módulo V1.
+
+## Espejo de UX
+
+- Modal: patrón `PremiumBenefitsModal` + `Portal`.
+- Página: mismo loader auth/familia que otras rutas `(pwa)`.
+- Datos: reutilizar `HomePageData` / `getHomePageData` donde baste.
+
+## Prohibido
+
+- Añadir `HomeInsightCard` u otra sección permanente al scroll de Inicio.
+- Llamar proveedores LLM “por comodidad”.
+- Inventar saldos o proyecciones sin fórmula y inputs documentados.
+- Escribir en `expenses` / cuentas / funds desde Guidance.

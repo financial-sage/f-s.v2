@@ -62,8 +62,11 @@ import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
 import { useIsDark } from "@/hooks/useIsDark";
+import GuidanceWhyTrigger from "@/components/GuidanceWhyTrigger";
 import HouseholdStatusBanner from "@/components/HouseholdStatusBanner";
 import PremiumHeaderChip from "@/components/PremiumHeaderChip";
+import { buildDecisionContext } from "@/lib/decision/context";
+import { selectPrimaryInsight } from "@/lib/decision/insights";
 import type { HouseholdEntitlement } from "@/lib/premium";
 
 interface DashboardSoloProps {
@@ -210,6 +213,29 @@ export default function DashboardSolo({
         pocketBalance,
         currentUserId,
         defaultPersonal?.id,
+    ]);
+
+    const guidanceInsight = useMemo(() => {
+        const fundsCount = (storeFunds.length > 0 ? storeFunds : initialFunds).length;
+        return selectPrimaryInsight(
+            buildDecisionContext({
+                hasVisibleAccounts,
+                accountsVisibleLiquidity,
+                pocketOrHeroBalance: displayBalance,
+                monthSpent: _budget?.spent ?? 0,
+                fundsCount,
+                memberCount: entitlement?.memberCount ?? 1,
+                isCoupleUi: false,
+            })
+        );
+    }, [
+        hasVisibleAccounts,
+        accountsVisibleLiquidity,
+        displayBalance,
+        _budget?.spent,
+        storeFunds,
+        initialFunds,
+        entitlement?.memberCount,
     ]);
 
     const heroColor = resolveFundUiColor(selectedFund, isDark);
@@ -554,30 +580,33 @@ export default function DashboardSolo({
                             backgroundImage: tintedGlassGradient(heroColor),
                         }}
                     >
-                        <div className="relative z-10 flex min-w-0 items-center justify-end gap-3">
-                            <div className="min-w-0 text-right">
-                                <p className="text-[11px] font-light text-on-surface-variant">
-                                    Saldo disponible
-                                </p>
-                                <p
-                                    className={`truncate text-base font-medium ${
-                                        isDark ? "text-on-surface" : ""
-                                    }`}
-                                    style={isDark ? undefined : { color: heroColor }}
+                        <div className="relative z-10 flex min-w-0 items-center justify-between gap-3">
+                            <GuidanceWhyTrigger insight={guidanceInsight} />
+                            <div className="flex shrink-0 items-center gap-3">
+                                <div className="min-w-0 text-right">
+                                    <p className="text-[11px] font-light text-on-surface-variant">
+                                        Saldo disponible
+                                    </p>
+                                    <p
+                                        className={`truncate text-base font-medium ${
+                                            isDark ? "text-on-surface" : ""
+                                        }`}
+                                        style={isDark ? undefined : { color: heroColor }}
+                                    >
+                                        {heroTitle}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFundsMenu((open) => !open)}
+                                    className="icon-chip-fund icon-chip-coin relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-transform active:scale-95"
+                                    style={fundIconChipStyle(heroColor)}
+                                    aria-label="Seleccionar bolsillo"
+                                    aria-expanded={showFundsMenu}
                                 >
-                                    {heroTitle}
-                                </p>
+                                    <Wallet size={20} strokeWidth={2.2} />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowFundsMenu((open) => !open)}
-                                className="icon-chip-fund icon-chip-coin relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-transform active:scale-95"
-                                style={fundIconChipStyle(heroColor)}
-                                aria-label="Seleccionar bolsillo"
-                                aria-expanded={showFundsMenu}
-                            >
-                                <Wallet size={20} strokeWidth={2.2} />
-                            </button>
                         </div>
 
                         <div className="relative z-10 mt-4 flex items-center gap-2.5">

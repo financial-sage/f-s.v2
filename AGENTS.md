@@ -8,4 +8,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Feature harnesses
 
 When implementing **Accounts (cuentas)**, follow the project skill `.cursor/skills/accounts-module/SKILL.md` and rule `.cursor/rules/accounts-module.mdc`. Product source of truth: `docs/product/features/accounts/` and `docs/decisions/ADR-0006-accounts-vs-funds.md`.
+
+When implementing **Guidance (IA contextual V1)**, follow the project skill `.cursor/skills/guidance-module/SKILL.md` and rule `.cursor/rules/guidance-module.mdc`. Product source of truth: `docs/product/features/guidance/` and `docs/decisions/ADR-0008-contextual-guidance-v1.md`. Dashboard stays uncluttered: modal + `/guidance` only; no LLM in V1.
 <!-- END:feature-harnesses -->

@@ -87,7 +87,10 @@ import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
 import { useIsDark } from "@/hooks/useIsDark";
+import GuidanceWhyTrigger from "@/components/GuidanceWhyTrigger";
 import HouseholdStatusBanner from "@/components/HouseholdStatusBanner";
+import { buildDecisionContext } from "@/lib/decision/context";
+import { selectPrimaryInsight } from "@/lib/decision/insights";
 import PremiumHeaderChip from "@/components/PremiumHeaderChip";
 import type { HouseholdEntitlement } from "@/lib/premium";
 
@@ -1164,6 +1167,33 @@ export default function DashboardCouple({
     const currentMember =
         members.find((member) => member.id === currentUserId) ?? members[0] ?? null;
 
+    const guidanceInsight = useMemo(() => {
+        const fundsCount = (storeFunds.length > 0 ? storeFunds : initialFunds).length;
+        const monthSpent = (typeof _mySpent === "number" ? _mySpent : 0) + (typeof _partnerSpent === "number" ? _partnerSpent : 0);
+        return selectPrimaryInsight(
+            buildDecisionContext({
+                hasVisibleAccounts,
+                accountsVisibleLiquidity,
+                pocketOrHeroBalance: heroBalance,
+                monthSpent,
+                fundsCount,
+                memberCount: entitlement?.memberCount ?? members.length,
+                isCoupleUi: true,
+            })
+        );
+    }, [
+        hasVisibleAccounts,
+        accountsVisibleLiquidity,
+        heroBalance,
+        _mySpent,
+        _partnerSpent,
+        storeFunds,
+        initialFunds,
+        entitlement?.memberCount,
+        members.length,
+    ]);
+
+
     return (
         <div className="relative flex h-dvh flex-col overflow-hidden bg-page-gradient">
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
@@ -1242,39 +1272,42 @@ export default function DashboardCouple({
                             backgroundImage: tintedGlassGradient(heroColor),
                         }}
                     >
-                        <div className="relative z-10 flex min-w-0 items-center justify-end gap-3">
-                            <div className="min-w-0 text-right">
-                                <p className="text-[11px] font-light text-on-surface-variant">
-                                    Saldo disponible
-                                </p>
-                                <p
-                                    className={`truncate text-base font-medium ${
-                                        isDark ? "text-on-surface" : ""
-                                    }`}
-                                    style={isDark ? undefined : { color: heroColor }}
-                                >
-                                    {heroLabel}
-                                </p>
-                            </div>
-                            {isJointModel ? (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowFundsMenu((open) => !open)}
-                                    className="icon-chip-fund icon-chip-coin relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl  transition-transform active:scale-95"
-                                    style={fundIconChipStyle(heroColor)}
-                                    aria-label="Seleccionar bolsillo"
-                                    aria-expanded={showFundsMenu}
-                                >
-                                    <Wallet size={20} strokeWidth={2.2} />
-                                </button>
-                            ) : (
-                                <div
-                                    className="icon-chip-fund icon-chip-coin flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border"
-                                    style={fundIconChipStyle(heroColor)}
-                                >
-                                    <Wallet size={20} strokeWidth={2.2} />
+                        <div className="relative z-10 flex min-w-0 items-center justify-between gap-3">
+                            <GuidanceWhyTrigger insight={guidanceInsight} />
+                            <div className="flex shrink-0 items-center gap-3">
+                                <div className="min-w-0 text-right">
+                                    <p className="text-[11px] font-light text-on-surface-variant">
+                                        Saldo disponible
+                                    </p>
+                                    <p
+                                        className={`truncate text-base font-medium ${
+                                            isDark ? "text-on-surface" : ""
+                                        }`}
+                                        style={isDark ? undefined : { color: heroColor }}
+                                    >
+                                        {heroLabel}
+                                    </p>
                                 </div>
-                            )}
+                                {isJointModel ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowFundsMenu((open) => !open)}
+                                        className="icon-chip-fund icon-chip-coin relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl  transition-transform active:scale-95"
+                                        style={fundIconChipStyle(heroColor)}
+                                        aria-label="Seleccionar bolsillo"
+                                        aria-expanded={showFundsMenu}
+                                    >
+                                        <Wallet size={20} strokeWidth={2.2} />
+                                    </button>
+                                ) : (
+                                    <div
+                                        className="icon-chip-fund icon-chip-coin flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border"
+                                        style={fundIconChipStyle(heroColor)}
+                                    >
+                                        <Wallet size={20} strokeWidth={2.2} />
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="relative z-10 mt-4 flex items-center gap-2.5">
