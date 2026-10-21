@@ -9,7 +9,6 @@ import RealtimeSync from "@/components/RealtimeSync";
 import StoreHydrator from "@/components/StoreHydrator";
 import FirstRunGate from "@/components/FirstRunGate";
 import PartnerFirstMoveCelebration from "@/components/PartnerFirstMoveCelebration";
-import PremiumWelcomeCelebration from "@/components/PremiumWelcomeCelebration";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
@@ -51,7 +50,6 @@ export default function PwaLayout({
       <StoreHydrator />
       <FirstRunGate />
       <PartnerFirstMoveCelebration />
-      <PremiumWelcomeCelebration />
       <RealtimeSync />
       <PWARegister />
       <UpdateNotifier />

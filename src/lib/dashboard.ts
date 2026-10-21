@@ -11,7 +11,11 @@ import {
 } from "@/lib/accounts";
 import { createClient } from "@/utils/supabase/server";
 import type { HouseholdEntitlement } from "@/lib/premium";
-import { getHouseholdEntitlement } from "@/lib/premiumServer";
+import {
+  getHouseholdEntitlement,
+  getPendingPremiumWelcome,
+} from "@/lib/premiumServer";
+import type { PremiumWelcomeCelebration } from "@/lib/premium";
 import { perfLog, perfNow } from "@/lib/perf";
 import { getRequestUser } from "@/lib/request-context";
 
@@ -391,6 +395,8 @@ export interface HomePageData {
   hasVisibleAccounts: boolean;
   /** Premium / trial entitlement for home UI routing. */
   entitlement: HouseholdEntitlement | null;
+  /** One-shot Premium welcome modal payload (confetti). */
+  pendingPremiumWelcome: PremiumWelcomeCelebration | null;
 }
 
 function sumMemberShare(expenses: HomeExpenseRow[], memberId: string) {
@@ -542,6 +548,7 @@ export async function getHomePageData(): Promise<
     fundsResult,
     accountsResult,
     entitlement,
+    pendingPremiumWelcome,
   ] = await Promise.all([
     supabase
       .from("families")
@@ -579,6 +586,7 @@ export async function getHomePageData(): Promise<
       .eq("family_id", familyId)
       .is("archived_at", null),
     getHouseholdEntitlement(familyId),
+    getPendingPremiumWelcome(user.id),
   ]);
   perfLog("getHomePageData.batch", { ms: perfNow() - batchStart });
 
@@ -731,6 +739,7 @@ export async function getHomePageData(): Promise<
       accountsVisibleLiquidity,
       hasVisibleAccounts: visibleAccounts.length > 0,
       entitlement,
+      pendingPremiumWelcome: pendingPremiumWelcome ?? null,
     },
   };
 }

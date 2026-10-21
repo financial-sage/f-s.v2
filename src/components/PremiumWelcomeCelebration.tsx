@@ -40,13 +40,28 @@ function firePremiumConfetti() {
   })();
 }
 
-export default function PremiumWelcomeCelebration() {
+type Props = {
+  /** Server-provided pending welcome — preferred over a client round-trip. */
+  initialWelcome?: PremiumWelcomeCelebration | null;
+};
+
+export default function PremiumWelcomeCelebration({
+  initialWelcome = null,
+}: Props) {
   const [welcome, setWelcome] = useState<PremiumWelcomeCelebration | null>(
-    null
+    initialWelcome
   );
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(initialWelcome));
+  const [confettiDone, setConfettiDone] = useState(false);
+
+  useEffect(() => {
+    if (!initialWelcome || confettiDone) return;
+    firePremiumConfetti();
+    setConfettiDone(true);
+  }, [initialWelcome, confettiDone]);
 
   const tryShow = useCallback(async () => {
+    if (open) return true;
     try {
       const pending = await getPendingPremiumWelcomeAction();
       if (!pending) return false;
@@ -57,9 +72,11 @@ export default function PremiumWelcomeCelebration() {
     } catch {
       return false;
     }
-  }, []);
+  }, [open]);
 
   useEffect(() => {
+    if (initialWelcome) return;
+
     let cancelled = false;
     let attempts = 0;
 
@@ -88,7 +105,7 @@ export default function PremiumWelcomeCelebration() {
       window.removeEventListener("focus", onCheck);
       document.removeEventListener("visibilitychange", onCheck);
     };
-  }, [tryShow]);
+  }, [tryShow, initialWelcome]);
 
   async function dismiss() {
     setOpen(false);

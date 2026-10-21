@@ -8,6 +8,7 @@ import {
   formatPremiumTrialChip,
   type HouseholdEntitlement,
 } from "@/lib/premium";
+import { useExpenseStore } from "@/store/useExpenseStore";
 
 type Props = {
   entitlement?: HouseholdEntitlement | null;
@@ -20,9 +21,12 @@ export default function PremiumHeaderChip({
   isPremiumFallback = false,
 }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const storePremium = useExpenseStore((s) => s.isPremium);
 
   const isPremium =
-    Boolean(entitlement?.isPremiumHousehold) || isPremiumFallback;
+    Boolean(entitlement?.isPremiumHousehold) ||
+    isPremiumFallback ||
+    storePremium;
 
   const chip = useMemo(() => {
     if (entitlement?.coupleMode === "couple_trial") {

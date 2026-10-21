@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import StoreHydrator from "@/components/StoreHydrator";
+import PremiumWelcomeCelebration from "@/components/PremiumWelcomeCelebration";
 import { getHomePageData } from "@/lib/dashboard";
 
 const DashboardCouple = dynamicImport(() => import("@/components/DashboardCouple"), {
@@ -48,6 +49,7 @@ export default async function Home() {
     accountsVisibleLiquidity,
     hasVisibleAccounts,
     entitlement,
+    pendingPremiumWelcome,
   } = home.data;
 
   const showCoupleUi =
@@ -56,6 +58,7 @@ export default async function Home() {
   return (
     <>
       <StoreHydrator userId={userId} initialFunds={funds} />
+      <PremiumWelcomeCelebration initialWelcome={pendingPremiumWelcome} />
       {showCoupleUi && familyId ? (
         <DashboardCouple
           familyId={familyId}

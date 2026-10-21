@@ -123,6 +123,7 @@ export default function DashboardSolo({
     const isDark = useIsDark();
     const { setExpenseToEdit, setIsExpenseModalOpen, setPreferredFundId } = useExpenseModal();
     const isHydrated = useExpenseStore((s) => s.isHydrated);
+    const storePremium = useExpenseStore((s) => s.isPremium);
     const storeExpenses = useExpenseStore((s) => s.expenses);
     const storeFunds = useFundsStore((s) => s.funds);
     const displayName = userName?.trim() || "Usuario";
@@ -537,7 +538,10 @@ export default function DashboardSolo({
                     </div>
                 </Link>
                 <div className="flex items-center gap-1.5">
-                    <PremiumHeaderChip entitlement={entitlement} />
+                    <PremiumHeaderChip
+                        entitlement={entitlement}
+                        isPremiumFallback={storePremium}
+                    />
                 </div>
             </header>
 
