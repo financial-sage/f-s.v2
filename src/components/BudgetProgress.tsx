@@ -1,3 +1,4 @@
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { formatCurrency } from "@/lib/currency";
 
 interface BudgetProgressProps {
@@ -30,10 +31,10 @@ export default function BudgetProgress({
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <span className="font-headline text-3xl font-bold tracking-tighter">
-              {formatCurrency(spent)}
+              <FormattedCurrency value={spent} />
             </span>
             <p className="font-label text-xs uppercase tracking-wider text-on-surface-variant">
-              Gastados de {formatCurrency(budget)}
+              Gastados de <FormattedCurrency value={budget} />
             </p>
           </div>
           <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-primary/20">
@@ -53,13 +54,13 @@ export default function BudgetProgress({
             <span className="mb-1 block text-[10px] font-label uppercase text-on-surface-variant">
               Disponible
             </span>
-            <span className="text-lg font-bold">{formatCurrency(available)}</span>
+            <span className="text-lg font-bold"><FormattedCurrency value={available} /></span>
           </div>
           <div className="rounded-2xl border border-outline-variant/10 bg-surface-lowest p-4">
             <span className="mb-1 block text-[10px] font-label uppercase text-on-surface-variant">
               Promedio Diario
             </span>
-            <span className="text-lg font-bold">{formatCurrency(dailyAverage)}</span>
+            <span className="text-lg font-bold"><FormattedCurrency value={dailyAverage} /></span>
           </div>
         </div>
       </div>

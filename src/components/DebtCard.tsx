@@ -1,6 +1,6 @@
 import { calculateDebt } from "@/app/actions/debt";
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import LiquidateButton from "@/components/LiquidateButton";
-import { formatCurrency } from "@/lib/currency";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function DebtCard() {
@@ -26,14 +26,6 @@ export default async function DebtCard() {
   const deudor_id = monto === 0 || !otherUserId ? null : fundBalance < 0 ? currentUserId : otherUserId;
   const acreedor_id = monto === 0 || !otherUserId ? null : fundBalance > 0 ? currentUserId : otherUserId;
 
-  const title = monto === 0
-    ? "Están al día ✨"
-    : currentUserId === deudor_id
-      ? `Debes ${formatCurrency(monto)}`
-      : currentUserId === acreedor_id
-        ? `Te deben ${formatCurrency(monto)}`
-        : `${formatCurrency(monto)} pendientes`;
-
   return (
     <section className="relative">
       <div className="space-y-6 rounded-2xl bg-surface-lowest p-8 text-center shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
@@ -42,7 +34,21 @@ export default async function DebtCard() {
             Balance Pendiente
           </span>
           <h2 className="text-2xl font-bold tracking-tight text-on-surface md:text-3xl">
-            {title}
+            {monto === 0 ? (
+              "Están al día ✨"
+            ) : currentUserId === deudor_id ? (
+              <>
+                Debes <FormattedCurrency value={monto} />
+              </>
+            ) : currentUserId === acreedor_id ? (
+              <>
+                Te deben <FormattedCurrency value={monto} />
+              </>
+            ) : (
+              <>
+                <FormattedCurrency value={monto} /> pendientes
+              </>
+            )}
           </h2>
         </div>
 

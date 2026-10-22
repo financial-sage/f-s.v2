@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
@@ -119,7 +120,7 @@ function ChecklistRow({
             isPaid ? "text-on-surface-variant" : "text-on-surface"
           }`}
         >
-          {formatCurrency(rowAmount)}
+          <FormattedCurrency value={rowAmount} />
         </span>
         {varianceHint ? (
           <span
@@ -465,7 +466,7 @@ export default function FixedExpensesManager({
               {totals.paidCount}/{totals.totalCount} pagados
             </p>
             <p className="text-[11px] font-light tabular-nums text-on-surface-variant">
-              Base {formatCurrency(totals.sumBase)}
+              Base <FormattedCurrency value={totals.sumBase} />
             </p>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-glass-soft">
@@ -484,7 +485,7 @@ export default function FixedExpensesManager({
                 Falta
               </p>
               <p className="mt-0.5 truncate text-[1.35rem] font-light leading-none tracking-tight text-on-surface tabular-nums">
-                {formatCurrency(remainingToPay)}
+                <FormattedCurrency value={remainingToPay} />
               </p>
             </div>
             <div className="min-w-0 text-right">
@@ -492,7 +493,7 @@ export default function FixedExpensesManager({
                 Bolsillo
               </p>
               <p className="mt-0.5 truncate text-[15px] font-light leading-none tracking-tight text-on-surface-variant tabular-nums">
-                {formatCurrency(totals.pocketBalance)}
+                <FormattedCurrency value={totals.pocketBalance} />
               </p>
             </div>
             <button
@@ -617,7 +618,7 @@ export default function FixedExpensesManager({
                       </p>
                     </div>
                     <p className="shrink-0 text-[14px] font-light tabular-nums tracking-tight text-on-surface">
-                      {formatCurrency(paidTotal)}
+                      <FormattedCurrency value={paidTotal} />
                     </p>
                   </button>
 

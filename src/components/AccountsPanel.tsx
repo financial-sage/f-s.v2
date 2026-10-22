@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Archive,
@@ -501,7 +502,7 @@ export default function AccountsPanel({
     if (
       needsConfirm &&
       !window.confirm(
-        `«${account.name}» tiene saldo ${formatCurrency(balance)}. ¿Archivarla igual? Dejará de contar como liquidez activa.`
+        `«${account.name}» tiene saldo $<FormattedCurrency value={balance} />. ¿Archivarla igual? Dejará de contar como liquidez activa.`
       )
     ) {
       return;
@@ -567,7 +568,7 @@ export default function AccountsPanel({
                       balance < 0 ? "text-red-600" : "text-on-surface"
                     }`}
                   >
-                    {balanceVisible ? formatCurrency(balance) : "••••"}
+                    {balanceVisible ? <FormattedCurrency value={balance} /> : "••••"}
                   </p>
                 </div>
 
@@ -729,7 +730,7 @@ export default function AccountsPanel({
                   totalLiquidity < 0 ? "text-red-600" : "text-on-surface"
                 }`}
               >
-                {balanceVisible ? formatCurrency(totalLiquidity) : "••••••"}
+                {balanceVisible ? <FormattedCurrency value={totalLiquidity} /> : "••••••"}
               </p>
               <button
                 type="button"
@@ -758,7 +759,7 @@ export default function AccountsPanel({
                   />
                   {sharedAccounts[0].name} ·{" "}
                   {balanceVisible
-                    ? formatCurrency(balances[sharedAccounts[0].id] ?? 0)
+                    ? <FormattedCurrency value={balances[sharedAccounts[0].id] ?? 0} />
                     : "••••"}
                 </span>
               )}

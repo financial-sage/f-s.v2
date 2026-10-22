@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -641,7 +642,7 @@ export default function DashboardSolo({
                                         : "text-on-surface"
                                 }`}
                             >
-                                {balanceVisible ? formatCurrency(displayBalance) : "••••••"}
+                                {balanceVisible ? <FormattedCurrency value={displayBalance} /> : "••••••"}
                             </p>
                             <button
                                 type="button"
@@ -737,7 +738,7 @@ export default function DashboardSolo({
                                                             </span>
                                                             <span className="shrink-0 text-xs font-medium text-on-surface-variant">
                                                                 {balanceVisible
-                                                                    ? formatCurrency(balance)
+                                                                    ? <FormattedCurrency value={balance} />
                                                                     : "••••"}
                                                             </span>
                                                         </button>
@@ -785,7 +786,7 @@ export default function DashboardSolo({
                                 icon: Landmark,
                                 value: hasVisibleAccounts
                                     ? balanceVisible
-                                        ? formatCurrency(accountsVisibleLiquidity)
+                                        ? <FormattedCurrency value={accountsVisibleLiquidity} />
                                         : "••••"
                                     : "Abrir",
                             },
@@ -987,7 +988,7 @@ export default function DashboardSolo({
                                                 </div>
 
                                                 <span className="shrink-0 text-[15px] font-medium text-on-surface">
-                                                    -{formatCurrency(tx.amount)}
+                                                    -<FormattedCurrency value={tx.amount} />
                                                 </span>
                                             </button>
 

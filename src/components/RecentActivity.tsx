@@ -1,3 +1,4 @@
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import Link from "next/link";
 import {
   Car,
@@ -68,7 +69,7 @@ export default function RecentActivity({ transactions }: RecentActivityProps) {
                 </div>
 
                 <div className="text-right">
-                  <p className="font-bold text-on-surface">-{formatCurrency(tx.amount)}</p>
+                  <p className="font-bold text-on-surface">-<FormattedCurrency value={tx.amount} /></p>
                   <span
                     className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${
                       tx.isShared

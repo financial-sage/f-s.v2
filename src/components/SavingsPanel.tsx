@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import {
   ArrowDownLeft,
@@ -233,7 +234,7 @@ export default function SavingsPanel({
                 Saldo acumulado
               </p>
               <p className="mt-2 text-[2.4rem] font-light leading-none tracking-tight text-on-surface">
-                {formatCurrency(overview?.balance ?? 0)}
+                <FormattedCurrency value={overview?.balance ?? 0} />
               </p>
             </div>
             <div
@@ -251,7 +252,7 @@ export default function SavingsPanel({
             {metrics ? ` · ${formatMonthLabel(metrics.monthKey)}` : ""}
           </p>
           <p className="mt-2 text-2xl font-medium tracking-tight text-on-surface">
-            {formatCurrency(metrics?.thisMonth ?? 0)}
+            <FormattedCurrency value={metrics?.thisMonth ?? 0} />
           </p>
           <div className="mt-3 flex items-center gap-2">
             {metrics && !metrics.prevMonthEmpty && metrics.delta > 0.009 ? (
@@ -265,7 +266,7 @@ export default function SavingsPanel({
           </div>
           {metrics && !metrics.prevMonthEmpty ? (
             <p className="mt-1 text-[11px] text-outline-variant">
-              Mes anterior: {formatCurrency(metrics.prevMonth)}
+              Mes anterior: <FormattedCurrency value={metrics.prevMonth} />
             </p>
           ) : null}
         </section>
@@ -329,7 +330,7 @@ export default function SavingsPanel({
                     }`}
                   >
                     {movement.direction === "in" ? "+" : "−"}
-                    {formatCurrency(movement.amount)}
+                    <FormattedCurrency value={movement.amount} />
                   </p>
                 </li>
               ))}
@@ -435,7 +436,7 @@ export default function SavingsPanel({
                               : "text-on-surface-variant"
                           }`}
                         >
-                          {formatCurrency(account.balance)}
+                          <FormattedCurrency value={account.balance} />
                         </span>
                       </button>
                     );
@@ -480,7 +481,7 @@ export default function SavingsPanel({
                               : "text-on-surface-variant"
                           }`}
                         >
-                          {formatCurrency(fund.balance)}
+                          <FormattedCurrency value={fund.balance} />
                         </span>
                       </button>
                     );
@@ -506,7 +507,9 @@ export default function SavingsPanel({
           >
             <span className="text-sm text-on-surface-variant">Importe</span>
             <span className="text-lg font-semibold text-on-surface">
-              {formatCurrency(Number(String(amount).replace(",", ".")) || 0)}
+              <FormattedCurrency
+                value={Number(String(amount).replace(",", ".")) || 0}
+              />
             </span>
           </button>
 

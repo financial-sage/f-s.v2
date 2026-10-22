@@ -23,6 +23,7 @@ import {
   type ExpenseCategory,
   type ExpenseResponsibleFor,
 } from "@/app/actions/expenses";
+import { SoftDecimals } from "@/components/FormattedCurrency";
 import { editExpenseAction } from "@/app/actions/editExpense";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useExpenseModal, type ExpenseToEdit } from "@/components/ExpenseModalProvider";
@@ -817,10 +818,12 @@ export default function AddExpenseForm({
               <span className="text-[2.75rem] font-light leading-none tracking-tight text-on-surface">
                 {Number.isNaN(parseDecimal(amount)) || parseDecimal(amount) <= 0 ? (
                   <span className="text-on-surface/35">
-                    {formatAmountDisplay(0)}
+                    <SoftDecimals>{formatAmountDisplay(0)}</SoftDecimals>
                   </span>
                 ) : (
-                  formatAmountDisplay(parseDecimal(amount))
+                  <SoftDecimals>
+                    {formatAmountDisplay(parseDecimal(amount))}
+                  </SoftDecimals>
                 )}
               </span>
               {currencyMeta.symbolPosition === "after" ? (

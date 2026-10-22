@@ -5,6 +5,7 @@ import {
   CURRENCY_CHANGE_EVENT,
   CURRENCY_STORAGE_KEY,
   DEFAULT_CURRENCY,
+  ensureCurrencyCookie,
   formatCurrency as formatCurrencyValue,
   getCurrencyMeta,
   readStoredCurrency,
@@ -16,7 +17,9 @@ export function useCurrency() {
   const [currency, setCurrencyState] = useState<AppCurrency>(DEFAULT_CURRENCY);
 
   useEffect(() => {
-    setCurrencyState(readStoredCurrency());
+    const stored = readStoredCurrency();
+    setCurrencyState(stored);
+    ensureCurrencyCookie(stored);
 
     const sync = () => setCurrencyState(readStoredCurrency());
     const onStorage = (event: StorageEvent) => {
@@ -45,6 +48,7 @@ export function useCurrency() {
   return {
     currency,
     setCurrency,
+    /** Plain string — use for messages / aria. Prefer FormattedCurrency in UI. */
     format,
     meta: getCurrencyMeta(currency),
   };

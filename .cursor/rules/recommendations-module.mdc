@@ -1,0 +1,37 @@
+---
+description: Invariantes de Recommendations (persistentes + IA, sin chat). Usar al implementar o tocar recomendaciones, aviso suave, balances mes/periodo o ADR-0009.
+globs: docs/product/features/recommendations/**,docs/decisions/ADR-0009*,**/recommendations/**,**/Recommendations*
+alwaysApply: false
+---
+
+# Recommendations module
+
+## Fuente de verdad
+
+Antes de código, leer:
+
+1. `docs/product/features/recommendations/README.md`
+2. `docs/product/features/recommendations/business-rules.md`
+3. `docs/product/features/recommendations/technical-spec.md`
+4. `docs/decisions/ADR-0009-persistent-recommendations-ai.md`
+
+Nombres objetivo: `src/lib/recommendations/*`, ruta `/recommendations`, aviso suave fuera del scroll.
+
+## Invariantes
+
+- Candidatas por **reglas**; IA solo **redacta** (opción A).
+- **Sin chat** ni hilo conversacional.
+- Dashboard **scroll** sin cards/banners/strips de recomendaciones.
+- Entrada Inicio: aviso **suave fuera del scroll**.
+- Persistencia + estados; aceptar no ejecuta movimientos sola.
+- Cifras solo desde hechos/agregados; si faltan → no inventar.
+- Incluir reglas de **ahorro** cuando el contexto lo permita.
+- Balance mes = Fase 2; periodo bajo demanda = Fase 3 (selector, no chat).
+- Guidance (ADR-0008) no se reemplaza ni se mezcla en el mismo módulo.
+
+## Prohibido
+
+- Card de recomendaciones dentro del scroll de Inicio.
+- Dejar que el LLM elija o invente la candidata.
+- Endpoints de chat “para el balance de periodo”.
+- Ejecutar traspasos/aportes sin flujo de dominio.

@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Copy, PencilLine, PiggyBank } from "lucide-react";
@@ -199,7 +200,7 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
               <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                 Resumen del mes
               </p>
-              <p className="mt-1 text-2xl font-bold text-on-surface">{formatCurrency(totalSpent)}</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface"><FormattedCurrency value={totalSpent} /></p>
               <p className="text-sm text-on-surface-variant">Gastado en categorías</p>
             </div>
             <div className="rounded-full bg-primary/10 p-3 text-primary">
@@ -213,7 +214,7 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
                 Presupuesto
               </p>
               <p className="mt-1 text-base font-bold text-on-surface">
-                {configuredCount > 0 ? formatCurrency(totalLimit) : "Sin definir"}
+                {configuredCount > 0 ? <FormattedCurrency value={totalLimit} /> : "Sin definir"}
               </p>
             </div>
             <div className="rounded-2xl bg-surface-low px-3 py-2.5">
@@ -229,7 +230,7 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
                       : "text-rose-600"
                 }`}
               >
-                {configuredCount > 0 ? formatCurrency(totalRemaining) : "—"}
+                {configuredCount > 0 ? <FormattedCurrency value={totalRemaining} /> : "—"}
               </p>
             </div>
           </div>
@@ -283,8 +284,15 @@ export default function BudgetManager({ familyId, initialExpenses }: BudgetManag
 
                     <div className="mt-1 flex items-baseline justify-between gap-2">
                       <p className="text-xs text-on-surface-variant">
-                        {formatCurrency(row.spent)}
-                        {row.limit > 0 ? ` / ${formatCurrency(row.limit)}` : " • sin límite"}
+                        <FormattedCurrency value={row.spent} />
+                        {row.limit > 0 ? (
+                          <>
+                            {" / "}
+                            <FormattedCurrency value={row.limit} />
+                          </>
+                        ) : (
+                          " • sin límite"
+                        )}
                       </p>
                       {row.limit > 0 ? (
                         <span

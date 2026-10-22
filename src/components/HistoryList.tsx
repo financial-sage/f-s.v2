@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -464,7 +465,7 @@ export default function HistoryList({
                         }`}
                     >
                         {isDeposit ? "+" : "-"}
-                        {formatCurrency(Number(expense.amount))}
+                        <FormattedCurrency value={Number(expense.amount)} />
                     </span>
                 </button>
 
@@ -592,7 +593,7 @@ export default function HistoryList({
                                     myAvailableFund >= 0 ? "text-on-surface" : "text-rose-600"
                                 }`}
                             >
-                                {formatCurrency(myAvailableFund)}
+                                <FormattedCurrency value={myAvailableFund} />
                             </span>
                         </div>
 
@@ -607,7 +608,7 @@ export default function HistoryList({
                                             fundLiquidity >= 0 ? "text-on-surface" : "text-rose-600"
                                         }`}
                                     >
-                                        {formatCurrency(fundLiquidity)}
+                                        <FormattedCurrency value={fundLiquidity} />
                                     </span>
                                 </div>
                             ) : (
@@ -620,7 +621,7 @@ export default function HistoryList({
                                             p2pBalance >= 0 ? "text-on-surface" : "text-rose-600"
                                         }`}
                                     >
-                                        {formatCurrency(p2pBalance)}
+                                        <FormattedCurrency value={p2pBalance} />
                                     </span>
                                 </div>
                             )

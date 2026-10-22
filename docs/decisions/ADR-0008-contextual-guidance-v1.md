@@ -28,8 +28,9 @@ Se necesita una primera capa que:
 
 - Hay que documentar pack + skill + rule + entrada en `AGENTS.md`.
 - Home Solo/Couple solo recibe un microenlace y estado de modal.
-- Futuras fases (LLM, recomendaciones persistentes) deben respetar: dominio primero; Guidance/Assistant solo explican contexto autorizado.
-- ADR-0004 (stub) puede alinearse más adelante con esta decisión; ADR-0008 es la fuente operativa de V1.
+- Futuras fases deben respetar: dominio primero; Guidance solo explica contexto autorizado.
+- Recomendaciones persistentes + IA de redacción: [ADR-0009](./ADR-0009-persistent-recommendations-ai.md) (sin chat; no carga el scroll del dashboard).
+- ADR-0004 (stub) puede alinearse más adelante; ADR-0008 sigue siendo la fuente operativa de Guidance V1.
 
 ## Alternativas descartadas
 

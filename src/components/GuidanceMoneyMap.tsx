@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 
 export type MoneyMapPocket = {
   name: string;
@@ -20,13 +21,6 @@ type Props = {
 /** Copper, a touch deeper than brand accent — calm attention, not alarm. */
 const strainedAmountClass =
   "text-[color-mix(in_srgb,var(--accent)_42%,#6b4423)]";
-
-function formatAmount(value: number): string {
-  return value.toLocaleString("es-ES", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-}
 
 export default function GuidanceMoneyMap({
   hasVisibleAccounts,
@@ -102,15 +96,14 @@ export default function GuidanceMoneyMap({
                   <p className="text-[13px] font-light text-on-surface/70">
                     Cuentas
                   </p>
-                  <p
+                  <FormattedCurrency
+                    value={accountsVisibleLiquidity}
                     className={`text-[1.35rem] font-light tabular-nums tracking-tight ${
                       accountStrained || accountEmpty
                         ? strainedAmountClass
                         : "text-on-surface"
                     }`}
-                  >
-                    {formatAmount(accountsVisibleLiquidity)} €
-                  </p>
+                  />
                 </div>
               </div>
             ) : null}
@@ -127,13 +120,12 @@ export default function GuidanceMoneyMap({
                   <p className="text-[13px] font-light text-on-surface/70">
                     Bolsillos
                   </p>
-                  <p
+                  <FormattedCurrency
+                    value={pocketsTotal}
                     className={`text-[1.35rem] font-light tabular-nums tracking-tight ${
                       pocketsTotal < 0 ? strainedAmountClass : "text-on-surface"
                     }`}
-                  >
-                    {formatAmount(pocketsTotal)} €
-                  </p>
+                  />
                 </div>
                 <ul className="mt-3 space-y-2">
                   {pockets.map((pocket) => (
@@ -144,15 +136,14 @@ export default function GuidanceMoneyMap({
                       <span className="min-w-0 truncate text-on-surface/65">
                         «{pocket.name}»
                       </span>
-                      <span
+                      <FormattedCurrency
+                        value={pocket.balance}
                         className={`shrink-0 tabular-nums ${
                           pocket.balance < 0
                             ? strainedAmountClass
                             : "text-on-surface/80"
                         }`}
-                      >
-                        {formatAmount(pocket.balance)} €
-                      </span>
+                      />
                     </li>
                   ))}
                 </ul>
@@ -170,9 +161,10 @@ export default function GuidanceMoneyMap({
                 <p className="text-[13px] font-light text-on-surface/70">
                   Gastado este mes
                 </p>
-                <p className="text-[1.35rem] font-light tabular-nums tracking-tight text-on-surface">
-                  {formatAmount(monthSpent)} €
-                </p>
+                <FormattedCurrency
+                  value={monthSpent}
+                  className="text-[1.35rem] font-light tabular-nums tracking-tight text-on-surface"
+                />
               </div>
               <p className="mt-2 text-[12px] font-light leading-relaxed text-on-surface-variant/80">
                 Solo gastos reales (sin aportes ni traspasos).

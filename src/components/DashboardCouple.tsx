@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import Link from "next/link";
 import { useMemo, useRef, useState, useTransition, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -1356,7 +1357,7 @@ export default function DashboardCouple({
                                         : "text-on-surface"
                                 }`}
                             >
-                                {balanceVisible ? formatCurrency(heroBalance) : "••••••"}
+                                {balanceVisible ? <FormattedCurrency value={heroBalance} /> : "••••••"}
                             </p>
                             <button
                                 type="button"
@@ -1444,7 +1445,7 @@ export default function DashboardCouple({
                                                                 </span>
                                                             </span>
                                                             <span className="shrink-0 text-xs font-medium text-on-surface-variant">
-                                                                {formatCurrency(balance)}
+                                                                <FormattedCurrency value={balance} />
                                                             </span>
                                                         </button>
                                                         <button
@@ -1518,7 +1519,7 @@ export default function DashboardCouple({
                                     <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
                                         {hasVisibleAccounts
                                             ? balanceVisible
-                                                ? formatCurrency(accountsVisibleLiquidity)
+                                                ? <FormattedCurrency value={accountsVisibleLiquidity} />
                                                 : "••••"
                                             : "Abrir"}
                                     </span>
@@ -1542,7 +1543,7 @@ export default function DashboardCouple({
                                     </span>
                                     <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
                                         {balanceVisible
-                                            ? formatCurrency(myAvailableFund)
+                                            ? <FormattedCurrency value={myAvailableFund} />
                                             : "••••"}
                                     </span>
                                 </button>
@@ -1557,7 +1558,7 @@ export default function DashboardCouple({
                                             Cobrar
                                         </span>
                                         <span className="shrink-0 text-[10px] font-medium tabular-nums text-orange-600">
-                                            {formatCurrency(fundOwesMe)}
+                                            <FormattedCurrency value={fundOwesMe} />
                                         </span>
                                         <ChevronRight
                                             size={10}
@@ -1760,7 +1761,7 @@ export default function DashboardCouple({
                                                             isSelected ? "text-primary" : "text-on-surface"
                                                         }`}
                                                     >
-                                                        {formatCurrency(Number(expense.amount))}
+                                                        <FormattedCurrency value={Number(expense.amount)} />
                                                     </span>
                                                 </button>
                                             );
@@ -1780,7 +1781,7 @@ export default function DashboardCouple({
                                                     : 'bg-primary text-on-primary'
                                                     }`}
                                             >
-                                                Recuperar {selectedTotal > 0 ? formatCurrency(selectedTotal) : ''}
+                                                Recuperar {selectedTotal > 0 ? <FormattedCurrency value={selectedTotal} /> : ''}
                                             </button>
                                         );
                                     })()}
@@ -1830,7 +1831,7 @@ export default function DashboardCouple({
                                                         </div>
                                                     </div>
                                                     <span className={`font-bold ${isSelected ? 'text-[#bb1b1b]' : 'text-on-surface'}`}>
-                                                        {formatCurrency(Number(expense.amount))}
+                                                        <FormattedCurrency value={Number(expense.amount)} />
                                                     </span>
                                                 </button>
                                             );
@@ -1850,7 +1851,7 @@ export default function DashboardCouple({
                                                     : 'bg-[#bb1b1b] text-white'
                                                     }`}
                                             >
-                                                Pagar {selectedTotal > 0 ? formatCurrency(selectedTotal) : ''}
+                                                Pagar {selectedTotal > 0 ? <FormattedCurrency value={selectedTotal} /> : ''}
                                             </button>
                                         );
                                     })()}
@@ -1900,7 +1901,7 @@ export default function DashboardCouple({
                                                         </div>
                                                     </div>
                                                     <span className={`font-bold ${isSelected ? 'text-[#0f2d91]' : 'text-on-surface'}`}>
-                                                        {formatCurrency(Number(expense.amount))}
+                                                        <FormattedCurrency value={Number(expense.amount)} />
                                                     </span>
                                                 </button>
                                             );
@@ -1920,7 +1921,7 @@ export default function DashboardCouple({
                                                     : 'bg-[#0f2d91] text-white'
                                                     }`}
                                             >
-                                                Cobrar {selectedTotal > 0 ? formatCurrency(selectedTotal) : ''}
+                                                Cobrar {selectedTotal > 0 ? <FormattedCurrency value={selectedTotal} /> : ''}
                                             </button>
                                         );
                                     })()}
@@ -2038,7 +2039,7 @@ export default function DashboardCouple({
 
                                                 <span className={`shrink-0 text-[15px] font-medium ${isDeposit ? "text-primary" : "text-on-surface"}`}>
                                                     {isDeposit ? "+" : "-"}
-                                                    {formatCurrency(Number(expense.amount))}
+                                                    <FormattedCurrency value={Number(expense.amount)} />
                                                 </span>
                                             </button>
 
@@ -2122,9 +2123,9 @@ export default function DashboardCouple({
                                     <div className="mb-2 flex items-end justify-between">
                                         <div>
                                             <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">Mi Bolsillo</span>
-                                            <span className="text-base font-bold text-on-surface">{formatCurrency(mySpent)}</span>
+                                            <span className="text-base font-bold text-on-surface"><FormattedCurrency value={mySpent} /></span>
                                         </div>
-                                        <span className="text-[11px] font-medium text-outline-variant">de {formatCurrency(myBudget)}</span>
+                                        <span className="text-[11px] font-medium text-outline-variant">de <FormattedCurrency value={myBudget} /></span>
                                     </div>
                                     <div className="h-1.5 w-full rounded-full bg-surface-low">
                                         <div className="h-1.5 rounded-full bg-on-surface/95" style={{ width: `${Math.min((mySpent / myBudget) * 100, 100)}%` }} />
@@ -2137,9 +2138,9 @@ export default function DashboardCouple({
                                             <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-primary">
                                                 {getDefaultSharedFund(sharedFunds)?.name ?? "Bolsillos"}
                                             </span>
-                                            <span className="text-base font-bold text-on-surface">{formatCurrency(fundSpent)}</span>
+                                            <span className="text-base font-bold text-on-surface"><FormattedCurrency value={fundSpent} /></span>
                                         </div>
-                                        <span className="text-[11px] font-medium text-outline-variant">de {formatCurrency(fundBudget)}</span>
+                                        <span className="text-[11px] font-medium text-outline-variant">de <FormattedCurrency value={fundBudget} /></span>
                                     </div>
                                     <div className="h-1.5 w-full rounded-full bg-surface-low">
                                         <div className="h-1.5 rounded-full bg-primary" style={{ width: `${Math.min((fundSpent / fundBudget) * 100, 100)}%` }} />
@@ -2203,7 +2204,7 @@ export default function DashboardCouple({
                                                         {fund.name} te debe
                                                     </span>
                                                     <span className="text-[15px] font-medium text-on-surface">
-                                                        {formatCurrency(amount)}
+                                                        <FormattedCurrency value={amount} />
                                                     </span>
                                                 </div>
                                                 <button
@@ -2228,7 +2229,7 @@ export default function DashboardCouple({
                                                     Total bolsillos
                                                 </span>
                                                 <span className="text-[15px] font-medium text-on-surface">
-                                                    {formatCurrency(fundOwesMe)}
+                                                    <FormattedCurrency value={fundOwesMe} />
                                                 </span>
                                             </div>
                                             <button
@@ -2251,7 +2252,7 @@ export default function DashboardCouple({
                                                     Le debes a {partnerDisplayName}
                                                 </span>
                                                 <span className="text-[15px] font-medium text-on-surface">
-                                                    {formatCurrency(iOwePartner)}
+                                                    <FormattedCurrency value={iOwePartner} />
                                                 </span>
                                             </div>
                                             <button
@@ -2274,7 +2275,7 @@ export default function DashboardCouple({
                                                     {partnerDisplayName} te debe
                                                 </span>
                                                 <span className="text-[15px] font-medium text-on-surface">
-                                                    {formatCurrency(partnerOwesMe)}
+                                                    <FormattedCurrency value={partnerOwesMe} />
                                                 </span>
                                             </div>
                                             <button

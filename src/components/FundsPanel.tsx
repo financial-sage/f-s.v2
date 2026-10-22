@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, LoaderCircle, Plus, Wallet } from "lucide-react";
@@ -196,7 +197,7 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
               </div>
               <div className="flex items-center gap-2">
                 <p className={`text-sm font-bold ${balance < 0 ? "text-red-600" : "text-on-surface"}`}>
-                  {formatCurrency(balance)}
+                  <FormattedCurrency value={balance} />
                 </p>
                 <button
                   type="button"

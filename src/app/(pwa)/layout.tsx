@@ -9,6 +9,7 @@ import RealtimeSync from "@/components/RealtimeSync";
 import StoreHydrator from "@/components/StoreHydrator";
 import FirstRunGate from "@/components/FirstRunGate";
 import PartnerFirstMoveCelebration from "@/components/PartnerFirstMoveCelebration";
+import RecommendationsSoftNotice from "@/components/RecommendationsSoftNotice";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
@@ -53,6 +54,7 @@ export default function PwaLayout({
       <RealtimeSync />
       <PWARegister />
       <UpdateNotifier />
+      <RecommendationsSoftNotice />
       <InstallPrompt />
       {/* Full-bleed paint behind system nav / home indicator (PWA standalone). */}
       <div

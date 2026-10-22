@@ -1,132 +1,100 @@
-# Recommendations
+# Recommendations (persistentes + IA, sin chat)
+
+## Estado
+
+**Definido — 2026-10-22** (ADR-0009). Implementación por fases; **no iniciado** en código.
 
 ## Propósito
 
-La Feature Recommendations proporciona sugerencias contextualizadas para ayudar a la familia a tomar mejores decisiones financieras.
+Recommendations **propone acciones** a partir de la realidad financiera ya conocida, las **persiste**, deja que la familia diga qué hace con ellas (aceptar / posponer / descartar) y, con el tiempo, ofrece **balances** (mes vs mes; periodo bajo demanda).
 
-Cada recomendación surge del análisis continuo de la realidad financiera y tiene como objetivo facilitar decisiones más informadas, nunca sustituir el criterio de la familia.
+No es chat. No sustituye el criterio de la familia. No inventa hechos.
 
----
+La fuente de verdad sigue siendo el dominio. Las **reglas** eligen *qué* recomendar; la **IA** solo escribe el texto CARE sobre hechos ya calculados (opción A, ADR-0009).
 
-# Filosofía
+Guidance V1 (ADR-0008) **explica** el presente. Recommendations **propone y recuerda** en el tiempo.
 
-Las recomendaciones no son consejos genéricos.
-
-Son propuestas de acción basadas en la situación específica de cada familia, explicables y alineadas con sus objetivos, compromisos y prioridades.
-
-El sistema acompaña la decisión; nunca la impone.
+Decisión: [ADR-0009](../../../decisions/ADR-0009-persistent-recommendations-ai.md). Filosofía: [SinDescuadre-IA.md](../../../SinDescuadre-IA.md).
 
 ---
 
-# Objetivos de la Feature
+# Decisiones de producto
 
-Recommendations permite:
+| Tema | Decisión |
+|------|----------|
+| Qué recomienda | Reglas de dominio sobre hechos (margen, cuentas, bolsillos, **ahorros**, ritmo de gasto, …) |
+| Rol de la IA | Solo **redacción** CARE (qué / por qué / impacto); no elige candidatas; no inventa cifras |
+| Persistencia | Sí — estados e historial de interacción |
+| Chat | **No** en esta feature |
+| Dashboard scroll | **Sin** cards/banners/strips de recomendaciones |
+| Entrada UX | Aviso **suave fuera del scroll** + superficie dedicada |
+| Aceptar | Marca estado y/o CTA a flujo existente; **no** ejecuta movimientos sola |
+| Balance mes | Fase 2 — vs mes anterior |
+| Balance periodo | Fase 3 — 3 / 6 / 12 meses o a petición (informe, no chat) |
 
-- identificar oportunidades de mejora;
-- anticipar riesgos;
-- explicar el impacto de posibles decisiones;
-- priorizar acciones relevantes;
-- acompañar la evolución financiera de la familia.
+---
+
+# Fases
+
+## Fase 1 — Recomendaciones persistentes
+
+- Generar candidatas por reglas (incl. **recomendar ahorrar** cuando el contexto lo permita).
+- Redacción IA anclada a hechos.
+- Guardar + ciclo de vida (Nueva → Vista → Aceptada | Pospuesta | Descartada).
+- Aviso suave fuera del scroll + lista/detalle en superficie dedicada.
+- CTA a rutas existentes (`/accounts`, ahorro, historial, `/guidance`, …).
+
+## Fase 2 — Balance mes vs mes anterior
+
+- Agregados del ledger (gasto real, ingresos, ahorro neto, bolsillos) mes N vs N−1.
+- Narrativa IA sobre esos agregados (“cómo cerró este mes respecto al anterior”).
+- Puede emitir o enriquecer una recomendación de tipo “balance” / educativa.
+
+## Fase 3 — Balance de periodo bajo demanda
+
+- Selector 3 / 6 / 12 meses (u otro rango permitido).
+- Dominio calcula agregados e hitos; IA **reconstruye** un balance narrativo.
+- Si no hay historial suficiente → “aún no sabemos” / datos insuficientes, sin inventar.
 
 ---
 
 # Estructura de una recomendación
 
-Toda recomendación debe responder, como mínimo, a las siguientes preguntas:
+Toda recomendación responde, como mínimo:
 
-- ¿Qué propone?
-- ¿Por qué se genera?
-- ¿Qué impacto tendría aplicarla?
-- ¿Qué podría ocurrir si no se actúa?
-
-La explicación es parte esencial de la recomendación.
-
----
-
-# Niveles de prioridad
-
-Las recomendaciones se clasifican según su relevancia:
-
-## Críticas
-
-Existe un riesgo significativo que requiere atención inmediata.
-
-## Importantes
-
-Conviene actuar en un plazo razonable para evitar consecuencias negativas o aprovechar una oportunidad.
-
-## Oportunidades
-
-Acciones que pueden mejorar la situación financiera sin existir una urgencia.
-
-## Educativas
-
-Explicaciones o sugerencias destinadas a mejorar la comprensión financiera de la familia.
+- **Qué** propone
+- **Por qué** (hechos citados)
+- **Impacto** si se actúa (y, si aplica, si no se actúa)
+- **Prioridad** (crítica / importante / oportunidad / educativa)
+- **Estado** en el ciclo de vida
+- **CTA** opcional a ruta de dominio
 
 ---
 
-# Ciclo de vida
+# Relación con otras features
 
-Cada recomendación evoluciona a lo largo del tiempo.
-
-Estados posibles:
-
-- Nueva.
-- Vista.
-- Aceptada.
-- Pospuesta.
-- Descartada.
-- Resuelta automáticamente.
-
-El sistema podrá adaptar futuras recomendaciones teniendo en cuenta estas interacciones.
-
----
-
-# Relación con el Decision Engine
-
-Las recomendaciones constituyen una de las principales salidas del Decision Engine.
-
-Su generación considera, entre otros factores:
-
-- realidad financiera;
-- capacidad disponible;
-- objetivos;
-- compromisos;
-- tendencias;
-- eventos recientes;
-- preferencias de la familia.
-
----
-
-# Relación con otras Features
-
-Recommendations consume información de:
-
-- Dashboard
-- Financial Events
-- Timeline
-- Goals
-- Commitments
-- Family
-- AI Assistant
-
-Y, a su vez, puede enriquecer la experiencia de todas ellas mediante sugerencias contextualizadas.
+| Feature | Relación |
+|---------|----------|
+| Guidance | Explica el momento; no persiste. Recommendations propone y recuerda. |
+| Accounts / Funds / Savings | Hechos de liquidez, bolsillos y ahorro alimentan reglas. |
+| Dashboard | Solo aviso suave fuera del scroll; sin cards en el hero/scroll. |
+| AI Assistant | Fuera de alcance; el informe de periodo **no** es chat. |
+| Decision Engine | Las reglas de candidatas son el puente hacia el motor futuro. |
 
 ---
 
 # Indicadores de éxito
 
-Una recomendación es útil cuando la familia puede comprender:
-
-- por qué se ha generado;
-- cuál es el beneficio esperado;
-- qué impacto tendría seguirla;
-- qué alternativas existen.
-
-La confianza depende tanto de la calidad de la recomendación como de la claridad de su explicación.
+La familia entiende por qué salió la recomendación, qué pasaría al seguirla, y puede actuar o descartar sin culpa. Los balances de periodo se sienten honestos: cifras del sistema + relato CARE, nunca números inventados.
 
 ---
 
-# Resumen
+# Referencias
 
-Recommendations convierte el conocimiento generado por SinDescuadre en acciones concretas y explicables, ayudando a las familias a tomar decisiones financieras con mayor confianza y contexto.
+- [business-rules.md](./business-rules.md)
+- [user-flow.md](./user-flow.md)
+- [technical-spec.md](./technical-spec.md)
+- [implementation-checklist.md](./implementation-checklist.md)
+- [ADR-0009](../../../decisions/ADR-0009-persistent-recommendations-ai.md)
+- [Guidance](../guidance/README.md) (V1 cerrada)
+- [ADR-0008](../../../decisions/ADR-0008-contextual-guidance-v1.md)

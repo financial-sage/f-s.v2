@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
+import { SoftDecimals } from "@/components/FormattedCurrency";
 import { Portal } from "@/components/ui/Portal";
 import type { GuidanceInsight } from "@/lib/decision/insights";
 
@@ -90,7 +91,7 @@ export default function GuidanceWhyModal({ open, onClose, insight }: Props) {
                       {item.label}
                     </dt>
                     <dd className="mt-1 text-[15px] font-light tabular-nums tracking-tight text-on-surface">
-                      {item.value}
+                      <SoftDecimals>{item.value}</SoftDecimals>
                     </dd>
                   </div>
                 ))}

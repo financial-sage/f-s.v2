@@ -160,14 +160,14 @@ Principio: *la mejor respuesta no es la del modelo solo, sino la que combina cor
 
 ### Estado de producto (V1 vs visión completa)
 
-| Capacidad | En documentación / V1 |
+| Capacidad | En documentación / estado |
 | --- | --- |
-| **IA contextual en Inicio** | Explicaciones deterministas (“¿Por qué?”) de realidad registrada, margen y Available — **sin chat ni LLM**; plantillas que citan hechos publicados y admiten “aún no sabemos”. |
-| **Recomendaciones explicables** | Motor contextual mínimo + explicación por plantillas (qué / por qué / impacto); aceptar / posponer / descartar — **LLM diferido**. |
-| **Conversación / AI Assistant** | Visión de producto: chat contextual como copiloto (comprensión, planificación, exploración, aprendizaje). Aún no es el foco del slice V1 de IA contextual. |
+| **IA contextual en Inicio** | **Guidance V1 cerrada** (ADR-0008): explicaciones deterministas (“¿Por qué?”), modal + `/guidance` — **sin chat ni LLM**. |
+| **Recomendaciones persistentes** | **Definido** (ADR-0009): reglas eligen candidatas; **IA solo redacta** CARE; aviso suave fuera del scroll; aceptar / posponer / descartar. Fases: recs → balance mes vs mes → informe de periodo (3/6/12) bajo demanda. **Sin chat.** |
+| **Conversación / AI Assistant** | Visión de producto: chat contextual como copiloto. **Aplazado** (no es el siguiente foco). |
 | **Simulador de decisiones** | Capacidad de producto documentada; exploración de escenarios (“¿qué pasaría si…?”). |
 
-En resumen: **hoy** la IA del producto prioriza **explicar con honestidad** lo que el sistema ya sabe; **hacia adelante** la conversación y la simulación amplían el acompañamiento, siempre sin decidir por la familia ni inventar hechos.
+En resumen: **hoy** Guidance explica con honestidad lo que el sistema ya sabe; **siguiente** Recommendations propone y recuerda (con IA de redacción) e incorpora balances en el tiempo; la conversación libre queda para después — siempre sin decidir por la familia ni inventar hechos.
 
 ---
 
