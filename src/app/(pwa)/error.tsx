@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import VipErrorReportButton from "@/components/VipErrorReportButton";
 
 export default function PwaError({
   error,
@@ -23,14 +24,16 @@ export default function PwaError({
         No pudimos mostrar esta pantalla
       </h1>
       <p className="mt-3 max-w-sm text-[13px] font-light leading-relaxed text-on-surface-variant">
-        Prueba de nuevo. Si sigue pasando, copia el código de abajo y envíalo a
-        soporte.
+        Prueba de nuevo. Si eres VIP, puedes enviarnos el reporte con un toque.
       </p>
       {error.digest ? (
         <p className="mt-4 rounded-2xl border border-outline-variant/25 bg-surface-lowest/90 px-4 py-2 font-mono text-[11px] text-on-surface">
           Digest: {error.digest}
         </p>
       ) : null}
+
+      <VipErrorReportButton error={error} />
+
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"

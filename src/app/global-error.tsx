@@ -1,5 +1,7 @@
 "use client";
 
+import VipErrorReportButton from "@/components/VipErrorReportButton";
+
 export default function GlobalError({
   error,
   reset,
@@ -28,7 +30,7 @@ export default function GlobalError({
             Error inesperado
           </h1>
           <p style={{ marginTop: "0.75rem", fontSize: "0.875rem", opacity: 0.75 }}>
-            Recarga la app. Si se repite, anota el código.
+            Recarga la app. Si eres VIP, envía el reporte.
           </p>
           {error.digest ? (
             <p
@@ -41,22 +43,24 @@ export default function GlobalError({
               Digest: {error.digest}
             </p>
           ) : null}
-          <button
-            type="button"
-            onClick={reset}
-            style={{
-              marginTop: "1.25rem",
-              border: "none",
-              borderRadius: "999px",
-              padding: "0.65rem 1.25rem",
-              background: "#1c2740",
-              color: "#f4f1ea",
-              fontSize: "0.875rem",
-              cursor: "pointer",
-            }}
-          >
-            Reintentar
-          </button>
+          <VipErrorReportButton error={error} variant="bare" />
+          <div style={{ marginTop: "1.25rem" }}>
+            <button
+              type="button"
+              onClick={reset}
+              style={{
+                border: "none",
+                borderRadius: "999px",
+                padding: "0.65rem 1.25rem",
+                background: "#1c2740",
+                color: "#f4f1ea",
+                fontSize: "0.875rem",
+                cursor: "pointer",
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
         </div>
       </body>
     </html>

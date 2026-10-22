@@ -107,6 +107,11 @@ export default function AdminSupportTickets({ tickets }: Props) {
                     <p className="whitespace-pre-wrap text-[13px] font-light leading-relaxed text-on-surface/90">
                       {ticket.message}
                     </p>
+                    {ticket.message.startsWith("[Reporte automático VIP]") ? (
+                      <p className="mt-2 text-[10px] font-medium uppercase tracking-wide text-accent">
+                        Crash report VIP
+                      </p>
+                    ) : null}
                     <dl className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-light text-on-surface-variant">
                       <div>
                         <dt>App</dt>

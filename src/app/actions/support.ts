@@ -34,6 +34,76 @@ async function requireSuperAdmin() {
   return user;
 }
 
+async function userCanReportAppErrors(
+  userId: string,
+  email?: string | null
+): Promise<boolean> {
+  if (await isSuperAdminUser({ userId, email })) return true;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("profiles")
+    .select("is_vip")
+    .eq("id", userId)
+    .maybeSingle();
+  return (data as { is_vip?: boolean | null } | null)?.is_vip === true;
+}
+
+async function insertSupportTicket(input: {
+  userId: string;
+  email: string;
+  familyId: string | null;
+  message: string;
+  location?: string | null;
+  userAgent?: string | null;
+  appVersion?: string | null;
+}): Promise<
+  | { ok: true; ticketNumber: string }
+  | { ok: false; error: string }
+> {
+  const admin = createAdminClient();
+  const { data: ticketNumber, error: seqError } = await admin.rpc(
+    "next_support_ticket_number" as never
+  );
+
+  if (seqError || typeof ticketNumber !== "string" || !ticketNumber) {
+    console.error("[support] ticket number", seqError?.message);
+    return { ok: false, error: "No se pudo generar el número de incidencia." };
+  }
+
+  const now = new Date().toISOString();
+  const { error: insertError } = await admin.from("support_tickets").insert({
+    ticket_number: ticketNumber,
+    user_id: input.userId,
+    family_id: input.familyId,
+    email: input.email,
+    message: input.message,
+    location: input.location?.trim().slice(0, 500) || null,
+    user_agent: input.userAgent?.trim().slice(0, 500) || null,
+    app_version: input.appVersion?.trim().slice(0, 40) || null,
+    status: "new",
+    created_at: now,
+    updated_at: now,
+  } as never);
+
+  if (insertError) {
+    console.error("[support] insert", insertError.message);
+    return { ok: false, error: "No se pudo guardar la incidencia." };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/profile/support");
+  return { ok: true, ticketNumber };
+}
+
+export async function canReportAppErrorsAction(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  return userCanReportAppErrors(user.id, user.email);
+}
+
 export async function createSupportTicketAction(input: {
   message: string;
   location?: string | null;
@@ -74,40 +144,83 @@ export async function createSupportTicketAction(input: {
     .eq("id", user.id)
     .maybeSingle();
 
-  const admin = createAdminClient();
-  const { data: ticketNumber, error: seqError } = await admin.rpc(
-    "next_support_ticket_number" as never
-  );
-
-  if (seqError || typeof ticketNumber !== "string" || !ticketNumber) {
-    console.error("[support] ticket number", seqError?.message);
-    return { ok: false, error: "No se pudo generar el número de incidencia." };
-  }
-
-  const now = new Date().toISOString();
-  const { error: insertError } = await admin.from("support_tickets").insert({
-    ticket_number: ticketNumber,
-    user_id: user.id,
-    family_id:
-      (profile as { family_id?: string | null } | null)?.family_id ?? null,
+  return insertSupportTicket({
+    userId: user.id,
     email,
+    familyId:
+      (profile as { family_id?: string | null } | null)?.family_id ?? null,
     message,
-    location: input.location?.trim().slice(0, 500) || null,
-    user_agent: input.userAgent?.trim().slice(0, 500) || null,
-    app_version: input.appVersion?.trim().slice(0, 40) || null,
-    status: "new",
-    created_at: now,
-    updated_at: now,
-  } as never);
+    location: input.location,
+    userAgent: input.userAgent,
+    appVersion: input.appVersion,
+  });
+}
 
-  if (insertError) {
-    console.error("[support] insert", insertError.message);
-    return { ok: false, error: "No se pudo guardar la incidencia." };
+/** VIP / superadmin: one-tap crash report from the error boundary. */
+export async function reportVipAppErrorAction(input: {
+  digest?: string | null;
+  message?: string | null;
+  stack?: string | null;
+  location?: string | null;
+  userAgent?: string | null;
+  appVersion?: string | null;
+}): Promise<
+  | { ok: true; ticketNumber: string }
+  | { ok: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: "Debes iniciar sesión." };
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/profile/support");
-  return { ok: true, ticketNumber };
+  if (!(await userCanReportAppErrors(user.id, user.email))) {
+    return { ok: false, error: "Solo disponible para cuentas VIP." };
+  }
+
+  const email = (user.email ?? "").trim();
+  if (!email) {
+    return { ok: false, error: "Tu cuenta no tiene email asociado." };
+  }
+
+  const digest = String(input.digest ?? "").trim() || "—";
+  const errMsg = String(input.message ?? "").trim() || "(sin mensaje)";
+  const stack = String(input.stack ?? "")
+    .trim()
+    .slice(0, 2500);
+  const location = String(input.location ?? "").trim() || "—";
+
+  const message = [
+    "[Reporte automático VIP]",
+    `Digest: ${digest}`,
+    `Mensaje: ${errMsg.slice(0, 500)}`,
+    `Pantalla: ${location.slice(0, 400)}`,
+    "",
+    "Stack:",
+    stack || "(sin stack en el cliente)",
+  ]
+    .join("\n")
+    .slice(0, 4000);
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("family_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return insertSupportTicket({
+    userId: user.id,
+    email,
+    familyId:
+      (profile as { family_id?: string | null } | null)?.family_id ?? null,
+    message,
+    location,
+    userAgent: input.userAgent,
+    appVersion: input.appVersion,
+  });
 }
 
 export async function listSupportTicketsForAdmin(options?: {
