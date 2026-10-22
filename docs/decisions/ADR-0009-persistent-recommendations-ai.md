@@ -25,6 +25,10 @@ El chat / AI Assistant **no** está en alcance todavía. Se necesita IA para **r
    - **Fase 1** — Recs persistentes (reglas + redacción IA + estados + aviso suave).
    - **Fase 2** — Balance mes vs mes anterior.
    - **Fase 3** — Balance de periodo (3 / 6 / 12 o a petición) con reconstrucción narrativa IA.
+9. **Monetización:** Recommendations es feature **Premium**. Prueba gratis:
+   - **Individual:** 7 días desde el primer movimiento del hogar solo.
+   - **Pareja:** incluido en el trial de pareja de 7 días; bloqueado en pausa / pre-trial.
+   Detalle en `docs/business/premium-model.md` y business-rules del pack.
 
 ## Consecuencias
 

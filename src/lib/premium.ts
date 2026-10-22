@@ -4,6 +4,8 @@ export const FREE_EXTRA_FUNDS_LIMIT = 1;
 export const FREE_ACCOUNTS_LIMIT = 1;
 export const FREE_FIXED_EXPENSES_LIMIT = 3;
 export const COUPLE_TRIAL_DAYS = 7;
+/** Solo free trial for Recommendations (same length as couple trial). */
+export const RECOMMENDATIONS_SOLO_TRIAL_DAYS = 7;
 
 export type CoupleMode =
   | "solo"
@@ -12,6 +14,13 @@ export type CoupleMode =
   | "couple_trial"
   | "couple_paused"
   | "couple_premium";
+
+/** How Recommendations (Premium feature) is unlocked right now. */
+export type RecommendationsAccess =
+  | "premium"
+  | "couple_trial"
+  | "solo_trial"
+  | "locked";
 
 export type HouseholdEntitlement = {
   familyId: string;
@@ -32,6 +41,14 @@ export type HouseholdEntitlement = {
   unlimitedQuotas: boolean;
   /** Whole seconds left in trial; null if not in trial. */
   trialSecondsRemaining: number | null;
+  /**
+   * Recommendations (IA + aviso + /recommendations) — Premium feature.
+   * Unlocked by household Premium, couple trial, or solo free trial.
+   */
+  canUseRecommendations: boolean;
+  recommendationsAccess: RecommendationsAccess;
+  /** Seconds left in solo/couple trial that unlock Recommendations; null if Premium or locked. */
+  recommendationsTrialSecondsRemaining: number | null;
 };
 
 export type PremiumSource = "vip" | "stub" | "campaign" | "paid" | "unknown";
@@ -72,6 +89,9 @@ export const PREMIUM_REQUIRED_MESSAGE =
 
 export const COUPLE_PAUSED_MESSAGE =
   "El modo pareja está en pausa. Activa Premium con el código de familia para seguir compartiendo.";
+
+export const RECOMMENDATIONS_PREMIUM_MESSAGE =
+  "Las recomendaciones con IA forman parte de Premium. Activa Premium o usa tu prueba gratis mientras esté disponible.";
 
 function memberCount(row: Pick<FamilyBillingRow, "user_1_id" | "user_2_id">) {
   return row.user_2_id ? 2 : 1;
@@ -130,6 +150,28 @@ export function resolveHouseholdEntitlement(
   const unlimitedQuotas =
     premium || coupleMode === "couple_trial" || coupleMode === "couple_pre_trial";
 
+  // Recommendations = Premium (+ free trial: couple 7d, or solo 7d from first movement).
+  let recommendationsAccess: RecommendationsAccess = "locked";
+  let recommendationsTrialSecondsRemaining: number | null = null;
+
+  if (premium) {
+    recommendationsAccess = "premium";
+  } else if (coupleMode === "couple_trial") {
+    recommendationsAccess = "couple_trial";
+    recommendationsTrialSecondsRemaining = trialSecs;
+  } else if (count < 2 && row.first_movement_at) {
+    const started = Date.parse(row.first_movement_at);
+    if (Number.isFinite(started)) {
+      const endsMs =
+        started + RECOMMENDATIONS_SOLO_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+      const soloSecs = Math.floor((endsMs - nowMs) / 1000);
+      if (soloSecs > 0) {
+        recommendationsAccess = "solo_trial";
+        recommendationsTrialSecondsRemaining = soloSecs;
+      }
+    }
+  }
+
   return {
     familyId: row.id,
     memberCount: count,
@@ -145,6 +187,9 @@ export function resolveHouseholdEntitlement(
     canUseCoupleFeatures,
     unlimitedQuotas,
     trialSecondsRemaining: coupleMode === "couple_trial" ? trialSecs : null,
+    canUseRecommendations: recommendationsAccess !== "locked",
+    recommendationsAccess,
+    recommendationsTrialSecondsRemaining,
   };
 }
 

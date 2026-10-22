@@ -176,9 +176,9 @@ export async function assertCoupleFeaturesAllowed(familyId: string) {
 }
 
 /**
- * After inserting an expense/income: if this is the household's first movement
- * and both members are present, start the 7-day trial and queue celebration
- * for the partner.
+ * After inserting an expense/income:
+ * - Solo: stamp first_movement_at (starts Recommendations solo free trial).
+ * - Couple: start the 7-day couple trial + partner celebration.
  */
 export async function maybeStartCoupleTrialOnFirstMovement(input: {
   familyId: string;
@@ -187,7 +187,29 @@ export async function maybeStartCoupleTrialOnFirstMovement(input: {
 }): Promise<{ started: boolean; kind: "expense" | "income" }> {
   const admin = getSupabaseAdminClient();
   const row = await loadFamilyBillingRow(input.familyId);
-  if (!row || !row.user_2_id) return { started: false, kind: input.kind };
+  if (!row) return { started: false, kind: input.kind };
+
+  // Solo household: only mark first movement (Recommendations 7-day free trial).
+  if (!row.user_2_id) {
+    if (row.first_movement_at) {
+      return { started: false, kind: input.kind };
+    }
+    const started = new Date();
+    const { error } = await admin
+      .from("families")
+      .update({
+        first_movement_at: started.toISOString(),
+        first_movement_by: input.actorUserId,
+        updated_at: started.toISOString(),
+      } as never)
+      .eq("id", input.familyId)
+      .is("first_movement_at", null);
+    if (error) {
+      return { started: false, kind: input.kind };
+    }
+    return { started: true, kind: input.kind };
+  }
+
   if (row.first_movement_at || row.couple_trial_started_at) {
     return { started: false, kind: input.kind };
   }

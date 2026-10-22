@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { isSuperAdminUser } from "@/lib/admin";
-import { getHomePageData } from "@/lib/dashboard";
+import { getHomePageData, type HomePageData } from "@/lib/dashboard";
+import { RECOMMENDATIONS_PREMIUM_MESSAGE } from "@/lib/premium";
 import { recommendationContextFromHome } from "@/lib/recommendations/from-home";
 import {
   forceDraftOpenRecommendationsWithGemini,
@@ -19,9 +20,21 @@ async function requireFamily() {
   return { ok: true as const, home: home.data };
 }
 
+async function requireRecommendationsAccess(home: HomePageData) {
+  if (home.entitlement?.canUseRecommendations) return { ok: true as const };
+  const allowed = await isSuperAdminUser({
+    userId: home.userId,
+    email: home.userEmail,
+  });
+  if (allowed) return { ok: true as const };
+  return { ok: false as const, error: RECOMMENDATIONS_PREMIUM_MESSAGE };
+}
+
 export async function syncMyRecommendationsAction() {
   const gate = await requireFamily();
   if (!gate.ok) return { ok: false as const, error: gate.reason };
+  const access = await requireRecommendationsAccess(gate.home);
+  if (!access.ok) return { ok: false as const, error: access.error };
 
   const ctx = recommendationContextFromHome(gate.home);
   const rows = await syncRecommendationsForFamily(gate.home.familyId, ctx);
@@ -67,6 +80,8 @@ export async function forceGeminiRecommendationsAction(): Promise<
 export async function markRecommendationSeenAction(id: string) {
   const gate = await requireFamily();
   if (!gate.ok) return { ok: false as const, error: gate.reason };
+  const access = await requireRecommendationsAccess(gate.home);
+  if (!access.ok) return { ok: false as const, error: access.error };
   const result = await updateRecommendationStatus(
     id,
     gate.home.familyId,
@@ -80,6 +95,8 @@ export async function markRecommendationSeenAction(id: string) {
 export async function acceptRecommendationAction(id: string) {
   const gate = await requireFamily();
   if (!gate.ok) return { ok: false as const, error: gate.reason };
+  const access = await requireRecommendationsAccess(gate.home);
+  if (!access.ok) return { ok: false as const, error: access.error };
   const result = await updateRecommendationStatus(
     id,
     gate.home.familyId,
@@ -93,6 +110,8 @@ export async function acceptRecommendationAction(id: string) {
 export async function deferRecommendationAction(id: string) {
   const gate = await requireFamily();
   if (!gate.ok) return { ok: false as const, error: gate.reason };
+  const access = await requireRecommendationsAccess(gate.home);
+  if (!access.ok) return { ok: false as const, error: access.error };
   const result = await updateRecommendationStatus(
     id,
     gate.home.familyId,
@@ -106,6 +125,8 @@ export async function deferRecommendationAction(id: string) {
 export async function dismissRecommendationAction(id: string) {
   const gate = await requireFamily();
   if (!gate.ok) return { ok: false as const, error: gate.reason };
+  const access = await requireRecommendationsAccess(gate.home);
+  if (!access.ok) return { ok: false as const, error: access.error };
   const result = await updateRecommendationStatus(
     id,
     gate.home.familyId,

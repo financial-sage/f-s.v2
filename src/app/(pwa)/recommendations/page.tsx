@@ -5,8 +5,10 @@ import { ArrowLeft, Sparkles, WandSparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import RecommendationActions from "@/components/RecommendationActions";
 import RecommendationsAdminTools from "@/components/RecommendationsAdminTools";
+import RecommendationsPremiumGate from "@/components/RecommendationsPremiumGate";
 import { isSuperAdminUser } from "@/lib/admin";
 import { getHomePageData } from "@/lib/dashboard";
+import { formatTrialDaysLeft } from "@/lib/premium";
 import { recommendationContextFromHome } from "@/lib/recommendations/from-home";
 import {
   listActiveRecommendations,
@@ -28,15 +30,34 @@ export default async function RecommendationsPage() {
     redirect(home.reason === "unauthenticated" ? "/login" : "/onboarding");
   }
 
-  const ctx = recommendationContextFromHome(home.data);
-  await syncRecommendationsForFamily(home.data.familyId, ctx);
-  await markOpenRecommendationsSeen(home.data.familyId);
-  const rows = await listActiveRecommendations(home.data.familyId);
-
+  const entitlement = home.data.entitlement;
   const isSuperAdmin = await isSuperAdminUser({
     userId: home.data.userId,
     email: home.data.userEmail,
   });
+
+  const canUse =
+    Boolean(entitlement?.canUseRecommendations) || isSuperAdmin;
+
+  let rows: Awaited<ReturnType<typeof listActiveRecommendations>> = [];
+  if (canUse) {
+    const ctx = recommendationContextFromHome(home.data);
+    await syncRecommendationsForFamily(home.data.familyId, ctx);
+    await markOpenRecommendationsSeen(home.data.familyId);
+    rows = await listActiveRecommendations(home.data.familyId);
+  }
+
+  const trialHint = formatTrialDaysLeft(
+    entitlement?.recommendationsTrialSecondsRemaining ?? null
+  );
+  const accessLabel =
+    entitlement?.recommendationsAccess === "couple_trial"
+      ? "Prueba pareja"
+      : entitlement?.recommendationsAccess === "solo_trial"
+        ? "Prueba individual"
+        : entitlement?.recommendationsAccess === "premium"
+          ? "Premium"
+          : null;
 
   return (
     <div className="relative min-h-dvh bg-page-gradient pb-[calc(var(--fab-clearance)+1rem)]">
@@ -65,9 +86,21 @@ export default async function RecommendationsPage() {
           más tarde o descartar. No ejecutamos movimientos por ti.
         </p>
 
+        {canUse && accessLabel && trialHint ? (
+          <p className="text-[11px] font-light text-accent/90">
+            {accessLabel}: {trialHint}
+          </p>
+        ) : null}
+
         <RecommendationsAdminTools isSuperAdmin={isSuperAdmin} />
 
-        {rows.length === 0 ? (
+        {!canUse ? (
+          <RecommendationsPremiumGate
+            access={entitlement?.recommendationsAccess ?? "locked"}
+            inviteCode={entitlement?.inviteCode}
+            isCouple={(entitlement?.memberCount ?? home.data.familyMemberCount) >= 2}
+          />
+        ) : rows.length === 0 ? (
           <div className="rounded-[1.85rem] border border-glass-border bg-surface-lowest/90 px-5 py-8 text-center shadow-[0_12px_28px_rgba(43,52,55,0.06)]">
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/15 text-accent">
               <Sparkles size={18} strokeWidth={1.75} />

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isSuperAdminUser } from "@/lib/admin";
 import { getHomePageData } from "@/lib/dashboard";
 import { recommendationContextFromHome } from "@/lib/recommendations/from-home";
 import {
@@ -11,7 +12,18 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const home = await getHomePageData();
   if (!home.ok) {
-    return NextResponse.json({ count: 0 }, { status: 200 });
+    return NextResponse.json({ count: 0, locked: true }, { status: 200 });
+  }
+
+  const isSuperAdmin = await isSuperAdminUser({
+    userId: home.data.userId,
+    email: home.data.userEmail,
+  });
+  const canUse =
+    Boolean(home.data.entitlement?.canUseRecommendations) || isSuperAdmin;
+
+  if (!canUse) {
+    return NextResponse.json({ count: 0, locked: true }, { status: 200 });
   }
 
   // Ensure candidates exist so the soft notice can appear without visiting the page.
@@ -21,5 +33,5 @@ export async function GET() {
     preferTemplate: true,
   });
   const count = await countActiveRecommendations(home.data.familyId);
-  return NextResponse.json({ count });
+  return NextResponse.json({ count, locked: false });
 }

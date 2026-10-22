@@ -55,6 +55,13 @@ export default function PremiumBenefitsModal({
             <li className="flex items-start gap-2 rounded-2xl border border-outline-variant/25 bg-surface-low px-3 py-3">
               <Sparkles size={16} className="mt-0.5 shrink-0 text-accent" />
               <span>
+                Recomendaciones con IA (aviso en inicio + propuestas
+                accionables)
+              </span>
+            </li>
+            <li className="flex items-start gap-2 rounded-2xl border border-outline-variant/25 bg-surface-low px-3 py-3">
+              <Sparkles size={16} className="mt-0.5 shrink-0 text-accent" />
+              <span>
                 Bolsillos, cuentas y gastos fijos{" "}
                 <span className="font-medium">sin límites free</span>
               </span>

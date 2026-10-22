@@ -24,12 +24,13 @@ export default function RecommendationsAdminTools({ isSuperAdmin }: Props) {
     setGateError(null);
     startTransition(async () => {
       const res = await forceGeminiRecommendationsAction();
-      if (res.result) {
+      if (res.ok) {
         setResult(res.result);
+        setGateError(null);
         setModalOpen(true);
       } else {
         setGateError(res.error);
-        setResult(null);
+        setResult(res.result ?? null);
         setModalOpen(true);
       }
       router.refresh();

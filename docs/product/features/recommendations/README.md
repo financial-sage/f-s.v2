@@ -2,7 +2,7 @@
 
 ## Estado
 
-**Definido — 2026-10-22** (ADR-0009). Implementación por fases; **no iniciado** en código.
+**Definido — 2026-10-22** (ADR-0009). Fase 1 en código; gate Premium + pruebas gratis (individual / pareja).
 
 ## Propósito
 
@@ -29,6 +29,7 @@ Decisión: [ADR-0009](../../../decisions/ADR-0009-persistent-recommendations-ai.
 | Dashboard scroll | **Sin** cards/banners/strips de recomendaciones |
 | Entrada UX | Aviso **suave fuera del scroll** + superficie dedicada |
 | Aceptar | Marca estado y/o CTA a flujo existente; **no** ejecuta movimientos sola |
+| Monetización | **Premium** + prueba gratis (individual 7d / pareja = trial de pareja) |
 | Balance mes | Fase 2 — vs mes anterior |
 | Balance periodo | Fase 3 — 3 / 6 / 12 meses o a petición (informe, no chat) |
 

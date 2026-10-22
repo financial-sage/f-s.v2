@@ -50,10 +50,18 @@ Implementación y rutas: [technical-spec.md](./technical-spec.md). Decisión: [A
 26. “Aceptar” marca estado y, si hay CTA, navega al flujo de dominio (ahorro, cuentas, historial, etc.).
 27. Ninguna acción de Recommendations escribe hechos financieros sin pasar por el flujo de dominio correspondiente con confirmación del usuario.
 
+## Monetización (Premium)
+
+33. Recommendations es feature **Premium** (aviso suave, `/recommendations`, redacción IA, balances F2/F3).
+34. **Individual:** prueba gratis **7 días** desde el primer gasto/ingreso; luego requiere Premium.
+35. **Pareja:** incluido en el **trial de pareja de 7 días** y en Premium del hogar; bloqueado en pre-trial y en pareja en pausa.
+36. Sin acceso → UI de gate + paywall; no sync/Gemini ni soft notice (`count: 0`).
+37. Superadmin puede bypassear el gate (herramientas de debug IA).
+
 ## Prohibido
 
-28. Dejar que el LLM elija o invente la candidata sin regla de dominio (salvo ADR futuro).
-29. Card de recomendaciones dentro del scroll del dashboard.
-30. Chat / streaming conversacional en esta feature.
-31. Ejecutar traspasos o aportes “en nombre del usuario” sin UI de dominio.
-32. Presentar un balance de periodo como contabilidad auditada si los datos son parciales sin aclararlo.
+38. Dejar que el LLM elija o invente la candidata sin regla de dominio (salvo ADR futuro).
+39. Card de recomendaciones dentro del scroll del dashboard.
+40. Chat / streaming conversacional en esta feature.
+41. Ejecutar traspasos o aportes “en nombre del usuario” sin UI de dominio.
+42. Presentar un balance de periodo como contabilidad auditada si los datos son parciales sin aclararlo.
