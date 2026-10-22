@@ -9,7 +9,7 @@ export async function renderRecommendationCopy(
 ): Promise<RecommendationCopy> {
   if (isGeminiConfigured()) {
     const drafted = await draftCopyWithGemini(candidate, speech);
-    if (drafted) return drafted;
+    if (drafted.ok) return drafted.copy;
   }
   return templateCopyForCandidate(candidate);
 }

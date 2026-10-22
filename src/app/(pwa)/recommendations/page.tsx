@@ -4,9 +4,10 @@ import Link from "next/link";
 import { ArrowLeft, Sparkles, WandSparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import RecommendationActions from "@/components/RecommendationActions";
+import RecommendationsAdminTools from "@/components/RecommendationsAdminTools";
+import { isSuperAdminUser } from "@/lib/admin";
 import { getHomePageData } from "@/lib/dashboard";
 import { recommendationContextFromHome } from "@/lib/recommendations/from-home";
-import { isGeminiConfigured } from "@/lib/recommendations/gemini";
 import {
   listActiveRecommendations,
   markOpenRecommendationsSeen,
@@ -32,7 +33,10 @@ export default async function RecommendationsPage() {
   await markOpenRecommendationsSeen(home.data.familyId);
   const rows = await listActiveRecommendations(home.data.familyId);
 
-  const geminiOn = isGeminiConfigured();
+  const isSuperAdmin = await isSuperAdminUser({
+    userId: home.data.userId,
+    email: home.data.userEmail,
+  });
 
   return (
     <div className="relative min-h-dvh bg-page-gradient pb-[calc(var(--fab-clearance)+1rem)]">
@@ -60,11 +64,8 @@ export default async function RecommendationsPage() {
           Propuestas concretas a partir de tu situación. Tú decides: aceptar,
           más tarde o descartar. No ejecutamos movimientos por ti.
         </p>
-        <p className="text-[11px] font-light text-on-surface-variant/70">
-          {geminiOn
-            ? "Gemini activo: al abrir esta página regeneramos el texto con IA (varita = hecho por IA). Si falla la API, queda plantilla."
-            : "Gemini no visible en el servidor (pon GEMINI_API_KEY en .env.local y reinicia `next dev`)."}
-        </p>
+
+        <RecommendationsAdminTools isSuperAdmin={isSuperAdmin} />
 
         {rows.length === 0 ? (
           <div className="rounded-[1.85rem] border border-glass-border bg-surface-lowest/90 px-5 py-8 text-center shadow-[0_12px_28px_rgba(43,52,55,0.06)]">

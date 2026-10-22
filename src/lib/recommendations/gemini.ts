@@ -11,6 +11,10 @@ function getModel(): string {
   return process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
 }
 
+export type GeminiDraftResult =
+  | { ok: true; copy: RecommendationCopy }
+  | { ok: false; error: string };
+
 function parseJsonObject(text: string): Record<string, unknown> | null {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -32,17 +36,18 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
 }
 
 /**
- * Draft CARE copy with Gemini free-tier model. Returns null on any failure
- * so callers can fall back to templates.
+ * Draft CARE copy with Gemini free-tier model.
+ * Returns structured ok/error so callers (and superadmin tools) can surface failures.
  */
 export async function draftCopyWithGemini(
   candidate: RecommendationCandidate,
   speech?: RecommendationSpeech
-): Promise<RecommendationCopy | null> {
+): Promise<GeminiDraftResult> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    console.warn("[recommendations/gemini] GEMINI_API_KEY missing");
-    return null;
+    const error = "GEMINI_API_KEY no está configurada en el servidor";
+    console.warn("[recommendations/gemini]", error);
+    return { ok: false, error };
   }
 
   const localeBlock =
@@ -52,9 +57,10 @@ export async function draftCopyWithGemini(
     ? `Si mencionas un importe, usa exactamente un valor de los hechos y el símbolo ${speech.meta.symbol} (${speech.meta.code}).`
     : "Si mencionas un importe, usa exactamente un valor de los hechos con su símbolo de moneda.";
 
+  const model = getModel();
+
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const model = getModel();
     const prompt = `Eres el copiloto de SinDescuadre (finanzas en pareja/familia). Redacta UNA recomendación, tono CARE: claridad, acción, tranquilidad, sin culpa ni alarmismo.
 
 ${localeBlock}
@@ -80,18 +86,16 @@ No uses markdown. ${moneyHint}`;
 
     const text = response.text;
     if (!text) {
-      console.warn("[recommendations/gemini] empty response", { model, ruleId: candidate.ruleId });
-      return null;
+      const error = `Respuesta vacía del modelo (${model}) para ${candidate.ruleId}`;
+      console.warn("[recommendations/gemini]", error);
+      return { ok: false, error };
     }
 
     const parsed = parseJsonObject(text);
     if (!parsed) {
-      console.warn("[recommendations/gemini] JSON parse failed", {
-        model,
-        ruleId: candidate.ruleId,
-        preview: text.slice(0, 180),
-      });
-      return null;
+      const error = `JSON inválido (${model}/${candidate.ruleId}): ${text.slice(0, 180)}`;
+      console.warn("[recommendations/gemini]", error);
+      return { ok: false, error };
     }
 
     const title = String(parsed.title ?? "").trim();
@@ -106,27 +110,27 @@ No uses markdown. ${moneyHint}`;
       : [];
 
     if (!title || !body) {
-      console.warn("[recommendations/gemini] missing title/body", {
-        ruleId: candidate.ruleId,
-      });
-      return null;
+      const error = `Falta title/body (${candidate.ruleId})`;
+      console.warn("[recommendations/gemini]", error);
+      return { ok: false, error };
     }
 
     const draft = { title, body, why, impact };
     if (!copyRespectsFacts(draft, candidate.facts)) {
       console.warn(
-        "[recommendations/gemini] rejected: money amounts not in facts",
+        "[recommendations/gemini] money amounts not in facts (accepted anyway)",
         { ruleId: candidate.ruleId, draft, facts: candidate.facts }
       );
-      // Still accept — better to show IA copy than stay forever on template.
     }
 
-    return { ...draft, source: "gemini" };
+    return {
+      ok: true,
+      copy: { ...draft, source: "gemini" },
+    };
   } catch (err) {
-    console.error(
-      "[recommendations/gemini] call failed",
-      err instanceof Error ? err.message : err
-    );
-    return null;
+    const message = err instanceof Error ? err.message : String(err);
+    const error = `Llamada Gemini falló (${model}/${candidate.ruleId}): ${message}`;
+    console.error("[recommendations/gemini]", error);
+    return { ok: false, error };
   }
 }

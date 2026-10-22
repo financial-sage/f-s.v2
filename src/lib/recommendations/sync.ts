@@ -1,13 +1,18 @@
 import { createClient } from "@/utils/supabase/server";
 import { renderRecommendationCopy } from "./copy";
-import { isGeminiConfigured } from "./gemini";
+import { draftCopyWithGemini, isGeminiConfigured } from "./gemini";
 import { getRecommendationSpeech } from "./locale";
 import { selectRecommendationCandidates } from "./rules";
 import type {
+  ForceGeminiDraftItem,
+  ForceGeminiDraftResult,
+  RecommendationCandidate,
   RecommendationContext,
   RecommendationRecord,
   RecommendationStatus,
 } from "./types";
+
+export type { ForceGeminiDraftItem, ForceGeminiDraftResult };
 
 const DISMISS_COOLDOWN_DAYS = 14;
 const DEFER_DAYS = 3;
@@ -245,6 +250,148 @@ export async function syncRecommendationsForFamily(
   }
 
   return listActiveRecommendations(familyId);
+}
+
+/**
+ * Superadmin / QA: force Gemini rewrite on every open recommendation
+ * (ignores same-locale skip). Collects per-rule errors for the debug modal.
+ */
+export async function forceDraftOpenRecommendationsWithGemini(
+  familyId: string,
+  ctx: RecommendationContext
+): Promise<ForceGeminiDraftResult> {
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
+  const geminiConfigured = isGeminiConfigured();
+
+  if (!geminiConfigured) {
+    return {
+      ok: false,
+      geminiConfigured: false,
+      model,
+      items: [],
+      upgraded: 0,
+      failed: 0,
+      message:
+        "GEMINI_API_KEY no está visible en el servidor. Revisa env y reinicia.",
+    };
+  }
+
+  // Ensure open rows exist from current domain rules first.
+  await syncRecommendationsForFamily(familyId, ctx, { preferTemplate: true });
+
+  const supabase = await createClient();
+  const speech = await getRecommendationSpeech();
+  const candidates = selectRecommendationCandidates(ctx);
+  const byRule = new Map<string, RecommendationCandidate>(
+    candidates.map((c) => [c.ruleId, c])
+  );
+
+  const { data: openRows, error: listError } = await supabase
+    .from("family_recommendations")
+    .select("*")
+    .eq("family_id", familyId)
+    .in("status", ACTIVE_STATUSES)
+    .order("created_at", { ascending: false });
+
+  if (listError) {
+    return {
+      ok: false,
+      geminiConfigured: true,
+      model,
+      items: [],
+      upgraded: 0,
+      failed: 0,
+      message: `No se pudieron listar recomendaciones: ${listError.message}`,
+    };
+  }
+
+  const rows = (openRows ?? []) as DbRow[];
+  if (rows.length === 0) {
+    return {
+      ok: false,
+      geminiConfigured: true,
+      model,
+      items: [],
+      upgraded: 0,
+      failed: 0,
+      message:
+        "No hay recomendaciones activas. El contexto actual no dispara ninguna regla.",
+    };
+  }
+
+  const items: ForceGeminiDraftItem[] = [];
+  let upgraded = 0;
+  let failed = 0;
+  const now = new Date().toISOString();
+
+  for (const row of rows) {
+    const base = byRule.get(row.rule_id as RecommendationCandidate["ruleId"]);
+    const candidate: RecommendationCandidate = base
+      ? {
+          ...base,
+          facts: {
+            ...base.facts,
+            ...((row.facts ?? {}) as RecommendationCandidate["facts"]),
+            currency: speech.currency,
+          },
+        }
+      : {
+          ruleId: row.rule_id as RecommendationCandidate["ruleId"],
+          priority: row.priority,
+          facts: {
+            ...((row.facts ?? {}) as RecommendationCandidate["facts"]),
+            currency: speech.currency,
+          },
+          ctaHref: row.cta_href,
+          ctaLabel: row.cta_label,
+        };
+
+    const drafted = await draftCopyWithGemini(candidate, speech);
+    if (!drafted.ok) {
+      failed += 1;
+      items.push({ ruleId: row.rule_id, ok: false, error: drafted.error });
+      continue;
+    }
+
+    const { error: updateError } = await supabase
+      .from("family_recommendations")
+      .update({
+        title: drafted.copy.title,
+        body: drafted.copy.body,
+        why: drafted.copy.why,
+        impact: drafted.copy.impact,
+        copy_source: drafted.copy.source,
+        facts: candidate.facts,
+        updated_at: now,
+      } as never)
+      .eq("id", row.id);
+
+    if (updateError) {
+      failed += 1;
+      items.push({
+        ruleId: row.rule_id,
+        ok: false,
+        error: `Update DB: ${updateError.message}`,
+      });
+      continue;
+    }
+
+    upgraded += 1;
+    items.push({ ruleId: row.rule_id, ok: true });
+  }
+
+  return {
+    ok: failed === 0 && upgraded > 0,
+    geminiConfigured: true,
+    model,
+    items,
+    upgraded,
+    failed,
+    message:
+      failed > 0
+        ? `${failed} de ${items.length} fallaron al regenerar con IA`
+        : `Regeneradas ${upgraded} con Gemini (${model})`,
+  };
 }
 
 export async function markOpenRecommendationsSeen(

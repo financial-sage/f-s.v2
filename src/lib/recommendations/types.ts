@@ -73,3 +73,20 @@ export interface RecommendationContext {
   memberCount: number;
   isCoupleUi: boolean;
 }
+
+/** Superadmin force-Gemini diagnostics (safe to show in client modal). */
+export type ForceGeminiDraftItem = {
+  ruleId: string;
+  ok: boolean;
+  error?: string;
+};
+
+export type ForceGeminiDraftResult = {
+  ok: boolean;
+  geminiConfigured: boolean;
+  model: string;
+  items: ForceGeminiDraftItem[];
+  upgraded: number;
+  failed: number;
+  message?: string;
+};
