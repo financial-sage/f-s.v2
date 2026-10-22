@@ -37,6 +37,7 @@ export async function POST(request: Request) {
   let mimeType = "image/jpeg";
   let base64 = "";
   let localeHint: string | undefined;
+  let funds: { id: string; name: string }[] = [];
 
   const contentType = request.headers.get("content-type") || "";
 
@@ -45,6 +46,26 @@ export async function POST(request: Request) {
       const form = await request.formData();
       const file = form.get("file");
       localeHint = String(form.get("localeHint") ?? "") || undefined;
+      const fundsRaw = String(form.get("funds") ?? "");
+      if (fundsRaw) {
+        try {
+          const parsed = JSON.parse(fundsRaw) as unknown;
+          if (Array.isArray(parsed)) {
+            funds = parsed
+              .map((row) => {
+                if (!row || typeof row !== "object") return null;
+                const o = row as { id?: unknown; name?: unknown };
+                if (typeof o.id !== "string" || typeof o.name !== "string") {
+                  return null;
+                }
+                return { id: o.id, name: o.name };
+              })
+              .filter((row): row is { id: string; name: string } => Boolean(row));
+          }
+        } catch {
+          funds = [];
+        }
+      }
       if (!(file instanceof File)) {
         return NextResponse.json({ error: "Falta la imagen." }, { status: 400 });
       }
@@ -68,16 +89,23 @@ export async function POST(request: Request) {
         mimeType?: string;
         base64?: string;
         localeHint?: string;
+        funds?: { id: string; name: string }[];
       };
       mimeType = body.mimeType || "image/jpeg";
       base64 = (body.base64 || "").replace(/^data:[^;]+;base64,/, "");
       localeHint = body.localeHint;
+      funds = Array.isArray(body.funds) ? body.funds : [];
       if (!base64) {
         return NextResponse.json({ error: "Falta la imagen." }, { status: 400 });
       }
     }
 
-    const receipt = await parseReceiptImage({ mimeType, base64, localeHint });
+    const receipt = await parseReceiptImage({
+      mimeType,
+      base64,
+      localeHint,
+      funds,
+    });
     return NextResponse.json({ ok: true, receipt });
   } catch (err) {
     console.error("[receipts/parse]", err);

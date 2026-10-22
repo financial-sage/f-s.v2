@@ -719,6 +719,15 @@ export default function AddExpenseForm({
             ? "español de España"
             : "español"
       );
+      form.set(
+        "funds",
+        JSON.stringify(
+          selectableFunds.map((f) => ({
+            id: f.id,
+            name: isSolo ? personalFundDisplayName(f) : f.name,
+          }))
+        )
+      );
       const res = await fetch("/api/receipts/parse", {
         method: "POST",
         body: form,
@@ -730,9 +739,13 @@ export default function AddExpenseForm({
         receipt?: {
           merchant?: string | null;
           description?: string | null;
+          primaryProduct?: string | null;
+          itemCount?: number | null;
           total?: number | null;
           date?: string | null;
+          categoryId?: string | null;
           categoryHint?: string | null;
+          fundId?: string | null;
           confidence?: string;
           rawNotes?: string | null;
         };
@@ -759,17 +772,42 @@ export default function AddExpenseForm({
       if (typeof receipt.total === "number" && receipt.total > 0) {
         setAmount(sanitizeDecimalInput(String(receipt.total)));
       }
+
+      // Concept: 1 product → product; many → establishment (server already prefers this).
       const conceptFromScan =
         receipt.description?.trim() ||
-        (receipt.merchant ? `Compra ${receipt.merchant}` : "");
-      if (conceptFromScan) setConcept(conceptFromScan.slice(0, 80));
+        (receipt.itemCount === 1 && receipt.primaryProduct
+          ? receipt.primaryProduct
+          : null) ||
+        receipt.merchant?.trim() ||
+        "";
+      if (conceptFromScan) {
+        setConcept(conceptFromScan.slice(0, 80));
+        setCategoryLockedByUser(false);
+      }
       if (receipt.date) setDate(receipt.date.slice(0, 10));
-      const mappedCategory = mapCategoryHint(receipt.categoryHint);
+
+      const mappedCategory =
+        (receipt.categoryId &&
+        [...topCategories, ...extraCategories].some(
+          (c) => c.id === receipt.categoryId
+        )
+          ? receipt.categoryId
+          : null) || mapCategoryHint(receipt.categoryHint);
       if (mappedCategory) {
         setSelectedCategory(mappedCategory);
         setCategoryLockedByUser(true);
         setCategoryReady(true);
         setCategorySuggesting(false);
+      }
+
+      if (
+        receipt.fundId &&
+        selectableFunds.some((f) => f.id === receipt.fundId)
+      ) {
+        setPaymentSource("fund");
+        setSelectedFundId(receipt.fundId);
+        if (!isSolo) setResponsibleFor("joint_fund");
       }
 
       if (receipt.total == null) {
@@ -782,7 +820,7 @@ export default function AddExpenseForm({
             "Revisa los datos: la lectura no está muy segura."
         );
       } else {
-        setScanHint("Ticket leído. Revisa y guarda cuando quieras.");
+        setScanHint("Ticket leído. Revisa bolsillo, categoría y guarda.");
       }
       setShowKeypad(false);
     } catch (err) {
