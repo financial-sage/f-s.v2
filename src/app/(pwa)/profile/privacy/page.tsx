@@ -13,10 +13,11 @@ export default async function PrivacyPage() {
   const backAria = user ? "Volver a perfil" : "Volver al login";
 
   return (
-    <div className="relative flex h-dvh flex-col bg-page-gradient text-on-surface">
+    <div className="relative min-h-0 flex-1 bg-page-gradient text-on-surface">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto overscroll-y-contain no-scrollbar px-4 pb-10 pt-4">
+      <div className="absolute inset-0 z-10 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+        <div className="mx-auto w-full max-w-md px-4 pb-10 pt-4">
         <header className="mb-4 flex items-center gap-2 px-1">
           <Link
             href={backHref}
@@ -85,6 +86,7 @@ export default async function PrivacyPage() {
             </p>
           </section>
         </article>
+        </div>
       </div>
     </div>
   );

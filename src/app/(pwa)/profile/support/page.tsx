@@ -7,10 +7,11 @@ const APP_VERSION = packageJson.version;
 
 export default function SupportPage() {
   return (
-    <div className="relative flex h-dvh flex-col bg-page-gradient text-on-surface">
+    <div className="relative min-h-0 flex-1 bg-page-gradient text-on-surface">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto overscroll-y-contain no-scrollbar px-4 pb-28 pt-4">
+      <div className="absolute inset-0 z-10 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+        <div className="mx-auto w-full max-w-md px-4 pb-28 pt-4">
         <header className="mb-4 flex items-center gap-2 px-1">
           <Link
             href="/profile"
@@ -64,6 +65,7 @@ export default function SupportPage() {
         <p className="px-1 text-center text-[11px] font-light text-on-surface-variant">
           SinDescuadre · versión {APP_VERSION}
         </p>
+        </div>
       </div>
     </div>
   );

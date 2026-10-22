@@ -64,7 +64,7 @@ export default function PwaLayout({
       />
       <main
         data-app-shell
-        className="relative z-0 h-dvh overflow-hidden overscroll-none"
+        className="relative z-0 flex h-dvh min-h-0 flex-col overflow-hidden overscroll-none"
       >
         <PageTransition>{children}</PageTransition>
       </main>

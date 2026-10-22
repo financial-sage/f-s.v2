@@ -50,7 +50,7 @@ export default function PageTransition({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className={`h-full ${
+      className={`flex min-h-0 flex-1 flex-col ${
         animating ? "animate-in fade-in duration-200 ease-out fill-mode-both" : ""
       }`}
     >
