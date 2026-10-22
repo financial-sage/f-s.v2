@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { parseReceiptImage } from "@/lib/receipts/parse-receipt";
-import { isGeminiConfigured } from "@/lib/recommendations/gemini";
+import { isOpenAIConfigured } from "@/lib/ai/openai";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,9 +16,9 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 export async function POST(request: Request) {
-  if (!isGeminiConfigured()) {
+  if (!isOpenAIConfigured()) {
     return NextResponse.json(
-      { error: "Gemini no configurado (falta GEMINI_API_KEY)." },
+      { error: "OpenAI no configurado (falta OPENAI_API_KEY)." },
       { status: 503 }
     );
   }

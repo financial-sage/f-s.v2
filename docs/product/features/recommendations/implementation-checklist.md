@@ -20,12 +20,12 @@ Usar por slice (ver [technical-spec.md](./technical-spec.md)).
 
 ## Slice C — IA + aviso suave
 
-- [x] `renderRecommendationCopy` + Gemini (`@google/genai`) + fallback plantilla
+- [x] `renderRecommendationCopy` + OpenAI (`openai`) + fallback plantilla
 - [x] Validación: no cifras fuera de `facts`
 - [x] `RecommendationsSoftNotice` fuera del scroll
 - [x] Accept / defer / dismiss
 - [x] Link desde Perfil
-- [x] `GEMINI_API_KEY` / `GEMINI_MODEL` en env templates
+- [x] `OPENAI_API_KEY` / `OPENAI_MODEL` en env templates
 
 ## Slice D — Balance mes (Fase 2)
 

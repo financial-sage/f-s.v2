@@ -12,7 +12,8 @@ export type RecommendationPriority =
   | "opportunity"
   | "educational";
 
-export type RecommendationCopySource = "template" | "gemini";
+/** `gemini` kept for rows drafted before the OpenAI switch. */
+export type RecommendationCopySource = "template" | "openai" | "gemini";
 
 export type RecommendationRuleId =
   | "account_strained"
@@ -74,7 +75,7 @@ export interface RecommendationContext {
   isCoupleUi: boolean;
 }
 
-/** Superadmin force-Gemini diagnostics (safe to show in client modal). */
+/** Superadmin force-LLM diagnostics (safe to show in client modal). */
 export type ForceGeminiDraftItem = {
   ruleId: string;
   ok: boolean;
@@ -83,6 +84,7 @@ export type ForceGeminiDraftItem = {
 
 export type ForceGeminiDraftResult = {
   ok: boolean;
+  /** OpenAI key present on the server. */
   geminiConfigured: boolean;
   model: string;
   items: ForceGeminiDraftItem[];
@@ -90,3 +92,6 @@ export type ForceGeminiDraftResult = {
   failed: number;
   message?: string;
 };
+
+export type ForceLlmDraftItem = ForceGeminiDraftItem;
+export type ForceLlmDraftResult = ForceGeminiDraftResult;

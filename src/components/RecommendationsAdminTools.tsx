@@ -137,7 +137,7 @@ export default function RecommendationsAdminTools({ isSuperAdmin }: Props) {
                         </dd>
                       </div>
                       <div className="rounded-xl bg-on-surface/[0.04] px-3 py-2">
-                        <dt>API key</dt>
+                        <dt>OpenAI</dt>
                         <dd className="mt-0.5 font-medium text-on-surface">
                           {result.geminiConfigured ? "Presente" : "Ausente"}
                         </dd>

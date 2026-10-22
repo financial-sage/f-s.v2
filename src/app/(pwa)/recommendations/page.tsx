@@ -126,7 +126,8 @@ export default async function RecommendationsPage() {
                 key={row.id}
                 className="relative rounded-[1.85rem] border border-glass-border bg-surface-lowest/90 px-5 py-5 shadow-[0_12px_28px_rgba(43,52,55,0.06)] backdrop-blur-xl"
               >
-                {row.copy_source === "gemini" ? (
+                {row.copy_source === "openai" ||
+                row.copy_source === "gemini" ? (
                   <span
                     className="absolute right-3.5 top-3.5 inline-flex items-center gap-1.5 text-accent"
                     title="Generado con IA"
@@ -139,7 +140,10 @@ export default async function RecommendationsPage() {
                 ) : null}
                 <div
                   className={`flex items-center gap-2 ${
-                    row.copy_source === "gemini" ? "pr-[7.5rem]" : ""
+                    row.copy_source === "openai" ||
+                    row.copy_source === "gemini"
+                      ? "pr-[7.5rem]"
+                      : ""
                   }`}
                 >
                   <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-[10px] font-light tracking-wide text-[color-mix(in_srgb,var(--accent)_42%,#6b4423)]">

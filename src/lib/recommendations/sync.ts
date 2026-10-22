@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { renderRecommendationCopy } from "./copy";
-import { draftCopyWithGemini, isGeminiConfigured } from "./gemini";
+import { draftCopyWithLlm, isLlmConfigured } from "./llm";
+import { getOpenAIModel } from "@/lib/ai/openai";
 import { getRecommendationSpeech } from "./locale";
 import { selectRecommendationCandidates } from "./rules";
 import type {
@@ -152,17 +153,17 @@ export async function syncRecommendationsForFamily(
     }
   }
 
-  // Draft / refresh with Gemini when opening the dedicated page (not soft-notice poll).
-  if (!options?.preferTemplate && isGeminiConfigured() && speech) {
+  // Draft / refresh with OpenAI when opening the dedicated page (not soft-notice poll).
+  if (!options?.preferTemplate && isLlmConfigured() && speech) {
     console.info(
-      "[recommendations] drafting with Gemini",
+      "[recommendations] drafting with OpenAI",
       { rules: Array.from(openByRule.keys()), locale: speech.meta.locale }
     );
     for (const candidate of candidates) {
       const open = openByRule.get(candidate.ruleId);
       if (!open) continue;
       const sameLocale =
-        open.copy_source === "gemini" &&
+        (open.copy_source === "openai" || open.copy_source === "gemini") &&
         String(open.facts?.currency ?? "") === speech.currency;
       if (sameLocale) continue;
       const candidateWithLocale = {
@@ -170,9 +171,9 @@ export async function syncRecommendationsForFamily(
         facts: { ...candidate.facts, currency: speech.currency },
       };
       const copy = await renderRecommendationCopy(candidateWithLocale, speech);
-      if (copy.source !== "gemini") {
+      if (copy.source !== "openai") {
         console.warn(
-          "[recommendations] Gemini upgrade skipped (fallback template)",
+          "[recommendations] OpenAI upgrade skipped (fallback template)",
           candidate.ruleId
         );
         continue;
@@ -192,14 +193,14 @@ export async function syncRecommendationsForFamily(
         .select("*")
         .maybeSingle();
       if (updateError) {
-        console.error("[recommendations] Gemini upgrade update failed", updateError.message);
+        console.error("[recommendations] OpenAI upgrade update failed", updateError.message);
         continue;
       }
       if (updated) openByRule.set(candidate.ruleId, updated as DbRow);
     }
-  } else if (!options?.preferTemplate && !isGeminiConfigured()) {
+  } else if (!options?.preferTemplate && !isLlmConfigured()) {
     console.warn(
-      "[recommendations] GEMINI_API_KEY not visible to the Next server — restart `next dev` after editing .env.local"
+      "[recommendations] OPENAI_API_KEY not visible to the Next server — restart `next dev` after editing .env.local"
     );
   }
 
@@ -253,15 +254,15 @@ export async function syncRecommendationsForFamily(
 }
 
 /**
- * Superadmin / QA: force Gemini rewrite on every open recommendation
+ * Superadmin / QA: force OpenAI rewrite on every open recommendation
  * (ignores same-locale skip). Collects per-rule errors for the debug modal.
  */
 export async function forceDraftOpenRecommendationsWithGemini(
   familyId: string,
   ctx: RecommendationContext
 ): Promise<ForceGeminiDraftResult> {
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
-  const geminiConfigured = isGeminiConfigured();
+  const model = getOpenAIModel();
+  const geminiConfigured = isLlmConfigured();
 
   if (!geminiConfigured) {
     return {
@@ -272,7 +273,7 @@ export async function forceDraftOpenRecommendationsWithGemini(
       upgraded: 0,
       failed: 0,
       message:
-        "GEMINI_API_KEY no está visible en el servidor. Revisa env y reinicia.",
+        "OPENAI_API_KEY no está visible en el servidor. Revisa env y reinicia.",
     };
   }
 
@@ -346,7 +347,7 @@ export async function forceDraftOpenRecommendationsWithGemini(
           ctaLabel: row.cta_label,
         };
 
-    const drafted = await draftCopyWithGemini(candidate, speech);
+    const drafted = await draftCopyWithLlm(candidate, speech);
     if (!drafted.ok) {
       failed += 1;
       items.push({ ruleId: row.rule_id, ok: false, error: drafted.error });
@@ -390,7 +391,7 @@ export async function forceDraftOpenRecommendationsWithGemini(
     message:
       failed > 0
         ? `${failed} de ${items.length} fallaron al regenerar con IA`
-        : `Regeneradas ${upgraded} con Gemini (${model})`,
+        : `Regeneradas ${upgraded} con OpenAI (${model})`,
   };
 }
 

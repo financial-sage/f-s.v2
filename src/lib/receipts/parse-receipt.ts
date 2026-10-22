@@ -1,4 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
+import {
+  getOpenAIClient,
+  getOpenAIModel,
+  isOpenAIConfigured,
+  parseJsonObject,
+} from "@/lib/ai/openai";
 
 export type ParsedReceipt = {
   merchant: string | null;
@@ -10,30 +15,6 @@ export type ParsedReceipt = {
   confidence: "high" | "medium" | "low";
   rawNotes: string | null;
 };
-
-function getModel(): string {
-  return process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
-}
-
-function parseJsonObject(text: string): Record<string, unknown> | null {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fenced?.[1]?.trim() ?? trimmed;
-  try {
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-}
 
 function toNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -57,7 +38,7 @@ function toDate(value: unknown): string | null {
 }
 
 /**
- * Parse a receipt / voucher image with Gemini Vision.
+ * Parse a receipt / voucher image with OpenAI Vision.
  * Returns structured fields for the expense form; never invents a total if unclear.
  */
 export async function parseReceiptImage(input: {
@@ -65,12 +46,12 @@ export async function parseReceiptImage(input: {
   base64: string;
   localeHint?: string;
 }): Promise<ParsedReceipt> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("Gemini no configurado (falta GEMINI_API_KEY).");
+  if (!isOpenAIConfigured()) {
+    throw new Error("OpenAI no configurado (falta OPENAI_API_KEY).");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const openai = getOpenAIClient();
+  const model = getOpenAIModel();
   const locale =
     input.localeHint?.trim() ||
     "español; puede ser ticket de España o Latinoamérica";
@@ -96,17 +77,19 @@ Reglas:
 - "description" útil para el usuario (ej. "Compra Mercadona", "Taxi", "Cena restaurante X").
 - Si hay varios totales, prioriza el total cobrado / importe a pagar.`;
 
-  const response = await ai.models.generateContent({
-    model: getModel(),
-    contents: [
+  const response = await openai.chat.completions.create({
+    model,
+    temperature: 0.1,
+    response_format: { type: "json_object" },
+    messages: [
       {
         role: "user",
-        parts: [
-          { text: prompt },
+        content: [
+          { type: "text", text: prompt },
           {
-            inlineData: {
-              mimeType: input.mimeType,
-              data: input.base64,
+            type: "image_url",
+            image_url: {
+              url: `data:${input.mimeType};base64,${input.base64}`,
             },
           },
         ],
@@ -114,8 +97,8 @@ Reglas:
     ],
   });
 
-  const text = response.text;
-  if (!text) {
+  const text = response.choices[0]?.message?.content ?? "";
+  if (!text.trim()) {
     throw new Error("No se pudo leer el ticket.");
   }
 
@@ -126,7 +109,9 @@ Reglas:
 
   const confidenceRaw = String(parsed.confidence ?? "low");
   const confidence =
-    confidenceRaw === "high" || confidenceRaw === "medium" || confidenceRaw === "low"
+    confidenceRaw === "high" ||
+    confidenceRaw === "medium" ||
+    confidenceRaw === "low"
       ? confidenceRaw
       : "low";
 

@@ -42,7 +42,7 @@ export async function syncMyRecommendationsAction() {
   return { ok: true as const, count: rows.length };
 }
 
-/** Superadmin only: force Gemini rewrite and return per-rule diagnostics. */
+/** Superadmin only: force OpenAI rewrite and return per-rule diagnostics. */
 export async function forceGeminiRecommendationsAction(): Promise<
   | { ok: true; result: ForceGeminiDraftResult }
   | { ok: false; error: string; result?: ForceGeminiDraftResult }
