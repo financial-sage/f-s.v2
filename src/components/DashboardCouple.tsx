@@ -1177,18 +1177,33 @@ export default function DashboardCouple({
             (typeof _partnerSpent === "number" ? _partnerSpent : 0);
         const monthSpent =
             expenses.length > 0 ? monthSpentFromLedger : monthSpentFallback;
-        const dashboardFunds = listActiveFunds(fundsSource).filter(
-            (f) => !isFixedExpensesFund(f)
-        );
-        const pockets = dashboardFunds.map((fund) => ({
-            name:
-                fund.scope === "personal"
-                    ? personalFundDisplayName(fund)
-                    : fund.name,
-            balance: calculateFundCashBalance(expenses, fund.id, {
-                treatLegacyJointAsFundId: getDefaultSharedFund(fundsSource)?.id ?? null,
-            }),
-        }));
+        // Same pockets the couple UI shows: shared spending + own personal.
+        // Personal balance must match myAvailableFund (adelantos a compartidos),
+        // not only caja tagged with personal fund_id.
+        const sharedForMenu = listDashboardSharedFunds(fundsSource);
+        const sharedIds = sharedForMenu.map((f) => f.id);
+        const myPersonal = getPersonalFund(fundsSource, currentUserId);
+        const legacySharedId = getDefaultSharedFund(fundsSource)?.id ?? null;
+        const pockets = [
+            ...sharedForMenu.map((fund) => ({
+                name: fund.name,
+                balance: calculateFundCashBalance(expenses, fund.id, {
+                    treatLegacyJointAsFundId: legacySharedId,
+                }),
+            })),
+            ...(myPersonal
+                ? [
+                      {
+                          name: personalFundDisplayName(myPersonal),
+                          balance: calculatePersonalPocketBalance(
+                              expenses,
+                              currentUserId,
+                              sharedIds
+                          ),
+                      },
+                  ]
+                : []),
+        ];
         return selectPrimaryInsight(
             buildDecisionContext({
                 hasVisibleAccounts,

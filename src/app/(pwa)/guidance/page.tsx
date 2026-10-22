@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
+import GuidanceMoneyMap from "@/components/GuidanceMoneyMap";
 import { getHomePageData } from "@/lib/dashboard";
 import { buildDecisionContext } from "@/lib/decision/context";
 import {
@@ -12,21 +13,14 @@ import {
 import { sumMonthSpend } from "@/lib/decision/spend";
 import {
   calculateFundCashBalance,
+  calculatePersonalPocketBalance,
   calculateSoloPersonalFundBalance,
   getDefaultSharedFund,
   getPersonalFund,
-  isFixedExpensesFund,
-  listActiveFunds,
+  listDashboardSharedFunds,
   listSoloDashboardFunds,
   personalFundDisplayName,
 } from "@/lib/funds";
-
-function formatAmount(value: number): string {
-  return value.toLocaleString("es-ES", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-}
 
 export default async function GuidancePage() {
   const home = await getHomePageData();
@@ -72,15 +66,33 @@ export default async function GuidancePage() {
   let pockets: { name: string; balance: number }[] = [];
 
   if (showCoupleUi) {
-    const dashboardFunds = listActiveFunds(funds).filter((f) => !isFixedExpensesFund(f));
+    // Include Gastos fijos in the map when strained — transparency over hiding system pots.
+    const sharedForMenu = listDashboardSharedFunds(funds);
+    const sharedIds = sharedForMenu.map((f) => f.id);
+    const myPersonal = getPersonalFund(funds, userId);
     const legacySharedId = getDefaultSharedFund(funds)?.id ?? null;
-    pockets = dashboardFunds.map((fund) => ({
-      name: fund.scope === "personal" ? personalFundDisplayName(fund) : fund.name,
-      balance: calculateFundCashBalance(expenseRows, fund.id, {
-        treatLegacyJointAsFundId: legacySharedId,
-      }),
-    }));
-    activePocketName = pockets[0]?.name ?? "Bolsillo";
+    pockets = [
+      ...sharedForMenu.map((fund) => ({
+        name: fund.name,
+        balance: calculateFundCashBalance(expenseRows, fund.id, {
+          treatLegacyJointAsFundId: legacySharedId,
+        }),
+      })),
+      ...(myPersonal
+        ? [
+            {
+              name: personalFundDisplayName(myPersonal),
+              balance: calculatePersonalPocketBalance(
+                expenseRows,
+                userId,
+                sharedIds
+              ),
+            },
+          ]
+        : []),
+    ];
+    activePocketName =
+      personalFundDisplayName(myPersonal) || pockets[0]?.name || "Bolsillo";
   } else {
     const personalFunds = listSoloDashboardFunds(funds, userId);
     const defaultPersonal = getPersonalFund(personalFunds, userId);
@@ -146,82 +158,13 @@ export default async function GuidancePage() {
         </p>
 
         {showMoneyMap ? (
-          <section className="rounded-[1.85rem] border border-glass-border bg-surface-lowest/90 p-6 shadow-[0_12px_28px_rgba(43,52,55,0.06)] backdrop-blur-xl">
-            <p className="text-[11px] font-light tracking-[0.14em] text-on-surface-variant/80">
-              Dónde está tu dinero
-            </p>
-
-            {hasVisibleAccounts ? (
-              <div className="mt-4">
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-[13px] font-light text-on-surface/70">Cuentas</p>
-                  <p className="text-[1.35rem] font-light tabular-nums tracking-tight text-on-surface">
-                    {formatAmount(accountsVisibleLiquidity)} €
-                  </p>
-                </div>
-              </div>
-            ) : null}
-
-            {pockets.length > 0 ? (
-              <div
-                className={
-                  hasVisibleAccounts
-                    ? "mt-5 border-t border-on-surface/[0.06] pt-5"
-                    : "mt-4"
-                }
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-[13px] font-light text-on-surface/70">Bolsillos</p>
-                  <p className="text-[1.35rem] font-light tabular-nums tracking-tight text-on-surface">
-                    {formatAmount(pocketsTotal)} €
-                  </p>
-                </div>
-                <ul className="mt-3 space-y-2">
-                  {pockets.map((pocket) => (
-                    <li
-                      key={pocket.name}
-                      className="flex items-baseline justify-between gap-3 text-[13px] font-light"
-                    >
-                      <span className="min-w-0 truncate text-on-surface/65">
-                        «{pocket.name}»
-                      </span>
-                      <span className="shrink-0 tabular-nums text-on-surface/80">
-                        {formatAmount(pocket.balance)} €
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            <div
-              className={
-                hasVisibleAccounts || pockets.length > 0
-                  ? "mt-5 border-t border-on-surface/[0.06] pt-5"
-                  : "mt-4"
-              }
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-[13px] font-light text-on-surface/70">
-                  Gastado este mes
-                </p>
-                <p className="text-[1.35rem] font-light tabular-nums tracking-tight text-on-surface">
-                  {formatAmount(monthSpent)} €
-                </p>
-              </div>
-              <p className="mt-2 text-[12px] font-light leading-relaxed text-on-surface-variant/80">
-                Solo gastos reales (sin aportes ni traspasos).
-              </p>
-              {monthSpent > 0 ? (
-                <Link
-                  href="/history"
-                  className="mt-3 inline-block text-[12px] font-light text-on-surface/70 underline-offset-4 hover:text-on-surface hover:underline"
-                >
-                  Ver en qué se ha ido
-                </Link>
-              ) : null}
-            </div>
-          </section>
+          <GuidanceMoneyMap
+            hasVisibleAccounts={hasVisibleAccounts}
+            accountsVisibleLiquidity={accountsVisibleLiquidity}
+            pockets={pockets}
+            pocketsTotal={pocketsTotal}
+            monthSpent={monthSpent}
+          />
         ) : null}
 
         {recommendation ? (

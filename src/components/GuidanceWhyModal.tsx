@@ -50,17 +50,27 @@ export default function GuidanceWhyModal({ open, onClose, insight }: Props) {
           </button>
 
           <div className="relative px-6 pb-6 pt-7">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-on-surface/[0.05] text-on-surface/70 ring-1 ring-on-surface/[0.06]">
-              <Sparkles size={16} strokeWidth={1.75} aria-hidden />
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-[#3a3224] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] ring-1 ring-black/5"
+                aria-hidden
+              >
+                <Sparkles size={18} strokeWidth={1.9} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-light tracking-[0.14em] text-on-surface-variant/80">
+                  Orientación
+                </p>
+                <span
+                  className="mt-1.5 block h-px w-8 bg-accent/70"
+                  aria-hidden
+                />
+              </div>
             </div>
-
-            <p className="mt-4 text-[11px] font-light tracking-[0.14em] text-on-surface-variant/80">
-              Orientación
-            </p>
 
             <h2
               id="guidance-why-title"
-              className="mt-2 max-w-[20ch] text-[1.65rem] font-light leading-[1.2] tracking-tight text-on-surface"
+              className="mt-5 max-w-[20ch] text-[1.65rem] font-light leading-[1.2] tracking-tight text-on-surface-variant/80"
             >
               {insight.title}
             </h2>
@@ -101,13 +111,6 @@ export default function GuidanceWhyModal({ open, onClose, insight }: Props) {
                   {insight.cta.label}
                 </Link>
               ) : null}
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex h-11 items-center justify-center rounded-full text-sm font-light text-on-surface/75 transition-colors hover:bg-on-surface/[0.04] hover:text-on-surface"
-              >
-                Entendido
-              </button>
               {!ctaGoesToGuidance ? (
                 <Link
                   href="/guidance"

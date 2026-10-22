@@ -66,6 +66,17 @@ function hasNegativeBalance(ctx: DecisionContext): boolean {
   return negativePockets(ctx).length > 0;
 }
 
+function negativePocketsLabel(negatives: { name: string; balance: number }[]): string {
+  if (negatives.length === 0) return "";
+  if (negatives.length === 1) {
+    return `«${negatives[0].name}» (${formatAmount(negatives[0].balance)} €)`;
+  }
+  if (negatives.length === 2) {
+    return `«${negatives[0].name}» y «${negatives[1].name}»`;
+  }
+  return `${negatives.length} bolsillos (entre ellos «${negatives[0].name}» y «${negatives[1].name}»)`;
+}
+
 /**
  * Priority (business-rules §19–23 + saldo negativo).
  * Modal = summary + highlights. Page = pageLead + money map + recommendation.
@@ -78,21 +89,85 @@ export function selectPrimaryInsight(ctx: DecisionContext): GuidanceInsight {
   const inPocket = inActivePocket(ctx);
   const pocketsTotal = totalPocketsBalance(ctx);
   const negatives = negativePockets(ctx);
+  const phase = monthPhase();
+  const lateOrTightClose = phase === "late" || (phase === "mid" && negatives.length >= 2);
 
-  // Alert without alarm: negative is a fact to face calmly.
-  // Prefer cuenta negativa as focus when both account and pocket are red.
+  // Alert without alarm: name the full picture when several pockets (and account) are strained.
   if (hasNegativeBalance(ctx)) {
     const accountNegative = liquidity < 0;
-    const focusName = accountNegative
-      ? "cuentas"
-      : pocket < 0
+    const accountEmpty = ctx.hasVisibleAccounts && liquidity === 0;
+    const multi = negatives.length >= 2;
+
+    if (accountNegative) {
+      return {
+        id: "negative-balance",
+        title: "Tu cuenta está en negativo",
+        summary: `En cuentas el saldo está en ${formatAmount(liquidity)} €${
+          multi
+            ? ` y además ${negatives.length} bolsillos están bajo cero`
+            : negatives.length === 1
+              ? ` y «${negatives[0].name}» también está bajo cero`
+              : ""
+        }. No es un juicio: es el momento de mirar el mapa completo y decidir con calma.`,
+        highlights: compactHighlights([
+          { label: "Cuentas", value: `${formatAmount(liquidity)} €` },
+          multi
+            ? { label: "Bolsillos bajo cero", value: String(negatives.length) }
+            : negatives[0]
+              ? {
+                  label: negatives[0].name,
+                  value: `${formatAmount(negatives[0].balance)} €`,
+                }
+              : null,
+          spent > 0
+            ? { label: "Gastado este mes", value: `${formatAmount(spent)} €` }
+            : null,
+        ]),
+        pageLead:
+          "Aquí va el panorama completo. La cuenta en negativo es real; revisa también cada bolsillo antes de comprometer más gasto.",
+        confidence: "high",
+        cta: { ...DETAIL_CTA },
+      };
+    }
+
+    if (multi) {
+      return {
+        id: "negative-balance",
+        title: lateOrTightClose
+          ? "Cierre de mes ajustado"
+          : "Varios bolsillos piden atención",
+        summary: `Tienes ${negatives.length} bolsillos bajo cero${
+          accountEmpty ? " y la cuenta en 0 €" : ""
+        }: ${negativePocketsLabel(negatives)}. ${
+          lateOrTightClose
+            ? "Estás llegando al final del periodo con poco colchón: conviene ser transparente contigo y priorizar."
+            : "No es culpa: es información para revisar el ritmo de gastos antes de seguir comprometiendo."
+        }`,
+        highlights: compactHighlights([
+          ctx.hasVisibleAccounts
+            ? { label: "Cuentas", value: `${formatAmount(liquidity)} €` }
+            : null,
+          { label: "Bolsillos bajo cero", value: String(negatives.length) },
+          spent > 0
+            ? { label: "Gastado este mes", value: `${formatAmount(spent)} €` }
+            : { label: "Suma bolsillos", value: `${formatAmount(pocketsTotal)} €` },
+        ]),
+        pageLead: accountEmpty
+          ? "Cuenta en cero y varios bolsillos en rojo. Abre el mapa, mira cuáles son y decide qué pausar hasta el próximo ingreso."
+          : "Hay más de un bolsillo bajo cero. Abre el mapa para verlos todos y priorizar con claridad, sin alarma.",
+        confidence: "high",
+        cta: { ...DETAIL_CTA },
+      };
+    }
+
+    const focusName =
+      pocket < 0
         ? pocketRef
         : negatives[0]
           ? `«${negatives[0].name}»`
           : "cuentas";
-    const focusValue = accountNegative
-      ? liquidity
-      : pocket < 0
+    const focusValue =
+      pocket < 0
         ? pocket
         : negatives[0]
           ? negatives[0].balance
@@ -100,31 +175,26 @@ export function selectPrimaryInsight(ctx: DecisionContext): GuidanceInsight {
 
     return {
       id: "negative-balance",
-      title: accountNegative
-        ? "Tu cuenta está en negativo"
-        : "Hay un saldo en negativo",
-      summary: accountNegative
-        ? `En cuentas el saldo está en ${formatAmount(liquidity)} €. No es un juicio: es una señal para revisar movimientos y decidir cómo equilibrarlo con calma.`
-        : `En ${focusName} el saldo está en ${formatAmount(focusValue)} €. No es un juicio: es una señal para ver qué lo ha dejado así y decidir el siguiente paso con calma.`,
+      title: "Hay un saldo en negativo",
+      summary: `En ${focusName} el saldo está en ${formatAmount(focusValue)} €${
+        accountEmpty ? " y la cuenta está en 0 €" : ""
+      }. No es un juicio: es una señal para ver qué lo ha dejado así y decidir el siguiente paso con calma.`,
       highlights: compactHighlights([
         { label: "Cuentas", value: `${formatAmount(liquidity)} €` },
-        pocket !== 0 || negatives.length > 0
-          ? {
-              label: pocketRef.replaceAll("«", "").replaceAll("»", ""),
-              value: `${formatAmount(pocket)} €`,
-            }
-          : null,
+        {
+          label: focusName.replaceAll("«", "").replaceAll("»", ""),
+          value: `${formatAmount(focusValue)} €`,
+        },
         spent > 0
           ? { label: "Gastado este mes", value: `${formatAmount(spent)} €` }
           : null,
       ]),
-      pageLead: accountNegative
-        ? "Abajo ves el mapa. El negativo en cuenta es real; sirve para entender el desfase y decidir el siguiente paso sin culpa."
-        : liquidity > 0 && pocket < 0
-          ? "Abajo ves el mapa. Hay dinero en cuenta y un bolsillo en negativo: puedes cubrirlo moviendo fondos — eso no es un gasto nuevo, es ordenar."
-          : liquidity === 0 && pocket < 0
-            ? "Abajo ves el mapa. Bolsillo en negativo y cuenta en cero: primero entender el gasto; luego, con un ingreso, podrás cuadrar."
-            : "Abajo ves el mapa. El número en negativo es real; sirve para entender el desfase y decidir con claridad, sin prisa ni culpa.",
+      pageLead:
+        liquidity > 0 && pocket < 0
+          ? "Abajo puedes revisar el mapa. Hay dinero en cuenta y un bolsillo en negativo: puedes cubrirlo moviendo fondos — eso no es un gasto nuevo, es ordenar."
+          : accountEmpty
+            ? "Bolsillo en negativo y cuenta en cero: primero entender el gasto; con el próximo ingreso podrás cuadrar sin inventar dinero."
+            : "El número en negativo es real. Revisa el mapa y decide con claridad, sin prisa ni culpa.",
       confidence: "high",
       cta: { ...DETAIL_CTA },
     };
@@ -352,29 +422,54 @@ export function selectPrimaryRecommendation(
   const pocketRef = quotedActivePocket(ctx);
 
   if (hasNegativeBalance(ctx)) {
+    const negatives = negativePockets(ctx);
+    const multi = negatives.length >= 2;
+    const accountEmpty = ctx.hasVisibleAccounts && liquidity === 0;
+    const phase = monthPhase();
+
     // Account in red first — don't suggest “cover from account” if account is empty/red.
     if (liquidity < 0) {
       return {
         title: "Equilibra la cuenta con calma",
-        body: "Revisa los últimos movimientos de la cuenta y decide cómo volver al equilibrio. Es una señal, no un veredicto.",
+        body: multi
+          ? `La cuenta está en negativo y además ${negativePocketsLabel(negatives)} bajo cero. Revisa movimientos y pausa lo no esencial hasta recuperar colchón.`
+          : "Revisa los últimos movimientos de la cuenta y decide cómo volver al equilibrio. Es una señal, no un veredicto.",
         cta: { href: "/accounts", label: "Revisar cuentas" },
       };
     }
-    if (liquidity > 0 && pocket < 0) {
+
+    if (multi || (accountEmpty && negatives.length >= 1 && phase === "late")) {
+      return {
+        title: "Replantea el ritmo de gastos",
+        body: `${
+          multi
+            ? `Hay ${negatives.length} bolsillos bajo cero${accountEmpty ? " y la cuenta en 0 €" : ""}: ${negativePocketsLabel(negatives)}.`
+            : `${pocketRef} está bajo cero y la cuenta en 0 €.`
+        } ${
+          phase === "late" || (phase === "mid" && multi)
+            ? "Estás cerrando el periodo con poco margen: conviene pausar lo no esencial, revisar juntos qué se puede ajustar y esperar al próximo ingreso antes de comprometer más."
+            : "Conviene revisar en qué se fue el dinero, priorizar lo imprescindible y dejar lo demás para cuando entre un ingreso."
+        } Sin culpa: con claridad y un plan corto.`,
+        cta: { href: "/history", label: "Revisar gastos del mes" },
+      };
+    }
+
+    if (liquidity > 0 && pocket < 0 && negatives.length <= 1) {
       return {
         title: "Puedes cubrir el bolsillo desde la cuenta",
         body: `Hay saldo en cuentas y ${pocketRef} está en negativo. Mover dinero al bolsillo no es gastar: es cuadrar lo que ya usaste.`,
         cta: { href: "/accounts", label: "Cubrir desde cuentas" },
       };
     }
-    // Pocket red + account at 0 (or no spare liquidity).
-    if (pocket < 0 && liquidity === 0) {
+
+    if (accountEmpty) {
       return {
         title: "Primero entiende el desfase",
-        body: `${pocketRef} está en negativo y la cuenta en cero: no hay colchón ahí para cubrirlo ahora. Mira qué gasto lo dejó así; el próximo ingreso en cuenta te permitirá cuadrar el bolsillo sin inventar dinero.`,
+        body: `${pocketRef} está en negativo y la cuenta en cero: no hay colchón para cubrirlo ahora. Mira qué lo dejó así; el próximo ingreso te permitirá cuadrar sin inventar dinero.`,
         cta: { href: "/history", label: "Ver qué lo dejó así" },
       };
     }
+
     return {
       title: "Entiende el número en negativo",
       body: `${pocketRef} está por debajo de cero. No es un fallo personal: es información. Revisa el movimiento que lo causó y decide si esperas un ingreso o ajustas el próximo gasto.`,
