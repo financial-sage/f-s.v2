@@ -2,7 +2,8 @@
 
 ## Estado
 
-Aceptado — 2026-10-21
+Aceptado — 2026-10-21  
+**Implementado (V1 cerrada) — 2026-10-22**
 
 ## Contexto
 

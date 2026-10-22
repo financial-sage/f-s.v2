@@ -58,3 +58,7 @@ If product conflicts with code, **docs win** until the user changes the specs.
 - Dashboard not visually loaded with insight chrome
 - Insights cite real context fields only
 - User-facing copy follows `docs/product/foundations/05-product-language.md`
+
+## V1 status
+
+**Closed 2026-10-22** (checklist + ADR-0008 Implementado). Further work is polish or a new ADR/slice — do not reopen V1 scope (no LLM, no dashboard cards, no persistent recommendations).

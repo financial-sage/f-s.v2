@@ -1,5 +1,9 @@
 # Guidance (IA contextual V1)
 
+## Estado
+
+**V1 cerrada — 2026-10-22.** En producción de producto: motor determinista, modal, `/guidance`, microenlace en home. Sin LLM. Siguiente fase (chat / recomendaciones persistentes) = features aparte.
+
 ## Propósito
 
 Guidance es la capa que **explica** la realidad financiera ya conocida por SinDescuadre, con tono CARE, sin decidir por la familia y sin inventar hechos.
@@ -47,18 +51,23 @@ Snapshot de lectura construido desde datos ya cargados (home / cuentas / bolsill
 
 Mensaje corto con:
 
-- `title` / `body` (CARE)
-- `why[]` (hechos citados)
+- `title` / `summary` (CARE, modal)
+- `highlights[]` (pocas cifras clave en el modal)
+- `pageLead` (encuadre en `/guidance`; el mapa lleva el desglose)
 - `confidence` (`high` \| `medium` \| `low` \| `unknown`)
-- `cta` opcional hacia ruta existente (`/accounts`, `/fixed-expenses`, …)
+- `cta` opcional hacia `/guidance` u otras rutas existentes
+
+## Recomendación
+
+Acción sugerida en `/guidance` (`selectPrimaryRecommendation`): título, cuerpo, CTA. No muta datos.
 
 ## Modal “¿Por qué?”
 
-Hoja modal que muestra el insight principal y los hechos. No añade secciones permanentes al Inicio.
+Hoja modal que muestra el insight principal y highlights. No añade secciones permanentes al Inicio.
 
 ## Página `/guidance`
 
-Vista dedicada para leer el insight (y, si aplica, contexto adicional) sin competir con el hero del dashboard.
+Vista dedicada: `pageLead`, mapa de dinero colapsable («Revisa dónde está tu dinero») y recomendación, sin competir con el hero del dashboard.
 
 ---
 
