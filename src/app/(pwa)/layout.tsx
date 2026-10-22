@@ -54,7 +54,6 @@ export default function PwaLayout({
       <RealtimeSync />
       <PWARegister />
       <UpdateNotifier />
-      <RecommendationsSoftNotice />
       <InstallPrompt />
       {/* Full-bleed paint behind system nav / home indicator (PWA standalone). */}
       <div
@@ -65,6 +64,8 @@ export default function PwaLayout({
         <PageTransition>{children}</PageTransition>
       </main>
       <FamilyNavProvider />
+      {/* Above BottomNav (z-50) so the recommendations chip stays tappable. */}
+      <RecommendationsSoftNotice />
     </ExpenseModalProvider>
   );
 }

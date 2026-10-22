@@ -8,6 +8,7 @@ import { Lightbulb } from "lucide-react";
 /**
  * Soft notice outside the dashboard scroll (ADR-0009).
  * Tag clipped to the right edge; slides in, then the bulb flashes once.
+ * z-index above BottomNav so the chip stays tappable.
  */
 export default function RecommendationsSoftNotice() {
   const pathname = usePathname();
@@ -63,12 +64,12 @@ export default function RecommendationsSoftNotice() {
   if (pathname?.startsWith("/recommendations")) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[45] overflow-hidden pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] overflow-hidden pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]">
       <div className="relative h-12 w-full">
         <Link
           key={enterKey}
           href="/recommendations"
-          className="rec-tag-in pointer-events-auto absolute bottom-1 -right-2 inline-flex max-w-[11.5rem] items-center gap-1.5 rounded-l-full border border-r-0 border-accent/30 bg-surface-lowest/95 py-1.5 pl-2.5 pr-3.5 text-[10px] font-light leading-none text-on-surface shadow-[0_6px_16px_rgba(43,52,55,0.12)] backdrop-blur-xl active:scale-[0.98]"
+          className="rec-tag-in pointer-events-auto absolute bottom-1 right-0 z-[61] inline-flex min-h-9 max-w-[12rem] touch-manipulation items-center gap-1.5 rounded-l-full border border-r-0 border-accent/30 bg-surface-lowest/95 py-2 pl-3 pr-2.5 text-[10px] font-light leading-none text-on-surface shadow-[0_6px_16px_rgba(43,52,55,0.12)] backdrop-blur-xl active:scale-[0.98]"
         >
           <span
             className={`rec-bulb-glow flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-accent ${
