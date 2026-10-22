@@ -14,6 +14,8 @@ interface CustomNumpadProps {
   embeddedStyle?: "card" | "flat";
   showDisplay?: boolean;
   accentColor?: string;
+  /** If set, values above this show in red and cannot be confirmed. */
+  maxValue?: number;
 }
 
 function normalizeExpression(expression: string) {
@@ -70,6 +72,7 @@ export default function CustomNumpad({
   embeddedStyle = "card",
   showDisplay = true,
   accentColor = "#4A6549",
+  maxValue,
 }: CustomNumpadProps) {
   const [expression, setExpression] = useState("");
 
@@ -84,6 +87,19 @@ export default function CustomNumpad({
 
   const displayValue = useMemo(() => formatForDisplay(expression || "0"), [expression]);
   const hasPendingOperation = /[+\-×÷]/.test(expression);
+
+  const exceedsMax = useMemo(() => {
+    if (maxValue == null || !Number.isFinite(maxValue) || hasPendingOperation) {
+      return false;
+    }
+    try {
+      const n = Number(safeEvaluate(expression || "0"));
+      if (!Number.isFinite(n)) return false;
+      return Math.round(n * 100) > Math.round(maxValue * 100);
+    } catch {
+      return false;
+    }
+  }, [expression, hasPendingOperation, maxValue]);
 
   function appendValue(value: string) {
     setExpression((prev) => {
@@ -126,6 +142,16 @@ export default function CustomNumpad({
         return;
       }
 
+      if (maxValue != null && Number.isFinite(maxValue)) {
+        const n = Number(result);
+        if (
+          Number.isFinite(n) &&
+          Math.round(n * 100) > Math.round(maxValue * 100)
+        ) {
+          return;
+        }
+      }
+
       onValueChange(result);
       onConfirm(result);
 
@@ -163,10 +189,19 @@ export default function CustomNumpad({
                 Monto
               </span>
               <div className="flex min-h-[3.5rem] items-baseline justify-center gap-1.5">
-                <span className="text-2xl font-light" style={{ color: accentColor }}>
+                <span
+                  className={`text-2xl font-light ${
+                    exceedsMax ? "text-rose-500" : ""
+                  }`}
+                  style={exceedsMax ? undefined : { color: accentColor }}
+                >
                   $
                 </span>
-                <span className="text-[2.75rem] font-light leading-none tracking-tight text-on-surface">
+                <span
+                  className={`text-[2.75rem] font-light leading-none tracking-tight ${
+                    exceedsMax ? "text-rose-500" : "text-on-surface"
+                  }`}
+                >
                   {displayValue}
                 </span>
               </div>
@@ -206,8 +241,14 @@ export default function CustomNumpad({
             <button
               type="button"
               onClick={handleConfirm}
-              className="row-span-3 flex items-center justify-center rounded-2xl text-white shadow-[0_10px_24px_rgba(43,52,55,0.16)] transition-all active:scale-95"
-              style={{ backgroundColor: accentColor }}
+              disabled={exceedsMax}
+              aria-disabled={exceedsMax}
+              className={`row-span-3 flex items-center justify-center rounded-2xl text-white shadow-[0_10px_24px_rgba(43,52,55,0.16)] transition-all active:scale-95 ${
+                exceedsMax ? "cursor-not-allowed opacity-45" : ""
+              }`}
+              style={{
+                backgroundColor: exceedsMax ? "#e11d48" : accentColor,
+              }}
             >
               {hasPendingOperation ? <Equal size={28} /> : <Check size={28} />}
             </button>

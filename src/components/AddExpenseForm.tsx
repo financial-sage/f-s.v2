@@ -14,6 +14,7 @@ import {
   Camera,
   PencilLine,
   Scale,
+  Sparkles,
   User,
   Wallet,
   X,
@@ -27,8 +28,12 @@ import {
 } from "@/app/actions/expenses";
 import { SoftDecimals } from "@/components/FormattedCurrency";
 import { editExpenseAction } from "@/app/actions/editExpense";
+import BothSplitBelongModal, {
+  type BothSplitBelongChoice,
+} from "@/components/BothSplitBelongModal";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useExpenseModal, type ExpenseToEdit } from "@/components/ExpenseModalProvider";
+import { DEFAULT_CATEGORY_ID } from "@/lib/categories/suggest";
 import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -190,8 +195,12 @@ function formatDisplayDate(value: string) {
 }
 
 function getCategoryIdFromValue(category?: string | null) {
-  const found = [...topCategories, ...extraCategories].find((option) => option.id === category);
-  return found?.id ?? "super";
+  const found = [...topCategories, ...extraCategories].find(
+    (option) => option.id === category || option.value === category
+  );
+  if (found) return found.id;
+  if (category === "food") return "dining";
+  return DEFAULT_CATEGORY_ID;
 }
 
 function sanitizeDecimalInput(value: string | number) {
@@ -259,7 +268,23 @@ export default function AddExpenseForm({
   );
   const [myContribution, setMyContribution] = useState("");
   const [partnerContribution, setPartnerContribution] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("food");
+  /** Which 50/50 side is being edited on the app keypad. */
+  const [splitEditSide, setSplitEditSide] = useState<"me" | "partner" | null>(
+    null
+  );
+  const [splitBelongOpen, setSplitBelongOpen] = useState(false);
+  const [splitBelongChoice, setSplitBelongChoice] =
+    useState<BothSplitBelongChoice>("each_personal");
+  const [splitBelongFundId, setSplitBelongFundId] = useState<string | null>(
+    null
+  );
+  const [selectedCategory, setSelectedCategory] = useState(DEFAULT_CATEGORY_ID);
+  /** User picked a category manually — don't overwrite with AI. */
+  const [categoryLockedByUser, setCategoryLockedByUser] = useState(false);
+  const categoryLockedRef = useRef(false);
+  const [categorySuggesting, setCategorySuggesting] = useState(false);
+  /** Save stays disabled until AI (or fund fallback) resolves a category. */
+  const [categoryReady, setCategoryReady] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [isSaving, setIsSaving] = useState(false);
@@ -483,6 +508,8 @@ export default function AddExpenseForm({
       setAmount(sanitizeDecimalInput(hydratedAmount));
       setConcept(expenseToEdit.concept ?? "");
       setSelectedCategory(getCategoryIdFromValue(expenseToEdit.category));
+      setCategoryLockedByUser(true);
+      setCategoryReady(true);
       setPaidBy(expenseToEdit.paid_by === resolvedCurrentUserId ? "me" : "partner");
 
       if (expenseToEdit.responsible_for === "joint_fund") {
@@ -520,7 +547,10 @@ export default function AddExpenseForm({
     }
     setMyContribution("");
     setPartnerContribution("");
-    setSelectedCategory("food");
+    setSelectedCategory(DEFAULT_CATEGORY_ID);
+    setCategoryLockedByUser(false);
+    setCategorySuggesting(false);
+    setCategoryReady(false);
     setDate(new Date().toISOString().slice(0, 10));
     setErrorMessage("");
   }, [expenseToEdit, isCoupleMode, preferredFundId, resolvedCurrentUserId]);
@@ -543,6 +573,100 @@ export default function AddExpenseForm({
     setMyContribution(mine);
     setPartnerContribution(partner);
   }, [amount, isCoupleMode, paidBy]);
+
+  useEffect(() => {
+    categoryLockedRef.current = categoryLockedByUser;
+  }, [categoryLockedByUser]);
+
+  // AI category suggestion from "¿En qué gastaste?" (+ fund fallback).
+  useEffect(() => {
+    if (expenseToEdit || categoryLockedRef.current) {
+      setCategorySuggesting(false);
+      setCategoryReady(true);
+      return;
+    }
+
+    const trimmed = concept.trim();
+    const fundName =
+      paymentSource === "fund"
+        ? selectableFunds.find((f) => f.id === selectedFundId)?.name ?? null
+        : null;
+
+    if (trimmed.length < 2) {
+      setCategorySuggesting(false);
+      setCategoryReady(false);
+      // Empty concept → follow selected pocket when possible.
+      if (fundName) {
+        void import("@/lib/categories/suggest").then(({ categoryIdFromFundName }) => {
+          if (!categoryLockedRef.current) {
+            setSelectedCategory(categoryIdFromFundName(fundName));
+          }
+        });
+      } else if (!categoryLockedRef.current) {
+        setSelectedCategory(DEFAULT_CATEGORY_ID);
+      }
+      return;
+    }
+
+    setCategoryReady(false);
+    setCategorySuggesting(true);
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      if (categoryLockedRef.current) {
+        setCategorySuggesting(false);
+        setCategoryReady(true);
+        return;
+      }
+      try {
+        const res = await fetch("/api/categories/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ concept: trimmed, fundName }),
+          signal: controller.signal,
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          categoryId?: string;
+        };
+        if (!categoryLockedRef.current) {
+          if (data.categoryId) {
+            setSelectedCategory(data.categoryId);
+          } else {
+            const { categoryIdFromFundName } = await import(
+              "@/lib/categories/suggest"
+            );
+            setSelectedCategory(categoryIdFromFundName(fundName));
+          }
+          setCategoryReady(true);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (!categoryLockedRef.current) {
+          const { categoryIdFromFundName } = await import(
+            "@/lib/categories/suggest"
+          );
+          setSelectedCategory(categoryIdFromFundName(fundName));
+          setCategoryReady(true);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setCategorySuggesting(false);
+        }
+      }
+    }, 650);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [
+    concept,
+    categoryLockedByUser,
+    expenseToEdit,
+    paymentSource,
+    selectedFundId,
+    selectableFunds,
+  ]);
 
   function mapCategoryHint(hint: string | null | undefined): string | null {
     if (!hint) return null;
@@ -615,7 +739,12 @@ export default function AddExpenseForm({
       if (conceptFromScan) setConcept(conceptFromScan.slice(0, 80));
       if (receipt.date) setDate(receipt.date.slice(0, 10));
       const mappedCategory = mapCategoryHint(receipt.categoryHint);
-      if (mappedCategory) setSelectedCategory(mappedCategory);
+      if (mappedCategory) {
+        setSelectedCategory(mappedCategory);
+        setCategoryLockedByUser(true);
+        setCategoryReady(true);
+        setCategorySuggesting(false);
+      }
 
       if (receipt.total == null) {
         setScanHint(
@@ -675,6 +804,97 @@ export default function AddExpenseForm({
     return safeValue ? Number.parseFloat(safeValue) : Number.NaN;
   }
 
+  async function finishAfterSave() {
+    setShowKeypad(false);
+    setSplitEditSide(null);
+    setSplitBelongOpen(false);
+    setIsSheetAnimated(false);
+    setIsCategorySheetOpen(false);
+
+    const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
+    const { requestFirstMoveCelebrationCheck } = await import(
+      "@/components/PartnerFirstMoveCelebration"
+    );
+
+    if (onClose) {
+      onClose();
+      window.setTimeout(() => {
+        void syncFamilyExpenses();
+        requestFirstMoveCelebrationCheck();
+      }, 460);
+    } else {
+      router.push("/");
+      void syncFamilyExpenses();
+      requestFirstMoveCelebrationCheck();
+    }
+  }
+
+  async function saveBothSplitExpenses(params: {
+    finalAmount: number;
+    belong: BothSplitBelongChoice;
+    fundId: string | null;
+  }) {
+    const mine = parseDecimal(myContribution);
+    const partner = parseDecimal(partnerContribution);
+
+    if (!Number.isFinite(mine) || mine < 0 || !Number.isFinite(partner) || partner < 0) {
+      throw new Error("Ingresa cuánto puso cada persona.");
+    }
+
+    if (Math.round((mine + partner) * 100) !== Math.round(params.finalAmount * 100)) {
+      throw new Error("La suma de ambos aportes debe coincidir con el monto total.");
+    }
+
+    if (paymentSource === "account") {
+      throw new Error(
+        "Si pagan entre los dos, registra el gasto desde un bolsillo o crea un movimiento por persona."
+      );
+    }
+
+    const toShared = params.belong === "joint_fund";
+    if (toShared && !params.fundId) {
+      throw new Error("Elige el bolsillo compartido del gasto.");
+    }
+
+    const requests = [];
+
+    if (mine > 0) {
+      requests.push(
+        saveExpenseAction({
+          amount: mine,
+          concept,
+          paidBy: "me",
+          responsibleFor: toShared ? "joint_fund" : "me",
+          payerSharePct: 100,
+          category: selectedCategory,
+          date,
+          fundId: toShared ? params.fundId : null,
+          paidFromFund: false,
+          splitTypeOverride: toShared ? "fund_transfer" : "personal",
+        })
+      );
+    }
+
+    if (partner > 0) {
+      requests.push(
+        saveExpenseAction({
+          amount: partner,
+          concept,
+          paidBy: "partner",
+          responsibleFor: toShared ? "joint_fund" : "partner",
+          payerSharePct: 100,
+          category: selectedCategory,
+          date,
+          fundId: toShared ? params.fundId : null,
+          paidFromFund: false,
+          splitTypeOverride: toShared ? "fund_transfer" : "personal",
+        })
+      );
+    }
+
+    await Promise.all(requests);
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrorMessage("");
@@ -690,6 +910,28 @@ export default function AddExpenseForm({
 
     if (!concept.trim()) {
       setErrorMessage("Escribe en qué gastaste.");
+      return;
+    }
+
+    // 50/50: ask where the expense belongs before saving.
+    if (!expenseToEdit && isCoupleMode && paidBy === "both_split") {
+      const mine = parseDecimal(myContribution);
+      const partner = parseDecimal(partnerContribution);
+      if (!Number.isFinite(mine) || mine < 0 || !Number.isFinite(partner) || partner < 0) {
+        setErrorMessage("Ingresa cuánto puso cada persona.");
+        return;
+      }
+      if (Math.round((mine + partner) * 100) !== Math.round(finalAmount * 100)) {
+        setErrorMessage("La suma de ambos aportes debe coincidir con el monto total.");
+        return;
+      }
+      setSplitBelongFundId(
+        selectedFundId ?? getDefaultSharedFund(sharedFunds)?.id ?? null
+      );
+      setSplitBelongChoice(
+        sharedFunds.length > 0 ? splitBelongChoice : "each_personal"
+      );
+      setSplitBelongOpen(true);
       return;
     }
 
@@ -726,161 +968,95 @@ export default function AddExpenseForm({
           throw new Error(result.error);
         }
       } else {
-        if (isCoupleMode && paidBy === "both_split") {
-          const mine = parseDecimal(myContribution);
-          const partner = parseDecimal(partnerContribution);
+        const singlePaidBy = (isCoupleMode ? paidBy : "me") as ExpenseActor;
 
-          if (!Number.isFinite(mine) || mine < 0 || !Number.isFinite(partner) || partner < 0) {
-            throw new Error("Ingresa cuánto puso cada persona.");
+        if (paymentSource === "account") {
+          if (!selectedAccountId) {
+            throw new Error("Elige la cuenta desde la que pagas.");
           }
-
-          if (Math.round((mine + partner) * 100) !== Math.round(finalAmount * 100)) {
-            throw new Error("La suma de ambos aportes debe coincidir con el monto total.");
-          }
-
-          const requests = [];
-
-          if (paymentSource === "account") {
-            if (!selectedAccountId) {
-              throw new Error("Elige la cuenta desde la que pagas.");
-            }
-            throw new Error(
-              "Si pagan entre los dos, registra el gasto desde un bolsillo o crea un movimiento por persona."
+          const result = await saveExpenseAction({
+            amount: finalAmount,
+            concept,
+            paidBy: singlePaidBy === "joint_fund" ? "me" : singlePaidBy,
+            responsibleFor: "me",
+            payerSharePct: 100,
+            category: selectedCategory,
+            date,
+            accountId: selectedAccountId,
+            paidFromAccount: true,
+            paidFromFund: false,
+            fundId: null,
+          });
+          if (result && "balanceWarning" in result && result.balanceWarning) {
+            setBalanceWarning(
+              "La cuenta queda en negativo. El gasto se guardó; revísalo cuando puedas."
             );
           }
-
-          if (mine > 0) {
-            requests.push(
-              saveExpenseAction({
-                amount: mine,
-                concept,
-                paidBy: "me",
-                responsibleFor,
-                payerSharePct: 100,
-                category: selectedCategory,
-                date,
-                fundId: responsibleFor === "joint_fund" ? selectedFundId : null,
-                paidFromFund: false,
-                splitTypeOverride:
-                  responsibleFor === "joint_fund"
-                    ? "fund_transfer"
-                    : responsibleFor === "partner"
-                      ? "p2p_debt"
-                      : "personal",
-              })
-            );
-          }
-
-          if (partner > 0) {
-            requests.push(
-              saveExpenseAction({
-                amount: partner,
-                concept,
-                paidBy: "partner",
-                responsibleFor,
-                payerSharePct: 100,
-                category: selectedCategory,
-                date,
-                fundId: responsibleFor === "joint_fund" ? selectedFundId : null,
-                paidFromFund: false,
-                splitTypeOverride:
-                  responsibleFor === "joint_fund"
-                    ? "fund_transfer"
-                    : responsibleFor === "me"
-                      ? "p2p_debt"
-                      : "personal",
-              })
-            );
-          }
-
-          await Promise.all(requests);
         } else {
-          const singlePaidBy = (isCoupleMode ? paidBy : "me") as ExpenseActor;
-
-          if (paymentSource === "account") {
-            if (!selectedAccountId) {
-              throw new Error("Elige la cuenta desde la que pagas.");
-            }
-            const result = await saveExpenseAction({
-              amount: finalAmount,
-              concept,
-              paidBy: singlePaidBy === "joint_fund" ? "me" : singlePaidBy,
-              responsibleFor: "me",
-              payerSharePct: 100,
-              category: selectedCategory,
-              date,
-              accountId: selectedAccountId,
-              paidFromAccount: true,
-              paidFromFund: false,
-              fundId: null,
-            });
-            if (result && "balanceWarning" in result && result.balanceWarning) {
-              setBalanceWarning(
-                "La cuenta queda en negativo. El gasto se guardó; revísalo cuando puedas."
-              );
-            }
-          } else {
-            const splitTypeOverride =
-              responsibleFor === "joint_fund"
-                ? "fund_transfer"
-                : responsibleFor === "partner" && singlePaidBy === "me"
+          const splitTypeOverride =
+            responsibleFor === "joint_fund"
+              ? "fund_transfer"
+              : responsibleFor === "partner" && singlePaidBy === "me"
+                ? "p2p_debt"
+                : responsibleFor === "me" && singlePaidBy === "partner"
                   ? "p2p_debt"
-                  : responsibleFor === "me" && singlePaidBy === "partner"
-                    ? "p2p_debt"
-                    : "personal";
+                  : "personal";
 
-            const soloFundId =
-              isSolo && paymentSource === "fund"
-                ? selectedFundId ?? getPersonalFund(personalFunds, resolvedCurrentUserId ?? "")?.id ?? null
-                : null;
+          const soloFundId =
+            isSolo && paymentSource === "fund"
+              ? selectedFundId ??
+                getPersonalFund(personalFunds, resolvedCurrentUserId ?? "")
+                  ?.id ??
+                null
+              : null;
 
-            await saveExpenseAction({
-              amount: finalAmount,
-              concept,
-              paidBy: singlePaidBy,
-              responsibleFor: isCoupleMode ? responsibleFor : "me",
-              payerSharePct: 100,
-              category: selectedCategory,
-              date,
-              splitTypeOverride,
-              fundId: isSolo
-                ? soloFundId
-                : (isCoupleMode ? responsibleFor : "me") === "joint_fund"
-                  ? selectedFundId
-                  : null,
-              paidFromFund: isSolo
-                ? Boolean(soloFundId)
-                : singlePaidBy === "joint_fund",
-            });
-          }
+          await saveExpenseAction({
+            amount: finalAmount,
+            concept,
+            paidBy: singlePaidBy,
+            responsibleFor: isCoupleMode ? responsibleFor : "me",
+            payerSharePct: 100,
+            category: selectedCategory,
+            date,
+            splitTypeOverride,
+            fundId: isSolo
+              ? soloFundId
+              : (isCoupleMode ? responsibleFor : "me") === "joint_fund"
+                ? selectedFundId
+                : null,
+            paidFromFund: isSolo
+              ? Boolean(soloFundId)
+              : singlePaidBy === "joint_fund",
+          });
         }
       }
 
-      setShowKeypad(false);
-      setIsSheetAnimated(false);
-      setIsCategorySheetOpen(false);
-
-      // Refresh local store + pulse partner Realtime channel
-      const { syncFamilyExpenses } = await import("@/lib/realtimeFamily");
-      const { requestFirstMoveCelebrationCheck } = await import(
-        "@/components/PartnerFirstMoveCelebration"
-      );
-
-      if (onClose) {
-        onClose();
-        window.setTimeout(() => {
-          void syncFamilyExpenses();
-          requestFirstMoveCelebrationCheck();
-        }, 460);
-      } else {
-        router.push("/");
-        void syncFamilyExpenses();
-        requestFirstMoveCelebrationCheck();
-      }
+      await finishAfterSave();
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "No se pudo guardar el gasto."
       );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function confirmBothSplitBelong() {
+    const finalAmount = parseFloat(amount.toString().replace(/,/g, "."));
+    setErrorMessage("");
+    try {
+      setIsSaving(true);
+      await saveBothSplitExpenses({
+        finalAmount,
+        belong: splitBelongChoice,
+        fundId: splitBelongFundId,
+      });
+      await finishAfterSave();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "No se pudo guardar el gasto."
+      );
+      setSplitBelongOpen(false);
     } finally {
       setIsSaving(false);
     }
@@ -951,7 +1127,10 @@ export default function AddExpenseForm({
             </div>
             <button
               type="button"
-              onClick={() => setShowKeypad(true)}
+              onClick={() => {
+                setSplitEditSide(null);
+                setShowKeypad(true);
+              }}
               className="mt-1 flex items-baseline justify-center gap-1.5 border-none bg-transparent outline-none"
             >
               {currencyMeta.symbolPosition === "before" ? (
@@ -989,7 +1168,14 @@ export default function AddExpenseForm({
             <input
               type="text"
               value={concept}
-              onChange={(e) => setConcept(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setConcept(next);
+                // Clearing the concept allows AI again; a manual pick stays locked.
+                if (!next.trim() && categoryLockedByUser) {
+                  setCategoryLockedByUser(false);
+                }
+              }}
               placeholder="¿En qué gastaste?"
               className="w-full border-none bg-transparent text-[15px] font-semibold text-on-surface outline-none placeholder:font-medium placeholder:text-on-surface/40 focus:ring-0"
             />
@@ -1156,62 +1342,70 @@ export default function AddExpenseForm({
               {paymentSource === "fund" && paidBy === "both_split" && (
                 <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2">
                   <p className="text-[11px] font-light text-on-surface-variant">
-                    Dividimos el importe a medias. Puedes ajustar si uno puso un
-                    poco más.
+                    A medias por defecto. Toca una cápsula para ajustar; el otro
+                    queda con la diferencia.
                   </p>
-                  <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-medium uppercase text-on-surface/55">Tú</label>
-                    <div className="relative mt-0.5">
-                      {currencyMeta.symbolPosition === "before" ? (
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
-                          {currencyMeta.symbol}
-                        </span>
-                      ) : (
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
-                          {currencyMeta.symbol}
-                        </span>
-                      )}
-                      <input
-                        type="number"
-                        value={myContribution}
-                        onChange={(e) => setMyContribution(e.target.value.replace(/,/g, "."))}
-                        className={`w-full rounded-xl border border-outline-variant/30 bg-surface-low py-1.5 text-sm text-on-surface outline-none ${
-                          currencyMeta.symbolPosition === "before" ? "pl-6 pr-2" : "pl-2 pr-6"
-                        }`}
-                        placeholder={formatAmountDisplay(0)}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-medium uppercase text-on-surface/55">{resolvedPartnerFirstName}</label>
-                    <div className="relative mt-0.5">
-                      {currencyMeta.symbolPosition === "before" ? (
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
-                          {currencyMeta.symbol}
-                        </span>
-                      ) : (
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface/65">
-                          {currencyMeta.symbol}
-                        </span>
-                      )}
-                      <input
-                        type="number"
-                        value={partnerContribution}
-                        onChange={(e) => setPartnerContribution(e.target.value.replace(/,/g, "."))}
-                        className={`w-full rounded-xl border border-outline-variant/30 bg-surface-low py-1.5 text-sm text-on-surface outline-none ${
-                          currencyMeta.symbolPosition === "before" ? "pl-6 pr-2" : "pl-2 pr-6"
-                        }`}
-                        placeholder={formatAmountDisplay(0)}
-                      />
-                    </div>
-                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowKeypad(false);
+                        setSplitEditSide("me");
+                      }}
+                      className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
+                        splitEditSide === "me",
+                        false
+                      )}`}
+                    >
+                      <User size={13} />
+                      <span>Tú</span>
+                      <span className="font-semibold tabular-nums text-on-surface">
+                        {currencyMeta.symbolPosition === "before"
+                          ? `${currencyMeta.symbol}${formatAmountDisplay(
+                              Number.isFinite(parseDecimal(myContribution))
+                                ? parseDecimal(myContribution)
+                                : 0
+                            )}`
+                          : `${formatAmountDisplay(
+                              Number.isFinite(parseDecimal(myContribution))
+                                ? parseDecimal(myContribution)
+                                : 0
+                            )}${currencyMeta.symbol}`}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowKeypad(false);
+                        setSplitEditSide("partner");
+                      }}
+                      className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${getSelectorClasses(
+                        splitEditSide === "partner",
+                        false
+                      )}`}
+                    >
+                      <Heart size={13} />
+                      <span className="truncate">{resolvedPartnerFirstName}</span>
+                      <span className="font-semibold tabular-nums text-on-surface">
+                        {currencyMeta.symbolPosition === "before"
+                          ? `${currencyMeta.symbol}${formatAmountDisplay(
+                              Number.isFinite(parseDecimal(partnerContribution))
+                                ? parseDecimal(partnerContribution)
+                                : 0
+                            )}`
+                          : `${formatAmountDisplay(
+                              Number.isFinite(parseDecimal(partnerContribution))
+                                ? parseDecimal(partnerContribution)
+                                : 0
+                            )}${currencyMeta.symbol}`}
+                      </span>
+                    </button>
                   </div>
                 </div>
               )}
             </section>
 
-            {paymentSource === "fund" && (
+            {paymentSource === "fund" && paidBy !== "both_split" && (
               <section className="px-0.5">
                 <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface/55">
                   Destino
@@ -1290,7 +1484,15 @@ export default function AddExpenseForm({
               Categoría
             </span>
             <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-on-surface">
-              <SelectedCategoryIcon size={15} style={{ color: amountAccent }} />
+              {categorySuggesting ? (
+                <Sparkles
+                  size={14}
+                  className="shrink-0 animate-pulse text-accent"
+                  strokeWidth={1.75}
+                />
+              ) : (
+                <SelectedCategoryIcon size={15} style={{ color: amountAccent }} />
+              )}
               <span className="truncate">{selectedCategoryItem.label}</span>
             </span>
           </button>
@@ -1333,10 +1535,15 @@ export default function AddExpenseForm({
       <footer className="mt-3 shrink-0">
         <button
           type="submit"
-          disabled={isSaving}
+          disabled={
+            isSaving ||
+            (!expenseToEdit && (!categoryReady || categorySuggesting))
+          }
           className="fab-ink flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? (
+            <LoaderCircle size={17} className="animate-spin" />
+          ) : categorySuggesting && !expenseToEdit ? (
             <LoaderCircle size={17} className="animate-spin" />
           ) : (
             <CheckCircle2 size={17} />
@@ -1345,9 +1552,11 @@ export default function AddExpenseForm({
             ? expenseToEdit
               ? "Actualizando..."
               : "Guardando..."
-            : expenseToEdit
-              ? "Actualizar"
-              : "Guardar"}
+            : categorySuggesting && !expenseToEdit
+              ? "Eligiendo categoría…"
+              : expenseToEdit
+                ? "Actualizar"
+                : "Guardar"}
         </button>
       </footer>
 
@@ -1395,6 +1604,9 @@ export default function AddExpenseForm({
                           type="button"
                           onClick={() => {
                             setSelectedCategory(cat.id);
+                            setCategoryLockedByUser(true);
+                            setCategoryReady(true);
+                            setCategorySuggesting(false);
                             closeCategorySheet();
                           }}
                           className="flex flex-col items-center gap-1.5"
@@ -1442,6 +1654,9 @@ export default function AddExpenseForm({
                               type="button"
                               onClick={() => {
                                 setSelectedCategory(cat.id);
+                                setCategoryLockedByUser(true);
+                                setCategoryReady(true);
+                                setCategorySuggesting(false);
                                 closeCategorySheet();
                               }}
                               className="flex flex-col items-center gap-1.5"
@@ -1507,8 +1722,25 @@ export default function AddExpenseForm({
           document.body
         )}
 
+      <BothSplitBelongModal
+        open={splitBelongOpen}
+        partnerFirstName={resolvedPartnerFirstName}
+        sharedFunds={sharedFunds}
+        choice={splitBelongChoice}
+        fundId={splitBelongFundId}
+        confirming={isSaving}
+        onChoiceChange={setSplitBelongChoice}
+        onFundChange={setSplitBelongFundId}
+        onClose={() => {
+          if (!isSaving) setSplitBelongOpen(false);
+        }}
+        onConfirm={() => {
+          void confirmBothSplitBelong();
+        }}
+      />
+
       <NumericKeypadSheet
-        isOpen={showKeypad}
+        isOpen={showKeypad && splitEditSide === null}
         title="Importe del gasto"
         subtitle={
           isSolo && paymentSource === "fund"
@@ -1522,6 +1754,59 @@ export default function AddExpenseForm({
         onClose={() => setShowKeypad(false)}
         onValueChange={(value) => setAmount(sanitizeDecimalInput(value))}
         onConfirm={() => setShowKeypad(false)}
+      />
+
+      <NumericKeypadSheet
+        isOpen={splitEditSide !== null}
+        title={
+          splitEditSide === "partner"
+            ? `Aporte de ${resolvedPartnerFirstName}`
+            : "Tu aporte"
+        }
+        subtitle={(() => {
+          const total = parseDecimal(amount);
+          const safe = Number.isFinite(total) && total > 0 ? total : 0;
+          const formatted = formatAmountDisplay(safe);
+          const withSymbol =
+            currencyMeta.symbolPosition === "before"
+              ? `${currencyMeta.symbol}${formatted}`
+              : `${formatted}${currencyMeta.symbol}`;
+          return `Valor del importe total ${withSymbol}`;
+        })()}
+        accentColor={amountAccent}
+        initialValue={
+          (splitEditSide === "partner" ? partnerContribution : myContribution) ||
+          "0"
+        }
+        maxValue={
+          Number.isFinite(parseDecimal(amount)) && parseDecimal(amount) > 0
+            ? parseDecimal(amount)
+            : 0
+        }
+        onClose={() => setSplitEditSide(null)}
+        onValueChange={() => {
+          /* Draft stays on the keypad until confirm; partner updates then. */
+        }}
+        onConfirm={(value) => {
+          const total = parseDecimal(amount);
+          const safeTotal =
+            Number.isFinite(total) && total > 0 ? total : 0;
+          let next = parseDecimal(sanitizeDecimalInput(value ?? "0"));
+          if (!Number.isFinite(next) || next < 0) next = 0;
+          if (Math.round(next * 100) > Math.round(safeTotal * 100)) {
+            return;
+          }
+          next = Math.round(next * 100) / 100;
+          const other = Math.round((safeTotal - next) * 100) / 100;
+          if (splitEditSide === "partner") {
+            setPartnerContribution(String(next));
+            setMyContribution(String(other));
+          } else {
+            setMyContribution(String(next));
+            setPartnerContribution(String(other));
+          }
+          setSplitEditSide(null);
+        }}
       />
     </form>
   );

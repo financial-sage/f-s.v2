@@ -89,9 +89,9 @@ const ALL_CATEGORIES: CategoryTile[] = [
 ];
 
 const FALLBACK: CategoryTile = {
-  id: "super",
-  value: "super",
-  label: "Gasto",
+  id: "misc",
+  value: "other",
+  label: "Varios",
   icon: Receipt,
 };
 

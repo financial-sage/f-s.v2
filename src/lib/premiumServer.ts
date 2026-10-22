@@ -175,10 +175,43 @@ export async function assertCoupleFeaturesAllowed(familyId: string) {
   }
 }
 
+async function stampFirstMovementOnly(input: {
+  familyId: string;
+  actorUserId: string;
+}): Promise<boolean> {
+  const admin = getSupabaseAdminClient();
+  const started = new Date();
+  const { error } = await admin
+    .from("families")
+    .update({
+      first_movement_at: started.toISOString(),
+      first_movement_by: input.actorUserId,
+      updated_at: started.toISOString(),
+    } as never)
+    .eq("id", input.familyId)
+    .is("first_movement_at", null);
+  return !error;
+}
+
+async function householdIsPremium(row: FamilyBillingRow): Promise<boolean> {
+  if (resolveHouseholdEntitlement(row).isPremiumHousehold) return true;
+  // Same defense as getHouseholdEntitlement: paid sub may lag the flag.
+  try {
+    const { householdHasActivePaidSubscription } = await import(
+      "@/lib/paddle/sync"
+    );
+    const memberIds = [row.user_1_id, row.user_2_id].filter(Boolean) as string[];
+    return householdHasActivePaidSubscription(memberIds);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * After inserting an expense/income:
  * - Solo: stamp first_movement_at (starts Recommendations solo free trial).
- * - Couple: start the 7-day couple trial + partner celebration.
+ * - Couple (non-Premium): start the 7-day couple trial + celebration.
+ * - Premium household: never start trial or first-move confetti (may stamp first_movement_at).
  */
 export async function maybeStartCoupleTrialOnFirstMovement(input: {
   familyId: string;
@@ -189,25 +222,29 @@ export async function maybeStartCoupleTrialOnFirstMovement(input: {
   const row = await loadFamilyBillingRow(input.familyId);
   if (!row) return { started: false, kind: input.kind };
 
+  const isPremium = await householdIsPremium(row);
+
+  // Premium: never start couple trial / celebration. Only stamp first movement if missing.
+  if (isPremium) {
+    if (!row.first_movement_at) {
+      await stampFirstMovementOnly({
+        familyId: input.familyId,
+        actorUserId: input.actorUserId,
+      });
+    }
+    return { started: false, kind: input.kind };
+  }
+
   // Solo household: only mark first movement (Recommendations 7-day free trial).
   if (!row.user_2_id) {
     if (row.first_movement_at) {
       return { started: false, kind: input.kind };
     }
-    const started = new Date();
-    const { error } = await admin
-      .from("families")
-      .update({
-        first_movement_at: started.toISOString(),
-        first_movement_by: input.actorUserId,
-        updated_at: started.toISOString(),
-      } as never)
-      .eq("id", input.familyId)
-      .is("first_movement_at", null);
-    if (error) {
-      return { started: false, kind: input.kind };
-    }
-    return { started: true, kind: input.kind };
+    const stamped = await stampFirstMovementOnly({
+      familyId: input.familyId,
+      actorUserId: input.actorUserId,
+    });
+    return { started: stamped, kind: input.kind };
   }
 
   if (row.first_movement_at || row.couple_trial_started_at) {
@@ -292,14 +329,27 @@ export async function getPendingFirstMoveCelebration(
   const admin = getSupabaseAdminClient();
   const { data } = await admin
     .from("profiles")
-    .select("pending_first_move_celebration")
+    .select("pending_first_move_celebration, family_id")
     .eq("id", userId)
     .maybeSingle();
 
-  return parseFirstMoveCelebration(
+  const pending = parseFirstMoveCelebration(
     (data as { pending_first_move_celebration?: unknown } | null)
       ?.pending_first_move_celebration
   );
+  if (!pending) return null;
+
+  // Premium households must never see the 7-day trial confetti (stale pending).
+  const familyId = (data as { family_id?: string | null } | null)?.family_id;
+  if (familyId) {
+    const row = await loadFamilyBillingRow(familyId);
+    if (row && (await householdIsPremium(row))) {
+      await clearPendingFirstMoveCelebration(userId);
+      return null;
+    }
+  }
+
+  return pending;
 }
 
 export async function clearPendingFirstMoveCelebration(userId: string) {

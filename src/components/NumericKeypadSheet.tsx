@@ -17,6 +17,8 @@ interface NumericKeypadSheetProps {
   dateValue?: string;
   onDateChange?: (value: string) => void;
   dateLabel?: string;
+  /** Block confirm and show amount in red when the value exceeds this. */
+  maxValue?: number;
   onClose: () => void;
   onValueChange: (value: string) => void;
   onConfirm: (value?: string) => void;
@@ -42,6 +44,7 @@ export function NumericKeypadSheet({
   dateValue,
   onDateChange,
   dateLabel = "Fecha de pago",
+  maxValue,
   onClose,
   onValueChange,
   onConfirm,
@@ -150,6 +153,7 @@ export function NumericKeypadSheet({
             showDisplay={showDisplay}
             accentColor={accentColor}
             initialValue={initialValue || "0"}
+            maxValue={maxValue}
             onClose={onClose}
             onValueChange={onValueChange}
             onConfirm={onConfirm}
