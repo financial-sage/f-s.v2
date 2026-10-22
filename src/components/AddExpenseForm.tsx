@@ -704,10 +704,10 @@ export default function AddExpenseForm({
     setScanHint("");
     setErrorMessage("");
     try {
-      const { prepareReceiptImage } = await import(
+      const { prepareReceiptFile } = await import(
         "@/lib/receipts/prepare-image"
       );
-      const prepared = await prepareReceiptImage(file);
+      const prepared = await prepareReceiptFile(file);
 
       const form = new FormData();
       form.set("file", prepared);
@@ -1208,7 +1208,7 @@ export default function AddExpenseForm({
                 disabled={isScanning || isSaving}
                 onClick={() => receiptInputRef.current?.click()}
                 className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-light text-accent transition-opacity hover:opacity-90 disabled:opacity-50"
-                aria-label="Escanear ticket o factura"
+                aria-label="Escanear ticket, foto o factura PDF"
               >
                 <Camera size={12} strokeWidth={1.75} aria-hidden />
                 {isScanning ? "Leyendo…" : "Escanear"}
@@ -1216,8 +1216,7 @@ export default function AddExpenseForm({
               <input
                 ref={receiptInputRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+                accept="image/*,application/pdf,.pdf"
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;

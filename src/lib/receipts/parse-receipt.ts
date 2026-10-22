@@ -155,8 +155,9 @@ export async function parseReceiptImage(input: {
     (c) => `${c.id}=${c.label}`
   ).join(", ");
 
-  const prompt = `Eres un extractor de datos de tickets, facturas o vouchers para SinDescuadre (finanzas en pareja/familia).
-Idioma del ticket: ${locale}.
+  const prompt = `Eres un extractor de datos de tickets, facturas electrónicas (PDF rasterizado), vouchers o tickets en foto para SinDescuadre (finanzas en pareja/familia).
+Idioma del documento: ${locale}.
+Puede ser una o varias páginas unidas en vertical (factura electrónica).
 
 Lee la imagen y devuelve SOLO JSON válido con esta forma:
 {
