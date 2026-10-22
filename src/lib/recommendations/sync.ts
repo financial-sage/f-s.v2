@@ -120,7 +120,10 @@ export async function syncRecommendationsForFamily(
     .order("created_at", { ascending: false });
 
   if (existingError) {
-    console.error("[recommendations] sync list", existingError.message);
+    console.error(
+      "[recommendations] sync list — ¿falta la migración family_recommendations?",
+      existingError.message
+    );
     return [];
   }
 

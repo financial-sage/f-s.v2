@@ -11,7 +11,9 @@ import {
   Landmark,
   LoaderCircle,
   MoreHorizontal,
+  Camera,
   PencilLine,
+  Scale,
   User,
   Wallet,
   X,
@@ -131,6 +133,7 @@ function buildPaidByOptions(
   const baseOptions: OptionItem<ExpenseOrigin>[] = [
     { value: "me", label: "Mi", icon: Wallet },
     { value: "partner", label: partnerLabel, icon: Heart },
+    { value: "both_split", label: "50/50", icon: Scale },
   ];
 
   if (financialModel === "joint_fund") {
@@ -138,6 +141,16 @@ function buildPaidByOptions(
   }
 
   return baseOptions;
+}
+
+function splitAmountFiftyFifty(total: number): { mine: string; partner: string } {
+  const safe = Number.isFinite(total) && total > 0 ? total : 0;
+  const mine = Math.round((safe / 2) * 100) / 100;
+  const partner = Math.round((safe - mine) * 100) / 100;
+  return {
+    mine: mine > 0 ? String(mine) : "",
+    partner: partner > 0 ? String(partner) : "",
+  };
 }
 
 function buildResponsibleOptions(
@@ -256,6 +269,9 @@ export default function AddExpenseForm({
   const [mounted, setMounted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [balanceWarning, setBalanceWarning] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanHint, setScanHint] = useState("");
+  const receiptInputRef = useRef<HTMLInputElement>(null);
   const sharedFunds = useMemo(() => listVariableSharedFunds(storeFunds), [storeFunds]);
   const personalFunds = useMemo(() => {
     if (!resolvedCurrentUserId) return [] as FamilyFund[];
@@ -513,11 +529,116 @@ export default function AddExpenseForm({
     if (
       isCoupleMode &&
       resolvedFinancialModel !== "joint_fund" &&
-      (paidBy === "joint_fund" || paidBy === "both_split")
+      paidBy === "joint_fund"
     ) {
       setPaidBy("me");
     }
   }, [isCoupleMode, paidBy, resolvedFinancialModel]);
+
+  // Keep 50/50 contributions in sync with the total amount.
+  useEffect(() => {
+    if (!isCoupleMode || paidBy !== "both_split") return;
+    const total = parseDecimal(amount);
+    const { mine, partner } = splitAmountFiftyFifty(total);
+    setMyContribution(mine);
+    setPartnerContribution(partner);
+  }, [amount, isCoupleMode, paidBy]);
+
+  function mapCategoryHint(hint: string | null | undefined): string | null {
+    if (!hint) return null;
+    const key = hint.trim().toLowerCase();
+    // Map to category tile ids used by the form.
+    const aliases: Record<string, string> = {
+      food: "dining",
+      comida: "dining",
+      groceries: "super",
+      transport: "transport",
+      transporte: "transport",
+      home: "home",
+      hogar: "home",
+      health: "health",
+      salud: "health",
+      leisure: "cinema",
+      ocio: "cinema",
+      shopping: "super",
+      compras: "super",
+      other: "misc",
+      otros: "misc",
+    };
+    return aliases[key] ?? null;
+  }
+
+  async function handleReceiptFile(file: File | null) {
+    if (!file) return;
+    setIsScanning(true);
+    setScanHint("");
+    setErrorMessage("");
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      form.set(
+        "localeHint",
+        currencyMeta.country === "CO"
+          ? "español de Colombia"
+          : currencyMeta.country === "ES"
+            ? "español de España"
+            : "español"
+      );
+      const res = await fetch("/api/receipts/parse", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        receipt?: {
+          merchant?: string | null;
+          description?: string | null;
+          total?: number | null;
+          date?: string | null;
+          categoryHint?: string | null;
+          confidence?: string;
+          rawNotes?: string | null;
+        };
+      };
+      if (!res.ok || !data.receipt) {
+        throw new Error(data.error || "No se pudo leer el ticket.");
+      }
+
+      const receipt = data.receipt;
+      if (typeof receipt.total === "number" && receipt.total > 0) {
+        setAmount(sanitizeDecimalInput(String(receipt.total)));
+      }
+      const conceptFromScan =
+        receipt.description?.trim() ||
+        (receipt.merchant ? `Compra ${receipt.merchant}` : "");
+      if (conceptFromScan) setConcept(conceptFromScan.slice(0, 80));
+      if (receipt.date) setDate(receipt.date.slice(0, 10));
+      const mappedCategory = mapCategoryHint(receipt.categoryHint);
+      if (mappedCategory) setSelectedCategory(mappedCategory);
+
+      if (receipt.total == null) {
+        setScanHint(
+          "Leímos el ticket, pero no vimos claro el total. Revísalo a mano."
+        );
+      } else if (receipt.confidence === "low") {
+        setScanHint(
+          receipt.rawNotes?.trim() ||
+            "Revisa los datos: la lectura no está muy segura."
+        );
+      } else {
+        setScanHint("Ticket leído. Revisa y guarda cuando quieras.");
+      }
+      setShowKeypad(false);
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "No se pudo leer el ticket."
+      );
+    } finally {
+      setIsScanning(false);
+      if (receiptInputRef.current) receiptInputRef.current.value = "";
+    }
+  }
 
   function openCategorySheet() {
     setIsExpanded(false);
@@ -802,9 +923,32 @@ export default function AddExpenseForm({
           }}
         >
           <div className="flex w-full flex-col items-center text-center">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-on-surface/80">
-              Importe
-            </span>
+            <div className="flex w-full items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-on-surface/80">
+                Importe
+              </span>
+              <button
+                type="button"
+                disabled={isScanning || isSaving}
+                onClick={() => receiptInputRef.current?.click()}
+                className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-light text-accent transition-opacity hover:opacity-90 disabled:opacity-50"
+                aria-label="Escanear ticket o factura"
+              >
+                <Camera size={12} strokeWidth={1.75} aria-hidden />
+                {isScanning ? "Leyendo…" : "Escanear"}
+              </button>
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  void handleReceiptFile(file);
+                }}
+              />
+            </div>
             <button
               type="button"
               onClick={() => setShowKeypad(true)}
@@ -833,6 +977,12 @@ export default function AddExpenseForm({
               ) : null}
             </button>
           </div>
+
+          {scanHint ? (
+            <p className="w-full text-center text-[11px] font-light text-accent/90">
+              {scanHint}
+            </p>
+          ) : null}
 
           <div className="flex w-full items-center gap-2 border-t border-glass-border pt-2.5">
             <PencilLine size={15} className="shrink-0 text-on-surface/70" />
@@ -1004,7 +1154,12 @@ export default function AddExpenseForm({
               </div>
 
               {paymentSource === "fund" && paidBy === "both_split" && (
-                <div className="mt-2 flex gap-2 animate-in fade-in slide-in-from-top-2">
+                <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2">
+                  <p className="text-[11px] font-light text-on-surface-variant">
+                    Dividimos el importe a medias. Puedes ajustar si uno puso un
+                    poco más.
+                  </p>
+                  <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="text-[10px] font-medium uppercase text-on-surface/55">Tú</label>
                     <div className="relative mt-0.5">
@@ -1050,6 +1205,7 @@ export default function AddExpenseForm({
                         placeholder={formatAmountDisplay(0)}
                       />
                     </div>
+                  </div>
                   </div>
                 </div>
               )}
