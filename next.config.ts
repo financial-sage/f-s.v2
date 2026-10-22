@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
+/**
+ * Baked into the client so UpdateNotifier can detect a new deploy.
+ * Prefer the Vercel commit SHA so every production build gets a fresh version
+ * even if NEXT_PUBLIC_APP_VERSION is left static in the project env.
+ */
+const appVersion =
+  process.env.VERCEL_GIT_COMMIT_SHA?.trim()?.slice(0, 7) ||
+  process.env.NEXT_PUBLIC_APP_VERSION?.trim() ||
+  "dev";
+
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
   turbopack: {},
   allowedDevOrigins: [
     "127.0.0.1",

@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { APP_UPDATE_MESSAGE_TYPE } from "@/lib/push";
 
-const BUILD_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.1.0";
+const BUILD_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
 const STORAGE_KEY = "sd-app-version";
 
 export default function UpdateNotifier() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [serverVersion, setServerVersion] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +36,7 @@ export default function UpdateNotifier() {
         const known = window.localStorage.getItem(STORAGE_KEY);
         if ((known && known !== version) || BUILD_VERSION !== version) {
           setUpdateAvailable(true);
+          setDismissed(false);
         }
       } catch {
         // Offline or network error — ignore
@@ -43,6 +45,7 @@ export default function UpdateNotifier() {
 
     function onSwUpdate() {
       setUpdateAvailable(true);
+      setDismissed(false);
     }
 
     function onControllerMessage(event: MessageEvent) {
@@ -52,6 +55,7 @@ export default function UpdateNotifier() {
         setServerVersion(String(data.version));
       }
       setUpdateAvailable(true);
+      setDismissed(false);
       void checkVersion();
       void navigator.serviceWorker?.getRegistration().then((reg) => reg?.update());
     }
@@ -135,20 +139,49 @@ export default function UpdateNotifier() {
     window.location.reload();
   };
 
-  if (!updateAvailable) return null;
+  if (!updateAvailable || dismissed) return null;
 
   return (
     <Portal>
-      <button
-        type="button"
-        onClick={() => void handleUpdate()}
-        disabled={isUpdating}
-        className="fixed top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-[200] inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary px-3 py-2 text-xs font-semibold text-on-primary shadow-[0_8px_20px_rgba(15,23,42,0.22)] animate-in fade-in slide-in-from-top-2 duration-300 active:scale-95 disabled:opacity-70"
-        aria-label="Actualizar app"
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed inset-x-3 bottom-[max(1rem,calc(var(--fab-clearance,4.5rem)+0.5rem))] z-[200] mx-auto max-w-md animate-in fade-in slide-in-from-bottom-3 duration-300"
       >
-        <RefreshCw size={14} className={isUpdating ? "animate-spin" : undefined} />
-        {isUpdating ? "Actualizando…" : "Actualizar app"}
-      </button>
+        <div className="rounded-[1.35rem] border border-accent/35 bg-surface-lowest/95 px-4 py-3.5 shadow-[0_16px_40px_rgba(43,52,55,0.18)] backdrop-blur-xl">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium tracking-tight text-on-surface">
+                Nueva versión lista
+              </p>
+              <p className="mt-1 text-[12px] font-light leading-relaxed text-on-surface-variant">
+                Pulsa actualizar para cargar la nueva versión al momento.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              className="shrink-0 rounded-full p-1.5 text-on-surface-variant/70 transition-colors hover:bg-on-surface/[0.05] hover:text-on-surface"
+              aria-label="Cerrar aviso"
+            >
+              <X size={14} strokeWidth={1.75} />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleUpdate()}
+            disabled={isUpdating}
+            className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-accent px-4 text-[13px] font-medium text-[#3a3224] transition-opacity hover:opacity-90 active:scale-[0.99] disabled:opacity-70"
+          >
+            <RefreshCw
+              size={14}
+              strokeWidth={2}
+              className={isUpdating ? "animate-spin" : undefined}
+            />
+            {isUpdating ? "Actualizando…" : "Actualizar ahora"}
+          </button>
+        </div>
+      </div>
     </Portal>
   );
 }

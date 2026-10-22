@@ -68,12 +68,14 @@ function sourceLabel(source: string) {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; push?: string }>;
+  searchParams?: Promise<{ q?: string; push?: string; sent?: string; removed?: string }>;
 }) {
   await getAuthorizedUser();
   const params = searchParams ? await searchParams : undefined;
   const q = params?.q?.trim() ?? "";
   const pushSent = params?.push === "sent";
+  const pushSentCount = params?.sent ? Number(params.sent) : null;
+  const pushRemovedCount = params?.removed ? Number(params.removed) : null;
   const pushReady = isPushConfigured();
 
   const [overview, premiumList, vipList, inactiveList, searchHits, revenue] =
@@ -132,8 +134,13 @@ export default async function AdminPage({
 
   async function notifyUpdate() {
     "use server";
-    await broadcastAppUpdateAdminAction();
-    redirect("/admin?push=sent");
+    const result = await broadcastAppUpdateAdminAction();
+    const qs = new URLSearchParams({
+      push: "sent",
+      sent: String(result.sent ?? 0),
+      removed: String(result.removed ?? 0),
+    });
+    redirect(`/admin?${qs.toString()}`);
   }
 
   return (
@@ -511,7 +518,14 @@ export default async function AdminPage({
         <div className="mt-4 space-y-3">
           {pushSent ? (
             <p className="text-xs font-medium text-emerald-700">
-              Aviso de actualización enviado a los dispositivos suscritos.
+              Aviso enviado
+              {Number.isFinite(pushSentCount)
+                ? `: ${pushSentCount} dispositivo${pushSentCount === 1 ? "" : "s"}`
+                : " a los dispositivos suscritos"}
+              {Number.isFinite(pushRemovedCount) && (pushRemovedCount ?? 0) > 0
+                ? ` (${pushRemovedCount} suscripciones caducadas limpiadas)`
+                : ""}
+              .
             </p>
           ) : null}
           <form action={notifyUpdate}>
@@ -524,6 +538,12 @@ export default async function AdminPage({
               Avisar actualización (push)
             </button>
           </form>
+          <p className="text-[11px] leading-relaxed text-on-surface-variant">
+            Tras un deploy en producción también se puede disparar solo con el
+            workflow «Notify app update» (secret{" "}
+            <code className="text-[10px]">PUSH_BROADCAST_SECRET</code>
+            ). El aviso lleva al botón in-app «Actualizar».
+          </p>
           {!pushReady ? (
             <p className="text-[11px] text-on-surface-variant">
               Push no configurado (faltan claves VAPID).

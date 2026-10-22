@@ -1,0 +1,74 @@
+name: Notify app update
+
+# After a production deploy, notify subscribed devices so they can tap Actualizar.
+# Also runnable by hand from Actions → Notify app update → Run workflow.
+#
+# Required GitHub secrets:
+#   APP_URL                 — e.g. https://sindescuadre.app (no trailing slash)
+#   PUSH_BROADCAST_SECRET   — same value as Vercel env PUSH_BROADCAST_SECRET
+#
+# Optional:
+#   Leave secrets empty to skip quietly (workflow still succeeds).
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      body:
+        description: "Optional custom push body"
+        required: false
+        type: string
+
+concurrency:
+  group: notify-app-update
+  cancel-in-progress: false
+
+jobs:
+  broadcast:
+    name: Broadcast update push
+    runs-on: ubuntu-latest
+    # Vercel creates GitHub deployments; only notify on successful Production.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'deployment_status' &&
+       github.event.deployment_status.state == 'success' &&
+       (github.event.deployment.environment == 'Production' ||
+        github.event.deployment.environment == 'production'))
+    steps:
+      - name: Validate secrets
+        id: check
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          PUSH_BROADCAST_SECRET: ${{ secrets.PUSH_BROADCAST_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$PUSH_BROADCAST_SECRET" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "APP_URL or PUSH_BROADCAST_SECRET missing — skipping broadcast."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for cold start (deploy)
+        if: steps.check.outputs.skip != 'true' && github.event_name == 'deployment_status'
+        run: sleep 45
+
+      - name: Send broadcast
+        if: steps.check.outputs.skip != 'true'
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          PUSH_BROADCAST_SECRET: ${{ secrets.PUSH_BROADCAST_SECRET }}
+          CUSTOM_BODY: ${{ github.event.inputs.body || '' }}
+          SHA: ${{ github.sha }}
+        run: |
+          VERSION="${SHA:0:7}"
+          BODY_JSON="{}"
+          if [ -n "$CUSTOM_BODY" ]; then
+            BODY_JSON=$(jq -n --arg body "$CUSTOM_BODY" --arg version "$VERSION" '{body:$body, version:$version}')
+          else
+            BODY_JSON=$(jq -n --arg version "$VERSION" '{version:$version}')
+          fi
+
+          curl --fail-with-body -sS -X POST "${APP_URL%/}/api/push/broadcast-update" \
+            -H "Authorization: Bearer ${PUSH_BROADCAST_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY_JSON"

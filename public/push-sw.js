@@ -60,7 +60,7 @@ async function handlePushEvent(event) {
   const body =
     payload.body ||
     (type === "app_update"
-      ? "Hay una nueva versión. Toca para actualizar."
+      ? "Hay una nueva versión. Ábrela y pulsa Actualizar."
       : "Tienes una notificación nueva.");
 
   const clients = await self.clients.matchAll({

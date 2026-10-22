@@ -1,7 +1,11 @@
 import webpush from "web-push";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { getAppVersion } from "@/lib/app-version";
 import type { AppUpdatePushPayload } from "@/lib/push";
 import { isPushConfigured } from "@/lib/push";
+
+export const DEFAULT_APP_UPDATE_BODY =
+  "Hay una nueva versión de SinDescuadre. Ábrela y pulsa Actualizar para cargarla.";
 
 let vapidConfigured = false;
 
@@ -47,13 +51,15 @@ export async function broadcastAppUpdate(options?: {
   }
 
   const rows = (data ?? []) as StoredPushSubscription[];
-  const version = options?.version ?? process.env.NEXT_PUBLIC_APP_VERSION ?? "1.1.0";
+  const version = options?.version ?? getAppVersion();
   const payload: AppUpdatePushPayload = {
     type: "app_update",
     version,
-    title: "Actualización disponible",
-    body: options?.body ?? "Hay una nueva versión de SinDescuadre.",
+    title: "Actualización lista",
+    body: options?.body ?? DEFAULT_APP_UPDATE_BODY,
     url: "/",
+    // Always surface the system notification so users know to fully reopen.
+    forceNotification: true,
   };
 
   let sent = 0;

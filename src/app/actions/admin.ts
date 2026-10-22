@@ -66,7 +66,7 @@ export async function setUserVipAction(userId: string, vip: boolean) {
 export async function broadcastAppUpdateAdminAction() {
   await requireSuperAdmin();
   const { broadcastAppUpdate } = await import("@/lib/push-server");
-  await broadcastAppUpdate();
+  const result = await broadcastAppUpdate();
   revalidatePath("/admin");
-  return { ok: true as const };
+  return { ok: true as const, ...result };
 }
