@@ -60,7 +60,7 @@ export default async function RecommendationsPage() {
           : null;
 
   return (
-    <div className="relative min-h-dvh bg-page-gradient pb-[calc(var(--fab-clearance)+1rem)]">
+    <div className="relative h-dvh overflow-y-auto overscroll-y-contain no-scrollbar bg-page-gradient pb-[calc(var(--fab-clearance)+1rem)]">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
       <header className="relative z-10 flex items-center gap-3 px-4 pb-2 pt-[max(0.75rem,var(--safe-top))]">
         <Link

@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function CardsPage() {
   return (
-    <div className="min-h-dvh bg-surface">
+    <div className="h-dvh overflow-y-auto overscroll-y-contain no-scrollbar bg-surface">
       <PageHeader title="Tarjetas" subtitle="Métodos de pago" />
       <div className="flex min-h-[60dvh] flex-col items-center justify-center px-6 pt-8 text-center">
         <div className="mb-4 rounded-full bg-primary/10 p-4">

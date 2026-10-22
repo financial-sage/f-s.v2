@@ -152,10 +152,10 @@ export default async function ProfilePage() {
   perfLog("ProfilePage", { ms: perfNow() - start });
 
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
+    <div className="relative flex h-dvh flex-col bg-page-gradient text-on-surface">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-28 pt-4">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto overscroll-y-contain no-scrollbar px-4 pb-28 pt-4">
         <header className="mb-3 flex items-start justify-between gap-3 px-1">
           <div className="min-w-0">
             <p className="text-[11px] font-light text-on-surface-variant">Tu cuenta</p>

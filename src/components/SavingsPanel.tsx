@@ -196,8 +196,8 @@ export default function SavingsPanel({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-page-gradient">
-      <header className="mx-auto flex w-full max-w-md items-center px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div className="flex h-dvh flex-col overflow-y-auto overscroll-y-contain no-scrollbar bg-page-gradient">
+      <header className="mx-auto flex w-full max-w-md shrink-0 items-center px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="min-w-0 flex-1 text-center">
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-on-surface-variant">
             {isIndividual ? "Mi colchón" : "Familia"}

@@ -249,6 +249,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* PWA shell: document must not scroll; pages that need scroll own it. */
+html.app-shell-lock,
+html.app-shell-lock body {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .font-headline {
   font-family: var(--font-headline);
   font-weight: 300;

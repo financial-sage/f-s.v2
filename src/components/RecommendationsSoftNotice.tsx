@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Lightbulb } from "lucide-react";
+
+export const RECOMMENDATIONS_CHANGED_EVENT = "recommendations:changed";
 
 /**
  * Soft notice outside the dashboard scroll (ADR-0009).
@@ -16,38 +18,48 @@ export default function RecommendationsSoftNotice() {
   const [bulbLit, setBulbLit] = useState(false);
   const [enterKey, setEnterKey] = useState(0);
 
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/recommendations/active", {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { count?: number };
+      const next = Math.max(0, Number(data.count) || 0);
+      setCount((prev) => {
+        if (next > 0 && prev === 0) setEnterKey((k) => k + 1);
+        return next;
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      try {
-        const res = await fetch("/api/recommendations/active", {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as { count?: number };
-        const next = Math.max(0, Number(data.count) || 0);
-        if (cancelled) return;
-        setCount((prev) => {
-          if (next > 0 && prev === 0) setEnterKey((k) => k + 1);
-          return next;
-        });
-      } catch {
-        // ignore
-      }
+    async function run() {
+      if (cancelled) return;
+      await load();
     }
 
-    void load();
+    void run();
 
     function onVisible() {
       if (document.visibilityState === "visible") void load();
     }
+    function onChanged() {
+      void load();
+    }
+
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener(RECOMMENDATIONS_CHANGED_EVENT, onChanged);
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(RECOMMENDATIONS_CHANGED_EVENT, onChanged);
     };
-  }, []);
+  }, [load, pathname]);
 
   useEffect(() => {
     if (count <= 0) return;

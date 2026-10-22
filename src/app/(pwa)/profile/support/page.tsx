@@ -1,20 +1,16 @@
 import Link from "next/link";
-import { ChevronLeft, Mail } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import packageJson from "../../../../../package.json";
+import SupportTicketForm from "@/components/SupportTicketForm";
 
-const SUPPORT_EMAIL = "soporte@sindescuadre.app";
 const APP_VERSION = packageJson.version;
 
 export default function SupportPage() {
-  const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-    `Ayuda SinDescuadre (v${APP_VERSION})`
-  )}`;
-
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-page-gradient text-on-surface">
+    <div className="relative flex h-dvh flex-col bg-page-gradient text-on-surface">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-page-glow" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-28 pt-4">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto overscroll-y-contain no-scrollbar px-4 pb-28 pt-4">
         <header className="mb-4 flex items-center gap-2 px-1">
           <Link
             href="/profile"
@@ -25,30 +21,14 @@ export default function SupportPage() {
           </Link>
           <div className="min-w-0">
             <p className="text-[11px] font-light text-on-surface-variant">Perfil</p>
-            <h1 className="text-[17px] font-medium tracking-tight text-on-surface">Soporte</h1>
+            <h1 className="text-[17px] font-medium tracking-tight text-on-surface">
+              Soporte
+            </h1>
           </div>
         </header>
 
         <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
-          <h2 className="text-sm font-medium text-on-surface">Contacto</h2>
-          <p className="mt-1.5 text-sm font-light text-on-surface-variant">
-            Escríbenos si algo no funciona o tienes una duda. Incluye qué ocurrió, en qué
-            pantalla estabas y el dispositivo o navegador.
-          </p>
-          <a
-            href={mailto}
-            className="mt-4 flex items-center gap-3 rounded-2xl border border-glass-border bg-glass-strong px-4 py-3 transition hover:bg-glass-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
-              <Mail size={16} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-on-surface">Enviar correo</p>
-              <p className="truncate text-xs font-light text-on-surface-variant">
-                {SUPPORT_EMAIL}
-              </p>
-            </div>
-          </a>
+          <SupportTicketForm appVersion={APP_VERSION} />
         </section>
 
         <section className="mb-3 overflow-hidden rounded-[1.85rem] border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl">
@@ -66,8 +46,7 @@ export default function SupportPage() {
             <div>
               <dt className="text-sm font-medium text-on-surface">¿Qué incluye Premium?</dt>
               <dd className="mt-1 text-sm font-light text-on-surface-variant">
-                Se activa por hogar con el código de familia. Cualquier miembro puede
-                desbloquear Premium para ambos.
+                Se activa por hogar. Cualquier miembro puede desbloquear Premium para ambos.
               </dd>
             </div>
             <div>

@@ -22,8 +22,10 @@ import {
   searchAdminDirectory,
 } from "@/lib/admin-metrics";
 import { broadcastAppUpdateAdminAction } from "@/app/actions/admin";
+import { listSupportTicketsForAdmin } from "@/app/actions/support";
 import { isPushConfigured } from "@/lib/push";
 import AdminSearchForm from "@/components/admin/AdminSearchForm";
+import AdminSupportTickets from "@/components/admin/AdminSupportTickets";
 import AdminVipToggle from "@/components/admin/AdminVipToggle";
 
 async function getAuthorizedUser() {
@@ -78,7 +80,7 @@ export default async function AdminPage({
   const pushRemovedCount = params?.removed ? Number(params.removed) : null;
   const pushReady = isPushConfigured();
 
-  const [overview, premiumList, vipList, inactiveList, searchHits, revenue] =
+  const [overview, premiumList, vipList, inactiveList, searchHits, revenue, supportTickets] =
     await Promise.all([
       getAdminOverview(),
       getAdminPremiumList(),
@@ -86,6 +88,7 @@ export default async function AdminPage({
       getAdminInactiveList(),
       q ? searchAdminDirectory(q) : Promise.resolve([]),
       getAdminRevenueSnapshot(),
+      listSupportTicketsForAdmin({ status: "open", limit: 50 }),
     ]);
 
   function formatMoney(cents: number, currency: string) {
@@ -176,6 +179,8 @@ export default async function AdminPage({
           </article>
         ))}
       </section>
+
+      <AdminSupportTickets tickets={supportTickets} />
 
       <section className="rounded-2xl border border-outline-variant/25 bg-surface-lowest p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">

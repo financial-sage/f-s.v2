@@ -56,7 +56,7 @@ export default async function AddExpensePage() {
   }
 
   return (
-    <div className="min-h-dvh bg-surface">
+    <div className="h-dvh overflow-y-auto overscroll-y-contain no-scrollbar bg-surface">
       <AddExpenseForm
         familyId={familyState.familyId}
         currentUserId={familyState.userId}

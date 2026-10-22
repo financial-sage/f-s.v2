@@ -8,12 +8,18 @@ import {
   deferRecommendationAction,
   dismissRecommendationAction,
 } from "@/app/actions/recommendations";
+import { RECOMMENDATIONS_CHANGED_EVENT } from "@/components/RecommendationsSoftNotice";
 
 type Props = {
   id: string;
   ctaHref: string | null;
   ctaLabel: string | null;
 };
+
+function notifyRecommendationsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(RECOMMENDATIONS_CHANGED_EVENT));
+}
 
 export default function RecommendationActions({
   id,
@@ -32,6 +38,7 @@ export default function RecommendationActions({
         setError(result.error ?? "No se pudo actualizar");
         return;
       }
+      notifyRecommendationsChanged();
       router.refresh();
     });
   };
@@ -43,7 +50,9 @@ export default function RecommendationActions({
           <Link
             href={ctaHref}
             onClick={() => {
-              void acceptRecommendationAction(id);
+              void acceptRecommendationAction(id).then((result) => {
+                if (result.ok) notifyRecommendationsChanged();
+              });
             }}
             className="text-[12px] font-medium tracking-tight text-accent underline-offset-4 transition-opacity hover:opacity-80 hover:underline"
           >

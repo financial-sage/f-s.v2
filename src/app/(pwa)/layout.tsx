@@ -10,6 +10,7 @@ import StoreHydrator from "@/components/StoreHydrator";
 import FirstRunGate from "@/components/FirstRunGate";
 import PartnerFirstMoveCelebration from "@/components/PartnerFirstMoveCelebration";
 import RecommendationsSoftNotice from "@/components/RecommendationsSoftNotice";
+import AppShellScrollLock from "@/components/AppShellScrollLock";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
@@ -55,12 +56,16 @@ export default function PwaLayout({
       <PWARegister />
       <UpdateNotifier />
       <InstallPrompt />
+      <AppShellScrollLock />
       {/* Full-bleed paint behind system nav / home indicator (PWA standalone). */}
       <div
         className="pointer-events-none fixed inset-0 -z-10 bg-page-gradient"
         aria-hidden
       />
-      <main className="relative z-0 h-dvh overflow-y-auto overflow-x-hidden overscroll-none no-scrollbar">
+      <main
+        data-app-shell
+        className="relative z-0 h-dvh overflow-hidden overscroll-none"
+      >
         <PageTransition>{children}</PageTransition>
       </main>
       <FamilyNavProvider />
