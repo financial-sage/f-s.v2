@@ -5,6 +5,8 @@ import { isOpenAIConfigured } from "@/lib/ai/openai";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+/** Receipt Vision can take a few seconds on cold starts. */
+export const maxDuration = 60;
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",

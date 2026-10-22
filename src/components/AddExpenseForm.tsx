@@ -31,9 +31,11 @@ import { editExpenseAction } from "@/app/actions/editExpense";
 import BothSplitBelongModal, {
   type BothSplitBelongChoice,
 } from "@/components/BothSplitBelongModal";
+import ConceptSuggestModal from "@/components/ConceptSuggestModal";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useExpenseModal, type ExpenseToEdit } from "@/components/ExpenseModalProvider";
 import { DEFAULT_CATEGORY_ID } from "@/lib/categories/suggest";
+import { frequentConceptsForFund } from "@/lib/expenses/frequent-concepts";
 import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -243,6 +245,7 @@ export default function AddExpenseForm({
   const storeUserId = useExpenseStore((s) => s.userId);
   const storePartnerId = useExpenseStore((s) => s.partnerId);
   const storePartnerName = useExpenseStore((s) => s.partnerName);
+  const storeExpenses = useExpenseStore((s) => s.expenses);
 
   const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(() =>
     resolveInitialUserId(currentUserId)
@@ -278,6 +281,9 @@ export default function AddExpenseForm({
   const [splitBelongFundId, setSplitBelongFundId] = useState<string | null>(
     null
   );
+  const [conceptSuggestOpen, setConceptSuggestOpen] = useState(false);
+  const autoSubmitAfterConceptRef = useRef(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_CATEGORY_ID);
   /** User picked a category manually — don't overwrite with AI. */
   const [categoryLockedByUser, setCategoryLockedByUser] = useState(false);
@@ -698,8 +704,13 @@ export default function AddExpenseForm({
     setScanHint("");
     setErrorMessage("");
     try {
+      const { prepareReceiptImage } = await import(
+        "@/lib/receipts/prepare-image"
+      );
+      const prepared = await prepareReceiptImage(file);
+
       const form = new FormData();
-      form.set("file", file);
+      form.set("file", prepared);
       form.set(
         "localeHint",
         currencyMeta.country === "CO"
@@ -712,7 +723,8 @@ export default function AddExpenseForm({
         method: "POST",
         body: form,
       });
-      const data = (await res.json()) as {
+      const rawText = await res.text();
+      let data: {
         ok?: boolean;
         error?: string;
         receipt?: {
@@ -724,7 +736,21 @@ export default function AddExpenseForm({
           confidence?: string;
           rawNotes?: string | null;
         };
-      };
+      } = {};
+      try {
+        data = rawText ? (JSON.parse(rawText) as typeof data) : {};
+      } catch {
+        if (res.status === 413 || /request entity too large/i.test(rawText)) {
+          throw new Error(
+            "La foto del ticket es demasiado grande para el servidor. Intenta de nuevo (la comprimimos al enviar)."
+          );
+        }
+        throw new Error(
+          res.ok
+            ? "Respuesta inválida al leer el ticket."
+            : `No se pudo leer el ticket (${res.status}).`
+        );
+      }
       if (!res.ok || !data.receipt) {
         throw new Error(data.error || "No se pudo leer el ticket.");
       }
@@ -909,7 +935,8 @@ export default function AddExpenseForm({
     }
 
     if (!concept.trim()) {
-      setErrorMessage("Escribe en qué gastaste.");
+      // Soft nudge with habitual concepts for the selected pocket — no hard error.
+      setConceptSuggestOpen(true);
       return;
     }
 
@@ -1077,8 +1104,43 @@ export default function AddExpenseForm({
         ? "#c4a574"
         : "#1c2740";
 
+  const conceptSuggestFundId =
+    paymentSource === "fund" &&
+    (isSolo || responsibleFor === "joint_fund" || paidBy === "both_split")
+      ? selectedFundId
+      : null;
+
+  const conceptSuggestions = useMemo(
+    () =>
+      frequentConceptsForFund(storeExpenses, {
+        fundId: conceptSuggestFundId,
+        limit: 6,
+      }),
+    [storeExpenses, conceptSuggestFundId]
+  );
+
+  const conceptSuggestFundLabel =
+    conceptSuggestFundId && selectedFund
+      ? isSolo
+        ? personalFundDisplayName(selectedFund)
+        : selectedFund.name
+      : null;
+
+  useEffect(() => {
+    if (!autoSubmitAfterConceptRef.current) return;
+    if (!concept.trim()) return;
+    // Wait until AI (or manual lock) settles the category after the pick.
+    if (!categoryReady || categorySuggesting) return;
+    autoSubmitAfterConceptRef.current = false;
+    formRef.current?.requestSubmit();
+  }, [concept, categoryReady, categorySuggesting]);
+
   return (
-    <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col text-on-surface">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="flex h-full min-h-0 flex-col text-on-surface"
+    >
       <main className="mx-auto flex w-full max-w-lg min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
         <section className="px-0.5">
           <h1 className="text-base font-medium tracking-tight text-on-surface">
@@ -1537,7 +1599,9 @@ export default function AddExpenseForm({
           type="submit"
           disabled={
             isSaving ||
-            (!expenseToEdit && (!categoryReady || categorySuggesting))
+            (!expenseToEdit &&
+              (categorySuggesting ||
+                (concept.trim().length >= 2 && !categoryReady)))
           }
           className="fab-ink flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -1721,6 +1785,20 @@ export default function AddExpenseForm({
           </div>,
           document.body
         )}
+
+      <ConceptSuggestModal
+        open={conceptSuggestOpen}
+        fundLabel={conceptSuggestFundLabel}
+        suggestions={conceptSuggestions}
+        onClose={() => setConceptSuggestOpen(false)}
+        onPick={(next) => {
+          autoSubmitAfterConceptRef.current = true;
+          setConcept(next.slice(0, 80));
+          setConceptSuggestOpen(false);
+          // Unlock AI category so it can match the chosen concept.
+          setCategoryLockedByUser(false);
+        }}
+      />
 
       <BothSplitBelongModal
         open={splitBelongOpen}
