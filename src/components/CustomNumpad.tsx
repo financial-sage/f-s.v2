@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Check, Delete, Divide, Equal, Plus, Shapes, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { useCurrency } from "@/hooks/useCurrency";
+import { getCurrencyMeta, type AppCurrency } from "@/lib/currency";
 import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
 
 interface CustomNumpadProps {
@@ -16,6 +17,8 @@ interface CustomNumpadProps {
   embeddedStyle?: "card" | "flat";
   showDisplay?: boolean;
   accentColor?: string;
+  /** Override household currency (e.g. foreign-currency investment). */
+  currency?: AppCurrency;
   /** If set, values above this show in red and cannot be confirmed. */
   maxValue?: number;
 }
@@ -74,10 +77,12 @@ export default function CustomNumpad({
   embeddedStyle = "card",
   showDisplay = true,
   accentColor = DEFAULT_PERSONAL_FUND_COLOR,
+  currency,
   maxValue,
 }: CustomNumpadProps) {
   const [expression, setExpression] = useState("");
-  const { meta: currencyMeta } = useCurrency();
+  const { meta: householdMeta } = useCurrency();
+  const currencyMeta = currency ? getCurrencyMeta(currency) : householdMeta;
 
   useEffect(() => {
     if (isOpen) {
@@ -189,7 +194,7 @@ export default function CustomNumpad({
           {showDisplay && (
             <div className={`${embedded ? "mb-4" : "mb-6"} flex flex-col items-center justify-center px-6 text-center`}>
               <span className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-on-surface-variant">
-                Monto
+                {currency ? `${currencyMeta.code} · Monto` : "Monto"}
               </span>
               <div className="flex min-h-[3.5rem] items-baseline justify-center gap-1.5">
                 {currencyMeta.symbolPosition === "before" ? (

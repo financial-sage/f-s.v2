@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, X } from "lucide-react";
 import CustomNumpad from "@/components/CustomNumpad";
+import type { AppCurrency } from "@/lib/currency";
 import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
 
 interface NumericKeypadSheetProps {
@@ -18,6 +19,8 @@ interface NumericKeypadSheetProps {
   dateValue?: string;
   onDateChange?: (value: string) => void;
   dateLabel?: string;
+  /** Override household currency for display (investments). */
+  currency?: AppCurrency;
   /** Block confirm and show amount in red when the value exceeds this. */
   maxValue?: number;
   onClose: () => void;
@@ -45,6 +48,7 @@ export function NumericKeypadSheet({
   dateValue,
   onDateChange,
   dateLabel = "Fecha de pago",
+  currency,
   maxValue,
   onClose,
   onValueChange,
@@ -153,6 +157,7 @@ export function NumericKeypadSheet({
             embeddedStyle="flat"
             showDisplay={showDisplay}
             accentColor={accentColor}
+            currency={currency}
             initialValue={initialValue || "0"}
             maxValue={maxValue}
             onClose={onClose}

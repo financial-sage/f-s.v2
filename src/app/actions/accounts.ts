@@ -25,6 +25,7 @@ import {
   sumVisibleLiquidity,
 } from "@/lib/accounts";
 import { getFamilyFundsFast } from "@/app/actions/funds";
+import { isAppCurrency } from "@/lib/currency";
 import {
   calculateFundCashBalance,
   getDefaultSharedFund,
@@ -68,9 +69,14 @@ function migrationHint(errorMessage: string) {
 }
 
 function mapAccountRow(row: Record<string, unknown>): FamilyAccount {
+  const currencyRaw = row.currency_code;
   return {
     ...(row as unknown as FamilyAccount),
     kind: normalizeAccountKind(row.kind),
+    currency_code:
+      typeof currencyRaw === "string" && currencyRaw.trim()
+        ? currencyRaw.trim().toUpperCase()
+        : null,
   };
 }
 
@@ -261,6 +267,8 @@ export async function createAccountAction(input: {
   kind?: AccountKind;
   /** Credit: initial debt owed. Investment: initial value. Ignored for checking. */
   initialAmount?: number;
+  /** Investment display currency (EUR, USD, …). Ignored for other kinds. */
+  currencyCode?: string | null;
 }): Promise<FamilyAccount> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
@@ -297,6 +305,14 @@ export async function createAccountAction(input: {
     throw new Error("Ingresa un importe inicial válido.");
   }
 
+  const currencyCode =
+    kind === "investment" && input.currencyCode
+      ? String(input.currencyCode).trim().toUpperCase()
+      : null;
+  if (kind === "investment" && currencyCode && !isAppCurrency(currencyCode)) {
+    throw new Error("Selecciona una moneda válida para la inversión.");
+  }
+
   const { assertCanCreateAccount } = await import("@/lib/premiumServer");
   await assertCanCreateAccount(familyId);
 
@@ -310,6 +326,7 @@ export async function createAccountAction(input: {
           owner_profile_id: null,
           visibility: "family_visible" as const,
           kind,
+          currency_code: kind === "investment" ? currencyCode : null,
           sort_order: 100,
           color,
         }
@@ -320,6 +337,7 @@ export async function createAccountAction(input: {
           owner_profile_id: user.id,
           visibility,
           kind,
+          currency_code: kind === "investment" ? currencyCode : null,
           sort_order: 110,
           color,
         };
@@ -440,6 +458,7 @@ export async function updateAccountAction(input: {
   accountId: string;
   name?: string;
   color?: string;
+  currencyCode?: string | null;
 }): Promise<FamilyAccount> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
@@ -455,7 +474,7 @@ export async function updateAccountAction(input: {
     throw new Error("No puedes editar esta cuenta.");
   }
 
-  const updates: Record<string, string> = {
+  const updates: Record<string, string | null> = {
     updated_at: new Date().toISOString(),
   };
 
@@ -472,6 +491,21 @@ export async function updateAccountAction(input: {
       throw new Error("Selecciona un color válido.");
     }
     updates.color = color;
+  }
+
+  if (input.currencyCode !== undefined) {
+    if (!isInvestmentAccount(account)) {
+      throw new Error("La moneda solo aplica a inversiones.");
+    }
+    if (input.currencyCode == null || input.currencyCode === "") {
+      updates.currency_code = null;
+    } else {
+      const code = String(input.currencyCode).trim().toUpperCase();
+      if (!isAppCurrency(code)) {
+        throw new Error("Selecciona una moneda válida.");
+      }
+      updates.currency_code = code;
+    }
   }
 
   if (Object.keys(updates).length <= 1) {

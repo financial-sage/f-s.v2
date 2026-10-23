@@ -1,11 +1,18 @@
-export type AppCurrency = "EUR" | "COP" | "USD";
+export type AppCurrency =
+  | "EUR"
+  | "COP"
+  | "USD"
+  | "GBP"
+  | "MXN"
+  | "CHF"
+  | "BRL";
 
 export type CurrencyMeta = {
   code: AppCurrency;
   locale: string;
   label: string;
   /** ISO 3166-1 alpha-2 for flag rendering (Windows has no emoji flags). */
-  country: "ES" | "CO" | "US";
+  country: "ES" | "CO" | "US" | "GB" | "MX" | "CH" | "BR";
   symbol: string;
   /** Where the symbol sits relative to the amount in UI (es-ES: after). */
   symbolPosition: "before" | "after";
@@ -22,7 +29,7 @@ export const CURRENCIES: Record<AppCurrency, CurrencyMeta> = {
   EUR: {
     code: "EUR",
     locale: "es-ES",
-    label: "España",
+    label: "Euro",
     country: "ES",
     symbol: "€",
     symbolPosition: "after",
@@ -30,7 +37,7 @@ export const CURRENCIES: Record<AppCurrency, CurrencyMeta> = {
   COP: {
     code: "COP",
     locale: "es-CO",
-    label: "Colombia",
+    label: "Peso colombiano",
     country: "CO",
     symbol: "$",
     symbolPosition: "before",
@@ -38,17 +45,65 @@ export const CURRENCIES: Record<AppCurrency, CurrencyMeta> = {
   USD: {
     code: "USD",
     locale: "en-US",
-    label: "Estados Unidos",
+    label: "Dólar estadounidense",
     country: "US",
     symbol: "$",
     symbolPosition: "before",
   },
+  GBP: {
+    code: "GBP",
+    locale: "en-GB",
+    label: "Libra esterlina",
+    country: "GB",
+    symbol: "£",
+    symbolPosition: "before",
+  },
+  MXN: {
+    code: "MXN",
+    locale: "es-MX",
+    label: "Peso mexicano",
+    country: "MX",
+    symbol: "$",
+    symbolPosition: "before",
+  },
+  CHF: {
+    code: "CHF",
+    locale: "de-CH",
+    label: "Franco suizo",
+    country: "CH",
+    symbol: "CHF",
+    symbolPosition: "before",
+  },
+  BRL: {
+    code: "BRL",
+    locale: "pt-BR",
+    label: "Real brasileño",
+    country: "BR",
+    symbol: "R$",
+    symbolPosition: "before",
+  },
 };
 
-export const CURRENCY_OPTIONS = Object.values(CURRENCIES);
+/** Currencies offered when creating/editing an investment. */
+export const INVESTMENT_CURRENCY_OPTIONS = Object.values(CURRENCIES);
+
+/** Household preference picker (profile) — keep the core three first. */
+export const CURRENCY_OPTIONS: CurrencyMeta[] = [
+  CURRENCIES.EUR,
+  CURRENCIES.COP,
+  CURRENCIES.USD,
+];
 
 export function isAppCurrency(value: unknown): value is AppCurrency {
-  return value === "EUR" || value === "COP" || value === "USD";
+  return (
+    value === "EUR" ||
+    value === "COP" ||
+    value === "USD" ||
+    value === "GBP" ||
+    value === "MXN" ||
+    value === "CHF" ||
+    value === "BRL"
+  );
 }
 
 export function getCurrencyMeta(code: AppCurrency = DEFAULT_CURRENCY): CurrencyMeta {
@@ -140,5 +195,5 @@ export function splitFormattedMoney(formatted: string): {
 
 export function currencyDisplayLabel(code: AppCurrency = DEFAULT_CURRENCY) {
   const meta = getCurrencyMeta(code);
-  return `${meta.country} ${meta.symbol}`;
+  return `${meta.code} · ${meta.symbol}`;
 }

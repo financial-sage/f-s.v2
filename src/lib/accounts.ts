@@ -50,6 +50,8 @@ export interface FamilyAccount {
   owner_profile_id: string | null;
   visibility: AccountVisibility;
   kind?: AccountKind | null;
+  /** ISO currency for investment display (foreign-currency assets). */
+  currency_code?: string | null;
   color?: string | null;
   sort_order: number;
   archived_at: string | null;

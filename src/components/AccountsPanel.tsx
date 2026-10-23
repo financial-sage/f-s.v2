@@ -65,6 +65,7 @@ import {
   personalFundDisplayName,
   type FamilyFund,
 } from "@/lib/funds";
+import { CurrencyFlag } from "@/components/CurrencyFlag";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { Portal } from "@/components/ui/Portal";
 import { Sheet } from "@/components/ui/Sheet";
@@ -74,11 +75,26 @@ import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import { tintedGlassGradient } from "@/lib/glass";
 import { isIndividualHousehold } from "@/lib/household";
+import {
+  formatCurrency as formatMoney,
+  getCurrencyMeta,
+  INVESTMENT_CURRENCY_OPTIONS,
+  isAppCurrency,
+  type AppCurrency,
+} from "@/lib/currency";
 import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
 
 const HERO_ACCENT = DEFAULT_PERSONAL_ACCOUNT_COLOR;
+
+function accountDisplayCurrency(
+  account: Pick<FamilyAccount, "kind" | "currency_code"> | null | undefined,
+  fallback: AppCurrency
+): AppCurrency {
+  if (!account || !isInvestmentAccount(account)) return fallback;
+  return isAppCurrency(account.currency_code) ? account.currency_code : fallback;
+}
 
 type TransferKind = "account" | "to_fund" | "from_fund" | "external";
 type TransferStep = "choose" | "configure";
@@ -161,7 +177,7 @@ export default function AccountsPanel({
   familyMemberCount = 1,
   initialOverview,
 }: AccountsPanelProps) {
-  const { format: formatCurrency } = useCurrency();
+  const { format: formatCurrency, currency: householdCurrency } = useCurrency();
   const setAccountsCache = useAccountsStore((s) => s.setAccounts);
   const setFundsCache = useFundsStore((s) => s.setFunds);
   const isIndividual = isIndividualHousehold(familyMemberCount);
@@ -263,6 +279,7 @@ export default function AccountsPanel({
   const [newVisibility, setNewVisibility] = useState<AccountVisibility>("private");
   const [newKind, setNewKind] = useState<AccountKind>("checking");
   const [newInitialAmount, setNewInitialAmount] = useState("0");
+  const [newCurrency, setNewCurrency] = useState<AppCurrency>(householdCurrency);
   const [showCreateAmountKeypad, setShowCreateAmountKeypad] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -291,6 +308,7 @@ export default function AccountsPanel({
   );
   const [editAccount, setEditAccount] = useState<FamilyAccount | null>(null);
   const [editName, setEditName] = useState("");
+  const [editCurrency, setEditCurrency] = useState<AppCurrency>(householdCurrency);
   const [editError, setEditError] = useState("");
 
   function openAccountMenu(accountId: string, anchorEl: HTMLElement) {
@@ -523,13 +541,24 @@ export default function AccountsPanel({
     setNewVisibility("private");
     setNewKind(preferredKind ?? accountsTab);
     setNewInitialAmount("0");
+    setNewCurrency(householdCurrency);
     setShowCreateSheet(true);
   }
 
   function accountSubtitle(account: FamilyAccount) {
     const kind = accountKindOf(account);
+    const currency =
+      kind === "investment" && isAppCurrency(account.currency_code)
+        ? account.currency_code
+        : null;
     const kindLabel =
-      kind === "credit" ? "Tarjeta" : kind === "investment" ? "Inversión" : null;
+      kind === "credit"
+        ? "Tarjeta"
+        : kind === "investment"
+          ? currency
+            ? `Inversión · ${currency}`
+            : "Inversión"
+          : null;
     const scopeLabel = isIndividual
       ? "Personal"
       : account.scope === "shared"
@@ -578,6 +607,7 @@ export default function AccountsPanel({
           kind: newKind,
           initialAmount:
             newKind === "credit" || newKind === "investment" ? initialAmount : undefined,
+          currencyCode: newKind === "investment" ? newCurrency : null,
         });
         setAccountsTab(newKind);
         setNewName("");
@@ -781,6 +811,7 @@ export default function AccountsPanel({
   function openEditAccount(account: FamilyAccount) {
     setEditAccount(account);
     setEditName(account.name);
+    setEditCurrency(accountDisplayCurrency(account, householdCurrency));
     setEditError("");
   }
 
@@ -793,7 +824,11 @@ export default function AccountsPanel({
     }
     startTransition(async () => {
       try {
-        await updateAccountAction({ accountId: editAccount.id, name });
+        await updateAccountAction({
+          accountId: editAccount.id,
+          name,
+          currencyCode: isInvestmentAccount(editAccount) ? editCurrency : undefined,
+        });
         setEditAccount(null);
         await afterMutation();
       } catch (err) {
@@ -895,7 +930,19 @@ export default function AccountsPanel({
                             : "text-on-surface"
                       }`}
                     >
-                      {balanceVisible ? <FormattedCurrency value={shownAmount} /> : "••••"}
+                      {balanceVisible ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          {investment && isAppCurrency(account.currency_code) ? (
+                            <CurrencyFlag code={account.currency_code} size="sm" />
+                          ) : null}
+                          <FormattedCurrency
+                            value={shownAmount}
+                            currency={accountDisplayCurrency(account, householdCurrency)}
+                          />
+                        </span>
+                      ) : (
+                        "••••"
+                      )}
                     </p>
                   </div>
                   {operableForUser ? (
@@ -1607,6 +1654,41 @@ export default function AccountsPanel({
             />
           </div>
 
+          {newKind === "investment" && (
+            <div>
+              <span className="mb-2.5 block text-[11px] font-light text-on-surface-variant">
+                Moneda de la inversión
+              </span>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {INVESTMENT_CURRENCY_OPTIONS.map((option) => {
+                  const selected = option.code === newCurrency;
+                  return (
+                    <button
+                      key={option.code}
+                      type="button"
+                      onClick={() => setNewCurrency(option.code)}
+                      className={`flex items-center gap-2 rounded-2xl px-3 py-2.5 text-left transition-colors ${
+                        selected
+                          ? "bg-on-surface/[0.08] ring-1 ring-accent/40"
+                          : "bg-on-surface/[0.03] hover:bg-on-surface/[0.05]"
+                      }`}
+                    >
+                      <CurrencyFlag code={option.code} size="md" />
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold tabular-nums tracking-tight text-on-surface">
+                          {option.code}
+                        </span>
+                        <span className="block truncate text-[10px] font-light text-on-surface-variant/80">
+                          {option.symbol}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {(newKind === "credit" || newKind === "investment") && (
             <div>
               <span className="mb-2 block text-[11px] font-light text-on-surface-variant">
@@ -1617,8 +1699,14 @@ export default function AccountsPanel({
                 onClick={() => setShowCreateAmountKeypad(true)}
                 className="flex w-full items-center justify-between rounded-2xl border border-outline-variant/20 bg-transparent px-4 py-3.5 text-left transition-colors hover:border-outline-variant/35"
               >
-                <span className="text-[15px] font-light tabular-nums tracking-tight text-on-surface">
-                  {formatCurrency(Number(newInitialAmount.replace(",", ".") || 0))}
+                <span className="inline-flex items-center gap-2 text-[15px] font-light tabular-nums tracking-tight text-on-surface">
+                  {newKind === "investment" ? (
+                    <CurrencyFlag code={newCurrency} size="sm" />
+                  ) : null}
+                  {formatMoney(
+                    Number(newInitialAmount.replace(",", ".") || 0),
+                    newKind === "investment" ? newCurrency : householdCurrency
+                  )}
                 </span>
                 <span className="text-[11px] font-light text-on-surface-variant/70">Editar</span>
               </button>
@@ -1679,6 +1767,40 @@ export default function AccountsPanel({
               className="w-full rounded-2xl border border-outline-variant/20 bg-transparent px-4 py-3.5 text-[15px] font-light tracking-tight outline-none placeholder:text-outline-variant/45 focus:border-outline-variant/40"
             />
           </div>
+          {editAccount && isInvestmentAccount(editAccount) ? (
+            <div>
+              <span className="mb-2.5 block text-[11px] font-light text-on-surface-variant">
+                Moneda de la inversión
+              </span>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {INVESTMENT_CURRENCY_OPTIONS.map((option) => {
+                  const selected = option.code === editCurrency;
+                  return (
+                    <button
+                      key={option.code}
+                      type="button"
+                      onClick={() => setEditCurrency(option.code)}
+                      className={`flex items-center gap-2 rounded-2xl px-3 py-2.5 text-left transition-colors ${
+                        selected
+                          ? "bg-on-surface/[0.08] ring-1 ring-accent/40"
+                          : "bg-on-surface/[0.03] hover:bg-on-surface/[0.05]"
+                      }`}
+                    >
+                      <CurrencyFlag code={option.code} size="md" />
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold tabular-nums tracking-tight text-on-surface">
+                          {option.code}
+                        </span>
+                        <span className="block truncate text-[10px] font-light text-on-surface-variant/80">
+                          {option.symbol}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           {editError && (
             <div className="alert-error rounded-2xl px-3 py-2 text-xs">{editError}</div>
           )}
@@ -1727,6 +1849,20 @@ export default function AccountsPanel({
             ? "DEUDA ACTUAL"
             : "VALOR ACTUAL"
         }
+        subtitle={
+          (() => {
+            const acct = accounts.find((a) => a.id === adjustAccountId);
+            if (!acct || !isInvestmentAccount(acct)) return undefined;
+            const code = accountDisplayCurrency(acct, householdCurrency);
+            return `${code} · ${getCurrencyMeta(code).symbol}`;
+          })()
+        }
+        currency={
+          accountDisplayCurrency(
+            accounts.find((a) => a.id === adjustAccountId),
+            householdCurrency
+          )
+        }
         initialValue={adjustAmount}
         onClose={() => {
           setShowAdjustKeypad(false);
@@ -1739,6 +1875,12 @@ export default function AccountsPanel({
       <NumericKeypadSheet
         isOpen={showCreateAmountKeypad}
         title={newKind === "credit" ? "DEUDA INICIAL" : "VALOR INICIAL"}
+        subtitle={
+          newKind === "investment"
+            ? `${newCurrency} · ${getCurrencyMeta(newCurrency).symbol}`
+            : undefined
+        }
+        currency={newKind === "investment" ? newCurrency : undefined}
         initialValue={newInitialAmount}
         onClose={() => setShowCreateAmountKeypad(false)}
         onValueChange={setNewInitialAmount}
