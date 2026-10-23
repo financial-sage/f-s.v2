@@ -1,7 +1,11 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isEnvAdminEmail } from "@/lib/admin-emails";
-import { canUseFullPwa } from "@/lib/device";
+import {
+  canUseFullPwa,
+  DESKTOP_SHELL_COOKIE,
+  readForceDesktopShell,
+} from "@/lib/device";
 import { getHouseholdEntitlement } from "@/lib/premiumServer";
 import {
   getRequestFamilyId,
@@ -32,10 +36,16 @@ async function isAdminUser(user: {
 export default async function WebMetricsPage() {
   const user = await requireRequestUser();
   const headerStore = await headers();
+  const cookieStore = await cookies();
   const userAgent = headerStore.get("user-agent");
   const host = headerStore.get("host");
+  const forceDesktopShell = readForceDesktopShell({
+    cookieHeader: headerStore.get("cookie"),
+    cookieValue: cookieStore.get(DESKTOP_SHELL_COOKIE)?.value,
+    searchParams: null,
+  });
 
-  if (canUseFullPwa({ userAgent, host })) {
+  if (canUseFullPwa({ userAgent, host, forceDesktopShell })) {
     redirect("/");
   }
 

@@ -65,6 +65,12 @@ export default function LoginPage() {
           </p>
         }
       >
+        <p className="mb-4 hidden rounded-2xl border border-outline-variant/20 bg-surface-low/80 px-3.5 py-2.5 text-[12px] font-light leading-relaxed text-on-surface-variant lg:block">
+          La app completa está pensada para el móvil.{" "}
+          <Link href="/welcome" className="font-medium text-primary hover:underline">
+            Abrir desde el teléfono
+          </Link>
+        </p>
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input
             label="Correo electrónico"
