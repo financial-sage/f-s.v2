@@ -37,23 +37,28 @@ export async function getMyHouseholdEntitlementAction(): Promise<HouseholdEntitl
 }
 
 export async function getPendingFirstMoveCelebrationAction(): Promise<FirstMoveCelebration | null> {
-  const userId = await requireUserId();
-  return getPendingFirstMoveCelebration(userId);
+  // Soft check: layout mounts this on /login before auth; never 500.
+  const user = await getRequestUser();
+  if (!user) return null;
+  return getPendingFirstMoveCelebration(user.id);
 }
 
 export async function dismissFirstMoveCelebrationAction() {
-  const userId = await requireUserId();
-  await clearPendingFirstMoveCelebration(userId);
+  const user = await getRequestUser();
+  if (!user) return;
+  await clearPendingFirstMoveCelebration(user.id);
 }
 
 export async function getPendingPremiumWelcomeAction(): Promise<PremiumWelcomeCelebration | null> {
-  const userId = await requireUserId();
-  return getPendingPremiumWelcome(userId);
+  const user = await getRequestUser();
+  if (!user) return null;
+  return getPendingPremiumWelcome(user.id);
 }
 
 export async function dismissPremiumWelcomeAction() {
-  const userId = await requireUserId();
-  await clearPendingPremiumWelcome(userId);
+  const user = await getRequestUser();
+  if (!user) return;
+  await clearPendingPremiumWelcome(user.id);
 }
 
 /**

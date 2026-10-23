@@ -14,6 +14,8 @@ export interface StoreExpenseRow {
     paid_by: string;
     responsible_for: string | null;
     category: string | null;
+    category_id?: string | null;
+    spend_segment?: string | null;
     split_type: string;
     payer_share_pct: number;
     expense_date: string;
@@ -231,6 +233,8 @@ function mapRealtimeRow(raw: Record<string, unknown> | null | undefined): StoreE
         paid_by: String(raw.paid_by ?? ""),
         responsible_for: raw.responsible_for == null ? null : String(raw.responsible_for),
         category: raw.category == null ? null : String(raw.category),
+        category_id: raw.category_id == null ? null : String(raw.category_id),
+        spend_segment: raw.spend_segment == null ? null : String(raw.spend_segment),
         split_type: String(raw.split_type ?? "full"),
         payer_share_pct: Number(raw.payer_share_pct ?? 100),
         expense_date: String(raw.expense_date ?? ""),
@@ -338,7 +342,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                     : Promise.resolve({ data: null }),
                 supabase
                     .from("expenses")
-                    .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id")
+                    .select("id, amount, concept, paid_by, responsible_for, category, category_id, spend_segment, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id")
                     .eq("family_id", familyId)
                     .eq("is_active", true)
                     .order("expense_date", { ascending: false })
@@ -354,12 +358,22 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
 
             if (!stillCurrent()) return;
 
-            // If account columns/table missing, retry expenses without them
+            // If account/segment columns missing, retry with leaner selects
             let expenseRows: unknown = rawExpensesResult.data;
-            if (rawExpensesResult.error && /account_id|paid_from_account|column/i.test(rawExpensesResult.error.message)) {
+            if (
+              rawExpensesResult.error &&
+              /category_id|spend_segment|account_id|paid_from_account|column/i.test(
+                rawExpensesResult.error.message
+              )
+            ) {
+                const leanSelect = /category_id|spend_segment/i.test(
+                  rawExpensesResult.error.message
+                )
+                  ? "id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id"
+                  : "id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, transfer_group_id";
                 const legacy = await supabase
                     .from("expenses")
-                    .select("id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, transfer_group_id")
+                    .select(leanSelect)
                     .eq("family_id", familyId)
                     .eq("is_active", true)
                     .order("expense_date", { ascending: false })

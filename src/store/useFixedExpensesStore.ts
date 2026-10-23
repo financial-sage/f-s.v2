@@ -15,6 +15,7 @@ import type {
   FixedExpenseDerivedTotals,
   FixedExpenseMonthSnapshot,
 } from "@/lib/fixed-expenses/types";
+import type { FixedExpenseFrequency } from "@/lib/fixed-expenses/frequency";
 import { getMonthKey } from "@/lib/budget";
 
 export interface FixedExpensesState {
@@ -29,6 +30,7 @@ const emptyTotals: FixedExpenseDerivedTotals = {
   sumBase: 0,
   sumReal: 0,
   budgetTotal: 0,
+  monthlyCommitted: 0,
   pocketDeposits: 0,
   pocketBalance: 0,
   remaining: 0,
@@ -45,6 +47,7 @@ function computeTotals(snapshot: FixedExpenseMonthSnapshot | null): FixedExpense
     return sum + Number(item.payment.real_value || 0);
   }, 0);
   const budgetTotal = Number(snapshot?.budgetTotal ?? sumBase);
+  const monthlyCommitted = Number(snapshot?.monthlyCommitted ?? sumBase);
   const pocketDeposits = Number(snapshot?.pocketDeposits ?? 0);
   const pocketBalance = Number(snapshot?.pocketAvailable ?? 0);
   const paidCount = items.filter((item) => item.payment.status === "paid").length;
@@ -53,6 +56,7 @@ function computeTotals(snapshot: FixedExpenseMonthSnapshot | null): FixedExpense
     sumBase: Math.round(sumBase * 100) / 100,
     sumReal: Math.round(sumReal * 100) / 100,
     budgetTotal: Math.round(budgetTotal * 100) / 100,
+    monthlyCommitted: Math.round(monthlyCommitted * 100) / 100,
     pocketDeposits: Math.round(pocketDeposits * 100) / 100,
     pocketBalance: Math.round(pocketBalance * 100) / 100,
     remaining: Math.round(pocketBalance * 100) / 100,
@@ -69,12 +73,16 @@ interface FixedExpensesStore extends FixedExpensesState {
     name: string;
     baseValue: number;
     dueDay?: number | null;
+    frequency?: FixedExpenseFrequency;
+    anchorMonth?: number | null;
   }) => Promise<void>;
   updateTemplate: (input: {
     id: string;
     name: string;
     baseValue: number;
     dueDay?: number | null;
+    frequency?: FixedExpenseFrequency;
+    anchorMonth?: number | null;
   }) => Promise<void>;
   deactivateTemplate: (id: string) => Promise<void>;
   deposit: (amount: number) => Promise<void>;

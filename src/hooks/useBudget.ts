@@ -11,35 +11,49 @@ export function useBudget(familyId: string) {
   const [store, setStore] = useState<Record<string, BudgetLimits>>({});
 
   useEffect(() => {
-    setStore(safeParseBudgetStore(window.localStorage.getItem(budgetStorageKey(familyId))));
+    setStore(
+      safeParseBudgetStore(window.localStorage.getItem(budgetStorageKey(familyId)))
+    );
   }, [familyId]);
 
   const persist = useCallback(
     (next: Record<string, BudgetLimits>) => {
       setStore(next);
-      window.localStorage.setItem(budgetStorageKey(familyId), JSON.stringify(next));
+      window.localStorage.setItem(
+        budgetStorageKey(familyId),
+        JSON.stringify(next)
+      );
     },
-    [familyId],
+    [familyId]
   );
 
   function getLimits(monthKey: string): BudgetLimits {
     return store[monthKey] ?? {};
   }
 
-  function setCategoryLimit(monthKey: string, categoryId: string, amount: number) {
+  function setSegmentLimit(monthKey: string, segmentId: string, amount: number) {
     const current = getLimits(monthKey);
     const nextLimits = { ...current };
 
     if (amount <= 0) {
-      delete nextLimits[categoryId];
+      delete nextLimits[segmentId];
     } else {
-      nextLimits[categoryId] = amount;
+      nextLimits[segmentId] = amount;
     }
 
     persist({
       ...store,
       [monthKey]: nextLimits,
     });
+  }
+
+  /** @deprecated Use setSegmentLimit */
+  function setCategoryLimit(
+    monthKey: string,
+    categoryId: string,
+    amount: number
+  ) {
+    setSegmentLimit(monthKey, categoryId, amount);
   }
 
   function duplicateFromPreviousMonth(monthKey: string) {
@@ -60,6 +74,7 @@ export function useBudget(familyId: string) {
 
   return {
     getLimits,
+    setSegmentLimit,
     setCategoryLimit,
     duplicateFromPreviousMonth,
     hasAnyLimit,

@@ -11,10 +11,12 @@ import {
   type CSSProperties,
 } from "react";
 import {
+  ChartPie,
   History,
   Home,
   Landmark,
   PiggyBank,
+  Tags,
   UserRound,
   Wallet,
   type LucideProps,
@@ -52,7 +54,15 @@ function shouldHideBottomNav(pathname: string) {
 type NavIcon = ComponentType<LucideProps>;
 
 type NavModule = {
-  id: "home" | "history" | "accounts" | "savings" | "fixed-expenses" | "profile";
+  id:
+    | "home"
+    | "history"
+    | "accounts"
+    | "savings"
+    | "fixed-expenses"
+    | "categories"
+    | "budget"
+    | "profile";
   href: string;
   label: string;
   icon: NavIcon;
@@ -97,6 +107,21 @@ const NAV_MODULES: NavModule[] = [
       pathname === "/fixed-expenses" || pathname.startsWith("/fixed-expenses/"),
   },
   {
+    id: "categories",
+    href: "/categories",
+    label: "Categorías",
+    icon: Tags,
+    match: (pathname) =>
+      pathname === "/categories" || pathname.startsWith("/categories/"),
+  },
+  {
+    id: "budget",
+    href: "/budget",
+    label: "Presupuesto",
+    icon: ChartPie,
+    match: (pathname) => pathname === "/budget" || pathname.startsWith("/budget/"),
+  },
+  {
     id: "profile",
     href: "/profile",
     label: "Perfil",
@@ -132,6 +157,7 @@ export default function BottomNav({
   const { isExpenseModalOpen, setIsExpenseModalOpen, expenseToEdit, setExpenseToEdit } =
     useExpenseModal();
   const [expanded, setExpanded] = useState(false);
+  const [receiptScanning, setReceiptScanning] = useState(false);
 
   useEffect(() => {
     if (!expanded && !isExpenseModalOpen) return;
@@ -150,6 +176,7 @@ export default function BottomNav({
   }
 
   function closeExpenseSheet() {
+    if (receiptScanning) return;
     setIsExpenseModalOpen(false);
     setExpenseToEdit(null);
   }
@@ -227,25 +254,30 @@ export default function BottomNav({
             </div>
           ) : null}
 
-          <button
-            type="button"
-            onClick={handleCenterClick}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/30 bg-primary text-on-primary shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-all duration-200 active:scale-95"
-            aria-label={
-              expanded
-                ? `Cerrar menú · ${currentModule.label}`
-                : `Abrir menú · ${currentModule.label}`
-            }
-            aria-expanded={expanded}
-            title={currentModule.label}
-          >
-            <CurrentIcon
-              key={currentModule.id}
-              size={18}
-              strokeWidth={2.2}
-              className="animate-in fade-in zoom-in-95 duration-200"
-            />
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              onClick={handleCenterClick}
+              className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/30 bg-primary text-on-primary shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-all duration-200 active:scale-95"
+              aria-label={
+                expanded
+                  ? `Cerrar menú · ${currentModule.label}`
+                  : `Abrir menú · ${currentModule.label}`
+              }
+              aria-expanded={expanded}
+              title={currentModule.label}
+            >
+              <CurrentIcon
+                key={currentModule.id}
+                size={18}
+                strokeWidth={2.2}
+                className="animate-in fade-in zoom-in-95 duration-200"
+              />
+            </button>
+            <span className="text-[10px] font-medium leading-none text-on-surface" aria-hidden>
+              Menú
+            </span>
+          </div>
         </div>
       </nav>
 
@@ -253,8 +285,15 @@ export default function BottomNav({
         <Sheet
           open={isExpenseModalOpen}
           onClose={closeExpenseSheet}
-          title="Agregar gasto"
+          title={expenseToEdit ? "Editar gasto" : "Nuevo gasto"}
+          subtitle={
+            expenseToEdit
+              ? "Actualiza el movimiento."
+              : "Registra un nuevo movimiento."
+          }
+          headerLayout="title-row"
           closeOnBackdrop={false}
+          closeDisabled={receiptScanning}
         >
           {isExpenseModalOpen ? (
             <AddExpenseForm
@@ -264,6 +303,8 @@ export default function BottomNav({
               familyMemberCount={familyMemberCount}
               expenseToEdit={expenseToEdit}
               onClose={closeExpenseSheet}
+              onScanningChange={setReceiptScanning}
+              hideChromeTitle
               partnerFirstName={partnerFirstName}
               financialModel={financialModel}
               user1SplitPct={user1SplitPct}

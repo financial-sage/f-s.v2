@@ -20,13 +20,14 @@ Complementa (no sustituye):
 | Tabla | `public.family_accounts` |
 | Ledger | Seguir usando `public.expenses` (mismo patrón que Funds) |
 | Columnas nuevas en `expenses` | `account_id`, `paid_from_account` |
-| Cuentas de sistema | **Ninguna** en MVP |
+| Cuentas de sistema | **Ninguna bloqueada**; seed **Efectivo** personal por miembro (editable/archivable) |
 | Color | Opcional (`color text`), mismo enfoque que funds |
 | Ruta UI | `/accounts` + componente `AccountsPanel` |
 | Saldo insuficiente en **cuenta** | Aviso; **no** bloquea |
 | Saldo insuficiente en **fondo** (origen) | Se mantiene el comportamiento actual de Funds (**bloquea**) |
 | Visibilidad default (personal) | `private` |
 | Migración | `database/migrations/003_family_accounts.sql` |
+| Kind + frecuencia (ADR-0010) | `database/migrations/006_account_kind_fixed_frequency.sql` |
 
 ---
 
@@ -42,6 +43,8 @@ CREATE TABLE public.family_accounts (
   visibility text NOT NULL DEFAULT 'private'
     CHECK (visibility IN ('private', 'family_visible')),
   color text,
+  kind text NOT NULL DEFAULT 'checking'
+    CHECK (kind IN ('checking', 'credit', 'investment')),
   sort_order integer NOT NULL DEFAULT 0,
   archived_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
@@ -56,6 +59,8 @@ CREATE TABLE public.family_accounts (
 );
 ```
 
+`kind` se añade en migración `006` (default `checking` para filas existentes).
+
 Índices:
 
 - `family_accounts_family_id_idx` on `(family_id)`
@@ -68,6 +73,7 @@ Notas:
 
 - Cuentas `shared` fuerzan `visibility = 'family_visible'`.
 - No hay `is_system` / `is_default` en MVP.
+- Seed: `ensurePersonalCashAccount` crea «Efectivo» (`checking`, color piedra) si el miembro no tiene ya una con ese nombre (activa o archivada).
 
 ---
 
@@ -136,6 +142,12 @@ saldo =
 ```
 
 Implementar en `src/lib/accounts.ts` como `calculateAccountCashBalance`, espejo de `calculateFundCashBalance`.
+
+Helpers ADR-0010:
+
+- `isLiquidityAccount` / `isCreditAccount` / `isInvestmentAccount`
+- `creditDebtFromBalance(raw)` → deuda mostrada (≥ 0)
+- `sumVisibleLiquidity(balances)` → solo `kind = checking`
 
 Reglas de validación en actions:
 

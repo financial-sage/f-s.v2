@@ -15,6 +15,8 @@ export interface ExpenseToEdit {
   amount: number;
   concept: string;
   category?: string | null;
+  category_id?: string | null;
+  spend_segment?: string | null;
   paid_by?: string | null;
   responsible_for?: string | null;
   fund_id?: string | null;

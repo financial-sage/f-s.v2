@@ -15,6 +15,11 @@ export default async function CategoriesPage() {
     redirect("/onboarding");
   }
 
-  return <CategoriesManager familyId={familyState.familyId} />;
+  return (
+    <CategoriesManager
+      familyId={familyState.familyId}
+      currentUserId={familyState.userId}
+      familyMemberCount={familyState.familyMemberCount}
+    />
+  );
 }
-

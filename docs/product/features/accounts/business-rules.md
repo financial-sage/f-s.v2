@@ -13,11 +13,14 @@ Nombres de tablas/columnas, encoding en `expenses` y RLS: [technical-spec.md](./
 
 5. Cualquier miembro puede crear cuentas **personales** propias.
 6. Cualquier miembro puede crear cuentas **compartidas** de la familia.
-7. No hay cuentas de sistema obligatorias en el MVP: la familia crea las que necesite.
+7. No hay cuentas de sistema bloqueadas: al alta (y al abrir Cuentas) se siembra una cuenta personal **Efectivo** por miembro, editable y archivable. Si el usuario la archiva, no se vuelve a crear.
 8. No puede haber dos cuentas personales activas del mismo miembro con el mismo nombre (case-insensitive).
 9. No puede haber dos cuentas compartidas activas de la misma familia con el mismo nombre (case-insensitive).
 10. Al crear una cuenta personal, el dueño elige visibilidad: `private` (solo yo) o `family_visible` (visible para la pareja).
 11. Las cuentas compartidas son siempre visibles para ambos miembros.
+11b. Toda cuenta tiene `kind`: `checking` (default) | `credit` | `investment` (ADR-0010).
+11c. Al crear `credit`, puede registrarse una **deuda inicial** (ledger negativo). Al crear `investment`, puede registrarse un **valor inicial**.
+11d. La UX ofrece el tipo al crear; el default es cuenta bancaria (`checking`).
 
 ## Visibilidad y permisos
 
@@ -45,11 +48,14 @@ Nombres de tablas/columnas, encoding en `expenses` y RLS: [technical-spec.md](./
 | Cuenta personal | Cuenta compartida | Actor = dueño de la personal |
 | Cuenta compartida | Cuenta personal | Actor = cualquier miembro; destino = su propia personal |
 | Cuenta personal | Cuenta personal (mismo dueño) | P. ej. nómina → ahorro |
-| Cuenta personal | Bolsillo | Según reglas de Funds sobre el bolsillo destino |
-| Cuenta compartida | Bolsillo | Cualquier miembro |
+| Checking/shared | Credit (operable) | **Pago de tarjeta** (baja la deuda) |
+| Checking/shared | Investment (operable) | Aporte a inversión |
+| Investment | Checking/shared operable | Retiro de inversión |
+| Cuenta personal | Bolsillo | Según reglas de Funds; origen preferible `checking` |
+| Cuenta compartida | Bolsillo | Cualquier miembro; origen preferible `checking` |
 | Bolsillo | Cuenta personal | Solo hacia cuenta del actor (o compartida) |
 | Bolsillo | Cuenta compartida | Cualquier miembro con derecho a operar el bolsillo origen |
-| Cuenta (personal o compartida) | Externa | Salida de dinero fuera de SinDescuadre |
+| Cuenta (personal o compartida) | Externa | Salida de dinero fuera de SinDescuadre; no desde `credit` en V1 |
 
 24. Una **salida externa** disminuye el saldo de la cuenta origen y no crea entrada en otra cuenta ni bolsillo del sistema.
 25. La transferencia cuenta → bolsillo aumenta el saldo del bolsillo destino (equivalente en efecto a un aporte, pero originado desde cuenta).
@@ -68,14 +74,17 @@ Nombres de tablas/columnas, encoding en `expenses` y RLS: [technical-spec.md](./
 32. Si se paga desde bolsillo, aplican las reglas de Funds (imputación, `paid_from_fund`, deuda, etc.).
 33. Si se paga desde cuenta, disminuye el saldo de esa cuenta y **no** reduce el saldo de ningún bolsillo.
 34. Un gasto pagado desde cuenta puede llevar categoría (y demás metadatos de Financial Event); no exige imputación a un bolsillo.
-35. La UX debe **sugerir** pagar desde bolsillo cuando el usuario elige origen cuenta (nudge), sin bloquear el registro.
+35. Pagar desde cuenta: solo cuentas `checking` (tab Cuentas). Sin nudge a bolsillo; el gasto no imputa a ningún bolsillo (`fund_id` null).
 36. No se permite pagar desde una cuenta personal ajena.
 
 ## Saldo
 
-37. El saldo de una cuenta puede ser negativo.
-38. Ante un movimiento que deje (o agrave) saldo negativo, el sistema muestra un **aviso** y permite continuar.
+37. El saldo de una cuenta `checking` puede ser negativo.
+38. Ante un movimiento que deje (o agrave) saldo negativo en `checking`, el sistema muestra un **aviso** y permite continuar.
 39. El aviso no es un error de validación bloqueante.
+39b. En `credit`, el saldo de ledger negativo representa deuda; la UI muestra “Debes X”. Ajustar deuda y pagar (transferencia entrante) están permitidos.
+39c. En `investment`, el saldo es el valor actual (≥ 0 en la práctica); se puede ajustar el valor sin catálogo de productos.
+39d. **Liquidez visible** = suma de saldos de cuentas `checking` visibles. `credit` e `investment` no suman.
 
 ## Archivo
 
@@ -87,7 +96,7 @@ Nombres de tablas/columnas, encoding en `expenses` y RLS: [technical-spec.md](./
 
 43. Solo se crean y operan cuentas personales del único miembro (visibilidad fija `private` en UX).
 44. Está prohibido crear cuentas `shared` mientras `memberCount === 1` (defensa en servidor).
-45. Al crear el espacio individual (o al abrir el overview), se asegura al menos una cuenta personal por defecto (“Mi cuenta”) si no existe ninguna.
+45. Al crear el espacio (solo o al unirse) y al abrir el overview, se asegura la cuenta personal **Efectivo** de ese miembro si aún no existe (ni activa ni archivada).
 46. Roles tipo Child / modo niños quedan fuera de estas reglas; la extensión prevista es ampliar `HouseholdKind` / roles en authenticated-context, no un segundo modelo de cuentas.
 
 ## Evolución

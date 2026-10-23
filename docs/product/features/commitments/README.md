@@ -39,13 +39,17 @@ Cada compromiso puede incluir:
 - nombre;
 - descripción;
 - importe;
-- frecuencia;
+- frecuencia (`monthly` | `bimonthly` | `quarterly` | `semiannual` | `annual`);
 - fecha de inicio;
 - fecha de finalización;
 - prioridad;
 - flexibilidad;
 - consecuencias del incumplimiento;
 - estado de salud.
+
+La **capacidad comprometida** usa el equivalente mensual (`importe / meses_del_periodo`). Ver [ADR-0010](../../../decisions/ADR-0010-liabilities-frequency-investments.md).
+
+**V1 operativo:** la frecuencia multi-periodo se implementa primero en **gastos fijos** (`fixed_expenses`); Commitments como feature completa reutiliza el mismo vocabulario.
 
 ---
 

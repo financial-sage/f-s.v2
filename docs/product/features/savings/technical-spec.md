@@ -17,6 +17,7 @@ Complementa: [README](./README.md), [business-rules.md](./business-rules.md), [A
 | Color sistema | `#0F766E` |
 | Nombre sistema | `Ahorro` |
 | `sort_order` | `8` |
+| Inversiones (ADR-0010) | Cuentas `kind = investment` en overview de savings + UI “Más opciones”; no suman al bote ni a liquidez |
 
 ---
 

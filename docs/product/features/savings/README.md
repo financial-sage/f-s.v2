@@ -35,6 +35,7 @@ Ingreso → cuenta → (reparto a bolsillos de gasto) + aporte al bote de ahorro
 | Gastos cotidianos | **No** se imputan al bote en el MVP |
 | Meta / fecha / salud | Fuera de alcance (Goals) |
 | Comparación | Aporte del mes vs aporte del mes anterior (€ y %) |
+| Inversiones (ADR-0010) | Solo en Centro de cuentas → tab **Inversiones** (no en Ahorros) |
 
 ---
 

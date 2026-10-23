@@ -1,0 +1,38 @@
+---
+description: Reglas de UX visual para modales, placeholders, color y superficies delicadas. Aplicar al tocar UI de cuentas, formularios, sheets y pantallas de producto.
+globs: src/components/**/*.tsx,src/app/(pwa)/**/*.tsx
+alwaysApply: false
+---
+
+# UX surfaces (SinDescuadre)
+
+## Modales / sheets
+
+- Deben sentirse **delicados y finos**: tipografía light, mucho aire, un solo propósito.
+- Handle fino, cierre sin borde ni sombra (solo icono suave).
+- Backdrop ligero + blur; sombra mínima; bordes hairline (`outline-variant/20`).
+- Evitar bloques pesados, sombras densas o bordes gruesos.
+- **CTA primario** de formularios/sheets: misma línea que Guardar de gastos —
+  `fab-ink flex h-11 w-full … rounded-2xl text-sm font-semibold` (no inventar otro estilo de botón).
+- Preferir el componente `Sheet`; no inventar overlays genéricos.
+
+## Placeholders y ejemplos
+
+- Usar ejemplos **globales** (nómina, cuenta conjunta, tarjeta principal, fondo de inversión, depósito a plazo).
+- **No** nombrar bancos, marcas o productos locales de un solo país (p. ej. Bancolombia, Nequi, específicos de Colombia u otros mercados).
+
+## Color y alarma
+
+- **Evitar rojo** (`text-red-*`, fondos rojos) para saldos, deudas o avisos a primera vista: genera pánico.
+- Deuda / “Debes”: tono neutro o ámbar suave (`text-on-surface-variant`, `text-amber-800/70`, etc.).
+- Rojo solo si el producto define un error de validación bloqueante o un estado realmente crítico ya acordado.
+
+## Cuentas (ADR-0010)
+
+- Centro de cuentas con tabs: **Cuentas | Créditos | Inversiones** (un solo lugar para inversiones; no duplicar en Ahorros).
+- Pago de tarjeta: desde cuenta bancaria (**Transferir / Pagar** → destino la TC). No un flujo enredado desde la propia tarjeta.
+- Liquidez visible = solo `checking`.
+
+## Principio
+
+Claridad antes que control. Dos audiencias, una UI: lo avanzado en “Más opciones”, no en el primer viewport.

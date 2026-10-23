@@ -1,3 +1,5 @@
+import type { FixedExpenseFrequency } from "@/lib/fixed-expenses/frequency";
+
 export type FixedExpensePaymentStatus = "pending" | "paid";
 
 export interface FixedExpenseTemplate {
@@ -6,6 +8,9 @@ export interface FixedExpenseTemplate {
   name: string;
   base_value: number;
   due_day: number | null;
+  frequency: FixedExpenseFrequency;
+  /** Calendar month 1–12 that anchors the multi-period cycle. */
+  anchor_month: number;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -36,6 +41,8 @@ export interface FixedExpenseMonthSnapshot {
   familyId: string;
   monthKey: string;
   budgetTotal: number;
+  /** Sum of monthly equivalents of all active templates (capacity weight). */
+  monthlyCommitted: number;
   pocketDeposits: number;
   pocketAvailable: number;
   items: FixedExpenseMonthItem[];
@@ -45,8 +52,10 @@ export interface FixedExpenseMonthSnapshot {
 export interface FixedExpenseDerivedTotals {
   sumBase: number;
   sumReal: number;
-  /** Sum of bases — planning target only, not pocket cash. */
+  /** Sum of bases due this month — planning target only, not pocket cash. */
   budgetTotal: number;
+  /** Capacity weight across all active templates (monthly equivalent). */
+  monthlyCommitted: number;
   pocketDeposits: number;
   /** Same cash balance as dashboard: aportes − pagos/retiros. */
   pocketBalance: number;

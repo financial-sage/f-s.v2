@@ -30,6 +30,7 @@ Implementación y rutas: [technical-spec.md](./technical-spec.md). Decisión: [A
 15. Tono CARE: claridad, acción, tranquilidad, educación breve. Sin culpa ni alarmismo.
 16. Prioridades: crítica / importante / oportunidad / educativa. Como máximo un conjunto pequeño activo a la vez (ver technical-spec: tope V1).
 17. Incluir candidatas de **ahorro** cuando el contexto lo permita (margen, liquidez, bolsillo ahorro, hábitos), sin imponer un % inventado.
+17b. **Bienvenida (primera):** si el hogar aún no tiene movimientos de ledger, la única candidata es `welcome_panel` (educativa, redacción IA). Explica para qué es el panel y qué esperar con el tiempo. No emitir alertas de “cuenta en cero / tensada” solo por liquidez 0 sin historial. La bienvenida se emite **una vez** por hogar.
 
 ## UX / Dashboard
 

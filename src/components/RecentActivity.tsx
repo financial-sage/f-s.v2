@@ -41,6 +41,7 @@ export default function RecentActivity({ transactions }: RecentActivityProps) {
         ) : (
           transactions.map((tx) => {
             const Icon = iconMap[tx.iconKey];
+            const isDeposit = tx.category === "deposit";
             return (
               <div
                 key={tx.id}
@@ -69,7 +70,10 @@ export default function RecentActivity({ transactions }: RecentActivityProps) {
                 </div>
 
                 <div className="text-right">
-                  <p className="font-bold text-on-surface">-<FormattedCurrency value={tx.amount} /></p>
+                  <p className={`font-bold ${isDeposit ? "text-primary" : "text-on-surface"}`}>
+                    {isDeposit ? "+" : "-"}
+                    <FormattedCurrency value={tx.amount} />
+                  </p>
                   <span
                     className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${
                       tx.isShared

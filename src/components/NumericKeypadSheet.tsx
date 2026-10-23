@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, X } from "lucide-react";
 import CustomNumpad from "@/components/CustomNumpad";
+import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
 
 interface NumericKeypadSheetProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export function NumericKeypadSheet({
   isOpen,
   title,
   subtitle,
-  accentColor = "#4A6549",
+  accentColor = DEFAULT_PERSONAL_FUND_COLOR,
   initialValue,
   showDisplay = true,
   errorMessage,

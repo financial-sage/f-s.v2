@@ -27,6 +27,7 @@ import {
 import { isIndividualHousehold } from "@/lib/household";
 import { perfLog, perfNow } from "@/lib/perf";
 import {
+  getRequestFamilyId,
   requireRequestFamilyId,
   requireRequestUser,
 } from "@/lib/request-context";
@@ -351,7 +352,9 @@ export async function ensureFamilyFunds(familyId: string): Promise<FamilyFund[]>
 
 export async function listFamilyFundsAction(): Promise<FamilyFund[]> {
   const user = await requireUser();
-  const familyId = await getUserFamilyId(user.id);
+  const familyId = await getRequestFamilyId(user.id);
+  // Layout/stores hydrate before onboarding — never 500 when family is missing.
+  if (!familyId) return [];
   return getFamilyFundsFast(familyId);
 }
 

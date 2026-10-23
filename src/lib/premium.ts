@@ -1,7 +1,7 @@
 /** Free-tier caps and household entitlement (Premium v1). */
 
 export const FREE_EXTRA_FUNDS_LIMIT = 1;
-export const FREE_ACCOUNTS_LIMIT = 1;
+export const FREE_ACCOUNTS_LIMIT = 2;
 export const FREE_FIXED_EXPENSES_LIMIT = 3;
 export const COUPLE_TRIAL_DAYS = 7;
 /** Solo free trial for Recommendations (same length as couple trial). */

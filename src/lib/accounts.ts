@@ -1,5 +1,20 @@
 export type AccountScope = "personal" | "shared";
 export type AccountVisibility = "private" | "family_visible";
+export type AccountKind = "checking" | "credit" | "investment";
+
+export const ACCOUNT_KINDS: AccountKind[] = ["checking", "credit", "investment"];
+
+export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
+  checking: "Cuenta bancaria",
+  credit: "Tarjeta de crédito",
+  investment: "Inversión",
+};
+
+export const ACCOUNT_KIND_HINTS: Record<AccountKind, string> = {
+  checking: "Dónde vive el dinero líquido",
+  credit: "Lo que debes en la tarjeta",
+  investment: "Valor actual (fondo, depósito a plazo…)",
+};
 
 /** Soft palette for accounts (distinct from fund greens). */
 export const ACCOUNT_COLOR_OPTIONS = [
@@ -18,6 +33,15 @@ export const ACCOUNT_COLOR_OPTIONS = [
 export const DEFAULT_SHARED_ACCOUNT_COLOR = ACCOUNT_COLOR_OPTIONS[0].value;
 export const DEFAULT_PERSONAL_ACCOUNT_COLOR = ACCOUNT_COLOR_OPTIONS[1].value;
 
+/** Seeded personal cash account — editable and archivable (not system-locked). */
+export const DEFAULT_CASH_ACCOUNT_NAME = "Efectivo";
+/** Stone — distinct from navy bank accounts. */
+export const DEFAULT_CASH_ACCOUNT_COLOR = ACCOUNT_COLOR_OPTIONS[4].value;
+
+export function isDefaultCashAccountName(name: string) {
+  return name.trim().toLowerCase() === DEFAULT_CASH_ACCOUNT_NAME.toLowerCase();
+}
+
 export interface FamilyAccount {
   id: string;
   family_id: string;
@@ -25,11 +49,60 @@ export interface FamilyAccount {
   scope: AccountScope;
   owner_profile_id: string | null;
   visibility: AccountVisibility;
+  kind?: AccountKind | null;
   color?: string | null;
   sort_order: number;
   archived_at: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export function normalizeAccountKind(value: unknown): AccountKind {
+  if (value === "credit" || value === "investment" || value === "checking") return value;
+  return "checking";
+}
+
+export function accountKindOf(account?: Pick<FamilyAccount, "kind"> | null): AccountKind {
+  return normalizeAccountKind(account?.kind);
+}
+
+export function isLiquidityAccount(account?: Pick<FamilyAccount, "kind"> | null) {
+  return accountKindOf(account) === "checking";
+}
+
+export function isCreditAccount(account?: Pick<FamilyAccount, "kind"> | null) {
+  return accountKindOf(account) === "credit";
+}
+
+export function isInvestmentAccount(account?: Pick<FamilyAccount, "kind"> | null) {
+  return accountKindOf(account) === "investment";
+}
+
+/** Debt owed on a credit account (≥ 0). Ledger balance is typically negative. */
+export function creditDebtFromBalance(rawBalance: number): number {
+  const n = Number(rawBalance) || 0;
+  return Math.round(Math.max(0, -n) * 100) / 100;
+}
+
+/** Amount shown in lists: debt for credit, raw balance otherwise. */
+export function displayAccountAmount(
+  account: Pick<FamilyAccount, "kind"> | null | undefined,
+  rawBalance: number
+): number {
+  if (isCreditAccount(account)) return creditDebtFromBalance(rawBalance);
+  return Math.round((Number(rawBalance) || 0) * 100) / 100;
+}
+
+export function sumVisibleLiquidity(
+  rows: Array<{ account: Pick<FamilyAccount, "kind">; balance: number }>
+): number {
+  return (
+    Math.round(
+      rows
+        .filter((row) => isLiquidityAccount(row.account))
+        .reduce((sum, row) => sum + Number(row.balance || 0), 0) * 100
+    ) / 100
+  );
 }
 
 export interface AccountExpenseLike {
@@ -93,6 +166,14 @@ export function listOperableAccountsForUser(accounts: FamilyAccount[], userId: s
   return listActiveAccounts(accounts).filter(
     (a) => a.scope === "shared" || a.owner_profile_id === userId
   );
+}
+
+/**
+ * Checking accounts the actor may pay expenses from
+ * (same set as the Cuentas tab — not credit or investment).
+ */
+export function listPayableAccountsForUser(accounts: FamilyAccount[], userId: string) {
+  return listOperableAccountsForUser(accounts, userId).filter((a) => isLiquidityAccount(a));
 }
 
 export function canViewAccount(account: FamilyAccount, userId: string) {

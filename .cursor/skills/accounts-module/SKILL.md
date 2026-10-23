@@ -23,6 +23,7 @@ Read in order (do not invent product or schema rules):
 3. `docs/product/features/accounts/technical-spec.md` ← schema, ledger, RLS, file paths, slices
 4. `docs/product/features/accounts/user-flow.md`
 5. `docs/decisions/ADR-0006-accounts-vs-funds.md`
+6. `docs/decisions/ADR-0010-liabilities-frequency-investments.md` (kinds `checking` | `credit` | `investment`, liquidez solo checking)
 
 Also skim Funds mirrors: `src/lib/funds.ts`, `src/app/actions/funds.ts`, `database/migrations/001_family_funds.sql`.
 

@@ -14,16 +14,21 @@ Antes de código o migraciones, leer:
 2. `docs/product/features/accounts/business-rules.md`
 3. `docs/product/features/accounts/technical-spec.md`
 4. `docs/decisions/ADR-0006-accounts-vs-funds.md`
+5. `docs/decisions/ADR-0010-liabilities-frequency-investments.md` (si tocas `kind`, TC o inversiones)
 
-Nombres fijos: tabla `family_accounts`; ledger `expenses` + `account_id` / `paid_from_account`; migración `003_family_accounts.sql`; UI `/accounts`.
+Nombres fijos: tabla `family_accounts`; ledger `expenses` + `account_id` / `paid_from_account`; migración `003_family_accounts.sql` (+ `006_account_kind_fixed_frequency.sql` para `kind`); UI `/accounts`.
 
 ## Invariantes
 
-- **Account ≠ Fund**: cuenta = banco simulado; bolsillo = organización del gasto.
-- Ingreso **solo** a cuenta; el reparto es transferencia aparte.
+- **Account ≠ Fund**: cuenta = ubicación/pasivo/activo; bolsillo = organización del gasto.
+- `kind`: `checking` (liquidez) | `credit` (deuda) | `investment` (valor). Liquidez visible = solo checking.
+- UI tabs: **Cuentas | Créditos | Inversiones**. Inversiones solo aquí (no en Ahorros).
+- Pago TC: desde checking con **Transferir / Pagar** → destino credit. No flujo primario “Pagar” desde la tarjeta.
+- UX visual: `.cursor/rules/ux-surfaces.mdc` (placeholders globales, sin rojo de pánico).
+- Ingreso **solo** a cuenta checking; el reparto es transferencia aparte.
 - Bolsillos: aporte directo **y** transferencia desde cuenta (ambos válidos).
-- Gasto: preferir bolsillo; origen cuenta permitido con nudge UX.
-- Saldo negativo: aviso, no bloqueo.
+- Gasto desde cuenta: solo `checking` (tab Cuentas); sin imputar a bolsillo; sin nudge a bolsillo.
+- Saldo negativo en checking: aviso, no bloqueo. Credit: “Debes”; pago = transferencia checking→credit.
 - Pareja (`memberCount >= 2`): personales + compartidas; visibilidad `private` | `family_visible`.
 - Individual (`memberCount === 1`): solo cuentas personales; sin crear `shared` ni toggles de visibilidad (`src/lib/household.ts`).
 - Cuenta personal: solo el dueño opera.

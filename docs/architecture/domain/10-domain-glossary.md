@@ -29,9 +29,9 @@ El glosario sigue los siguientes principios:
 
 ### Account
 
-Cuenta bancaria simulada donde la familia recibe y mueve dinero (personal o compartida).
+Ubicación simulada del dinero o de un pasivo/activo valorado (personal o compartida).
 
-Es distinta de un **Fund** (bolsillo): la cuenta es la ubicación del dinero; el bolsillo es la organización del gasto. Ver ADR-0006 y la feature Accounts.
+Tipos (`kind`): **checking** (liquidez bancaria), **credit** (tarjeta / pasivo) e **investment** (activo con valor actual). Es distinta de un **Fund** (bolsillo): la cuenta es dónde vive o se debe el dinero; el bolsillo es la organización del gasto. Ver ADR-0006, ADR-0010 y la feature Accounts.
 
 ---
 
@@ -40,6 +40,8 @@ Es distinta de un **Fund** (bolsillo): la cuenta es la ubicación del dinero; el
 ### Asset
 
 Recurso económico que aporta valor al patrimonio familiar.
+
+En producto V1, un activo invertido se modela como cuenta `kind = investment` con valor actual actualizable (ADR-0010), no como catálogo de productos.
 
 ---
 
@@ -60,6 +62,16 @@ Límite de consistencia encargado de proteger las invariantes de un conjunto de 
 ### Commitment
 
 Obligación financiera futura que condiciona la capacidad de decisión de la familia.
+
+Puede tener **frecuencia** multi-periodo; la capacidad comprometida usa el **equivalente mensual**. Ver feature Commitments y ADR-0010.
+
+---
+
+
+
+### Credit account
+
+Cuenta de pasivo (`kind = credit`), p. ej. tarjeta de crédito. El saldo de deuda se muestra como “Debes”; el pago reduce la deuda vía transferencia desde una cuenta de liquidez. No forma parte de la liquidez visible.
 
 ---
 
@@ -147,6 +159,16 @@ Representación interpretada de la situación financiera actual de la familia.
 
 
 
+### Frequency (recurrence)
+
+Periodicidad de un gasto fijo o compromiso: mensual, bimensual, trimestral, semestral o anual.
+
+El sistema genera el pago del mes solo cuando toca; para capacidad de decisión usa el **equivalente mensual** (`importe / meses_del_periodo`).
+
+---
+
+
+
 # G
 
 
@@ -164,6 +186,14 @@ Objetivo financiero que la familia desea alcanzar.
 Explicación comprensible de una decisión financiera.
 
 Su propósito consiste en acompañar, no imponer.
+
+---
+
+
+
+### Investment account
+
+Cuenta de activo valorado (`kind = investment`): nombre libre (p. ej. CDT, fondo) y valor actual que la familia actualiza. Aportes y retiros desde liquidez; no implica rentabilidad diaria ni catálogo de mercado.
 
 ---
 

@@ -55,12 +55,14 @@ import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { Portal } from "@/components/ui/Portal";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useFitItemCount } from "@/hooks/useFitItemCount";
+import { useAccountsStore } from "@/store/useAccountsStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { getCategoryDetails } from "@/lib/categoryMap";
 import { isAccountOnlyMovement } from "@/lib/accounts";
+import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import {
     calculateFundCashBalance,
     calculateFundOwesUser,
@@ -214,6 +216,8 @@ export default function DashboardCouple({
     const storeFundLiquidity = useExpenseStore((s) => s.fundLiquidity);
     const isPremium = useExpenseStore((s) => s.isPremium);
     const storeFunds = useFundsStore((s) => s.funds);
+    const storeAccounts = useAccountsStore((s) => s.accounts);
+    const colorFunds = storeFunds.length > 0 ? storeFunds : initialFunds;
 
     const dashboardTourSteps = useMemo<ProductTourStep[]>(
         () => [
@@ -243,6 +247,24 @@ export default function DashboardCouple({
     const dashTour = useProductTour(currentUserId, "dashboard", dashboardTourSteps, {
         hasFamily: true,
     });
+
+    const coupleCollectTourSteps = useMemo<ProductTourStep[]>(
+        () => [
+            {
+                target: "dash-collect",
+                title: "Cobrar al bolsillo",
+                body: "Aparece cuando tú pagaste algo que correspondía al bolsillo compartido (o a tu pareja). Cobrar marca esos gastos como recuperados: no es un cobro bancario, es saldar lo que el bolsillo (o la otra persona) te debe en la app.",
+                placement: "bottom",
+            },
+        ],
+        []
+    );
+    const coupleCollectTour = useProductTour(
+        currentUserId,
+        "coupleCollect",
+        coupleCollectTourSteps,
+        { hasFamily: true, autoStart: false }
+    );
 
     // Prefer Zustand when it has data; if hydrated-but-empty while SSR has rows,
     // keep SSR so a failed client refetch cannot blank the dashboard.
@@ -878,6 +900,20 @@ export default function DashboardCouple({
         [fundDebts]
     );
 
+    // Explain “Cobrar” the first time it becomes visible (after dashboard tour).
+    useEffect(() => {
+        const collectVisible =
+            (isJointModel && fundOwesMe > 0) || (!isJointModel && hasP2PBalance);
+        if (!collectVisible || dashTour.open) return;
+        coupleCollectTour.start(700);
+    }, [
+        fundOwesMe,
+        hasP2PBalance,
+        isJointModel,
+        dashTour.open,
+        coupleCollectTour.start,
+    ]);
+
     const settleScopeFund =
         settleScopeFundId && settleScopeFundId !== "all"
             ? sharedFunds.find((f) => f.id === settleScopeFundId) ?? null
@@ -1353,7 +1389,7 @@ export default function DashboardCouple({
                             <p
                                 className={`text-[2.65rem] font-light leading-none tracking-tight ${
                                     Math.round((heroBalance || 0) * 100) / 100 < 0
-                                        ? "text-red-600"
+                                        ? "text-[#8B5A2B]/90 dark:text-[#C4A574]/90"
                                         : "text-on-surface"
                                 }`}
                             >
@@ -1551,6 +1587,7 @@ export default function DashboardCouple({
                                 {isJointModel && fundOwesMe > 0 && (
                                     <button
                                         type="button"
+                                        data-tour="dash-collect"
                                         onClick={openBalancesModal}
                                         className="flex min-w-0 items-center gap-1 rounded-xl bg-orange-500/15 px-2.5 py-2 text-left transition-colors hover:bg-orange-500/20"
                                     >
@@ -1570,6 +1607,7 @@ export default function DashboardCouple({
                                 {!isJointModel && hasP2PBalance && (
                                     <button
                                         type="button"
+                                        data-tour="dash-collect"
                                         onClick={openBalancesModal}
                                         className={tileClass}
                                     >
@@ -1611,7 +1649,7 @@ export default function DashboardCouple({
                             },
                             {
                                 key: "shared",
-                                label: isJointModel ? "Aportar" : "Liquidar",
+                                label: isJointModel ? "Cargar bolsillo" : "Liquidar",
                                 icon: isJointModel ? Send : Scale,
                                 onClick: isJointModel
                                     ? selectedIsPersonal
@@ -1669,7 +1707,9 @@ export default function DashboardCouple({
                                     >
                                         <Icon size={17} strokeWidth={darkFab ? 2.2 : 1.7} />
                                     </span>
-                                    <span className="text-[10px] font-medium text-on-surface">{label}</span>
+                                    <span className="max-w-[4.75rem] text-center text-[10px] font-medium leading-tight text-on-surface">
+                                        {label}
+                                    </span>
                                 </button>
                             );
                         })}
@@ -1991,14 +2031,12 @@ export default function DashboardCouple({
                                         (isDeposit || isWithdrawal || !expense.is_settled) &&
                                         expense.concept !== "Reembolso del fondo" &&
                                         !isFundSettlementConcept(expense.concept);
-                                    const expenseFund =
-                                        sharedFunds.find((f) => f.id === expense.fund_id) ??
-                                        (isSharedLegacyResponsible(expense.responsible_for)
-                                            ? getDefaultSharedFund(sharedFunds)
-                                            : null);
-                                    const iconColor = expenseFund
-                                        ? resolveFundColor(expenseFund)
-                                        : DEFAULT_PERSONAL_FUND_COLOR;
+                                    const iconColor = resolveMovementIconColor(
+                                        expense,
+                                        colorFunds,
+                                        storeAccounts,
+                                        currentUserId
+                                    );
 
                                     return (
                                         <div
@@ -2017,7 +2055,6 @@ export default function DashboardCouple({
                                                     <div
                                                         className="icon-chip-fund flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
                                                         style={fundIconChipStyle(iconColor)}
-                                                        title={expenseFund?.name ?? "Mi bolsillo"}
                                                     >
                                                         <Icon size={15} strokeWidth={2} />
                                                     </div>
@@ -2460,7 +2497,11 @@ export default function DashboardCouple({
 
             <NumericKeypadSheet
                 isOpen={Boolean(depositTarget)}
-                title={depositTarget === "personal" ? "Aportar a mi bolsillo" : "Aportar al bolsillo"}
+                title={
+                    depositTarget === "personal"
+                        ? "Cargar mi bolsillo"
+                        : "Cargar el bolsillo"
+                }
                 subtitle={
                     depositTarget === "personal"
                         ? "Mi bolsillo"
@@ -2606,6 +2647,11 @@ export default function DashboardCouple({
             )}
 
             <ProductTour open={dashTour.open} steps={dashTour.steps} onClose={dashTour.close} />
+            <ProductTour
+                open={coupleCollectTour.open}
+                steps={coupleCollectTour.steps}
+                onClose={coupleCollectTour.close}
+            />
         </div>
     );
 }

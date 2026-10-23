@@ -43,6 +43,8 @@ interface ExpenseRow {
   created_at: string;
   responsible_for?: string | null;
   category?: string | null;
+  fund_id?: string | null;
+  account_id?: string | null;
 }
 
 export interface DashboardMember {
@@ -73,9 +75,14 @@ export interface DashboardTransaction {
   tag: string;
   dateLabel: string;
   amount: number;
+  /** Ledger category — amount is always ≥ 0; sign is display-only. */
+  category: string;
   status: string;
   isShared: boolean;
   iconKey: "shopping-cart" | "coffee" | "car" | "utensils" | "receipt";
+  /** Source for icon color (own fund/account, not the selected hero bolsillo). */
+  fundId?: string | null;
+  accountId?: string | null;
 }
 
 export interface DashboardData {
@@ -300,9 +307,12 @@ function mapTransactions(
       tag: isShared ? "Compartido" : "Personal",
       dateLabel: formatRelativeDate(expense.expense_date),
       amount: Number(expense.amount),
+      category: expense.category ?? "",
       status: isShared ? "Compartido" : "Personal",
       isShared,
       iconKey: getExpenseIconKey(expense.concept),
+      fundId: expense.fund_id ?? null,
+      accountId: expense.account_id ?? null,
     };
   });
 }
@@ -656,6 +666,8 @@ export async function getHomePageData(): Promise<
     created_at: expense.created_at,
     responsible_for: expense.responsible_for,
     category: expense.category,
+    fund_id: expense.fund_id ?? null,
+    account_id: expense.account_id ?? null,
   })) as ExpenseRow[];
 
   const dashboard = buildDashboardFromParts(

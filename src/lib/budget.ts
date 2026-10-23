@@ -29,8 +29,9 @@ export function formatMonthLabel(monthKey: string) {
 
 export { formatCurrency } from "@/lib/currency";
 
+/** v3 = limits keyed by parent family_categories.id */
 export function budgetStorageKey(familyId: string) {
-  return `fsage:budget:v1:${familyId}`;
+  return `fsage:budget:v3:${familyId}`;
 }
 
 export function safeParseBudgetStore(raw: string | null): BudgetStore {

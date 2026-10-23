@@ -31,6 +31,10 @@ export function buildRecommendationContext(
     accountsVisibleLiquidity: Number(input.accountsVisibleLiquidity) || 0,
     pocketOrHeroBalance: Number(input.pocketOrHeroBalance) || 0,
     monthSpent: Number(input.monthSpent) || 0,
+    ledgerMovementCount: Math.max(
+      0,
+      Math.floor(Number(input.ledgerMovementCount) || 0)
+    ),
     pockets,
     negativePocketCount,
     hasSavingsFund: Boolean(input.hasSavingsFund),

@@ -13,6 +13,12 @@ import type {
   FixedExpensePayment,
   FixedExpenseTemplate,
 } from "@/lib/fixed-expenses/types";
+import {
+  isFixedExpenseDueInMonth,
+  monthlyEquivalent,
+  normalizeFixedExpenseFrequency,
+  type FixedExpenseFrequency,
+} from "@/lib/fixed-expenses/frequency";
 import { getMonthKey } from "@/lib/budget";
 import {
   requireRequestFamilyId,
@@ -28,17 +34,27 @@ async function getUserFamilyId(userId: string) {
 }
 
 function mapTemplate(row: Record<string, unknown>): FixedExpenseTemplate {
+  const anchorRaw = row.anchor_month == null ? 1 : Number(row.anchor_month);
   return {
     id: String(row.id),
     family_id: String(row.family_id),
     name: String(row.name),
     base_value: Number(row.base_value ?? 0),
     due_day: row.due_day == null ? null : Number(row.due_day),
+    frequency: normalizeFixedExpenseFrequency(row.frequency),
+    anchor_month: Math.min(12, Math.max(1, Math.round(anchorRaw) || 1)),
     is_active: Boolean(row.is_active),
     sort_order: Number(row.sort_order ?? 0),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
+}
+
+function normalizeAnchorMonth(value: unknown, fallbackMonth: number): number {
+  if (value == null || value === "") return fallbackMonth;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallbackMonth;
+  return Math.min(12, Math.max(1, n));
 }
 
 function mapPayment(row: Record<string, unknown>): FixedExpensePayment {
@@ -83,7 +99,15 @@ async function ensureMonthPayments(
   const existing = (existingRows ?? []).map((row) => mapPayment(row as Record<string, unknown>));
   const byTemplate = new Map(existing.map((p) => [p.fixed_expense_id, p]));
 
-  const missing = active.filter((t) => !byTemplate.has(t.id));
+  const dueThisMonth = active.filter((t) =>
+    isFixedExpenseDueInMonth({
+      frequency: t.frequency,
+      anchorMonth: t.anchor_month,
+      monthKey,
+    })
+  );
+
+  const missing = dueThisMonth.filter((t) => !byTemplate.has(t.id));
   if (missing.length > 0) {
     const payload = missing.map((t) => ({
       family_id: familyId,
@@ -106,7 +130,7 @@ async function ensureMonthPayments(
     }
   }
 
-  return active
+  return dueThisMonth
     .map((t) => byTemplate.get(t.id))
     .filter((p): p is FixedExpensePayment => Boolean(p));
 }
@@ -145,6 +169,10 @@ async function buildMonthSnapshot(
     (sum, item) => sum + Number(item.payment.base_value_snapshot || 0),
     0
   );
+  const monthlyCommitted = templates.reduce(
+    (sum, t) => sum + monthlyEquivalent(t.base_value, t.frequency),
+    0
+  );
 
   let pocketDeposits = 0;
   let pocketAvailable = 0;
@@ -172,6 +200,7 @@ async function buildMonthSnapshot(
     familyId,
     monthKey,
     budgetTotal: Math.round(sumBase * 100) / 100,
+    monthlyCommitted: Math.round(monthlyCommitted * 100) / 100,
     pocketDeposits: Math.round(pocketDeposits * 100) / 100,
     pocketAvailable,
     items,
@@ -193,6 +222,8 @@ export async function createFixedExpenseAction(input: {
   name: string;
   baseValue: number;
   dueDay?: number | null;
+  frequency?: FixedExpenseFrequency;
+  anchorMonth?: number | null;
   monthKey: string;
 }): Promise<FixedExpenseMonthSnapshot> {
   assertMonthKey(input.monthKey);
@@ -217,6 +248,10 @@ export async function createFixedExpenseAction(input: {
       ? null
       : Math.min(28, Math.max(1, Math.round(Number(input.dueDay))));
 
+  const frequency = normalizeFixedExpenseFrequency(input.frequency);
+  const monthNum = Number(input.monthKey.slice(5, 7)) || 1;
+  const anchorMonth = normalizeAnchorMonth(input.anchorMonth, monthNum);
+
   const { error } = await admin
     .from("fixed_expenses")
     .insert({
@@ -224,11 +259,20 @@ export async function createFixedExpenseAction(input: {
       name,
       base_value: baseValue,
       due_day: dueDay,
+      frequency,
+      anchor_month: anchorMonth,
       is_active: true,
       sort_order: 100,
     } as never);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (/frequency|anchor_month/i.test(error.message)) {
+      throw new Error(
+        "Falta aplicar la migración de frecuencia (006_account_kind_fixed_frequency.sql)."
+      );
+    }
+    throw new Error(error.message);
+  }
 
   return buildMonthSnapshot(familyId, input.monthKey, funds);
 }
@@ -238,6 +282,8 @@ export async function updateFixedExpenseAction(input: {
   name: string;
   baseValue: number;
   dueDay?: number | null;
+  frequency?: FixedExpenseFrequency;
+  anchorMonth?: number | null;
   monthKey: string;
 }): Promise<FixedExpenseMonthSnapshot> {
   assertMonthKey(input.monthKey);
@@ -259,18 +305,31 @@ export async function updateFixedExpenseAction(input: {
       ? null
       : Math.min(28, Math.max(1, Math.round(Number(input.dueDay))));
 
+  const frequency = normalizeFixedExpenseFrequency(input.frequency);
+  const monthNum = Number(input.monthKey.slice(5, 7)) || 1;
+  const anchorMonth = normalizeAnchorMonth(input.anchorMonth, monthNum);
+
   const { error } = await admin
     .from("fixed_expenses")
     .update({
       name,
       base_value: baseValue,
       due_day: dueDay,
+      frequency,
+      anchor_month: anchorMonth,
       updated_at: new Date().toISOString(),
     } as never)
     .eq("id", input.id)
     .eq("family_id", familyId);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (/frequency|anchor_month/i.test(error.message)) {
+      throw new Error(
+        "Falta aplicar la migración de frecuencia (006_account_kind_fixed_frequency.sql)."
+      );
+    }
+    throw new Error(error.message);
+  }
 
   // Keep current-month payment snapshot in sync with the new base when still pending.
   await admin

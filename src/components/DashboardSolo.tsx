@@ -57,6 +57,8 @@ import {
     resolveFundUiColor,
     type FamilyFund,
 } from "@/lib/funds";
+import { resolveMovementIconColor } from "@/lib/movementIconColor";
+import { useAccountsStore } from "@/store/useAccountsStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import ProductTour from "@/components/ProductTour";
@@ -131,6 +133,8 @@ export default function DashboardSolo({
     const storePremium = useExpenseStore((s) => s.isPremium);
     const storeExpenses = useExpenseStore((s) => s.expenses);
     const storeFunds = useFundsStore((s) => s.funds);
+    const storeAccounts = useAccountsStore((s) => s.accounts);
+    const colorFunds = storeFunds.length > 0 ? storeFunds : initialFunds;
     const displayName = userName?.trim() || "Usuario";
 
     const dashboardTourSteps = useMemo<ProductTourStep[]>(
@@ -638,7 +642,7 @@ export default function DashboardSolo({
                             <p
                                 className={`text-[2.65rem] font-light leading-none tracking-tight ${
                                     Math.round((displayBalance || 0) * 100) / 100 < 0
-                                        ? "text-red-600"
+                                        ? "text-[#8B5A2B]/90 dark:text-[#C4A574]/90"
                                         : "text-on-surface"
                                 }`}
                             >
@@ -835,7 +839,7 @@ export default function DashboardSolo({
                             },
                             {
                                 key: "deposit",
-                                label: "Aportar",
+                                label: "Cargar bolsillo",
                                 icon: Wallet,
                                 onClick: openDepositModal,
                                 highlight: true,
@@ -875,7 +879,9 @@ export default function DashboardSolo({
                                     >
                                         <Icon size={17} strokeWidth={darkFab ? 2.2 : 1.7} />
                                     </span>
-                                    <span className="text-[10px] font-medium text-on-surface">{label}</span>
+                                    <span className="max-w-[4.75rem] text-center text-[10px] font-medium leading-tight text-on-surface">
+                                        {label}
+                                    </span>
                                 </>
                             );
 
@@ -951,6 +957,21 @@ export default function DashboardSolo({
                             <div className="min-h-0 overflow-hidden">
                                 {currentList.map((tx, index) => {
                                     const Icon = iconMap[tx.iconKey] ?? ReceiptText;
+                                    const isDeposit = tx.category === "deposit";
+                                    const storeRow = storeExpenses.find((e) => e.id === tx.id);
+                                    const iconColor = resolveMovementIconColor(
+                                        {
+                                            amount: tx.amount,
+                                            paid_by: storeRow?.paid_by ?? currentUserId,
+                                            responsible_for: storeRow?.responsible_for ?? null,
+                                            fund_id: storeRow?.fund_id ?? tx.fundId ?? null,
+                                            account_id: storeRow?.account_id ?? tx.accountId ?? null,
+                                            category: tx.category,
+                                        },
+                                        colorFunds,
+                                        storeAccounts,
+                                        currentUserId
+                                    );
 
                                     return (
                                         <div
@@ -970,7 +991,7 @@ export default function DashboardSolo({
                                                 <div className="flex min-w-0 items-center gap-3">
                                                     <div
                                                         className="icon-chip-fund flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
-                                                        style={fundIconChipStyle(heroColor)}
+                                                        style={fundIconChipStyle(iconColor)}
                                                     >
                                                         <Icon size={15} strokeWidth={2} />
                                                     </div>
@@ -987,8 +1008,13 @@ export default function DashboardSolo({
                                                     </div>
                                                 </div>
 
-                                                <span className="shrink-0 text-[15px] font-medium text-on-surface">
-                                                    -<FormattedCurrency value={tx.amount} />
+                                                <span
+                                                    className={`shrink-0 text-[15px] font-medium ${
+                                                        isDeposit ? "text-primary" : "text-on-surface"
+                                                    }`}
+                                                >
+                                                    {isDeposit ? "+" : "-"}
+                                                    <FormattedCurrency value={tx.amount} />
                                                 </span>
                                             </button>
 
@@ -1097,7 +1123,7 @@ export default function DashboardSolo({
             )}
             <NumericKeypadSheet
                 isOpen={showDeposit}
-                title={`Aportar a ${heroTitle}`}
+                title={`Cargar ${heroTitle}`}
                 subtitle={heroTitle}
                 accentColor={heroColor}
                 initialValue={depositAmount || "0"}

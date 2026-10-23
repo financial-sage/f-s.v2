@@ -21,6 +21,24 @@ export function templateCopyForCandidate(
   const { ruleId, facts } = candidate;
 
   switch (ruleId) {
+    case "welcome_panel": {
+      const couple = Boolean(facts.isCoupleUi);
+      return {
+        title: "Bienvenido a tus recomendaciones",
+        body: couple
+          ? "Este panel irá proponiendo pasos concretos a medida que registres ingresos, gastos y ahorro juntos. Hoy es solo el punto de partida: sin historial aún no hay urgencias que inventar."
+          : "Este panel irá proponiendo pasos concretos a medida que registres ingresos, gastos y ahorro. Hoy es solo el punto de partida: sin historial aún no hay urgencias que inventar.",
+        why: [
+          "Aún no hay movimientos en tu espacio",
+          couple
+            ? "Las sugerencias crecerán con lo que compartáis"
+            : "Las sugerencias crecerán con lo que registres",
+        ],
+        impact:
+          "Con el tiempo verás propuestas ancladas a tu realidad — qué mirar, qué apartar, qué revisar — sin chat ni presión.",
+        source: "template",
+      };
+    }
     case "account_strained": {
       const liq = Number(facts.accountsVisibleLiquidity) || 0;
       return {

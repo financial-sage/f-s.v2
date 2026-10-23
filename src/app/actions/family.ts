@@ -276,8 +276,8 @@ export async function createSoloFamilyAction(userId: string) {
   }
 
   try {
-    const { ensurePersonalAccount } = await import("@/app/actions/accounts");
-    await ensurePersonalAccount(createdFamily.id, user.id);
+    const { ensurePersonalCashAccount } = await import("@/app/actions/accounts");
+    await ensurePersonalCashAccount(createdFamily.id, user.id);
   } catch {
     // Migration may not be applied yet.
   }
@@ -362,6 +362,13 @@ export async function joinFamilyAction(userId: string, inviteCode: string) {
   try {
     const { ensureFamilyFunds } = await import("@/app/actions/funds");
     await ensureFamilyFunds(family.id);
+  } catch {
+    // Migration may not be applied yet.
+  }
+
+  try {
+    const { ensurePersonalCashAccount } = await import("@/app/actions/accounts");
+    await ensurePersonalCashAccount(family.id, user.id);
   } catch {
     // Migration may not be applied yet.
   }

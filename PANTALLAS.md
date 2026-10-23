@@ -12,7 +12,7 @@ En la parte inferior hay una **barra de navegación fija** con 5 opciones:
 - **Tarjetas**: sección de métodos de pago (por ahora es un placeholder).
 - **Agregar gasto**: botón circular grande (icono `+`).
 - **Historial**: lista de movimientos y filtros.
-- **Presupuesto**: control mensual por categoría.
+- **Presupuesto**: control mensual por segmento de vida.
 
 Nota: en pantallas como **Login**, **Register**, **Onboarding** y **Perfil**, la barra puede no mostrarse para evitar que se rompa la experiencia.
 
@@ -145,34 +145,13 @@ El objetivo es que el selector de categoría en la app sea:
 
 ---
 
-## 5) Presupuesto – `/budget` (MVP)
+## 5) Categorías – `/categories`
 
-El objetivo del Presupuesto es que puedas definir un **límite mensual por categoría** y ver el progreso.
+Categorías **creadas por la familia** (compartidas) o por cada miembro (personales), con subcategorías opcionales. Al alta se siembran 6 básicas compartidas (Hogar, Alimentación, Movilidad, Bienestar, Ocio, Otros).
 
-Pantalla principal:
+## 6) Presupuesto – `/budget`
 
-1. **Header del mes**
-   - Puedes cambiar entre meses anterior/siguiente.
-   - Botón para volver al mes actual.
-2. **Resumen**
-   - Monto total gastado en categorías (del mes seleccionado).
-   - Total presupuestado (si ya definiste límites).
-   - Restante (presupuesto - gastado).
-3. **Por categoría**
-   - Lista de categorías activas.
-   - Para cada categoría:
-     - gastado del mes
-     - límite definido (si existe)
-     - progreso con barra
-     - estado: OK / Cerca / Excedido
-
-Acciones:
-- Toca una categoría para **definir o editar** su límite mensual.
-- Puedes **copiar el presupuesto del mes anterior** (si existía).
-
-Al ser MVP:
-- el presupuesto se calcula con base en los gastos registrados y su fecha.
-- se excluyen movimientos que no se consideran gasto “de consumo” (como aportes/transferencias del sistema).
+Límite mensual por **categoría padre**. El gasto elige categoría (o subcategoría); el gastado de las subcategorías **suma** a la categoría. Acceso también desde el menú inferior (Categorías / Presupuesto).
 
 ---
 
@@ -260,7 +239,7 @@ Incluye:
 - **Agregar gasto**: registrar/editar un movimiento con monto + concepto + categoría + fecha.
 - **Historial**: ver movimientos y filtrar; editar o eliminar cuando aplique.
 - **Categorías**: renombrar y activar/archivar para personalizar tu experiencia.
-- **Presupuesto**: definir límites mensuales por categoría y seguir el progreso.
+- **Presupuesto**: definir límites mensuales por segmento y seguir el progreso.
 - **Perfil**: configuración, acceso a categorías y código de invitación.
 - **Onboarding / Login / Register**: flujo de entrada a la cuenta.
 - **Admin**: métricas y campaña (solo admin).

@@ -60,6 +60,12 @@ export default function PartnerFirstMoveCelebration() {
   }, []);
 
   useEffect(() => {
+    // Mounted from (pwa) layout including /login — skip until authenticated route.
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path === "/login" || path.startsWith("/login/")) return;
+    }
+
     let cancelled = false;
     let attempts = 0;
 

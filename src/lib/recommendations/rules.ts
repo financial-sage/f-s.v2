@@ -9,6 +9,11 @@ function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+/** No ledger yet — just onboarded or empty space. */
+export function isEarlyHousehold(ctx: RecommendationContext): boolean {
+  return ctx.ledgerMovementCount === 0 && round2(ctx.monthSpent) === 0;
+}
+
 /**
  * Domain rules pick candidates (ADR-0009 option A). Order = priority.
  */
@@ -22,9 +27,34 @@ export function selectRecommendationCandidates(
   const pocketsTotal = round2(
     ctx.pockets.reduce((sum, p) => sum + p.balance, 0)
   );
+  const early = isEarlyHousehold(ctx);
 
-  // 1) Account / liquidity strained
-  if (ctx.hasVisibleAccounts && (liquidity < 0 || liquidity === 0)) {
+  // 0) Welcome — first recommendation while the space has no history yet.
+  // Explains the panel; suppresses premature “accounts at zero” noise.
+  if (early) {
+    out.push({
+      ruleId: "welcome_panel",
+      priority: "educational",
+      facts: {
+        memberCount: ctx.memberCount,
+        isCoupleUi: ctx.isCoupleUi,
+        hasVisibleAccounts: ctx.hasVisibleAccounts,
+        fundsCount: ctx.fundsCount,
+        ledgerMovementCount: ctx.ledgerMovementCount,
+      },
+      ctaHref: "/accounts",
+      ctaLabel: ctx.hasVisibleAccounts
+        ? "Ver mis cuentas"
+        : "Registrar una cuenta",
+    });
+    return out.slice(0, MAX_ACTIVE);
+  }
+
+  // 1) Account / liquidity strained — only with real activity (0 € empty ≠ crisis)
+  if (
+    ctx.hasVisibleAccounts &&
+    (liquidity < 0 || (liquidity === 0 && ctx.ledgerMovementCount > 0))
+  ) {
     out.push({
       ruleId: "account_strained",
       priority: liquidity < 0 ? "critical" : "important",

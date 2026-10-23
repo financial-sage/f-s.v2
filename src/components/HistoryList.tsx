@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import {
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     Edit,
     Lock,
     Receipt,
@@ -32,9 +34,11 @@ import {
     resolveFundIdForExpense,
     type FamilyFund,
 } from "@/lib/funds";
+import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useAccountsStore } from "@/store/useAccountsStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
@@ -48,6 +52,8 @@ export interface HistoryExpenseRow {
     paid_by: string;
     responsible_for?: string | null;
     category?: string | null;
+    category_id?: string | null;
+    spend_segment?: string | null;
     split_type: ExpenseSplitType;
     expense_date: string;
     created_at: string;
@@ -74,20 +80,47 @@ const DEFAULT_FILTERS: Filters = {
     movementType: "all",
 };
 
-function historyMonthHeaderLabel(timeRange: Filters["timeRange"]) {
+type ViewMonth = { year: number; month: number };
+
+function currentViewMonth(): ViewMonth {
     const now = new Date();
-    if (timeRange === "last_month") {
-        now.setMonth(now.getMonth() - 1);
-    }
+    return { year: now.getFullYear(), month: now.getMonth() };
+}
+
+function shiftViewMonth(view: ViewMonth, delta: number): ViewMonth {
+    const d = new Date(view.year, view.month + delta, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+}
+
+function isSameViewMonth(a: ViewMonth, b: ViewMonth) {
+    return a.year === b.year && a.month === b.month;
+}
+
+function viewMonthFromTimeRange(timeRange: Filters["timeRange"]): ViewMonth {
+    const now = currentViewMonth();
+    if (timeRange === "last_month") return shiftViewMonth(now, -1);
+    return now;
+}
+
+function historyMonthHeaderLabel(
+    timeRange: Filters["timeRange"],
+    viewMonth: ViewMonth
+) {
     if (timeRange === "this_year") {
-        return String(now.getFullYear());
+        return String(viewMonth.year);
     }
     if (timeRange === "all") {
         return "TODOS";
     }
-    return new Intl.DateTimeFormat("es-ES", { month: "long" })
-        .format(now)
+    const d = new Date(viewMonth.year, viewMonth.month, 1);
+    const monthName = new Intl.DateTimeFormat("es-ES", { month: "long" })
+        .format(d)
         .toUpperCase();
+    const now = currentViewMonth();
+    if (viewMonth.year !== now.year) {
+        return `${monthName} ${viewMonth.year}`;
+    }
+    return monthName;
 }
 
 function StickyDayLabel({
@@ -210,6 +243,7 @@ export default function HistoryList({
     const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
     const storeFunds = useFundsStore((s) => s.funds);
     const loadFunds = useFundsStore((s) => s.load);
+    const storeAccounts = useAccountsStore((s) => s.accounts);
     // Prefer store; fall back to SSR props so first paint has real fund colors.
     const funds = storeFunds.length > 0 ? storeFunds : initialFunds;
 
@@ -229,6 +263,7 @@ export default function HistoryList({
     const [isFilterAnimated, setIsFilterAnimated] = useState(false);
     const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
     const [pendingFilters, setPendingFilters] = useState<Filters>(DEFAULT_FILTERS);
+    const [viewMonth, setViewMonth] = useState<ViewMonth>(currentViewMonth);
 
     const openFilterModal = () => {
         setPendingFilters({ ...filters });
@@ -239,12 +274,73 @@ export default function HistoryList({
         setIsFilterAnimated(false);
         window.setTimeout(() => setIsFilterModalOpen(false), 300);
     };
-    const applyFilters = () => { setFilters({ ...pendingFilters }); closeFilterModal(); };
+    const applyFilters = () => {
+        setFilters({ ...pendingFilters });
+        if (
+            pendingFilters.timeRange === "this_month" ||
+            pendingFilters.timeRange === "last_month"
+        ) {
+            setViewMonth(viewMonthFromTimeRange(pendingFilters.timeRange));
+        } else if (pendingFilters.timeRange === "this_year") {
+            setViewMonth(currentViewMonth());
+        }
+        closeFilterModal();
+    };
     const clearFilters = () => {
         setPendingFilters(DEFAULT_FILTERS);
         setFilters(DEFAULT_FILTERS);
+        setViewMonth(currentViewMonth());
         closeFilterModal();
     };
+
+    const canGoNextMonth =
+        filters.timeRange === "all" ||
+        filters.timeRange === "this_year" ||
+        !isSameViewMonth(viewMonth, currentViewMonth());
+
+    function goToPrevMonth() {
+        if (filters.timeRange === "all" || filters.timeRange === "this_year") {
+            setFilters((f) => ({ ...f, timeRange: "this_month" }));
+            setViewMonth(shiftViewMonth(currentViewMonth(), -1));
+            return;
+        }
+        setViewMonth((m) => shiftViewMonth(m, -1));
+        setFilters((f) =>
+            f.timeRange === "last_month" || f.timeRange === "this_month"
+                ? { ...f, timeRange: "this_month" }
+                : f
+        );
+    }
+
+    function goToNextMonth() {
+        if (filters.timeRange === "all") {
+            setFilters((f) => ({ ...f, timeRange: "this_month" }));
+            setViewMonth(currentViewMonth());
+            return;
+        }
+        if (filters.timeRange === "this_year") {
+            setFilters((f) => ({ ...f, timeRange: "this_month" }));
+            setViewMonth(currentViewMonth());
+            return;
+        }
+        if (!canGoNextMonth) return;
+        setViewMonth((m) => {
+            const next = shiftViewMonth(m, 1);
+            const now = currentViewMonth();
+            if (
+                next.year > now.year ||
+                (next.year === now.year && next.month > now.month)
+            ) {
+                return now;
+            }
+            return next;
+        });
+        setFilters((f) =>
+            f.timeRange === "last_month" || f.timeRange === "this_month"
+                ? { ...f, timeRange: "this_month" }
+                : f
+        );
+    }
 
     const toggleAccordion = (label: string) => {
         setOpenAccordions((prev) => {
@@ -294,8 +390,15 @@ export default function HistoryList({
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        // Default view is current month — don't badge that as an extra filter.
-        if (filters.timeRange !== "all" && filters.timeRange !== "this_month") count += 1;
+        // Default view is current calendar month — don't badge that as an extra filter.
+        if (filters.timeRange === "all" || filters.timeRange === "this_year") {
+            count += 1;
+        } else if (
+            filters.timeRange === "last_month" ||
+            !isSameViewMonth(viewMonth, currentViewMonth())
+        ) {
+            count += 1;
+        }
         if (filters.fundIds.length > 0) count += 1;
         if (filters.movementType !== "all") count += 1;
         if (hasPartner) {
@@ -306,7 +409,7 @@ export default function HistoryList({
             count += 0;
         }
         return count;
-    }, [filters, hasPartner]);
+    }, [filters, hasPartner, viewMonth]);
 
     // Balance calculations (cash-flow)
     const myAvailableFund = useMemo(() => {
@@ -332,15 +435,28 @@ export default function HistoryList({
 
     // Filter pipeline
     const filteredExpenses = useMemo(() => {
-        const now = new Date();
         return allExpenses.filter((e) => {
             if (e.concept === "Reembolso del fondo" || isFundSettlementConcept(e.concept)) return false;
             // Fixed-expense real payments stay visible in history (no aportes for that pocket).
             if (effectiveFilters.timeRange !== "all") {
                 const d = new Date(e.expense_date || e.created_at);
-                if (effectiveFilters.timeRange === "this_month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
-                if (effectiveFilters.timeRange === "last_month") { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); if (d.getMonth() !== lm.getMonth() || d.getFullYear() !== lm.getFullYear()) return false; }
-                if (effectiveFilters.timeRange === "this_year" && d.getFullYear() !== now.getFullYear()) return false;
+                if (
+                    effectiveFilters.timeRange === "this_month" ||
+                    effectiveFilters.timeRange === "last_month"
+                ) {
+                    if (
+                        d.getMonth() !== viewMonth.month ||
+                        d.getFullYear() !== viewMonth.year
+                    ) {
+                        return false;
+                    }
+                }
+                if (
+                    effectiveFilters.timeRange === "this_year" &&
+                    d.getFullYear() !== viewMonth.year
+                ) {
+                    return false;
+                }
             }
             if (effectiveFilters.fundIds.length > 0) {
                 const resolvedFundId = resolveFundIdForExpense(e, funds, currentUserId);
@@ -365,7 +481,7 @@ export default function HistoryList({
             if (effectiveFilters.movementType === "expenses" && e.category === "deposit") return false;
             return true;
         });
-    }, [allExpenses, effectiveFilters, currentUserId, funds]);
+    }, [allExpenses, effectiveFilters, currentUserId, funds, viewMonth]);
 
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
 
@@ -415,13 +531,12 @@ export default function HistoryList({
             (isDeposit || isWithdrawal || !expense.is_settled) &&
             expense.concept !== "Reembolso del fondo" &&
             !isFundSettlementConcept(expense.concept);
-        const expenseFundId = resolveFundIdForExpense(expense, funds, currentUserId);
-        const expenseFund = expenseFundId
-            ? funds.find((f) => f.id === expenseFundId) ?? null
-            : null;
-        const iconColor = expenseFund
-            ? resolveFundColor(expenseFund)
-            : DEFAULT_PERSONAL_FUND_COLOR;
+        const iconColor = resolveMovementIconColor(
+            expense,
+            funds,
+            storeAccounts,
+            currentUserId
+        );
 
         return (
             <div
@@ -440,7 +555,6 @@ export default function HistoryList({
                         <div
                             className="icon-chip-fund flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
                             style={fundIconChipStyle(iconColor)}
-                            title={expenseFund?.name ?? "Mi bolsillo"}
                         >
                             <Icon size={14} strokeWidth={2} />
                         </div>
@@ -482,6 +596,8 @@ export default function HistoryList({
                                         amount: expense.amount,
                                         concept: expense.concept,
                                         category: expense.category,
+                                        category_id: expense.category_id,
+                                        spend_segment: expense.spend_segment,
                                         paid_by: expense.paid_by,
                                         responsible_for: expense.responsible_for,
                                     });
@@ -524,7 +640,33 @@ export default function HistoryList({
     };
 
     const monthHeaderLabel = historyMonthHeaderLabel(
-        isHydrated ? effectiveFilters.timeRange : "this_month"
+        isHydrated ? effectiveFilters.timeRange : "this_month",
+        viewMonth
+    );
+
+    const monthNav = (
+        <div className="flex items-center gap-0.5">
+            <button
+                type="button"
+                onClick={goToPrevMonth}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface/55 transition-colors hover:bg-on-surface/[0.04] hover:text-on-surface"
+                aria-label="Mes anterior"
+            >
+                <ChevronLeft size={16} strokeWidth={1.6} />
+            </button>
+            <span className="px-0.5 text-center text-[13px] font-light uppercase tracking-[0.14em] text-on-surface">
+                {monthHeaderLabel}
+            </span>
+            <button
+                type="button"
+                onClick={goToNextMonth}
+                disabled={!canGoNextMonth}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface/55 transition-colors hover:bg-on-surface/[0.04] hover:text-on-surface disabled:pointer-events-none disabled:opacity-30"
+                aria-label="Mes siguiente"
+            >
+                <ChevronRight size={16} strokeWidth={1.6} />
+            </button>
+        </div>
     );
 
     // Show skeleton only when there are no SSR expenses and store hasn't hydrated yet
@@ -535,9 +677,13 @@ export default function HistoryList({
                     title="Historial"
                     subtitle="Todos tus movimientos"
                     right={
-                        <span className="text-[13px] font-light uppercase tracking-[0.14em] text-gray-400">
-                            {monthHeaderLabel}
-                        </span>
+                        <div className="flex items-center gap-0.5 opacity-50">
+                            <span className="flex h-7 w-7" aria-hidden />
+                            <span className="px-0.5 text-center text-[13px] font-light uppercase tracking-[0.14em] text-gray-400">
+                                {monthHeaderLabel}
+                            </span>
+                            <span className="flex h-7 w-7" aria-hidden />
+                        </div>
                     }
                     className="relative z-20 border-b-0 bg-transparent backdrop-blur-0 pt-[max(0,env(safe-area-inset-top))]"
                 />
@@ -569,11 +715,7 @@ export default function HistoryList({
             <PageHeader
                 title="Historial"
                 subtitle="Todos tus movimientos"
-                right={
-                    <span className="text-[13px] font-light uppercase tracking-[0.14em] text-on-surface">
-                        {monthHeaderLabel}
-                    </span>
-                }
+                right={monthNav}
                 className="relative z-20 border-b-0 bg-transparent backdrop-blur-0 pt-[max(0,env(safe-area-inset-top))]"
             />
 

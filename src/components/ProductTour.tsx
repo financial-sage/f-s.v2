@@ -144,10 +144,16 @@ export default function ProductTour({ open, steps, onClose }: ProductTourProps) 
   })();
 
   return createPortal(
-    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Tutorial">
+    <div
+      className="fixed inset-0 z-[140]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Tutorial"
+    >
       {/*
         Spotlight: transparent rounded hole + spread shadow for the dim.
         The shadow follows border-radius, so corners stay clean (no square panels).
+        z above Sheets (100) so contextual tours work inside modals.
       */}
       {highlight ? (
         <div
@@ -165,7 +171,7 @@ export default function ProductTour({ open, steps, onClose }: ProductTourProps) 
       )}
 
       <div
-        className="absolute z-[81] overflow-y-auto rounded-2xl border border-glass-border bg-surface-lowest p-4 shadow-[var(--glass-shadow-lg)]"
+        className="absolute z-[141] overflow-y-auto rounded-2xl border border-glass-border bg-surface-lowest p-4 shadow-[var(--glass-shadow-lg)]"
         style={tooltipStyle}
       >
         <div className="mb-1 flex items-start justify-between gap-2">

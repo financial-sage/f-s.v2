@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Check, Delete, Divide, Equal, Plus, Shapes, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
+import { useCurrency } from "@/hooks/useCurrency";
+import { DEFAULT_PERSONAL_FUND_COLOR } from "@/lib/funds";
 
 interface CustomNumpadProps {
   isOpen: boolean;
@@ -71,10 +73,11 @@ export default function CustomNumpad({
   embedded = false,
   embeddedStyle = "card",
   showDisplay = true,
-  accentColor = "#4A6549",
+  accentColor = DEFAULT_PERSONAL_FUND_COLOR,
   maxValue,
 }: CustomNumpadProps) {
   const [expression, setExpression] = useState("");
+  const { meta: currencyMeta } = useCurrency();
 
   useEffect(() => {
     if (isOpen) {
@@ -189,14 +192,16 @@ export default function CustomNumpad({
                 Monto
               </span>
               <div className="flex min-h-[3.5rem] items-baseline justify-center gap-1.5">
-                <span
-                  className={`text-2xl font-light ${
-                    exceedsMax ? "text-rose-500" : ""
-                  }`}
-                  style={exceedsMax ? undefined : { color: accentColor }}
-                >
-                  $
-                </span>
+                {currencyMeta.symbolPosition === "before" ? (
+                  <span
+                    className={`text-2xl font-light ${
+                      exceedsMax ? "text-rose-500" : ""
+                    }`}
+                    style={exceedsMax ? undefined : { color: accentColor }}
+                  >
+                    {currencyMeta.symbol}
+                  </span>
+                ) : null}
                 <span
                   className={`text-[2.75rem] font-light leading-none tracking-tight ${
                     exceedsMax ? "text-rose-500" : "text-on-surface"
@@ -204,6 +209,16 @@ export default function CustomNumpad({
                 >
                   {displayValue}
                 </span>
+                {currencyMeta.symbolPosition === "after" ? (
+                  <span
+                    className={`text-2xl font-light ${
+                      exceedsMax ? "text-rose-500" : ""
+                    }`}
+                    style={exceedsMax ? undefined : { color: accentColor }}
+                  >
+                    {currencyMeta.symbol}
+                  </span>
+                ) : null}
               </div>
             </div>
           )}
@@ -243,12 +258,18 @@ export default function CustomNumpad({
               onClick={handleConfirm}
               disabled={exceedsMax}
               aria-disabled={exceedsMax}
-              className={`row-span-3 flex items-center justify-center rounded-2xl text-white shadow-[0_10px_24px_rgba(43,52,55,0.16)] transition-all active:scale-95 ${
+              className={`fab-accent row-span-3 flex items-center justify-center rounded-2xl transition-transform active:scale-95 ${
                 exceedsMax ? "cursor-not-allowed opacity-45" : ""
               }`}
-              style={{
-                backgroundColor: exceedsMax ? "#e11d48" : accentColor,
-              }}
+              style={
+                {
+                  "--fab-accent-from": `color-mix(in srgb, ${accentColor} 78%, white)`,
+                  "--fab-accent-via": accentColor,
+                  "--fab-accent-to": `color-mix(in srgb, ${accentColor} 68%, #0f172a)`,
+                  "--fab-accent-fg": "#fff8ee",
+                  "--fab-accent-shadow": "0 8px 18px rgba(15, 23, 42, 0.28)",
+                } as CSSProperties
+              }
             >
               {hasPendingOperation ? <Equal size={28} /> : <Check size={28} />}
             </button>

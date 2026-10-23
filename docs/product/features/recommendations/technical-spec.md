@@ -91,7 +91,8 @@ Llama al proveedor LLM con hechos; fallback a plantilla si el proveedor falla o 
 
 Evaluar en orden; no spamear si hay dismiss/defer reciente para el mismo `rule_id`:
 
-1. Liquidez / cuenta en rojo o 0 con bolsillos bajo cero → priorizar estabilidad (CTA cuentas / historial).
+0. **Bienvenida (`welcome_panel`):** si `ledgerMovementCount === 0` y sin gasto del mes → única candidata; copy IA orientativo (qué es el panel, qué esperar). Una sola emisión por hogar.
+1. Liquidez / cuenta en rojo, o en 0 **con** historial de movimientos → priorizar estabilidad (CTA cuentas / historial). Liquidez 0 sin historial **no** dispara esta regla.
 2. Margen positivo recurrente sin aportes a ahorro → **recomendar ahorrar** (CTA flujo ahorro / bolsillo ahorro).
 3. Ritmo de gasto alto vs mes en curso / bolsillos tensos → revisar gastos (CTA historial).
 4. Oportunidad educativa breve si hay datos pero poca organización (cuentas/bolsillos).

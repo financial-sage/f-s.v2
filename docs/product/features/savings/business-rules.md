@@ -51,9 +51,16 @@
 25. Ambos miembros de la pareja ven el bote y pueden aportar/retirar.
 26. Parejas primero; modo individual se adapta después.
 
+## Inversiones (ADR-0010)
+
+27. Las inversiones **no** se gestionan en Ahorros; viven en Centro de cuentas (tab Inversiones).
+28. El bote Ahorro no lista ni crea cuentas `kind = investment`.
+29. El valor invertido **no** forma parte del saldo del bote Ahorro ni de la liquidez visible.
+
 ## Fuera de alcance (fase 2+)
 
-27. Varios botes / etiquetas.
-28. Ahorro personal por miembro.
-29. Auto-ahorro o % de ingresos.
-30. Vinculación formal a Goals.
+30. Varios botes de ahorro / etiquetas de hábito.
+31. Ahorro personal por miembro.
+32. Auto-ahorro o % de ingresos.
+33. Vinculación formal a Goals.
+34. Catálogo de productos, ISINs o rentabilidad diaria.

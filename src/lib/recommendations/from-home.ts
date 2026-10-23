@@ -118,6 +118,7 @@ export function recommendationContextFromHome(
     accountsVisibleLiquidity,
     pocketOrHeroBalance,
     monthSpent,
+    ledgerMovementCount: expenseRows.length,
     pockets,
     hasSavingsFund: Boolean(savingsFund),
     savingsBalance,

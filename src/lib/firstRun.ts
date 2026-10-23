@@ -1,9 +1,17 @@
 export type TourId =
   | "dashboard"
   | "accounts"
+  /** After creating a checking account: spotlight Ingreso. */
+  | "accountsIncome"
+  /** After registering income: spotlight Transferir. */
+  | "accountsTransfer"
   | "savings"
   | "fixedExpenses"
-  | "history";
+  | "history"
+  /** First time opening the add-expense sheet. */
+  | "expenseForm"
+  /** When “Cobrar” first appears on the couple dashboard. */
+  | "coupleCollect";
 
 export type FirstRunState = {
   setupCompleted: boolean;

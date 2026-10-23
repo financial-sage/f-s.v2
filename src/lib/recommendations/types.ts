@@ -16,6 +16,7 @@ export type RecommendationPriority =
 export type RecommendationCopySource = "template" | "openai" | "gemini";
 
 export type RecommendationRuleId =
+  | "welcome_panel"
   | "account_strained"
   | "suggest_savings"
   | "review_spend_pace"
@@ -66,6 +67,8 @@ export interface RecommendationContext {
   accountsVisibleLiquidity: number;
   pocketOrHeroBalance: number;
   monthSpent: number;
+  /** Ledger rows visible to the user (expenses + deposits + transfers). */
+  ledgerMovementCount: number;
   pockets: { name: string; balance: number }[];
   negativePocketCount: number;
   hasSavingsFund: boolean;

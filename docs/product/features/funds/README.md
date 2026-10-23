@@ -53,11 +53,11 @@ La capa de **cuentas** (dónde vive el dinero antes de repartirlo) se define en 
 
 # Relación con categorías y presupuesto
 
-- **Fondo** = bolsillo con saldo.
-- **Categoría** = etiqueta analítica del gasto.
-- **Presupuesto** = límite de planificación (puede asociarse después a fondo y/o categoría).
+- **Fondo** = bolsillo con saldo (caja del gasto).
+- **Categoría** = etiqueta de planificación (`family_categories`: compartida o personal; opcionalmente con subcategorías). Al gastar se guarda `expenses.category_id`.
+- **Presupuesto** = límite mensual por **categoría padre** (las subcategorías agregan al padre).
 
-Un gasto de restaurante puede imputarse al fondo “Restaurantes”; la categoría sigue siendo opcional para reportes.
+Un gasto de restaurante puede imputarse al fondo “Restaurantes” y a la categoría Alimentación (o a una subcategoría “Salir”).
 
 ---
 

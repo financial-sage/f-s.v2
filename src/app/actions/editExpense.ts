@@ -19,11 +19,18 @@ export async function editExpenseAction(
   const conceptRaw = isFormDataPayload
     ? String(formDataOrId.get("concept") ?? "").trim()
     : String(newConcept ?? "").trim();
-  const categoryRaw = isFormDataPayload ? String(formDataOrId.get("category") ?? "").trim() : "";
+  const categoryRaw = isFormDataPayload
+    ? String(formDataOrId.get("category") ?? "").trim()
+    : "";
+  const categoryIdRaw = isFormDataPayload
+    ? String(formDataOrId.get("category_id") ?? "").trim()
+    : "";
   const expenseDateRaw = isFormDataPayload
     ? String(formDataOrId.get("expense_date") ?? "").trim()
     : "";
-  const paidByRaw = isFormDataPayload ? String(formDataOrId.get("paid_by") ?? "").trim() : "";
+  const paidByRaw = isFormDataPayload
+    ? String(formDataOrId.get("paid_by") ?? "").trim()
+    : "";
   const responsibleForRaw = isFormDataPayload
     ? String(formDataOrId.get("responsible_for") ?? "").trim()
     : "";
@@ -70,7 +77,10 @@ export async function editExpenseAction(
     updated_by: session.user.id,
   };
 
-  if (categoryRaw) {
+  if (categoryIdRaw) {
+    updatePayload.category_id = categoryIdRaw;
+    if (categoryRaw) updatePayload.category = categoryRaw;
+  } else if (categoryRaw) {
     updatePayload.category = categoryRaw;
   }
 
@@ -86,14 +96,28 @@ export async function editExpenseAction(
     updatePayload.responsible_for = responsibleForRaw;
   }
 
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from("expenses")
     .update(updatePayload as never)
     .eq("id", originalId)
     .eq("family_id", profile.family_id)
     .eq("is_active", true)
-    .select("id, amount, concept, category, expense_date, paid_by, responsible_for")
+    .select(
+      "id, amount, concept, category, category_id, expense_date, paid_by, responsible_for"
+    )
     .maybeSingle();
+
+  if (error && /category_id|column/i.test(error.message)) {
+    const { category_id: _c, ...withoutCat } = updatePayload;
+    ({ data, error } = await admin
+      .from("expenses")
+      .update(withoutCat as never)
+      .eq("id", originalId)
+      .eq("family_id", profile.family_id)
+      .eq("is_active", true)
+      .select("id, amount, concept, category, expense_date, paid_by, responsible_for")
+      .maybeSingle());
+  }
 
   if (error) {
     return { error: "No se pudo actualizar el gasto: " + error.message };

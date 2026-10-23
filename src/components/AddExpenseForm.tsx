@@ -23,7 +23,6 @@ import {
 import {
   saveExpenseAction,
   type ExpenseActor,
-  type ExpenseCategory,
   type ExpenseResponsibleFor,
 } from "@/app/actions/expenses";
 import { SoftDecimals } from "@/components/FormattedCurrency";
@@ -32,17 +31,24 @@ import BothSplitBelongModal, {
   type BothSplitBelongChoice,
 } from "@/components/BothSplitBelongModal";
 import ConceptSuggestModal from "@/components/ConceptSuggestModal";
+import ProductTour, { type ProductTourStep } from "@/components/ProductTour";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useExpenseModal, type ExpenseToEdit } from "@/components/ExpenseModalProvider";
-import { DEFAULT_CATEGORY_ID } from "@/lib/categories/suggest";
+import { useProductTour } from "@/hooks/useProductTour";
 import { frequentConceptsForFund } from "@/lib/expenses/frequent-concepts";
-import { topCategories, extraCategories, type CategoryTile } from "@/lib/categoryMap";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import { useAccountsStore } from "@/store/useAccountsStore";
-import { useCategories } from "@/hooks/useCategories";
+import { listFamilyCategoriesAction } from "@/app/actions/categories";
 import {
+  listParentCategories,
+  listSubcategories,
+  resolveCategoryIcon,
+  type FamilyCategory,
+} from "@/lib/familyCategories";
+import {
+  fundIconChipStyle,
   getDefaultSharedFund,
   getPersonalFund,
   listSoloDashboardFunds,
@@ -52,7 +58,10 @@ import {
   type FamilyFund,
 } from "@/lib/funds";
 import type { FamilyAccount } from "@/lib/accounts";
-import { listOperableAccountsForUser, resolveAccountColor } from "@/lib/accounts";
+import {
+  listPayableAccountsForUser,
+  resolveAccountColor,
+} from "@/lib/accounts";
 import { tintedGlassGradient } from "@/lib/glass";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useIsDark } from "@/hooks/useIsDark";
@@ -66,6 +75,10 @@ interface AddExpenseFormProps {
   familyMemberCount?: number;
   partnerFirstName?: string;
   onClose?: () => void;
+  /** Lets the parent sheet lock dismiss while OCR runs. */
+  onScanningChange?: (scanning: boolean) => void;
+  /** When true, title lives in the Sheet header (aligned with close). */
+  hideChromeTitle?: boolean;
   expenseToEdit?: ExpenseToEdit | null;
   financialModel?: string;
   user1SplitPct?: number;
@@ -93,9 +106,9 @@ function resolveInitialSharedFunds() {
   return listVariableSharedFunds(useFundsStore.getState().funds);
 }
 
-function resolveInitialOperableAccounts(userId: string | null) {
+function resolveInitialPayableAccounts(userId: string | null) {
   if (!userId) return [];
-  return listOperableAccountsForUser(useAccountsStore.getState().accounts, userId);
+  return listPayableAccountsForUser(useAccountsStore.getState().accounts, userId);
 }
 
 function pickDefaultFundId(
@@ -196,14 +209,6 @@ function formatDisplayDate(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
-function getCategoryIdFromValue(category?: string | null) {
-  const found = [...topCategories, ...extraCategories].find(
-    (option) => option.id === category || option.value === category
-  );
-  if (found) return found.id;
-  if (category === "food") return "dining";
-  return DEFAULT_CATEGORY_ID;
-}
 
 function sanitizeDecimalInput(value: string | number) {
   const normalized = String(value ?? "")
@@ -223,6 +228,8 @@ export default function AddExpenseForm({
   familyMemberCount,
   partnerFirstName,
   onClose,
+  onScanningChange,
+  hideChromeTitle = false,
   expenseToEdit = null,
   financialModel = "joint_fund",
   user1SplitPct = 50,
@@ -263,6 +270,46 @@ export default function AddExpenseForm({
   const isSolo = resolvedFamilyMemberCount <= 1;
   const isCoupleMode = !isSolo;
 
+  const expenseTourSteps = useMemo<ProductTourStep[]>(
+    () => [
+      {
+        target: "expense-amount",
+        title: "Importe y escanear",
+        body: "Toca el importe para escribirlo con el teclado, o usa Escanear para leer un ticket, foto o factura PDF.",
+        placement: "bottom",
+      },
+      {
+        target: "expense-concept",
+        title: "¿En qué gastaste?",
+        body: "Un concepto corto (café, súper…). Sirve para el historial y para sugerir categoría.",
+        placement: "bottom",
+      },
+      {
+        target: "expense-pay-from",
+        title: "Pagar desde",
+        body: "Elige si sale de un bolsillo o de una cuenta bancaria. Así el saldo queda donde corresponde.",
+        placement: "bottom",
+      },
+      {
+        target: "expense-category",
+        title: "Categoría",
+        body: "Clasifica el gasto (y subcategoría si tiene). El presupuesto mira la categoría padre.",
+        placement: "top",
+      },
+    ],
+    []
+  );
+  const expenseTour = useProductTour(
+    resolvedCurrentUserId,
+    "expenseForm",
+    expenseTourSteps,
+    {
+      hasFamily: true,
+      autoStart: !expenseToEdit,
+      enabled: !expenseToEdit,
+    }
+  );
+
   const [amount, setAmount] = useState("0");
   const [concept, setConcept] = useState("");
   const [paidBy, setPaidBy] = useState<ExpenseOrigin>("me");
@@ -284,14 +331,14 @@ export default function AddExpenseForm({
   const [conceptSuggestOpen, setConceptSuggestOpen] = useState(false);
   const autoSubmitAfterConceptRef = useRef(false);
   const formRef = useRef<HTMLFormElement | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState(DEFAULT_CATEGORY_ID);
-  /** User picked a category manually — don't overwrite with AI. */
-  const [categoryLockedByUser, setCategoryLockedByUser] = useState(false);
-  const categoryLockedRef = useRef(false);
-  const [categorySuggesting, setCategorySuggesting] = useState(false);
-  /** Save stays disabled until AI (or fund fallback) resolves a category. */
+  const [familyCategories, setFamilyCategories] = useState<FamilyCategory[]>(
+    []
+  );
+  /** Leaf category id (parent or subcategory). */
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null
+  );
   const [categoryReady, setCategoryReady] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [isSaving, setIsSaving] = useState(false);
   const [showKeypad, setShowKeypad] = useState(false);
@@ -301,8 +348,11 @@ export default function AddExpenseForm({
   const [errorMessage, setErrorMessage] = useState("");
   const [balanceWarning, setBalanceWarning] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [scanBusyPrompt, setScanBusyPrompt] = useState("");
+  const [scanBusyTyping, setScanBusyTyping] = useState(false);
   const [scanHint, setScanHint] = useState("");
   const receiptInputRef = useRef<HTMLInputElement>(null);
+
   const sharedFunds = useMemo(() => listVariableSharedFunds(storeFunds), [storeFunds]);
   const personalFunds = useMemo(() => {
     if (!resolvedCurrentUserId) return [] as FamilyFund[];
@@ -322,15 +372,61 @@ export default function AddExpenseForm({
       userId,
     });
   });
-  const operableAccounts = useMemo(() => {
+  const payableAccounts = useMemo(() => {
     if (!resolvedCurrentUserId) return [] as FamilyAccount[];
-    return listOperableAccountsForUser(storeAccounts, resolvedCurrentUserId);
+    return listPayableAccountsForUser(storeAccounts, resolvedCurrentUserId);
   }, [storeAccounts, resolvedCurrentUserId]);
   const [paymentSource, setPaymentSource] = useState<PaymentSource>("fund");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
-    const operable = resolveInitialOperableAccounts(resolveInitialUserId(currentUserId));
-    return operable[0]?.id ?? null;
+    const payable = resolveInitialPayableAccounts(resolveInitialUserId(currentUserId));
+    return payable[0]?.id ?? null;
   });
+
+  const displayDate = useMemo(() => formatDisplayDate(date), [date]);
+  const paidByOptions = useMemo(
+    () => buildPaidByOptions(resolvedPartnerFirstName, resolvedFinancialModel),
+    [resolvedPartnerFirstName, resolvedFinancialModel]
+  );
+  const responsibleOptions = useMemo(
+    () => buildResponsibleOptions(resolvedPartnerFirstName, resolvedFinancialModel),
+    [resolvedPartnerFirstName, resolvedFinancialModel]
+  );
+
+  useEffect(() => {
+    onScanningChange?.(isScanning);
+    return () => onScanningChange?.(false);
+  }, [isScanning, onScanningChange]);
+
+  useEffect(() => {
+    if (!isScanning) {
+      setScanBusyPrompt("");
+      setScanBusyTyping(false);
+      return;
+    }
+
+    const full =
+      "Los servicios de lectura están con mucha demanda. Seguimos en ello; gracias por esperar.";
+    let intervalId: number | undefined;
+    const startTimer = window.setTimeout(() => {
+      setScanBusyTyping(true);
+      let i = 0;
+      intervalId = window.setInterval(() => {
+        i += 1;
+        setScanBusyPrompt(full.slice(0, i));
+        if (i >= full.length) {
+          window.clearInterval(intervalId);
+          setScanBusyTyping(false);
+        }
+      }, 26);
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(startTimer);
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+      setScanBusyPrompt("");
+      setScanBusyTyping(false);
+    };
+  }, [isScanning]);
 
   useEffect(() => setMounted(true), []);
 
@@ -356,8 +452,11 @@ export default function AddExpenseForm({
   }, [expenseToEdit, preferredFundId, selectableFunds, isSolo]);
 
   useEffect(() => {
-    setSelectedAccountId((prev) => prev ?? operableAccounts[0]?.id ?? null);
-  }, [operableAccounts]);
+    setSelectedAccountId((prev) => {
+      if (prev && payableAccounts.some((a) => a.id === prev)) return prev;
+      return payableAccounts[0]?.id ?? null;
+    });
+  }, [payableAccounts]);
 
   // Refresh caches in background only when stale (TTL inside stores).
   useEffect(() => {
@@ -506,6 +605,32 @@ export default function AddExpenseForm({
   ]);
 
   useEffect(() => {
+    let cancelled = false;
+    void listFamilyCategoriesAction()
+      .then((list) => {
+        if (cancelled) return;
+        setFamilyCategories(list);
+        if (!expenseToEdit) {
+          const parents = listParentCategories(
+            list,
+            resolvedCurrentUserId ?? ""
+          );
+          if (parents[0] && !selectedCategoryId) {
+            setSelectedCategoryId(parents[0].id);
+            setCategoryReady(true);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFamilyCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per open / user
+  }, [resolvedCurrentUserId]);
+
+  useEffect(() => {
     if (expenseToEdit && resolvedCurrentUserId) {
       const hydratedAmount = expenseToEdit.amount?.toString() ?? "0";
       const hydratedDate = (expenseToEdit as ExpenseToEdit & { expense_date?: string | null })
@@ -513,9 +638,10 @@ export default function AddExpenseForm({
 
       setAmount(sanitizeDecimalInput(hydratedAmount));
       setConcept(expenseToEdit.concept ?? "");
-      setSelectedCategory(getCategoryIdFromValue(expenseToEdit.category));
-      setCategoryLockedByUser(true);
-      setCategoryReady(true);
+      if (expenseToEdit.category_id) {
+        setSelectedCategoryId(expenseToEdit.category_id);
+        setCategoryReady(true);
+      }
       setPaidBy(expenseToEdit.paid_by === resolvedCurrentUserId ? "me" : "partner");
 
       if (expenseToEdit.responsible_for === "joint_fund") {
@@ -553,9 +679,7 @@ export default function AddExpenseForm({
     }
     setMyContribution("");
     setPartnerContribution("");
-    setSelectedCategory(DEFAULT_CATEGORY_ID);
-    setCategoryLockedByUser(false);
-    setCategorySuggesting(false);
+    setSelectedCategoryId(null);
     setCategoryReady(false);
     setDate(new Date().toISOString().slice(0, 10));
     setErrorMessage("");
@@ -580,127 +704,12 @@ export default function AddExpenseForm({
     setPartnerContribution(partner);
   }, [amount, isCoupleMode, paidBy]);
 
-  useEffect(() => {
-    categoryLockedRef.current = categoryLockedByUser;
-  }, [categoryLockedByUser]);
-
-  // AI category suggestion from "¿En qué gastaste?" (+ fund fallback).
-  useEffect(() => {
-    if (expenseToEdit || categoryLockedRef.current) {
-      setCategorySuggesting(false);
-      setCategoryReady(true);
-      return;
-    }
-
-    const trimmed = concept.trim();
-    const fundName =
-      paymentSource === "fund"
-        ? selectableFunds.find((f) => f.id === selectedFundId)?.name ?? null
-        : null;
-
-    if (trimmed.length < 2) {
-      setCategorySuggesting(false);
-      setCategoryReady(false);
-      // Empty concept → follow selected pocket when possible.
-      if (fundName) {
-        void import("@/lib/categories/suggest").then(({ categoryIdFromFundName }) => {
-          if (!categoryLockedRef.current) {
-            setSelectedCategory(categoryIdFromFundName(fundName));
-          }
-        });
-      } else if (!categoryLockedRef.current) {
-        setSelectedCategory(DEFAULT_CATEGORY_ID);
-      }
-      return;
-    }
-
-    setCategoryReady(false);
-    setCategorySuggesting(true);
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      if (categoryLockedRef.current) {
-        setCategorySuggesting(false);
-        setCategoryReady(true);
-        return;
-      }
-      try {
-        const res = await fetch("/api/categories/suggest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ concept: trimmed, fundName }),
-          signal: controller.signal,
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          categoryId?: string;
-        };
-        if (!categoryLockedRef.current) {
-          if (data.categoryId) {
-            setSelectedCategory(data.categoryId);
-          } else {
-            const { categoryIdFromFundName } = await import(
-              "@/lib/categories/suggest"
-            );
-            setSelectedCategory(categoryIdFromFundName(fundName));
-          }
-          setCategoryReady(true);
-        }
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        if (!categoryLockedRef.current) {
-          const { categoryIdFromFundName } = await import(
-            "@/lib/categories/suggest"
-          );
-          setSelectedCategory(categoryIdFromFundName(fundName));
-          setCategoryReady(true);
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setCategorySuggesting(false);
-        }
-      }
-    }, 650);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [
-    concept,
-    categoryLockedByUser,
-    expenseToEdit,
-    paymentSource,
-    selectedFundId,
-    selectableFunds,
-  ]);
-
-  function mapCategoryHint(hint: string | null | undefined): string | null {
-    if (!hint) return null;
-    const key = hint.trim().toLowerCase();
-    // Map to category tile ids used by the form.
-    const aliases: Record<string, string> = {
-      food: "dining",
-      comida: "dining",
-      groceries: "super",
-      transport: "transport",
-      transporte: "transport",
-      home: "home",
-      hogar: "home",
-      health: "health",
-      salud: "health",
-      leisure: "cinema",
-      ocio: "cinema",
-      shopping: "super",
-      compras: "super",
-      other: "misc",
-      otros: "misc",
-    };
-    return aliases[key] ?? null;
-  }
-
   async function handleReceiptFile(file: File | null) {
     if (!file) return;
     setIsScanning(true);
+    setShowKeypad(false);
+    setIsCategorySheetOpen(false);
+    setConceptSuggestOpen(false);
     setScanHint("");
     setErrorMessage("");
     try {
@@ -783,22 +792,23 @@ export default function AddExpenseForm({
         "";
       if (conceptFromScan) {
         setConcept(conceptFromScan.slice(0, 80));
-        setCategoryLockedByUser(false);
       }
       if (receipt.date) setDate(receipt.date.slice(0, 10));
 
-      const mappedCategory =
-        (receipt.categoryId &&
-        [...topCategories, ...extraCategories].some(
-          (c) => c.id === receipt.categoryId
-        )
-          ? receipt.categoryId
-          : null) || mapCategoryHint(receipt.categoryHint);
-      if (mappedCategory) {
-        setSelectedCategory(mappedCategory);
-        setCategoryLockedByUser(true);
-        setCategoryReady(true);
-        setCategorySuggesting(false);
+      // Prefer keeping the user's selected category; receipt may only hint.
+      if (!selectedCategoryId) {
+        const parents = listParentCategories(
+          familyCategories,
+          resolvedCurrentUserId ?? ""
+        );
+        const hint = (receipt.categoryHint || "").toLowerCase();
+        const matched =
+          parents.find((p) => hint && p.name.toLowerCase().includes(hint)) ??
+          parents[0];
+        if (matched) {
+          setSelectedCategoryId(matched.id);
+          setCategoryReady(true);
+        }
       }
 
       if (
@@ -834,34 +844,42 @@ export default function AddExpenseForm({
   }
 
   function openCategorySheet() {
-    setIsExpanded(false);
     setIsCategorySheetOpen(true);
-    requestAnimationFrame(() => requestAnimationFrame(() => setIsSheetAnimated(true)));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => setIsSheetAnimated(true))
+    );
   }
 
   function closeCategorySheet() {
     setIsSheetAnimated(false);
     setTimeout(() => {
       setIsCategorySheetOpen(false);
-      setIsExpanded(false);
     }, 450);
   }
 
-  const displayDate = useMemo(() => formatDisplayDate(date), [date]);
-  const paidByOptions = useMemo(
-    () => buildPaidByOptions(resolvedPartnerFirstName, resolvedFinancialModel),
-    [resolvedPartnerFirstName, resolvedFinancialModel]
+  const selectedCategoryRow = familyCategories.find(
+    (c) => c.id === selectedCategoryId
   );
-  const responsibleOptions = useMemo(
-    () => buildResponsibleOptions(resolvedPartnerFirstName, resolvedFinancialModel),
-    [resolvedPartnerFirstName, resolvedFinancialModel]
+  const selectedCategoryParent = selectedCategoryRow?.parent_id
+    ? familyCategories.find((c) => c.id === selectedCategoryRow.parent_id)
+    : null;
+  const selectedCategoryLabel = selectedCategoryRow
+    ? selectedCategoryRow.parent_id
+      ? `${selectedCategoryParent?.name ?? ""} · ${selectedCategoryRow.name}`
+      : selectedCategoryRow.name
+    : "Elegir categoría";
+  const SelectedCategoryIcon = resolveCategoryIcon(
+    selectedCategoryRow?.icon ?? selectedCategoryParent?.icon
   );
-  const allCategories = [...topCategories, ...extraCategories];
-  const { activeCategories, getDisplayForCategory } = useCategories(familyId);
-  const selectedCategoryItem =
-    allCategories.find((option) => option.id === selectedCategory) ?? topCategories[0];
-  const selectedCategoryValue = selectedCategoryItem.value;
-  const SelectedCategoryIcon = selectedCategoryItem.icon;
+
+  const parentCategories = listParentCategories(
+    familyCategories,
+    resolvedCurrentUserId ?? ""
+  );
+
+  function categoryNameForSave() {
+    return selectedCategoryRow?.name ?? "gasto";
+  }
 
   function parseDecimal(value: string | number) {
     const safeValue = sanitizeDecimalInput(value);
@@ -930,7 +948,8 @@ export default function AddExpenseForm({
           paidBy: "me",
           responsibleFor: toShared ? "joint_fund" : "me",
           payerSharePct: 100,
-          category: selectedCategory,
+          category: categoryNameForSave(),
+          categoryId: selectedCategoryId!,
           date,
           fundId: toShared ? params.fundId : null,
           paidFromFund: false,
@@ -947,7 +966,8 @@ export default function AddExpenseForm({
           paidBy: "partner",
           responsibleFor: toShared ? "joint_fund" : "partner",
           payerSharePct: 100,
-          category: selectedCategory,
+          category: categoryNameForSave(),
+          categoryId: selectedCategoryId!,
           date,
           fundId: toShared ? params.fundId : null,
           paidFromFund: false,
@@ -975,6 +995,12 @@ export default function AddExpenseForm({
     if (!concept.trim()) {
       // Soft nudge with habitual concepts for the selected pocket — no hard error.
       setConceptSuggestOpen(true);
+      return;
+    }
+
+    if (!selectedCategoryId) {
+      setErrorMessage("Elige una categoría para el gasto.");
+      openCategorySheet();
       return;
     }
 
@@ -1022,7 +1048,8 @@ export default function AddExpenseForm({
         formData.set("id", expenseToEdit.id);
         formData.set("amount", finalAmount.toString());
         formData.set("concept", concept.trim());
-        formData.set("category", selectedCategory);
+        formData.set("category", categoryNameForSave());
+        formData.set("category_id", selectedCategoryId ?? "");
         formData.set("expense_date", date);
         formData.set("paid_by", resolvedPaidByValue);
         formData.set("responsible_for", resolvedResponsibleForValue);
@@ -1045,7 +1072,8 @@ export default function AddExpenseForm({
             paidBy: singlePaidBy === "joint_fund" ? "me" : singlePaidBy,
             responsibleFor: "me",
             payerSharePct: 100,
-            category: selectedCategory,
+            category: categoryNameForSave(),
+            categoryId: selectedCategoryId!,
             date,
             accountId: selectedAccountId,
             paidFromAccount: true,
@@ -1081,7 +1109,8 @@ export default function AddExpenseForm({
             paidBy: singlePaidBy,
             responsibleFor: isCoupleMode ? responsibleFor : "me",
             payerSharePct: 100,
-            category: selectedCategory,
+            category: categoryNameForSave(),
+            categoryId: selectedCategoryId!,
             date,
             splitTypeOverride,
             fundId: isSolo
@@ -1134,13 +1163,17 @@ export default function AddExpenseForm({
       : getDefaultSharedFund(sharedFunds)) ??
     selectableFunds[0] ??
     null;
+  const selectedPayableAccount =
+    payableAccounts.find((a) => a.id === selectedAccountId) ?? null;
   const amountAccent =
-    (isSolo && paymentSource === "fund") ||
-    (!isSolo && responsibleFor === "joint_fund")
-      ? resolveFundColor(selectedFund)
-      : isDark
-        ? "#c4a574"
-        : "#1c2740";
+    paymentSource === "account" && selectedPayableAccount
+      ? resolveAccountColor(selectedPayableAccount)
+      : (isSolo && paymentSource === "fund") ||
+          (!isSolo && responsibleFor === "joint_fund")
+        ? resolveFundColor(selectedFund)
+        : isDark
+          ? "#c4a574"
+          : "#1c2740";
 
   const conceptSuggestFundId =
     paymentSource === "fund" &&
@@ -1167,29 +1200,91 @@ export default function AddExpenseForm({
   useEffect(() => {
     if (!autoSubmitAfterConceptRef.current) return;
     if (!concept.trim()) return;
-    // Wait until AI (or manual lock) settles the category after the pick.
-    if (!categoryReady || categorySuggesting) return;
+    // Wait until category is ready after the concept pick.
+    if (!categoryReady || !selectedCategoryId) return;
     autoSubmitAfterConceptRef.current = false;
     formRef.current?.requestSubmit();
-  }, [concept, categoryReady, categorySuggesting]);
+  }, [concept, categoryReady, selectedCategoryId]);
 
   return (
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className="flex h-full min-h-0 flex-col text-on-surface"
+      aria-busy={isScanning}
+      className="relative flex h-full min-h-0 flex-col text-on-surface"
     >
-      <main className="mx-auto flex w-full max-w-lg min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
-        <section className="px-0.5">
-          <h1 className="text-base font-medium tracking-tight text-on-surface">
-            {expenseToEdit ? "Editar gasto" : "Nuevo gasto"}
-          </h1>
-          <p className="text-xs text-on-surface/70">
-            {expenseToEdit ? "Actualiza el movimiento." : "Registra un nuevo movimiento."}
-          </p>
-        </section>
+      {isScanning ? (
+        <div
+          className="absolute inset-0 z-[70] flex flex-col items-center justify-center gap-4 bg-surface-lowest/78 px-6 backdrop-blur-md animate-in fade-in duration-300"
+          role="status"
+          aria-live="assertive"
+          aria-label="Escaneando la factura"
+        >
+          <div className="relative flex h-[4.25rem] w-[4.25rem] items-center justify-center">
+            <span
+              className="receipt-scan-pulse absolute inset-0 rounded-full border border-[#c4a574]/40"
+              aria-hidden
+            />
+            <span
+              className="absolute inset-1.5 rounded-full border-[0.5px] border-[#c4a574]/55"
+              aria-hidden
+            />
+            <Camera
+              size={22}
+              strokeWidth={1.5}
+              className="relative text-[#c4a574]"
+              aria-hidden
+            />
+          </div>
+          <div className="max-w-[17rem] text-center">
+            <p className="text-[15px] font-light tracking-tight text-on-surface">
+              Escaneando la factura
+            </p>
+            <p className="mt-1.5 text-[12px] font-light leading-relaxed text-on-surface-variant">
+              Un momento, por favor. Estamos leyendo el ticket…
+            </p>
+            {scanBusyPrompt || scanBusyTyping ? (
+              <p
+                className="mt-3 min-h-[2.75rem] text-[11px] font-light leading-relaxed text-on-surface-variant/90"
+                aria-live="polite"
+              >
+                {scanBusyPrompt}
+                {scanBusyTyping ? (
+                  <span
+                    className="ml-0.5 inline-block h-[0.85em] w-px translate-y-[0.1em] bg-[#c4a574]/80 align-baseline animate-pulse"
+                    aria-hidden
+                  />
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+          <div
+            className="relative h-px w-32 overflow-hidden rounded-full bg-outline-variant/20"
+            aria-hidden
+          >
+            <div className="receipt-scan-sweep absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-[#c4a574] to-transparent" />
+          </div>
+        </div>
+      ) : null}
+
+      <main
+        className={`mx-auto flex w-full max-w-lg min-h-0 flex-1 flex-col gap-2.5 overflow-hidden ${
+          isScanning ? "pointer-events-none select-none" : ""
+        }`}
+      >
+        {!hideChromeTitle ? (
+          <section className="px-0.5">
+            <h1 className="text-base font-medium tracking-tight text-on-surface">
+              {expenseToEdit ? "Editar gasto" : "Nuevo gasto"}
+            </h1>
+            <p className="text-xs text-on-surface/70">
+              {expenseToEdit ? "Actualiza el movimiento." : "Registra un nuevo movimiento."}
+            </p>
+          </section>
+        ) : null}
 
         <section
+          data-tour="expense-amount"
           className="flex flex-col items-center gap-2.5 rounded-[1.35rem] border border-glass-border bg-surface-low/80 p-3.5 shadow-[0_10px_28px_rgba(43,52,55,0.08)] backdrop-blur-md"
           style={{
             backgroundImage: tintedGlassGradient(amountAccent, {
@@ -1226,11 +1321,12 @@ export default function AddExpenseForm({
             </div>
             <button
               type="button"
+              disabled={isScanning || isSaving}
               onClick={() => {
                 setSplitEditSide(null);
                 setShowKeypad(true);
               }}
-              className="mt-1 flex items-baseline justify-center gap-1.5 border-none bg-transparent outline-none"
+              className="mt-1 flex items-baseline justify-center gap-1.5 border-none bg-transparent outline-none disabled:pointer-events-none"
             >
               {currencyMeta.symbolPosition === "before" ? (
                 <span className="text-[1.75rem] font-light" style={{ color: amountAccent }}>
@@ -1262,7 +1358,10 @@ export default function AddExpenseForm({
             </p>
           ) : null}
 
-          <div className="flex w-full items-center gap-2 border-t border-glass-border pt-2.5">
+          <div
+            data-tour="expense-concept"
+            className="flex w-full items-center gap-2 border-t border-glass-border pt-2.5"
+          >
             <PencilLine size={15} className="shrink-0 text-on-surface/70" />
             <input
               type="text"
@@ -1271,9 +1370,6 @@ export default function AddExpenseForm({
                 const next = e.target.value;
                 setConcept(next);
                 // Clearing the concept allows AI again; a manual pick stays locked.
-                if (!next.trim() && categoryLockedByUser) {
-                  setCategoryLockedByUser(false);
-                }
               }}
               placeholder="¿En qué gastaste?"
               className="w-full border-none bg-transparent text-[15px] font-semibold text-on-surface outline-none placeholder:font-medium placeholder:text-on-surface/40 focus:ring-0"
@@ -1281,8 +1377,8 @@ export default function AddExpenseForm({
           </div>
         </section>
 
-        {(operableAccounts.length > 0 || (isSolo && personalFunds.length > 0)) && (
-          <section className="px-0.5">
+        {(payableAccounts.length > 0 || (isSolo && personalFunds.length > 0)) && (
+          <section className="px-0.5" data-tour="expense-pay-from">
             <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface/55">
               Pagar desde
             </span>
@@ -1301,14 +1397,16 @@ export default function AddExpenseForm({
                 <Wallet size={13} />
                 Bolsillo
               </button>
-              {operableAccounts.length > 0 && (
+              {payableAccounts.length > 0 && (
                 <button
                   type="button"
                   onClick={() => {
                     setPaymentSource("account");
+                    setBalanceWarning("");
                     if (paidBy === "joint_fund" || paidBy === "both_split") {
                       setPaidBy("me");
                     }
+                    if (!isSolo) setResponsibleFor("me");
                   }}
                   className={`flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${getSelectorClasses(
                     paymentSource === "account",
@@ -1362,47 +1460,49 @@ export default function AddExpenseForm({
             )}
 
             {paymentSource === "account" && (
-              <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2">
-                <div className="rounded-xl border border-primary/20 bg-primary/8 px-3 py-2 text-[11px] leading-relaxed text-on-surface">
-                  Suele ser más claro pagar desde un bolsillo: así ves de qué parte del presupuesto sale.
-                  Si lo pagas desde la cuenta, el bolsillo no se toca.
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {operableAccounts.map((account) => {
-                    const isSelected = selectedAccountId === account.id;
-                    const accountColor = resolveAccountColor(account);
-                    return (
-                      <button
-                        key={account.id}
-                        type="button"
-                        onClick={() => setSelectedAccountId(account.id)}
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-md transition-all ${
-                          isSelected
-                            ? "text-on-surface"
-                            : "border-glass-border bg-surface-low text-on-surface/65 hover:bg-surface-container hover:text-on-surface/80"
+              <div className="mt-2 flex flex-wrap gap-1.5 animate-in fade-in slide-in-from-top-2">
+                {payableAccounts.map((account) => {
+                  const isSelected = selectedAccountId === account.id;
+                  const accountColor = resolveAccountColor(account);
+                  return (
+                    <button
+                      key={account.id}
+                      type="button"
+                      onClick={() => setSelectedAccountId(account.id)}
+                      aria-pressed={isSelected}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-all ${
+                        isSelected
+                          ? "font-semibold text-on-surface shadow-[0_4px_14px_rgba(43,52,55,0.12)]"
+                          : "border-glass-border bg-surface-low font-medium text-on-surface/60 hover:bg-surface-container hover:text-on-surface/80"
+                      }`}
+                      style={
+                        isSelected
+                          ? {
+                              backgroundImage: tintedGlassGradient(accountColor, {
+                                midAlpha: "42",
+                                endAlpha: "55",
+                                endOnly: true,
+                              }),
+                              borderColor: accountColor,
+                              boxShadow: `0 0 0 1.5px ${accountColor}66, 0 4px 14px rgba(43,52,55,0.10)`,
+                              color: accountColor,
+                            }
+                          : undefined
+                      }
+                    >
+                      <span
+                        className={`shrink-0 rounded-full ring-1 ring-black/10 ${
+                          isSelected ? "h-2.5 w-2.5" : "h-2 w-2"
                         }`}
-                        style={
-                          isSelected
-                            ? {
-                                backgroundImage: tintedGlassGradient(accountColor, {
-                                  midAlpha: "28",
-                                  endOnly: true,
-                                }),
-                                borderColor: `${accountColor}55`,
-                                color: accountColor,
-                              }
-                            : undefined
-                        }
-                      >
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10"
-                          style={{ backgroundColor: accountColor }}
-                        />
-                        {account.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                        style={{ backgroundColor: accountColor }}
+                      />
+                      {account.name}
+                      {isSelected ? (
+                        <CheckCircle2 size={13} strokeWidth={2} className="shrink-0 opacity-90" />
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -1573,7 +1673,10 @@ export default function AddExpenseForm({
           </>
         )}
 
-        <div className="flex overflow-hidden rounded-2xl border border-glass-border bg-surface-low shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md">
+        <div
+          data-tour="expense-category"
+          className="flex overflow-hidden rounded-2xl border border-glass-border bg-surface-low shadow-[0_8px_20px_rgba(43,52,55,0.06)] backdrop-blur-md"
+        >
           <button
             type="button"
             onClick={openCategorySheet}
@@ -1583,16 +1686,17 @@ export default function AddExpenseForm({
               Categoría
             </span>
             <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-on-surface">
-              {categorySuggesting ? (
-                <Sparkles
-                  size={14}
-                  className="shrink-0 animate-pulse text-accent"
-                  strokeWidth={1.75}
-                />
-              ) : (
-                <SelectedCategoryIcon size={15} style={{ color: amountAccent }} />
-              )}
-              <span className="truncate">{selectedCategoryItem.label}</span>
+              <span
+                className="icon-chip-fund icon-chip-coin inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border"
+                style={fundIconChipStyle(
+                  selectedCategoryRow?.color ||
+                    selectedCategoryParent?.color ||
+                    amountAccent
+                )}
+              >
+                <SelectedCategoryIcon size={11} strokeWidth={1.85} />
+              </span>
+              <span className="truncate">{selectedCategoryLabel}</span>
             </span>
           </button>
 
@@ -1631,20 +1735,15 @@ export default function AddExpenseForm({
         )}
       </main>
 
-      <footer className="mt-3 shrink-0">
+      <footer
+        className={`mt-3 shrink-0 ${isScanning ? "pointer-events-none select-none" : ""}`}
+      >
         <button
           type="submit"
-          disabled={
-            isSaving ||
-            (!expenseToEdit &&
-              (categorySuggesting ||
-                (concept.trim().length >= 2 && !categoryReady)))
-          }
+          disabled={isScanning || isSaving || !selectedCategoryId}
           className="fab-ink flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? (
-            <LoaderCircle size={17} className="animate-spin" />
-          ) : categorySuggesting && !expenseToEdit ? (
             <LoaderCircle size={17} className="animate-spin" />
           ) : (
             <CheckCircle2 size={17} />
@@ -1653,11 +1752,9 @@ export default function AddExpenseForm({
             ? expenseToEdit
               ? "Actualizando..."
               : "Guardando..."
-            : categorySuggesting && !expenseToEdit
-              ? "Eligiendo categoría…"
-              : expenseToEdit
-                ? "Actualizar"
-                : "Guardar"}
+            : expenseToEdit
+              ? "Actualizar"
+              : "Guardar"}
         </button>
       </footer>
 
@@ -1675,13 +1772,17 @@ export default function AddExpenseForm({
             />
             <div
               className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-glass-border glass-sheet transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                isSheetAnimated ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+                isSheetAnimated
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-full opacity-0"
               }`}
             >
               <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-outline-variant/40" />
 
               <div className="relative flex shrink-0 items-center justify-center px-5 pb-2 pt-3">
-                <p className="text-base font-medium tracking-tight text-on-surface">Categoría</p>
+                <p className="text-base font-medium tracking-tight text-on-surface">
+                  Categoría
+                </p>
                 <button
                   type="button"
                   onClick={closeCategorySheet}
@@ -1693,130 +1794,114 @@ export default function AddExpenseForm({
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-5 gap-x-2 gap-y-3">
-                    {activeCategories.slice(0, 10).map((cat) => {
-                      const display = getDisplayForCategory(cat.id);
-                      const Icon = display.icon;
-                      const isSelected = selectedCategory === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCategory(cat.id);
-                            setCategoryLockedByUser(true);
-                            setCategoryReady(true);
-                            setCategorySuggesting(false);
-                            closeCategorySheet();
-                          }}
-                          className="flex flex-col items-center gap-1.5"
-                        >
-                          <div
-                            className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
-                              isSelected
-                                ? "border-transparent text-white shadow-md"
-                                : "border-glass-border bg-surface-low text-on-surface"
-                            }`}
-                            style={isSelected ? { backgroundColor: amountAccent } : undefined}
+                <p className="mb-4 text-[13px] font-light text-on-surface-variant">
+                  Elige categoría (y subcategoría si tiene). El presupuesto mira
+                  la categoría padre.
+                </p>
+                {parentCategories.length === 0 ? (
+                  <p className="text-sm text-on-surface-variant">
+                    Crea categorías en el menú → Categorías.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <div className="grid grid-cols-5 gap-x-2 gap-y-3">
+                      {parentCategories.map((parent) => {
+                        const subs = listSubcategories(
+                          familyCategories,
+                          parent.id,
+                          resolvedCurrentUserId ?? ""
+                        );
+                        const parentSelected =
+                          selectedCategoryId === parent.id ||
+                          subs.some((s) => s.id === selectedCategoryId);
+                        const ParentIcon = resolveCategoryIcon(parent.icon);
+                        const chipColor = parent.color || amountAccent;
+                        return (
+                          <button
+                            key={parent.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategoryId(parent.id);
+                              setCategoryReady(true);
+                              if (subs.length === 0) closeCategorySheet();
+                            }}
+                            className="flex flex-col items-center gap-1.5"
                           >
-                            <Icon size={18} strokeWidth={1.6} />
-                          </div>
-                          <span
-                            className={`w-full truncate text-center text-[10px] font-medium tracking-wide ${
-                              isSelected ? "font-semibold text-on-surface" : "text-on-surface/80"
-                            }`}
-                          >
-                            {display.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div
-                    className={`grid transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                      isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                    }`}
-                  >
-                    <div className="overflow-hidden">
-                      <div
-                        className={`grid grid-cols-5 gap-x-2 gap-y-3 pt-1 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                          isExpanded ? "translate-y-0 scale-100" : "-translate-y-2 scale-[0.98]"
-                        }`}
-                      >
-                        {activeCategories.slice(10).map((cat) => {
-                          const display = getDisplayForCategory(cat.id);
-                          const Icon = display.icon;
-                          const isSelected = selectedCategory === cat.id;
-                          return (
-                            <button
-                              key={cat.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCategory(cat.id);
-                                setCategoryLockedByUser(true);
-                                setCategoryReady(true);
-                                setCategorySuggesting(false);
-                                closeCategorySheet();
-                              }}
-                              className="flex flex-col items-center gap-1.5"
+                            <div
+                              className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
+                                parentSelected
+                                  ? "border-transparent text-white shadow-md"
+                                  : "border-glass-border bg-surface-low text-on-surface"
+                              }`}
+                              style={
+                                parentSelected
+                                  ? { backgroundColor: chipColor }
+                                  : undefined
+                              }
                             >
-                              <div
-                                className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm backdrop-blur-md transition-all ${
-                                  isSelected
-                                    ? "border-transparent text-white shadow-md"
-                                    : "border-glass-border bg-surface-low text-on-surface"
-                                }`}
-                                style={isSelected ? { backgroundColor: amountAccent } : undefined}
-                              >
-                                <Icon size={18} strokeWidth={1.6} />
-                              </div>
-                              <span
-                                className={`w-full truncate text-center text-[10px] font-medium tracking-wide ${
-                                  isSelected ? "font-semibold text-on-surface" : "text-on-surface/80"
-                                }`}
-                              >
-                                {display.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                              <ParentIcon size={18} strokeWidth={1.6} />
+                            </div>
+                            <span
+                              className={`w-full truncate text-center text-[10px] font-medium tracking-wide ${
+                                parentSelected
+                                  ? "font-semibold text-on-surface"
+                                  : "text-on-surface/80"
+                              }`}
+                            >
+                              {parent.name}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </div>
 
-                  {activeCategories.length > 10 && (
-                    <div className="flex justify-center pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setIsExpanded((open) => !open)}
-                        className="flex flex-col items-center gap-1.5"
-                      >
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                            isExpanded
-                              ? "rotate-90 scale-105 border-transparent bg-on-surface text-white shadow-md"
-                              : "border-glass-border bg-surface-low text-on-surface"
-                          }`}
-                        >
-                          {isExpanded ? (
-                            <X size={18} strokeWidth={2} />
-                          ) : (
-                            <MoreHorizontal size={18} strokeWidth={1.5} />
-                          )}
+                    {(() => {
+                      const activeParent =
+                        parentCategories.find((p) => p.id === selectedCategoryId) ??
+                        parentCategories.find((p) =>
+                          listSubcategories(
+                            familyCategories,
+                            p.id,
+                            resolvedCurrentUserId ?? ""
+                          ).some((s) => s.id === selectedCategoryId)
+                        );
+                      if (!activeParent) return null;
+                      const subs = listSubcategories(
+                        familyCategories,
+                        activeParent.id,
+                        resolvedCurrentUserId ?? ""
+                      );
+                      if (subs.length === 0) return null;
+                      return (
+                        <div className="rounded-2xl border-[0.5px] border-outline-variant/20 px-3 py-2.5">
+                          <p className="mb-2 text-[11px] font-light text-on-surface-variant">
+                            Subcategoría de {activeParent.name}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {subs.map((sub) => (
+                              <button
+                                key={sub.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCategoryId(sub.id);
+                                  setCategoryReady(true);
+                                  closeCategorySheet();
+                                }}
+                                className={`rounded-full border px-2.5 py-1 text-[11px] ${
+                                  selectedCategoryId === sub.id
+                                    ? "border-primary/40 bg-primary/10 font-semibold text-on-surface"
+                                    : "border-outline-variant/25 text-on-surface-variant"
+                                }`}
+                              >
+                                {sub.name}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <span
-                          className={`text-[10px] font-medium transition-colors duration-300 ${
-                            isExpanded ? "font-semibold text-on-surface" : "text-on-surface/80"
-                          }`}
-                        >
-                          {isExpanded ? "Cerrar" : "Más"}
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           </div>,
@@ -1832,8 +1917,6 @@ export default function AddExpenseForm({
           autoSubmitAfterConceptRef.current = true;
           setConcept(next.slice(0, 80));
           setConceptSuggestOpen(false);
-          // Unlock AI category so it can match the chosen concept.
-          setCategoryLockedByUser(false);
         }}
       />
 
@@ -1922,6 +2005,12 @@ export default function AddExpenseForm({
           }
           setSplitEditSide(null);
         }}
+      />
+
+      <ProductTour
+        open={expenseTour.open}
+        steps={expenseTour.steps}
+        onClose={expenseTour.close}
       />
     </form>
   );

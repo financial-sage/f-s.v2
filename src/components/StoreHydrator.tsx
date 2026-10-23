@@ -59,9 +59,18 @@ export default function StoreHydrator({
   }, [fetchData, userId]);
 
   useEffect(() => {
+    // Avoid server-action 500s while the user still has no family (post-wipe / onboarding).
+    if (
+      pathname?.startsWith("/onboarding") ||
+      pathname?.startsWith("/login") ||
+      pathname?.startsWith("/register") ||
+      pathname?.startsWith("/forgot-password")
+    ) {
+      return;
+    }
     void loadFunds();
     void loadAccounts();
-  }, [loadFunds, loadAccounts]);
+  }, [loadFunds, loadAccounts, pathname]);
 
   return null;
 }

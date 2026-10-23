@@ -13,7 +13,10 @@ import {
 } from "@/app/actions/funds";
 import {
   calculateAccountCashBalance,
+  isInvestmentAccount,
+  isLiquidityAccount,
   listOperableAccountsForUser,
+  listVisibleAccountsForUser,
   type FamilyAccount,
 } from "@/lib/accounts";
 import {
@@ -57,6 +60,8 @@ export type SavingsMovement = {
 export type SavingsSourceAccount = FamilyAccount & { balance: number };
 export type SavingsSourceFund = FamilyFund & { balance: number };
 
+export type SavingsInvestmentRow = FamilyAccount & { balance: number };
+
 export type SavingsOverview = {
   fund: FamilyFund;
   balance: number;
@@ -64,6 +69,9 @@ export type SavingsOverview = {
   recentMovements: SavingsMovement[];
   operableAccounts: SavingsSourceAccount[];
   operableFunds: SavingsSourceFund[];
+  /** Visible investment accounts (ADR-0010) — not part of the savings pot. */
+  investments: SavingsInvestmentRow[];
+  totalInvested: number;
 };
 
 async function requireUser() {
@@ -149,12 +157,22 @@ export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
   const individual = isIndividualHousehold(memberCount);
   const defaultShared = getDefaultSharedFund(funds);
   const defaultPersonal = getPersonalFund(funds, user.id);
-  const operableAccounts = listOperableAccountsForUser(accounts, user.id).map(
-    (account) => ({
+  const operableAccounts = listOperableAccountsForUser(accounts, user.id)
+    .filter((account) => isLiquidityAccount(account))
+    .map((account) => ({
       ...account,
       balance: calculateAccountCashBalance(rows, account.id),
-    })
-  );
+    }));
+
+  const investments = listVisibleAccountsForUser(accounts, user.id)
+    .filter((account) => isInvestmentAccount(account))
+    .map((account) => ({
+      ...account,
+      balance: calculateAccountCashBalance(rows, account.id),
+    }));
+  const totalInvested =
+    Math.round(investments.reduce((sum, row) => sum + Number(row.balance || 0), 0) * 100) /
+    100;
   // Any spending pocket can fund savings (leftover at month end) — not Ahorro / Gastos fijos.
   const operableFunds = listActiveFunds(funds)
     .filter((f) => {
@@ -186,6 +204,8 @@ export async function getSavingsOverviewAction(): Promise<SavingsOverview> {
     recentMovements,
     operableAccounts,
     operableFunds,
+    investments,
+    totalInvested,
   };
 }
 

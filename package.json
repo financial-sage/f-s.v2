@@ -18,7 +18,8 @@
     "supabase:status": "npx supabase status",
     "supabase:studio": "npx supabase status",
     "env:use-local": "node -e \"require('fs').copyFileSync('.env.local.template','.env.local'); console.log('Using local Supabase (.env.local.template)')\"",
-    "env:use-cloud": "node -e \"require('fs').copyFileSync('.env.cloud.local','.env.local'); console.log('Using cloud Supabase (.env.cloud.local)')\""
+    "env:use-cloud": "node -e \"require('fs').copyFileSync('.env.cloud.local','.env.local'); console.log('Using cloud Supabase (.env.cloud.local)')\"",
+    "db:wipe-local": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/wipe-local-keep-superadmins.ps1"
   },
   "dependencies": {
     "@paddle/paddle-js": "^1.6.5",

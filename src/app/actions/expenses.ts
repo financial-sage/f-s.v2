@@ -13,10 +13,10 @@ import { getDefaultSharedFund, getPersonalFund } from "@/lib/funds";
 import {
   calculateAccountCashBalance,
   canOperateAccount,
+  isLiquidityAccount,
   responsibleForAccount,
   type FamilyAccount,
 } from "@/lib/accounts";
-
 export type ExpenseActor = "me" | "partner" | "joint_fund";
 export type ExpenseResponsibleFor = "joint_fund" | "me" | "partner";
 export type ExpenseCategory = string;
@@ -27,7 +27,10 @@ interface SaveExpenseInput {
   paidBy: ExpenseActor;
   responsibleFor: ExpenseResponsibleFor;
   payerSharePct: number;
-  category: ExpenseCategory;
+  /** Legacy text label (optional; derived from category name when omitted). */
+  category?: ExpenseCategory;
+  /** family_categories id (parent or subcategory). Required for ordinary expenses. */
+  categoryId: string;
   date: string;
   splitTypeOverride?: ExpenseSplitType;
   /** Pocket this expense belongs to. Required for shared-fund allocation. */
@@ -67,6 +70,7 @@ export async function saveExpenseAction({
   responsibleFor,
   payerSharePct,
   category,
+  categoryId,
   date,
   splitTypeOverride,
   fundId,
@@ -76,6 +80,7 @@ export async function saveExpenseAction({
 }: SaveExpenseInput) {
   const normalizedAmount = Number(amount);
   const normalizedConcept = concept.trim();
+  const resolvedCategoryId = String(categoryId ?? "").trim();
 
   if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
     throw new Error("Ingresa un importe válido.");
@@ -87,6 +92,10 @@ export async function saveExpenseAction({
 
   if (!date) {
     throw new Error("Selecciona una fecha válida.");
+  }
+
+  if (!resolvedCategoryId) {
+    throw new Error("Elige una categoría para el gasto.");
   }
 
   const supabase = await createClient();
@@ -121,6 +130,33 @@ export async function saveExpenseAction({
 
   const partnerUserId = (profiles ?? []).find((member) => member.id !== user.id)?.id ?? null;
 
+  const { data: categoryRow, error: categoryError } = await admin
+    .from("family_categories")
+    .select("id, name, scope, owner_profile_id, archived_at, family_id")
+    .eq("id", resolvedCategoryId)
+    .eq("family_id", profile.family_id)
+    .maybeSingle();
+
+  if (categoryError) {
+    throw new Error(
+      /family_categories|column/i.test(categoryError.message)
+        ? "Falta aplicar la migración de categorías."
+        : categoryError.message
+    );
+  }
+  if (!categoryRow || categoryRow.archived_at) {
+    throw new Error("Elige una categoría válida.");
+  }
+  if (
+    categoryRow.scope === "personal" &&
+    categoryRow.owner_profile_id !== user.id
+  ) {
+    throw new Error("No puedes usar la categoría personal de otra persona.");
+  }
+
+  const resolvedCategory =
+    category?.trim() || String(categoryRow.name ?? "gasto").trim() || "gasto";
+
   const isPaidFromAccount = paidFromAccount === true && !!accountId;
 
   // ── Pay from account (does not touch fund cash) ──────────────────────────
@@ -147,6 +183,11 @@ export async function saveExpenseAction({
     if (!canOperateAccount(account, user.id)) {
       throw new Error("Solo puedes pagar desde tus cuentas personales o las compartidas.");
     }
+    if (!isLiquidityAccount(account)) {
+      throw new Error(
+        "Solo puedes pagar gastos desde una cuenta bancaria o efectivo (no créditos ni inversiones)."
+      );
+    }
 
     const { data: accountExpenses } = await admin
       .from("expenses")
@@ -168,7 +209,8 @@ export async function saveExpenseAction({
       concept: normalizedConcept,
       paid_by: paidByValue,
       responsible_for: responsibleForAccount(account),
-      category,
+      category: resolvedCategory,
+      category_id: resolvedCategoryId,
       expense_date: date,
       split_type: "personal" as ExpenseSplitType,
       payer_share_pct: 100,
@@ -178,7 +220,13 @@ export async function saveExpenseAction({
       paid_from_account: true,
     };
 
-    const { error: insertError } = await admin.from("expenses").insert(payload as never);
+    let { error: insertError } = await admin.from("expenses").insert(payload as never);
+    if (insertError && /category_id|column/i.test(insertError.message)) {
+      const { category_id: _c, ...withoutCat } = payload;
+      ({ error: insertError } = await admin
+        .from("expenses")
+        .insert(withoutCat as never));
+    }
     if (insertError) {
       throw new Error(
         /account_id|paid_from_account|column/i.test(insertError.message)
@@ -289,7 +337,8 @@ export async function saveExpenseAction({
     concept: normalizedConcept,
     paid_by: paidByValue,
     responsible_for: responsibleForValue,
-    category,
+    category: resolvedCategory,
+    category_id: resolvedCategoryId,
     expense_date: date,
     split_type: splitType,
     payer_share_pct: splitType.includes("shared") ? normalizedPayerSharePct : 100,
@@ -311,6 +360,13 @@ export async function saveExpenseAction({
     ));
   }
 
+  if (insertError && /category_id|column/i.test(insertError.message)) {
+    const { category_id: _c, ...withoutCat } = payload;
+    ({ error: insertError } = await admin
+      .from("expenses")
+      .insert(withoutCat as never));
+  }
+
   // Columns may not exist yet if migration not applied — retry without fund/account fields
   if (insertError && /fund_id|paid_from_fund|account_id|paid_from_account|column/i.test(insertError.message)) {
     const {
@@ -318,6 +374,7 @@ export async function saveExpenseAction({
       paid_from_fund: _p,
       account_id: _a,
       paid_from_account: _pa,
+      category_id: _c,
       ...legacyPayload
     } = payload;
     ({ error: insertError } = await admin.from("expenses").insert(legacyPayload as never));

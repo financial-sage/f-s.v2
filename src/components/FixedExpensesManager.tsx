@@ -15,6 +15,13 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { useFixedExpenses } from "@/hooks/useFixedExpenses";
 import { formatMonthLabel, getMonthKey, shiftMonthKey } from "@/lib/budget";
 import type { FixedExpenseMonthItem } from "@/lib/fixed-expenses/types";
+import {
+  FIXED_EXPENSE_FREQUENCIES,
+  FREQUENCY_LABELS,
+  frequencyShortHint,
+  monthlyEquivalent,
+  type FixedExpenseFrequency,
+} from "@/lib/fixed-expenses/frequency";
 import { tintedGlassGradient } from "@/lib/glass";
 import { FIXED_EXPENSES_FUND_COLOR } from "@/lib/funds";
 import { isIndividualHousehold } from "@/lib/household";
@@ -77,6 +84,15 @@ function ChecklistRow({
   const variance = isPaid ? realAmount - baseAmount : 0;
   const varianceHint = formatVarianceHint(variance, formatCurrency);
   const paidLabel = formatPaidDate(item.payment.paid_at);
+  const frequency = item.template.frequency ?? "monthly";
+  const freqHint =
+    frequency !== "monthly"
+      ? `${FREQUENCY_LABELS[frequency]}${
+          frequencyShortHint(frequency, baseAmount)
+            ? ` · ${frequencyShortHint(frequency, baseAmount)}`
+            : ""
+        }`
+      : null;
 
   return (
     <div
@@ -111,6 +127,8 @@ function ChecklistRow({
           <p className="mt-0.5 text-[11px] font-light capitalize text-on-surface-variant">
             Pagado · {paidLabel}
           </p>
+        ) : freqHint ? (
+          <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">{freqHint}</p>
         ) : null}
       </button>
 
@@ -208,6 +226,8 @@ export default function FixedExpensesManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formBase, setFormBase] = useState("0");
+  const [formFrequency, setFormFrequency] = useState<FixedExpenseFrequency>("monthly");
+  const [formMoreOpen, setFormMoreOpen] = useState(false);
   const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [paidExpanded, setPaidExpanded] = useState(false);
@@ -332,6 +352,8 @@ export default function FixedExpensesManager({
     setEditingId(null);
     setFormName("");
     setFormBase("0");
+    setFormFrequency("monthly");
+    setFormMoreOpen(false);
     setFormBaseKeypadOpen(false);
     setFormError("");
     setFormOpen(true);
@@ -341,6 +363,8 @@ export default function FixedExpensesManager({
     setEditingId(item.template.id);
     setFormName(item.template.name);
     setFormBase(String(item.template.base_value));
+    setFormFrequency(item.template.frequency ?? "monthly");
+    setFormMoreOpen((item.template.frequency ?? "monthly") !== "monthly");
     setFormBaseKeypadOpen(false);
     setFormError("");
     setFormOpen(true);
@@ -359,11 +383,24 @@ export default function FixedExpensesManager({
       return;
     }
 
+    const anchorMonth = Number(monthKey.slice(5, 7)) || 1;
+
     try {
       if (editingId) {
-        await updateTemplate({ id: editingId, name: formName, baseValue });
+        await updateTemplate({
+          id: editingId,
+          name: formName,
+          baseValue,
+          frequency: formFrequency,
+          anchorMonth,
+        });
       } else {
-        await createTemplate({ name: formName, baseValue });
+        await createTemplate({
+          name: formName,
+          baseValue,
+          frequency: formFrequency,
+          anchorMonth,
+        });
       }
       setFormOpen(false);
     } catch (err) {
@@ -466,9 +503,15 @@ export default function FixedExpensesManager({
               {totals.paidCount}/{totals.totalCount} pagados
             </p>
             <p className="text-[11px] font-light tabular-nums text-on-surface-variant">
-              Base <FormattedCurrency value={totals.sumBase} />
+              Este mes <FormattedCurrency value={totals.sumBase} />
             </p>
           </div>
+          {totals.monthlyCommitted > 0 &&
+          Math.abs(totals.monthlyCommitted - totals.sumBase) > 0.009 ? (
+            <p className="mt-1.5 text-[10px] font-light text-on-surface-variant">
+              Peso mensual ≈ <FormattedCurrency value={totals.monthlyCommitted} />
+            </p>
+          ) : null}
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-glass-soft">
             <div
               className="h-full rounded-full transition-[width] duration-500"
@@ -673,8 +716,12 @@ export default function FixedExpensesManager({
 
       <NumericKeypadSheet
         isOpen={formOpen && formBaseKeypadOpen}
-        title="Valor base"
-        subtitle="Previsión mensual de este gasto"
+        title={formFrequency === "monthly" ? "Valor base" : "Valor del periodo"}
+        subtitle={
+          formFrequency === "monthly"
+            ? "Previsión mensual de este gasto"
+            : `Importe ${FREQUENCY_LABELS[formFrequency].toLowerCase()}`
+        }
         accentColor={ACCENT}
         initialValue={formBase || "0"}
         onClose={() => setFormBaseKeypadOpen(false)}
@@ -687,13 +734,21 @@ export default function FixedExpensesManager({
 
       {formOpen ? (
         <Portal>
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-on-surface/40 backdrop-blur-sm sm:items-center">
-          <div className="glass-sheet w-full max-w-md rounded-t-[2rem] border border-glass-border p-5 sm:rounded-[1.85rem]">
-            <h3 className="text-lg font-medium tracking-tight text-on-surface">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-on-surface/[0.22] backdrop-blur-[10px] sm:items-center">
+          <div className="w-full max-w-md rounded-t-[1.75rem] border border-outline-variant/20 bg-surface-lowest/98 p-6 shadow-[0_-8px_40px_rgba(28,39,64,0.08)] backdrop-blur-xl sm:rounded-[1.75rem]">
+            <div className="mx-auto mb-4 h-0.5 w-8 rounded-full bg-outline-variant/25 sm:hidden" />
+            <h3 className="text-[1.35rem] font-light tracking-tight text-on-surface">
               {editingId ? "Editar gasto fijo" : "Nuevo gasto fijo"}
             </h3>
-            <p className="mt-1 text-sm font-light text-on-surface-variant">
-              El valor base se usa como previsión del mes.
+            <p className="mt-2 text-[13px] font-light leading-relaxed text-on-surface-variant">
+              {formFrequency === "monthly"
+                ? "El valor base se usa como previsión del mes."
+                : `Se paga ${FREQUENCY_LABELS[formFrequency].toLowerCase()}; equivale a ~${formatCurrency(
+                    monthlyEquivalent(
+                      Number(formBase.replace(",", ".") || 0),
+                      formFrequency
+                    )
+                  )}/mes.`}
             </p>
 
             <form onSubmit={(e) => void submitForm(e)} className="mt-4 space-y-4">
@@ -701,7 +756,7 @@ export default function FixedExpensesManager({
                 label="Nombre"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder="Luz, agua, gimnasio…"
+                placeholder="Luz, agua, seguro…"
                 required
               />
               <div className="space-y-2">
@@ -709,7 +764,7 @@ export default function FixedExpensesManager({
                   htmlFor="fixed-expense-base-value"
                   className="ml-1 block text-[11px] font-light text-on-surface-variant"
                 >
-                  Valor base
+                  Valor {formFrequency === "monthly" ? "base" : "del periodo"}
                 </label>
                 <div className="relative">
                   <input
@@ -731,6 +786,44 @@ export default function FixedExpensesManager({
                     Editar
                   </span>
                 </div>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setFormMoreOpen((open) => !open)}
+                  className="inline-flex items-center gap-1 text-[12px] font-medium text-on-surface-variant transition-colors hover:text-on-surface"
+                  aria-expanded={formMoreOpen}
+                >
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform ${formMoreOpen ? "rotate-180" : ""}`}
+                  />
+                  Más opciones
+                </button>
+                {formMoreOpen ? (
+                  <div className="mt-3 space-y-2">
+                    <span className="ml-1 block text-[11px] font-light text-on-surface-variant">
+                      ¿Cada cuánto?
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FIXED_EXPENSE_FREQUENCIES.map((freq) => (
+                        <button
+                          key={freq}
+                          type="button"
+                          onClick={() => setFormFrequency(freq)}
+                          className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                            formFrequency === freq
+                              ? "bg-primary/15 text-primary"
+                              : "bg-surface text-on-surface-variant"
+                          }`}
+                        >
+                          {FREQUENCY_LABELS[freq]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {formError ? (

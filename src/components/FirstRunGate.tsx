@@ -51,16 +51,6 @@ export default function FirstRunGate() {
           return;
         }
 
-        if (gateCache?.userId === user.id) {
-          perfLog("FirstRunGate.cacheHit", { ms: perfNow() - start }, "client");
-          if ("redirect" in gateCache.result) {
-            router.replace(gateCache.result.redirect);
-            return;
-          }
-          if (!cancelled) setChecked(true);
-          return;
-        }
-
         const { data: profile } = await supabase
           .from("profiles")
           .select("family_id")
@@ -70,7 +60,22 @@ export default function FirstRunGate() {
         const hasFamily = Boolean(profile?.family_id);
         const state = ensureFirstRunForUser(user.id, { hasFamily });
 
-        if (hasFamily && !state.setupCompleted) {
+        // Family can disappear (local wipe) — never trust a stale "ok" cache.
+        if (!hasFamily) {
+          const result: GateResult = { redirect: "/onboarding" };
+          gateCache = { userId: user.id, result };
+          perfLog("FirstRunGate", { ms: perfNow() - start, redirect: true }, "client");
+          router.replace(result.redirect);
+          return;
+        }
+
+        if (gateCache?.userId === user.id && !("redirect" in gateCache.result)) {
+          perfLog("FirstRunGate.cacheHit", { ms: perfNow() - start }, "client");
+          if (!cancelled) setChecked(true);
+          return;
+        }
+
+        if (!state.setupCompleted) {
           const result: GateResult = { redirect: "/onboarding?step=setup" };
           gateCache = { userId: user.id, result };
           perfLog("FirstRunGate", { ms: perfNow() - start, redirect: true }, "client");

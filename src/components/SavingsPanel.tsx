@@ -258,7 +258,7 @@ export default function SavingsPanel({
             {metrics && !metrics.prevMonthEmpty && metrics.delta > 0.009 ? (
               <TrendingUp size={16} className="text-emerald-600" />
             ) : metrics && !metrics.prevMonthEmpty && metrics.delta < -0.009 ? (
-              <TrendingDown size={16} className="text-rose-600" />
+              <TrendingDown size={16} className="text-amber-700/80" />
             ) : (
               <PiggyBank size={16} className="text-on-surface-variant" />
             )}

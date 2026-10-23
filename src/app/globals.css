@@ -344,6 +344,19 @@ html.app-shell-lock body {
   box-shadow: var(--fab-accent-shadow);
 }
 
+/* Logo gold CTA — onboarding / brand moments (same shape as fab-ink Guardar). */
+.fab-gold {
+  background-color: #c4a574;
+  background-image: linear-gradient(145deg, #d2b07a 0%, #c4a574 52%, #a8895a 100%);
+  color: #fff8ee;
+  box-shadow: 0 8px 18px rgba(168, 137, 90, 0.28);
+}
+
+.dark .fab-gold {
+  background-image: linear-gradient(145deg, #d2b07a 0%, #b8914e 52%, #8a6a32 100%);
+  box-shadow: 0 8px 18px rgba(8, 12, 24, 0.4);
+}
+
 /* Premium header chip — thin animated gold/navy border */
 @property --premium-chip-angle {
   syntax: "<angle>";
@@ -612,4 +625,39 @@ html.app-shell-lock body {
 
 .rec-bulb-glow.is-lit svg {
   fill: currentColor;
+}
+
+/* Receipt scan — soft sweep bar */
+@keyframes receipt-scan-sweep {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0.35;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(220%);
+    opacity: 0.35;
+  }
+}
+
+@keyframes receipt-scan-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+.receipt-scan-sweep {
+  animation: receipt-scan-sweep 1.55s ease-in-out infinite;
+}
+
+.receipt-scan-pulse {
+  animation: receipt-scan-pulse 1.8s ease-in-out infinite;
 }

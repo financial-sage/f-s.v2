@@ -3,7 +3,7 @@ import { renderRecommendationCopy } from "./copy";
 import { draftCopyWithLlm, isLlmConfigured } from "./llm";
 import { getOpenAIModel } from "@/lib/ai/openai";
 import { getRecommendationSpeech } from "./locale";
-import { selectRecommendationCandidates } from "./rules";
+import { isEarlyHousehold, selectRecommendationCandidates } from "./rules";
 import type {
   ForceGeminiDraftItem,
   ForceGeminiDraftResult,
@@ -151,6 +151,33 @@ export async function syncRecommendationsForFamily(
       const cooldown = new Date(daysAgoIso(DISMISS_COOLDOWN_DAYS)).getTime();
       if (created >= cooldown) blockedRules.add(row.rule_id);
     }
+    // Welcome is once per household — never recreate after any prior issuance.
+    if (row.rule_id === "welcome_panel") {
+      blockedRules.add("welcome_panel");
+    }
+  }
+
+  // Fresh profile: drop premature account/savings alerts so welcome can lead.
+  if (isEarlyHousehold(ctx)) {
+    for (const [ruleId, row] of Array.from(openByRule.entries())) {
+      if (ruleId === "welcome_panel") continue;
+      const { error: resolveError } = await supabase
+        .from("family_recommendations")
+        .update({
+          status: "resolved",
+          updated_at: now,
+        } as never)
+        .eq("id", row.id)
+        .in("status", ACTIVE_STATUSES);
+      if (resolveError) {
+        console.error(
+          "[recommendations] resolve stale early-household",
+          resolveError.message
+        );
+        continue;
+      }
+      openByRule.delete(ruleId);
+    }
   }
 
   // Draft / refresh with OpenAI when opening the dedicated page (not soft-notice poll).
@@ -209,13 +236,21 @@ export async function syncRecommendationsForFamily(
     if (blockedRules.has(candidate.ruleId)) continue;
     if (openByRule.size >= 3) break;
 
-    const facts = speech
-      ? { ...candidate.facts, currency: speech.currency }
+    // Welcome must be AI-drafted even on soft-notice sync (template only as fallback).
+    const forceLlm = candidate.ruleId === "welcome_panel";
+    const useTemplate = Boolean(options?.preferTemplate) && !forceLlm;
+    const speechForCopy =
+      useTemplate
+        ? undefined
+        : speech ?? (await getRecommendationSpeech());
+
+    const facts = speechForCopy
+      ? { ...candidate.facts, currency: speechForCopy.currency }
       : candidate.facts;
     const candidateWithLocale = { ...candidate, facts };
-    const copy = options?.preferTemplate
+    const copy = useTemplate
       ? (await import("./templates")).templateCopyForCandidate(candidate)
-      : await renderRecommendationCopy(candidateWithLocale, speech);
+      : await renderRecommendationCopy(candidateWithLocale, speechForCopy);
     const insert = {
       family_id: familyId,
       member_id: null,

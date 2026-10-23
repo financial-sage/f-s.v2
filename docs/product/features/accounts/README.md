@@ -16,9 +16,10 @@ Implementación (schema, ledger, RLS, slices): [technical-spec.md](./technical-s
 
 | Tema | Decisión |
 |------|----------|
-| Naturaleza | Una cuenta simula una **cuenta bancaria** (ubicación del dinero), no un bolsillo |
+| Naturaleza | Una cuenta simula una **ubicación** del dinero o un pasivo/activo valorado; no un bolsillo |
 | Capas | **Cuenta** ≠ **Bolsillo**; no se unifican |
-| Tipos | **Personal** y **compartida** (creables por la familia) |
+| Kind | `checking` (liquidez) · `credit` (tarjeta / deuda) · `investment` (valor actual) — [ADR-0010](../../../decisions/ADR-0010-liabilities-frequency-investments.md) |
+| Tipos de alcance | **Personal** y **compartida** (creables por la familia) |
 | Flujo canónico | Ingreso → cuenta personal → cuenta compartida → repartición a bolsillos → gastos |
 | Entrada a bolsillos | **Ambos caminos**: aporte directo (Funds) + transferencia desde cuenta |
 | Pago de gastos | Preferido desde bolsillo; **cualquier gasto puede salir de cuenta** (UX empuja a bolsillo) |
@@ -63,6 +64,10 @@ saldo = ingresos
 
 El saldo puede quedar **negativo**. El sistema avisa, pero no bloquea el registro.
 
+- **checking:** saldo = liquidez; suma a “liquidez visible”.
+- **credit:** saldo de ledger negativo = deuda (“Debes”); el pago es transferencia desde checking/shared. No suma a liquidez.
+- **investment:** saldo = valor actual; aportes/retiros y ajuste de valor. No suma a liquidez del mes.
+
 ## Relación con bolsillos
 
 - **Cuenta** = dónde está el dinero (banco simulado).
@@ -105,7 +110,9 @@ Las cuentas viven en el contexto de la familia; ownership y visibilidad respetan
 # Experiencias
 
 - Ver el centro de cuentas (saldos visibles según permisos).
-- Crear cuenta personal o compartida.
+- Centro con tabs **Cuentas | Créditos | Inversiones**.
+- Crear cuenta personal o compartida según el tab (banco, tarjeta o inversión).
+- Pagar tarjeta desde cuenta bancaria (**Transferir / Pagar** → destino tarjeta).
 - Configurar visibilidad de una cuenta personal.
 - Registrar un ingreso en una cuenta.
 - Transferir entre cuentas (personal ↔ compartida, cuenta ↔ cuenta).
