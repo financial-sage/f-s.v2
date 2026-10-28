@@ -6,6 +6,8 @@ import {
 } from "@/lib/funds";
 import {
   calculateAccountCashBalance,
+  isInvestmentAccountMovement,
+  isLiquidityAccount,
   listVisibleAccountsForUser,
   type FamilyAccount,
 } from "@/lib/accounts";
@@ -563,7 +565,7 @@ export async function getHomePageData(): Promise<
     supabase
       .from("families")
       .select("id, name, user_1_id, user_2_id, financial_model")
-      .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
+      .eq("id", familyId)
       .maybeSingle(),
     supabase
       .from("profiles")
@@ -639,13 +641,21 @@ export async function getHomePageData(): Promise<
     expenseData = legacy.data;
   }
 
+  const allAccounts = ((accountsResult.data ?? []) as FamilyAccount[]).filter(
+    (a) => !a.archived_at
+  );
   const accountsById = new Map(
-    ((accountsResult.data ?? []) as Array<{
-      id: string;
-      scope: string;
-      owner_profile_id: string | null;
-      visibility: string;
-    }>).map((a) => [a.id, a])
+    allAccounts.map((a) => [
+      a.id,
+      {
+        id: a.id,
+        scope: a.scope,
+        owner_profile_id: a.owner_profile_id,
+        visibility: a.visibility,
+        kind: a.kind,
+        currency_code: a.currency_code,
+      },
+    ])
   );
 
   const rawExpenses = (expenseData ?? []) as RawHomeExpense[];
@@ -654,7 +664,15 @@ export async function getHomePageData(): Promise<
     profiles: Array.isArray(row.profiles) ? (row.profiles[0] ?? null) : row.profiles,
   }));
 
-  const coupleExpenses = filterExpensesForPrivacy(normalizedExpenses, user.id, accountsById);
+  const privacyFiltered = filterExpensesForPrivacy(
+    normalizedExpenses,
+    user.id,
+    accountsById
+  );
+  // Investment ledger lives only under Cuentas → Inversiones (not home / historial mix).
+  const coupleExpenses = privacyFiltered.filter(
+    (expense) => !isInvestmentAccountMovement(expense, accountsById)
+  );
   const expenseRowsForDashboard = coupleExpenses.map((expense) => ({
     id: expense.id,
     amount: expense.amount,
@@ -694,28 +712,24 @@ export async function getHomePageData(): Promise<
   const funds = ((fundsResult.data ?? []) as FamilyFund[]).filter((f) => !f.archived_at);
   const sharedDefaultFundId = getDefaultSharedFund(funds)?.id ?? null;
 
-  const allAccounts = ((accountsResult.data ?? []) as FamilyAccount[]).filter(
-    (a) => !a.archived_at
-  );
   const visibleAccounts = listVisibleAccountsForUser(allAccounts, user.id);
+  const ledgerForBalances = privacyFiltered as Array<{
+    amount: number;
+    category?: string | null;
+    account_id?: string | null;
+    paid_from_account?: boolean | null;
+    transfer_group_id?: string | null;
+    is_active?: boolean | null;
+  }>;
   const accountsVisibleLiquidity =
     Math.round(
-      visibleAccounts.reduce(
-        (sum, account) =>
-          sum +
-          calculateAccountCashBalance(
-            coupleExpenses as Array<{
-              amount: number;
-              category?: string | null;
-              account_id?: string | null;
-              paid_from_account?: boolean | null;
-              transfer_group_id?: string | null;
-              is_active?: boolean | null;
-            }>,
-            account.id
-          ),
-        0
-      ) * 100
+      visibleAccounts
+        .filter((account) => isLiquidityAccount(account))
+        .reduce(
+          (sum, account) =>
+            sum + calculateAccountCashBalance(ledgerForBalances, account.id),
+          0
+        ) * 100
     ) / 100;
 
   perfLog("getHomePageData", {

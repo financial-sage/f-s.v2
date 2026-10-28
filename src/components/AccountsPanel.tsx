@@ -13,11 +13,13 @@ import {
   Eye,
   EyeOff,
   CreditCard,
+  History,
   Landmark,
   LoaderCircle,
   MoreHorizontal,
   Pencil,
   Plus,
+  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -57,6 +59,7 @@ import {
   listOperableAccountsForUser,
   listVisibleAccountsForUser,
   resolveAccountColor,
+  sumInvestmentsByCurrency,
   sumVisibleLiquidity,
 } from "@/lib/accounts";
 import {
@@ -65,8 +68,12 @@ import {
   personalFundDisplayName,
   type FamilyFund,
 } from "@/lib/funds";
-import { CurrencyFlag } from "@/components/CurrencyFlag";
+import {
+  CurrencyFlagEdgeWash,
+  CurrencyFlagHero,
+} from "@/components/CurrencyFlag";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Portal } from "@/components/ui/Portal";
 import { Sheet } from "@/components/ui/Sheet";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -229,7 +236,7 @@ export default function AccountsPanel({
       {
         target: "accounts-transfer",
         title: "Transferir a un bolsillo",
-        body: "El ingreso quedó en la cuenta. Con Transferir lo mueves a un bolsillo (gastos del mes, ahorro…) o pagas una tarjeta. La cuenta es el banco; el bolsillo organiza el gasto.",
+        body: "El ingreso quedó en la cuenta. Con Transferir lo mueves a un bolsillo de gasto del mes, o pagas una tarjeta. La cuenta es el banco; el bolsillo organiza el gasto. El ahorro se aparta aparte, en Ahorros.",
         placement: "top",
       },
     ],
@@ -310,6 +317,141 @@ export default function AccountsPanel({
   const [editName, setEditName] = useState("");
   const [editCurrency, setEditCurrency] = useState<AppCurrency>(householdCurrency);
   const [editError, setEditError] = useState("");
+  const [historyAccountId, setHistoryAccountId] = useState<string | null>(null);
+  const [archiveConfirm, setArchiveConfirm] = useState<FamilyAccount | null>(
+    null
+  );
+  const ledgerExpenses = useExpenseStore((s) => s.expenses);
+
+  const historyAccount = useMemo(
+    () => accounts.find((a) => a.id === historyAccountId) ?? null,
+    [accounts, historyAccountId]
+  );
+
+  type InvestmentHistoryRow = {
+    id: string;
+    dateLabel: string;
+    kind: "initial" | "value_update" | "transfer_in" | "transfer_out" | "other";
+    title: string;
+    detail: string | null;
+    signedDelta: number;
+    balanceAfter: number;
+    pctFromPrevious: number | null;
+  };
+
+  const investmentHistory = useMemo(() => {
+    if (!historyAccountId) {
+      return { rows: [] as InvestmentHistoryRow[], latestYield: null as string | null };
+    }
+
+    const chronological = ledgerExpenses
+      .filter((e) => e.account_id === historyAccountId)
+      .slice()
+      .sort((a, b) => {
+        const da = String(a.expense_date || a.created_at || "");
+        const db = String(b.expense_date || b.created_at || "");
+        if (da !== db) return da.localeCompare(db);
+        return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+      });
+
+    let running = 0;
+    const built: InvestmentHistoryRow[] = [];
+
+    for (const m of chronological) {
+      const amount = Math.abs(Number(m.amount) || 0);
+      const concept = (m.concept ?? "").trim();
+      const isDeposit =
+        m.category === "deposit" ||
+        (m.category !== "withdrawal" && !m.paid_from_account);
+      const signedDelta = isDeposit ? amount : -amount;
+      const balanceBefore = running;
+      running = Math.round((running + signedDelta) * 100) / 100;
+
+      const raw = String(m.expense_date || "").slice(0, 10);
+      const dateLabel = (() => {
+        if (!raw) return "—";
+        const d = new Date(`${raw}T12:00:00`);
+        if (Number.isNaN(d.getTime())) return raw;
+        return new Intl.DateTimeFormat("es-ES", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }).format(d);
+      })();
+
+      const isInitial = /^Valor inicial/i.test(concept);
+      const isValueUpdate = /^Valor actual/i.test(concept);
+      const isTransfer = Boolean(m.transfer_group_id) || /Transferencia/i.test(concept);
+
+      let kind: InvestmentHistoryRow["kind"] = "other";
+      if (isInitial) kind = "initial";
+      else if (isValueUpdate) kind = "value_update";
+      else if (isTransfer && isDeposit) kind = "transfer_in";
+      else if (isTransfer && !isDeposit) kind = "transfer_out";
+
+      const pctFromPrevious =
+        kind === "value_update" && Math.abs(balanceBefore) > 0.009
+          ? Math.round((signedDelta / Math.abs(balanceBefore)) * 1000) / 10
+          : null;
+
+      let title = concept || (isDeposit ? "Entrada" : "Salida");
+      let detail: string | null = null;
+
+      if (kind === "initial") {
+        title = "Valor inicial";
+        detail = "Punto de partida de esta inversión.";
+      } else if (kind === "value_update") {
+        title = "Actualización de valor";
+        if (pctFromPrevious == null) {
+          detail =
+            Math.abs(signedDelta) < 0.009
+              ? "Sin cambio respecto al registro anterior."
+              : signedDelta > 0
+                ? "Subió respecto al registro anterior."
+                : "Bajó respecto al registro anterior.";
+        } else if (Math.abs(pctFromPrevious) < 0.05) {
+          detail = "Del registro anterior a este, casi sin cambio.";
+        } else if (pctFromPrevious > 0) {
+          detail = `Del registro anterior a este, ha rendido un ${pctFromPrevious.toLocaleString("es-ES")}%`;
+        } else {
+          detail = `Del registro anterior a este, ha bajado un ${Math.abs(pctFromPrevious).toLocaleString("es-ES")}%`;
+        }
+      } else if (kind === "transfer_in") {
+        title = "Aporte";
+        detail = "Dinero que entró desde una cuenta.";
+      } else if (kind === "transfer_out") {
+        title = "Retiro";
+        detail = "Dinero que salió hacia una cuenta.";
+      }
+
+      built.push({
+        id: m.id,
+        dateLabel,
+        kind,
+        title,
+        detail,
+        signedDelta,
+        balanceAfter: running,
+        pctFromPrevious,
+      });
+    }
+
+    const rows = [...built].reverse();
+    const latestUpdate = built.filter((r) => r.kind === "value_update").at(-1);
+    let latestYield: string | null = null;
+    if (latestUpdate?.pctFromPrevious != null) {
+      const pct = latestUpdate.pctFromPrevious;
+      if (Math.abs(pct) < 0.05) {
+        latestYield = "Del último registro al actual, casi sin cambio.";
+      } else if (pct > 0) {
+        latestYield = `Del último registro al actual, ha rendido un ${pct.toLocaleString("es-ES")}%.`;
+      } else {
+        latestYield = `Del último registro al actual, ha bajado un ${Math.abs(pct).toLocaleString("es-ES")}%.`;
+      }
+    }
+
+    return { rows, latestYield };
+  }, [historyAccountId, ledgerExpenses]);
 
   function openAccountMenu(accountId: string, anchorEl: HTMLElement) {
     if (menuAccountId === accountId) {
@@ -360,7 +502,11 @@ export default function AccountsPanel({
 
   const tabTotals = useMemo(() => {
     if (accountsTab === "checking") {
-      return { label: "Liquidez visible", amount: totalLiquidity };
+      return {
+        label: "Liquidez visible",
+        amount: totalLiquidity,
+        byCurrency: null as Array<{ currency: string; amount: number }> | null,
+      };
     }
     if (accountsTab === "credit") {
       const debt = tabAccounts.reduce(
@@ -370,17 +516,23 @@ export default function AccountsPanel({
       return {
         label: "Total por pagar",
         amount: Math.round(debt * 100) / 100,
+        byCurrency: null as Array<{ currency: string; amount: number }> | null,
       };
     }
-    const invested = tabAccounts.reduce(
-      (sum, a) => sum + Math.max(0, balances[a.id] ?? 0),
-      0
+    const byCurrency = sumInvestmentsByCurrency(
+      tabAccounts.map((account) => ({
+        account,
+        balance: balances[account.id] ?? 0,
+      })),
+      householdCurrency
     );
+    const single = byCurrency.length === 1 ? byCurrency[0] : null;
     return {
-      label: "Valor invertido",
-      amount: Math.round(invested * 100) / 100,
+      label: byCurrency.length > 1 ? "Valor por moneda" : "Valor invertido",
+      amount: single?.amount ?? 0,
+      byCurrency,
     };
-  }, [accountsTab, balances, tabAccounts, totalLiquidity]);
+  }, [accountsTab, balances, tabAccounts, totalLiquidity, householdCurrency]);
 
   const tabEmptyCopy = useMemo(() => {
     if (accountsTab === "credit") {
@@ -840,21 +992,21 @@ export default function AccountsPanel({
   function handleArchive(account: FamilyAccount) {
     const balance = balances[account.id] ?? 0;
     const needsConfirm = Math.abs(balance) > 0.009;
-    const amountLabel = formatCurrency(Math.abs(balance));
-    if (
-      needsConfirm &&
-      !window.confirm(
-        `«${account.name}» tiene saldo ${amountLabel}. ¿Archivarla igual? Dejará de contar como liquidez activa.`
-      )
-    ) {
+    if (needsConfirm) {
+      setArchiveConfirm(account);
       return;
     }
+    void runArchive(account, false);
+  }
+
+  function runArchive(account: FamilyAccount, confirmNonZeroBalance: boolean) {
     startTransition(async () => {
       try {
         await archiveAccountAction({
           accountId: account.id,
-          confirmNonZeroBalance: needsConfirm,
+          confirmNonZeroBalance,
         });
+        setArchiveConfirm(null);
         await afterMutation();
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo archivar.");
@@ -931,15 +1083,10 @@ export default function AccountsPanel({
                       }`}
                     >
                       {balanceVisible ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          {investment && isAppCurrency(account.currency_code) ? (
-                            <CurrencyFlag code={account.currency_code} size="sm" />
-                          ) : null}
-                          <FormattedCurrency
-                            value={shownAmount}
-                            currency={accountDisplayCurrency(account, householdCurrency)}
-                          />
-                        </span>
+                        <FormattedCurrency
+                          value={shownAmount}
+                          currency={accountDisplayCurrency(account, householdCurrency)}
+                        />
                       ) : (
                         "••••"
                       )}
@@ -965,16 +1112,33 @@ export default function AccountsPanel({
                 )}
 
                 {operableForUser && (
-                  <div className="relative mt-1.5 pl-[2.625rem]">
+                  <div
+                    className={`relative mt-1.5 ${
+                      investment
+                        ? "-mx-3 -mb-2 overflow-hidden pb-2"
+                        : "pl-[2.625rem]"
+                    }`}
+                  >
+                    {investment && isAppCurrency(account.currency_code) ? (
+                      <CurrencyFlagEdgeWash code={account.currency_code} />
+                    ) : null}
                     <div
-                      className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#c4a574]/45 to-transparent"
+                      className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#c4a574]/45 to-transparent ${
+                        investment ? "left-3 right-3" : ""
+                      }`}
                       aria-hidden
                     />
                     <div
-                      className="pointer-events-none absolute inset-x-0 top-0 h-7 bg-[linear-gradient(180deg,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0.05)_50%,transparent_100%)] [mask-image:linear-gradient(90deg,transparent_0%,black_14%,black_86%,transparent_100%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.09)_0%,rgba(255,255,255,0.025)_50%,transparent_100%)]"
+                      className={`pointer-events-none absolute inset-x-0 top-0 h-7 bg-[linear-gradient(180deg,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0.05)_50%,transparent_100%)] [mask-image:linear-gradient(90deg,transparent_0%,black_14%,black_86%,transparent_100%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.09)_0%,rgba(255,255,255,0.025)_50%,transparent_100%)] ${
+                        investment ? "left-3 right-3" : ""
+                      }`}
                       aria-hidden
                     />
-                    <div className="relative flex flex-wrap items-center gap-1 pt-2">
+                    <div
+                      className={`relative z-[1] flex flex-wrap items-center gap-1 pt-2 ${
+                        investment ? "px-3" : ""
+                      }`}
+                    >
                       {isLiquidityAccount(account) ? (
                         <button
                           type="button"
@@ -1011,6 +1175,16 @@ export default function AccountsPanel({
                         >
                           <ArrowLeftRight size={10} strokeWidth={1.6} />
                           {investment ? "Mover" : "Transferir"}
+                        </button>
+                      ) : null}
+                      {investment ? (
+                        <button
+                          type="button"
+                          onClick={() => setHistoryAccountId(account.id)}
+                          className="relative inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-light text-on-surface-variant transition-colors hover:bg-surface-low/80 hover:text-on-surface"
+                        >
+                          <History size={10} strokeWidth={1.6} />
+                          Historial
                         </button>
                       ) : null}
                     </div>
@@ -1199,24 +1373,68 @@ export default function AccountsPanel({
               </div>
             </div>
 
-            <div className="relative z-10 mt-4 flex items-center gap-2.5">
-              <p
-                className={`text-[2.65rem] font-light leading-none tracking-tight ${
-                  accountsTab === "checking" && tabTotals.amount < 0
-                    ? "text-amber-800/80 dark:text-amber-200/90"
-                    : "text-on-surface"
-                }`}
-              >
-                {balanceVisible ? (
-                  <FormattedCurrency value={tabTotals.amount} />
-                ) : (
-                  "••••••"
-                )}
-              </p>
+            <div className="relative z-10 mt-4 flex items-start gap-2.5">
+              {balanceVisible &&
+              accountsTab === "investment" &&
+              tabTotals.byCurrency &&
+              tabTotals.byCurrency.length > 1 ? (
+                <div className="min-w-0 flex-1 space-y-2">
+                  {tabTotals.byCurrency.map((row) => {
+                    const code = isAppCurrency(row.currency)
+                      ? row.currency
+                      : householdCurrency;
+                    const amount = (
+                      <FormattedCurrency value={row.amount} currency={code} />
+                    );
+                    return (
+                      <p
+                        key={row.currency}
+                        className="text-[1.55rem] font-light leading-none tracking-tight text-on-surface"
+                      >
+                        {isAppCurrency(row.currency) ? (
+                          <CurrencyFlagHero code={row.currency}>
+                            {amount}
+                          </CurrencyFlagHero>
+                        ) : (
+                          amount
+                        )}
+                      </p>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p
+                  className={`text-[2.65rem] font-light leading-none tracking-tight ${
+                    accountsTab === "checking" && tabTotals.amount < 0
+                      ? "text-amber-800/80 dark:text-amber-200/90"
+                      : "text-on-surface"
+                  }`}
+                >
+                  {balanceVisible ? (
+                    accountsTab === "investment" &&
+                    tabTotals.byCurrency?.[0] &&
+                    isAppCurrency(tabTotals.byCurrency[0].currency) ? (
+                      <CurrencyFlagHero code={tabTotals.byCurrency[0].currency}>
+                        <FormattedCurrency
+                          value={tabTotals.amount}
+                          currency={tabTotals.byCurrency[0].currency}
+                        />
+                      </CurrencyFlagHero>
+                    ) : (
+                      <FormattedCurrency
+                        value={tabTotals.amount}
+                        currency={householdCurrency}
+                      />
+                    )
+                  ) : (
+                    "••••••"
+                  )}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => setBalanceVisible((v) => !v)}
-                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
+                className="mt-1 shrink-0 rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
                 aria-label={balanceVisible ? "Ocultar saldo" : "Mostrar saldo"}
               >
                 {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
@@ -1816,6 +2034,165 @@ export default function AccountsPanel({
         </div>
       </Sheet>
 
+      <Sheet
+        open={Boolean(historyAccount)}
+        onClose={() => setHistoryAccountId(null)}
+        title={historyAccount ? `Historial · ${historyAccount.name}` : "Historial"}
+        headerLayout="title-row"
+        closeOnBackdrop
+      >
+        {historyAccount ? (
+          <div className="space-y-5 pb-5">
+            <p className="text-[12px] font-light leading-relaxed tracking-wide text-on-surface-variant/85">
+              Cada actualización registra el cambio frente al valor anterior
+              {isAppCurrency(historyAccount.currency_code)
+                ? ` · ${historyAccount.currency_code}`
+                : ""}
+              .
+            </p>
+
+            {investmentHistory.latestYield ? (
+              <div
+                className="relative overflow-hidden rounded-[1.35rem] border border-glass-border px-4 py-3.5"
+                style={{
+                  backgroundImage: tintedGlassGradient(HERO_ACCENT, {
+                    soft: true,
+                    midAlpha: "14",
+                    endAlpha: "22",
+                  }),
+                }}
+              >
+                <div
+                  className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full opacity-25 blur-2xl"
+                  style={{ backgroundColor: HERO_ACCENT }}
+                  aria-hidden
+                />
+                <p className="relative text-[10px] font-medium uppercase tracking-[0.14em] text-on-surface-variant/70">
+                  Último tramo
+                </p>
+                <p className="relative mt-1.5 text-[14px] font-light leading-snug tracking-tight text-on-surface">
+                  {investmentHistory.latestYield}
+                </p>
+              </div>
+            ) : null}
+
+            {investmentHistory.rows.length === 0 ? (
+              <p className="rounded-[1.35rem] border border-dashed border-outline-variant/25 px-4 py-8 text-center text-[13px] font-light text-on-surface-variant">
+                Aún no hay movimientos en esta inversión.
+              </p>
+            ) : (
+              <ul className="relative space-y-0 pl-3">
+                <span
+                  className="pointer-events-none absolute bottom-3 left-[0.4rem] top-3 w-px bg-outline-variant/25"
+                  aria-hidden
+                />
+                {investmentHistory.rows.map((m, index) => {
+                  const currency = accountDisplayCurrency(
+                    historyAccount,
+                    householdCurrency
+                  );
+                  const up = m.signedDelta >= 0;
+                  const flat = Math.abs(m.signedDelta) < 0.009;
+                  const showPct =
+                    m.kind === "value_update" && m.pctFromPrevious != null;
+                  return (
+                    <li key={m.id} className="relative pb-5 last:pb-1">
+                      <span
+                        className={`absolute left-[-0.55rem] top-1.5 h-2 w-2 rounded-full ring-2 ring-[var(--surface-lowest,#fff)] ${
+                          index === 0
+                            ? "bg-accent/80"
+                            : "bg-outline-variant/45"
+                        }`}
+                        aria-hidden
+                      />
+                      <div className="ml-3 rounded-[1.15rem] border border-outline-variant/12 bg-surface-lowest/55 px-3.5 py-3 backdrop-blur-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-light tracking-wide text-on-surface-variant/75">
+                              {m.dateLabel}
+                            </p>
+                            <p className="mt-0.5 text-[14px] font-light tracking-tight text-on-surface">
+                              {m.title}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p
+                              className={`inline-flex items-center gap-1 text-[13px] font-light tabular-nums tracking-tight ${
+                                flat
+                                  ? "text-on-surface-variant"
+                                  : up
+                                    ? "text-on-surface"
+                                    : "text-amber-800/75 dark:text-amber-200/85"
+                              }`}
+                            >
+                              {!flat ? (
+                                up ? (
+                                  <TrendingUp
+                                    size={12}
+                                    strokeWidth={1.75}
+                                    className="opacity-70"
+                                    aria-hidden
+                                  />
+                                ) : (
+                                  <TrendingDown
+                                    size={12}
+                                    strokeWidth={1.75}
+                                    className="opacity-70"
+                                    aria-hidden
+                                  />
+                                )
+                              ) : null}
+                              {flat ? "±" : up ? "+" : "−"}
+                              <FormattedCurrency
+                                value={Math.abs(m.signedDelta)}
+                                currency={currency}
+                              />
+                            </p>
+                            {showPct ? (
+                              <p
+                                className={`mt-0.5 text-[10px] font-light tabular-nums ${
+                                  (m.pctFromPrevious ?? 0) >= 0
+                                    ? "text-on-surface-variant/80"
+                                    : "text-amber-800/65 dark:text-amber-200/75"
+                                }`}
+                              >
+                                {(m.pctFromPrevious ?? 0) >= 0 ? "+" : "−"}
+                                {Math.abs(m.pctFromPrevious ?? 0).toLocaleString(
+                                  "es-ES"
+                                )}
+                                %
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {m.detail ? (
+                          <p className="mt-2 text-[12px] font-light leading-relaxed text-on-surface/75">
+                            {m.detail}
+                          </p>
+                        ) : null}
+
+                        <div className="mt-2.5 flex items-baseline justify-between gap-2 border-t border-outline-variant/10 pt-2">
+                          <p className="text-[10px] font-light tracking-wide text-on-surface-variant/70">
+                            Valor resultante
+                          </p>
+                          <p className="text-[12px] font-light tabular-nums tracking-tight text-on-surface/90">
+                            <FormattedCurrency
+                              value={m.balanceAfter}
+                              currency={currency}
+                            />
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ) : null}
+      </Sheet>
+
       <NumericKeypadSheet
         isOpen={showIncomeKeypad}
         title="REGISTRAR INGRESO"
@@ -1909,6 +2286,30 @@ export default function AccountsPanel({
         onClose={(reason) => {
           accountsTransferTour.close(reason);
           setTransferTourAccountId(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(archiveConfirm)}
+        title="Archivar cuenta"
+        description={
+          archiveConfirm
+            ? `«${archiveConfirm.name}» tiene saldo ${formatCurrency(
+                Math.abs(balances[archiveConfirm.id] ?? 0)
+              )}. ¿Archivarla igual? Dejará de contar como liquidez activa.`
+            : ""
+        }
+        tone="warning"
+        icon={Archive}
+        confirmLabel="Sí, archivar"
+        busy={isPending}
+        busyLabel="Archivando…"
+        onCancel={() => {
+          if (!isPending) setArchiveConfirm(null);
+        }}
+        onConfirm={() => {
+          if (!archiveConfirm) return;
+          void runArchive(archiveConfirm, true);
         }}
       />
     </div>

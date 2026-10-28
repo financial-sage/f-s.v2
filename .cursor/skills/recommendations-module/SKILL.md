@@ -36,7 +36,7 @@ Locked ideas:
 
 - Rules select candidates; AI only drafts copy (option A)
 - Persist + lifecycle; max 3 active per household in V1 of this feature
-- Soft notice **outside** dashboard scroll; no cards in scroll
+- Soft notice / **CFO pill** **outside** dashboard scroll; no cards in scroll (ADR-0011)
 - No chat; period balance = selector + narrative
 - Accept never auto-moves money
 

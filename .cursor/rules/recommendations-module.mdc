@@ -22,7 +22,7 @@ Nombres objetivo: `src/lib/recommendations/*`, ruta `/recommendations`, aviso su
 - Candidatas por **reglas**; IA solo **redacta** (opción A).
 - **Sin chat** ni hilo conversacional.
 - Dashboard **scroll** sin cards/banners/strips de recomendaciones.
-- Entrada Inicio: aviso **suave fuera del scroll**.
+- Entrada Inicio: pastilla CFO → modal (ADR-0011); sin cards en scroll.
 - Persistencia + estados; aceptar no ejecuta movimientos sola.
 - Cifras solo desde hechos/agregados; si faltan → no inventar.
 - Incluir reglas de **ahorro** cuando el contexto lo permita.

@@ -1,27 +1,36 @@
 import type { AppCurrency } from "@/lib/currency";
+import type { ReactNode } from "react";
 
 const SIZE = {
   sm: "h-4 w-5",
   md: "h-5 w-7",
   lg: "h-6 w-8",
+  /** Fills parent height; width follows 21:15 flag ratio via aspect. */
+  match: "h-full w-auto aspect-[21/15]",
 } as const;
 
 type FlagSize = keyof typeof SIZE;
 
-export function CurrencyFlag({
+function FlagSvg({
   code,
-  size = "sm",
-  className = "",
+  className,
+  preserveAspectRatio = "xMidYMid meet",
 }: {
   code: AppCurrency;
-  size?: FlagSize;
-  className?: string;
+  className: string;
+  preserveAspectRatio?: string;
 }) {
-  const box = `${SIZE[size]} shrink-0 overflow-hidden rounded-[3px] shadow-[0_0_0_1px_rgba(0,0,0,0.06)] ${className}`;
+  const common = {
+    viewBox: "0 0 21 15",
+    className,
+    "aria-hidden": true as const,
+    role: "img" as const,
+    preserveAspectRatio,
+  };
 
   if (code === "EUR") {
     return (
-      <svg viewBox="0 0 21 15" className={box} aria-hidden role="img">
+      <svg {...common}>
         <title>España</title>
         <rect width="21" height="15" fill="#AA151B" />
         <rect y="3.75" width="21" height="7.5" fill="#F1BF00" />
@@ -31,7 +40,7 @@ export function CurrencyFlag({
 
   if (code === "COP") {
     return (
-      <svg viewBox="0 0 21 15" className={box} aria-hidden role="img">
+      <svg {...common}>
         <title>Colombia</title>
         <rect width="21" height="7.5" fill="#FFCD00" />
         <rect y="7.5" width="21" height="3.75" fill="#003893" />
@@ -42,7 +51,7 @@ export function CurrencyFlag({
 
   if (code === "GBP") {
     return (
-      <svg viewBox="0 0 21 15" className={box} aria-hidden role="img">
+      <svg {...common}>
         <title>Reino Unido</title>
         <rect width="21" height="15" fill="#012169" />
         <path d="M0 0l21 15M21 0L0 15" stroke="#fff" strokeWidth="3" />
@@ -55,7 +64,7 @@ export function CurrencyFlag({
 
   if (code === "MXN") {
     return (
-      <svg viewBox="0 0 21 15" className={box} aria-hidden role="img">
+      <svg {...common}>
         <title>México</title>
         <rect width="7" height="15" fill="#006847" />
         <rect x="7" width="7" height="15" fill="#fff" />
@@ -67,7 +76,7 @@ export function CurrencyFlag({
 
   if (code === "CHF") {
     return (
-      <svg viewBox="0 0 21 15" className={box} aria-hidden role="img">
+      <svg {...common}>
         <title>Suiza</title>
         <rect width="21" height="15" fill="#FF0000" />
         <rect x="8.5" y="3" width="4" height="9" fill="#fff" />
@@ -78,7 +87,7 @@ export function CurrencyFlag({
 
   if (code === "BRL") {
     return (
-      <svg viewBox="0 0 21 15" className={box} aria-hidden role="img">
+      <svg {...common}>
         <title>Brasil</title>
         <rect width="21" height="15" fill="#009C3B" />
         <path d="M10.5 1.5L19.5 7.5 10.5 13.5 1.5 7.5Z" fill="#FFDF00" />
@@ -88,7 +97,7 @@ export function CurrencyFlag({
   }
 
   return (
-    <svg viewBox="0 0 21 15" className={box} aria-hidden role="img">
+    <svg {...common}>
       <title>Estados Unidos</title>
       <rect width="21" height="15" fill="#B22234" />
       <path
@@ -97,5 +106,86 @@ export function CurrencyFlag({
       />
       <rect width="8.4" height="8.05" fill="#3C3B6E" />
     </svg>
+  );
+}
+
+export function CurrencyFlag({
+  code,
+  size = "sm",
+  className = "",
+}: {
+  code: AppCurrency;
+  size?: FlagSize;
+  className?: string;
+}) {
+  const box =
+    `${SIZE[size]} shrink-0 overflow-hidden rounded-[3px] opacity-[0.55] shadow-[0_0_0_1px_rgba(0,0,0,0.04)] ${className}`.trim();
+  return <FlagSvg code={code} className={box} />;
+}
+
+const FLAG_FADE_MASK =
+  "linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.5) 28%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.06) 78%, transparent 100%)";
+
+/** Stronger fade for list edge wash — flag stays subtle, not prominent.
+ *  Right-edge version: solid on the right, fades toward the left. */
+const FLAG_EDGE_FADE_MASK =
+  "linear-gradient(270deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.28) 32%, rgba(0,0,0,0.1) 58%, transparent 82%)";
+
+/**
+ * Hero wash: tall flag on the left with L→R fade; amount sits to the right
+ * so the flag stays visible (not covered by the number).
+ */
+export function CurrencyFlagHero({
+  code,
+  children,
+  className = "",
+}: {
+  code: AppCurrency;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span className={`relative inline-flex items-center ${className}`.trim()}>
+      <span
+        className="pointer-events-none relative z-0 h-[1em] w-[2.1em] shrink-0 overflow-hidden rounded-[3px]"
+        style={{
+          WebkitMaskImage: FLAG_FADE_MASK,
+          maskImage: FLAG_FADE_MASK,
+        }}
+        aria-hidden
+      >
+        <FlagSvg
+          code={code}
+          className="h-full w-full rounded-[3px] object-cover opacity-75"
+        />
+      </span>
+      <span className="relative z-[1] -ml-5 pl-6">{children}</span>
+    </span>
+  );
+}
+
+/** Full-height edge wash for list rows (flush to card right, fades left). */
+export function CurrencyFlagEdgeWash({
+  code,
+  className = "",
+}: {
+  code: AppCurrency;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`pointer-events-none absolute inset-y-0 right-0 z-0 w-[5.5rem] overflow-hidden ${className}`.trim()}
+      style={{
+        WebkitMaskImage: FLAG_EDGE_FADE_MASK,
+        maskImage: FLAG_EDGE_FADE_MASK,
+      }}
+      aria-hidden
+    >
+      <FlagSvg
+        code={code}
+        preserveAspectRatio="none"
+        className="absolute inset-0 h-full w-full opacity-55"
+      />
+    </span>
   );
 }

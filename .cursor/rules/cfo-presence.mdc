@@ -1,0 +1,31 @@
+---
+description: CFO Presence (ADR-0011) — pill → modal, note kinds, archive
+globs:
+  - src/lib/recommendations/**
+  - src/components/Cfo*.tsx
+  - src/app/(pwa)/recommendations/**
+  - docs/product/features/cfo-presence/**
+---
+
+# CFO Presence
+
+## Fuente de verdad
+
+1. `docs/product/features/cfo-presence/README.md`
+2. `docs/product/features/cfo-presence/business-rules.md`
+3. `docs/product/features/cfo-presence/technical-spec.md`
+4. `docs/decisions/ADR-0011-cfo-proactive-presence.md`
+
+## Invariantes
+
+- Sin cards de IA en el scroll del dashboard.
+- Pastilla fuera del scroll → modal; historial releyible.
+- Reglas eligen; IA solo redacta.
+- Sin chat / push / audio en Fase 1.
+- Guidance no se fusiona.
+
+## Prohibido
+
+- Action cards dentro del scroll de Inicio.
+- LLM eligiendo candidatas.
+- Inventar cifras fuera de `facts`.

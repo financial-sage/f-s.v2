@@ -35,10 +35,10 @@ Implementación y rutas: [technical-spec.md](./technical-spec.md). Decisión: [A
 ## UX / Dashboard
 
 18. El **scroll** de Dashboard Solo/Couple **no** incorpora cards, banners ni strips de recomendaciones.
-19. La entrada en Inicio es un **aviso suave fuera del scroll** (chip / franja fija bajo header o anclaje sobre bottom nav / safe area).
-20. El detalle y la lista viven en superficie dedicada (`/recommendations` o sección acordada en technical-spec); enlace también desde Perfil.
+19. La entrada en Inicio es la **pastilla CFO** fuera del scroll → modal (ADR-0011); el soft notice chip queda absorbido.
+20. El detalle, la lista y el **historial** viven en `/recommendations` (Notas: Activas | Anteriores); enlace también desde Perfil.
 21. No se añade ítem nuevo a BottomNav en Fase 1 salvo decisión explícita posterior.
-22. Tocando el aviso suave → lista o detalle de recomendaciones activas (no abre chat).
+22. Tocando la pastilla → modal con la nota prioritaria (no abre chat).
 
 ## Balances (Fases 2–3)
 

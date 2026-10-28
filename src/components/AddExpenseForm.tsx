@@ -986,9 +986,7 @@ export default function AddExpenseForm({
     const finalAmount = parseFloat(amount.toString().replace(/,/g, "."));
 
     if (isNaN(finalAmount) || finalAmount <= 0) {
-      const message = "El importe debe ser mayor a 0";
-      setErrorMessage(message);
-      window.alert(message);
+      setErrorMessage("El importe debe ser mayor a 0");
       return;
     }
 

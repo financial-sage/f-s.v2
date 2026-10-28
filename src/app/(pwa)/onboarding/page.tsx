@@ -119,21 +119,18 @@ export default function OnboardingPage() {
         });
 
         if (state.familyId) {
-          if (!firstRun.setupCompleted || forceSetup) {
-            setMode(firstRun.mode ?? (state.familyMemberCount >= 2 ? "couple" : "individual"));
-            setStep("setup_theme");
-            try {
-              const funds = await listFamilyFundsAction();
-              const personal = getPersonalFund(funds, state.userId);
-              setHasDefaultPersonalFund(Boolean(personal));
-            } catch {
-              setHasDefaultPersonalFund(true);
-            }
-          } else {
-            router.replace("/");
-            return;
-          }
-        } else if (forceSetup) {
+          // Already in a household (cloned prod, rejoined, etc.): go home.
+          // Never keep ?step=setup bouncing with FirstRunGate.
+          markSetupCompleted(
+            state.userId,
+            firstRun.mode ??
+              (state.familyMemberCount >= 2 ? "couple" : "individual")
+          );
+          router.replace("/");
+          return;
+        }
+
+        if (forceSetup) {
           setStep("welcome");
         }
       } catch (err) {
@@ -343,10 +340,9 @@ export default function OnboardingPage() {
                     <p className="text-[13px] font-medium">Si lo usas individual</p>
                   </div>
                   <p className="text-[13px] font-light leading-relaxed text-on-surface-variant">
-                    Es tu espacio personal. Registras ingresos, apartas en bolsillos (ocio,
-                    casa, viajes…), llevas el ahorro y los gastos fijos, y ves en un vistazo
-                    cuánto te queda. Ideal para ordenar el mes a tu manera, sin depender de
-                    nadie más.
+                    Es tu espacio personal. La cuenta es el banco; los bolsillos organizan el
+                    gasto del mes (ocio, casa, viajes…); el ahorro es lo que apartas y no
+                    tocas. Ves en un vistazo cuánto te queda, a tu ritmo.
                   </p>
                 </div>
 
@@ -700,8 +696,10 @@ export default function OnboardingPage() {
               <h1 className="text-[1.55rem] font-light tracking-tight text-on-surface">
                 Tu primera cuenta
               </h1>
-              <p className="text-[13px] font-light text-on-surface-variant">
-                Empezamos con efectivo; luego puedes añadir el banco o la nómina.
+              <p className="text-[13px] font-light leading-relaxed text-on-surface-variant">
+                La cuenta es el banco: dónde vive el dinero. Empezamos con efectivo; luego
+                puedes añadir la nómina u otra cuenta. Después lo organizas en bolsillos y
+                ahorro.
               </p>
               <label className="block text-[11px] font-light text-on-surface-variant">
                 Nombre
@@ -737,10 +735,10 @@ export default function OnboardingPage() {
               <h1 className="text-[1.55rem] font-light tracking-tight text-on-surface">
                 Tu bolsillo de gasto
               </h1>
-              <p className="text-[13px] font-light text-on-surface-variant">
+              <p className="text-[13px] font-light leading-relaxed text-on-surface-variant">
                 {mode === "couple"
-                  ? "Pueden usar el bolsillo común o crear uno con nombre (gasolina, casa…)."
-                  : "Usa tu bolsillo personal o crea uno con nombre para un gasto concreto."}
+                  ? "El bolsillo es para gastar el mes: no es el banco ni el ahorro. Pueden usar el común o crear uno con nombre (gasolina, casa…)."
+                  : "El bolsillo es para gastar el mes: no es el banco ni el ahorro. Usa tu bolsillo personal o crea uno con nombre para un gasto concreto."}
               </p>
 
               {hasDefaultPersonalFund || mode === "couple" ? (
@@ -791,21 +789,30 @@ export default function OnboardingPage() {
                       placeholder={mode === "couple" ? "Casa, viajes…" : "Restaurantes, ocio…"}
                     />
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {FUND_COLOR_OPTIONS.slice(0, 8).map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setFundColor(opt.value)}
-                        className={`h-8 w-8 rounded-full ring-2 transition-shadow ${
-                          fundColor === opt.value
-                            ? "ring-[#c4a574] ring-offset-2 ring-offset-surface-lowest"
-                            : "ring-transparent"
-                        }`}
-                        style={{ backgroundColor: opt.value }}
-                        aria-label={opt.label}
-                      />
-                    ))}
+                  <div className="overflow-hidden rounded-lg border border-glass-border">
+                    <div className="grid grid-cols-8 gap-px bg-outline-variant/25">
+                      {FUND_COLOR_OPTIONS.map((opt) => {
+                        const selected = fundColor === opt.value;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setFundColor(opt.value)}
+                            className="relative h-6 w-full"
+                            style={{ backgroundColor: opt.value }}
+                            aria-label={opt.label}
+                            aria-pressed={selected}
+                          >
+                            {selected ? (
+                              <span
+                                className="absolute inset-0 ring-2 ring-inset ring-white/95"
+                                aria-hidden
+                              />
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : null}

@@ -23,20 +23,17 @@ import {
     ReceiptText,
     ShoppingBag,
     Sparkles,
-    Star,
     Trash2,
     Wallet,
     X,
     type LucideIcon,
 } from "lucide-react";
 import {
-    createFundAction,
     depositToFundAction,
     getFamilyFundsMetaAction,
-    setDefaultFundAction,
-    updateFundAction,
 } from "@/app/actions/funds";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
+import FundEditorModal from "@/components/FundEditorModal";
 import FundTransferSheet from "@/components/FundTransferSheet";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { Portal } from "@/components/ui/Portal";
@@ -48,12 +45,10 @@ import { tintedGlassGradient } from "@/lib/glass";
 import {
     calculateSoloPersonalFundBalance,
     DEFAULT_PERSONAL_FUND_COLOR,
-    FUND_COLOR_OPTIONS,
     fundIconChipStyle,
     getPersonalFund,
     listSoloDashboardFunds,
     personalFundDisplayName,
-    resolveFundColor,
     resolveFundUiColor,
     type FamilyFund,
 } from "@/lib/funds";
@@ -142,17 +137,17 @@ export default function DashboardSolo({
             {
                 target: "dash-balance",
                 title: "Tu saldo del bolsillo",
-                body: "Aquí ves cuánto tienes disponible en el bolsillo seleccionado. Toca el icono para cambiar o crear bolsillos.",
+                body: "Es el dinero del bolsillo activo para gastar el mes — no el total del banco. Toca el icono para cambiar o crear bolsillos.",
             },
             {
                 target: "dash-actions",
                 title: "Acciones del día a día",
-                body: "Registra un gasto, aporta dinero o transfiere entre bolsillos en un momento.",
+                body: "Registra un gasto, carga el bolsillo o transfiere entre bolsillos en un momento.",
             },
             {
                 target: "dash-modules",
                 title: "Cuentas, ahorro y fijos",
-                body: "Desde aquí entras a tus cuentas bancarias, al colchón de ahorro y a los pagos fijos del mes.",
+                body: "La cuenta es el banco; el bolsillo organiza el gasto; el ahorro es lo que apartas. Desde aquí entras a cuentas, ahorro y pagos fijos.",
             },
             {
                 target: "bottom-nav",
@@ -182,13 +177,7 @@ export default function DashboardSolo({
     const userPickedFundRef = useRef(false);
     const [showFundsMenu, setShowFundsMenu] = useState(false);
     const [showCreateFundModal, setShowCreateFundModal] = useState(false);
-    const [isCreateFundAnimated, setIsCreateFundAnimated] = useState(false);
     const [editingFund, setEditingFund] = useState<FamilyFund | null>(null);
-    const [newFundName, setNewFundName] = useState("");
-    const [newFundColor, setNewFundColor] = useState(DEFAULT_PERSONAL_FUND_COLOR);
-    const [newFundIsDefault, setNewFundIsDefault] = useState(false);
-    const [fundActionError, setFundActionError] = useState("");
-    const [isSavingFund, startSaveFundTransition] = useTransition();
     const [showFundTransfer, setShowFundTransfer] = useState(false);
     const [transferFromFundId, setTransferFromFundId] = useState<string | null>(null);
 
@@ -418,106 +407,10 @@ export default function DashboardSolo({
         setDepositError("");
     }
 
-    function openCreateFundModal() {
-        setFundActionError("");
-        setEditingFund(null);
-        setNewFundName("");
-        setNewFundColor(DEFAULT_PERSONAL_FUND_COLOR);
-        setNewFundIsDefault(false);
-        setShowFundsMenu(false);
-        setShowCreateFundModal(true);
-        requestAnimationFrame(() =>
-            requestAnimationFrame(() => setIsCreateFundAnimated(true))
-        );
-    }
-
     function openEditFundModal(fund: FamilyFund) {
-        setFundActionError("");
         setEditingFund(fund);
-        setNewFundName(personalFundDisplayName(fund));
-        setNewFundColor(resolveFundColor(fund));
-        setNewFundIsDefault(Boolean(fund.is_default));
         setShowFundsMenu(false);
         setShowCreateFundModal(true);
-        requestAnimationFrame(() =>
-            requestAnimationFrame(() => setIsCreateFundAnimated(true))
-        );
-    }
-
-    function closeCreateFundModal() {
-        setIsCreateFundAnimated(false);
-        window.setTimeout(() => {
-            setShowCreateFundModal(false);
-            setEditingFund(null);
-            setNewFundName("");
-            setFundActionError("");
-        }, 220);
-    }
-
-    function handleSaveFund() {
-        const name = newFundName.trim();
-        if (!name) {
-            setFundActionError("Escribe un nombre para el bolsillo.");
-            return;
-        }
-        setFundActionError("");
-        startSaveFundTransition(async () => {
-            try {
-                if (editingFund) {
-                    const onlyDefault =
-                        newFundIsDefault &&
-                        !editingFund.is_default &&
-                        name === editingFund.name &&
-                        newFundColor === (editingFund.color ?? newFundColor);
-
-                    if (onlyDefault) {
-                        const currentFunds = useFundsStore.getState().funds;
-                        const optimistic = currentFunds.map((f) => ({
-                            ...f,
-                            is_default: f.id === editingFund.id,
-                        }));
-                        useFundsStore.getState().setFunds(optimistic);
-                        userPickedFundRef.current = true;
-                        setSelectedFundId(editingFund.id);
-
-                        const { funds } = await setDefaultFundAction(editingFund.id);
-                        useFundsStore.getState().setFunds(funds);
-                    } else {
-                        const updated = await updateFundAction({
-                            fundId: editingFund.id,
-                            name,
-                            color: newFundColor,
-                            isDefault: newFundIsDefault,
-                        });
-                        const overview = await getFamilyFundsMetaAction();
-                        useFundsStore.getState().setFunds(overview.funds);
-                        userPickedFundRef.current = true;
-                        setSelectedFundId(updated.id);
-                    }
-                } else {
-                    const created = await createFundAction({
-                        name,
-                        scope: "personal",
-                        color: newFundColor,
-                        isDefault: newFundIsDefault,
-                    });
-                    const overview = await getFamilyFundsMetaAction();
-                    useFundsStore.getState().setFunds(overview.funds);
-                    userPickedFundRef.current = true;
-                    setSelectedFundId(created.id);
-                }
-                closeCreateFundModal();
-                // Fund meta does not change the expense ledger — skip refreshData.
-            } catch (err) {
-                setFundActionError(
-                    err instanceof Error
-                        ? err.message
-                        : editingFund
-                          ? "No se pudo actualizar el bolsillo."
-                          : "No se pudo crear el bolsillo."
-                );
-            }
-        });
     }
 
     function openFundTransfer() {
@@ -668,13 +561,13 @@ export default function DashboardSolo({
                                 onClick={() => setShowFundsMenu(false)}
                             />
                             <div className="absolute right-4 top-[4.75rem] z-50 flex w-[17.5rem] max-h-[min(70dvh,calc(100dvh-4.75rem-var(--fab-clearance)-1rem))] flex-col overflow-hidden rounded-2xl border-[0.5px] border-outline-variant/25 bg-glass-soft shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pb-1 pt-2.5">
+                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-1 pt-2">
                                     {personalFunds.length === 0 ? (
-                                        <p className="px-3 py-4 text-sm text-on-surface-variant">
+                                        <p className="px-3 py-3 text-sm text-on-surface-variant">
                                             Aún no hay bolsillos.
                                         </p>
                                     ) : (
-                                        <div className="flex flex-col gap-1.5">
+                                        <div className="flex flex-col gap-1">
                                             {personalFunds.map((fund) => {
                                                 const balance = calculateSoloPersonalFundBalance(
                                                     isHydrated && storeExpenses.length > 0
@@ -693,25 +586,21 @@ export default function DashboardSolo({
                                                 return (
                                                     <div
                                                         key={fund.id}
-                                                        className={`flex w-full items-center gap-1 rounded-2xl px-1 py-0.5 transition-colors ${
+                                                        className={`flex w-full items-center overflow-hidden rounded-xl transition-[box-shadow,transform,border-color] ${
                                                             isActive
-                                                                ? "bg-glass shadow-sm"
-                                                                : "hover:bg-glass-soft"
+                                                                ? "border border-transparent shadow-[0_6px_16px_rgba(43,52,55,0.14)]"
+                                                                : "border border-transparent hover:brightness-[1.02]"
                                                         }`}
                                                         style={
                                                             isActive
                                                                 ? {
-                                                                      backgroundImage:
-                                                                          tintedGlassGradient(
-                                                                              fundColor,
-                                                                              {
-                                                                                  soft: true,
-                                                                                  midAlpha: "14",
-                                                                                  endOnly: true,
-                                                                              }
-                                                                          ),
+                                                                      backgroundImage: `linear-gradient(to left, ${fundColor}88 0%, ${fundColor}28 42%, transparent 88%)`,
+                                                                      borderColor: `${fundColor}99`,
+                                                                      boxShadow: `0 6px 16px ${fundColor}33, 0 2px 6px rgba(43,52,55,0.08)`,
                                                                   }
-                                                                : undefined
+                                                                : {
+                                                                      backgroundColor: `${fundColor}12`,
+                                                                  }
                                                         }
                                                     >
                                                         <button
@@ -721,26 +610,24 @@ export default function DashboardSolo({
                                                                 setSelectedFundId(fund.id);
                                                                 setShowFundsMenu(false);
                                                             }}
-                                                            className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl px-2.5 py-3 text-left"
+                                                            className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2.5 py-2 text-left"
                                                         >
-                                                            <span className="flex min-w-0 items-center gap-2.5">
-                                                                <span
-                                                                    className="h-3 w-3 shrink-0 rounded-full ring-1 ring-black/10"
-                                                                    style={{
-                                                                        backgroundColor: fundColor,
-                                                                    }}
-                                                                />
-                                                                <span
-                                                                    className={`truncate text-sm ${
-                                                                        isActive
-                                                                            ? "font-semibold text-on-surface"
-                                                                            : "font-medium text-on-surface"
-                                                                    }`}
-                                                                >
-                                                                    {displayName}
-                                                                </span>
+                                                            <span
+                                                                className={`min-w-0 truncate text-[13px] ${
+                                                                    isActive
+                                                                        ? "font-semibold text-on-surface"
+                                                                        : "font-medium text-on-surface"
+                                                                }`}
+                                                            >
+                                                                {displayName}
                                                             </span>
-                                                            <span className="shrink-0 text-xs font-medium text-on-surface-variant">
+                                                            <span
+                                                                className={`shrink-0 text-[11px] font-medium tabular-nums ${
+                                                                    isActive
+                                                                        ? "text-on-surface"
+                                                                        : "text-on-surface-variant"
+                                                                }`}
+                                                            >
                                                                 {balanceVisible
                                                                     ? <FormattedCurrency value={balance} />
                                                                     : "••••"}
@@ -752,11 +639,11 @@ export default function DashboardSolo({
                                                                 e.stopPropagation();
                                                                 openEditFundModal(fund);
                                                             }}
-                                                            className="mr-1 shrink-0 rounded-xl p-2 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
+                                                            className="mr-1 shrink-0 rounded-lg p-1.5 text-outline-variant transition-colors hover:bg-glass-strong hover:text-on-surface"
                                                             aria-label={`Editar ${displayName}`}
                                                             title="Editar"
                                                         >
-                                                            <Edit size={14} strokeWidth={2.1} />
+                                                            <Edit size={13} strokeWidth={2.1} />
                                                         </button>
                                                     </div>
                                                 );
@@ -764,16 +651,14 @@ export default function DashboardSolo({
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex shrink-0 justify-center px-2.5 pb-3 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={openCreateFundModal}
-                                        className="fab-ink flex h-11 w-11 items-center justify-center rounded-full shadow-[0_8px_18px_rgba(43,52,55,0.18)] transition-transform active:scale-95"
-                                        aria-label="Crear bolsillo"
-                                        title="Crear bolsillo"
+                                <div className="flex shrink-0 justify-center px-2 pb-2.5 pt-1.5">
+                                    <Link
+                                        href="/bolsillos"
+                                        onClick={() => setShowFundsMenu(false)}
+                                        className="rounded-full border border-glass-border bg-glass-soft px-3 py-1.5 text-[11px] font-medium text-on-surface transition-colors hover:bg-glass"
                                     >
-                                        <Plus size={20} strokeWidth={2.4} />
-                                    </button>
+                                        Administrar bolsillos
+                                    </Link>
                                 </div>
                             </div>
                         </>
@@ -1125,6 +1010,7 @@ export default function DashboardSolo({
                 isOpen={showDeposit}
                 title={`Cargar ${heroTitle}`}
                 subtitle={heroTitle}
+                hint="También puedes hacerlo desde Cuentas → Transferir (banco → bolsillo)."
                 accentColor={heroColor}
                 initialValue={depositAmount || "0"}
                 errorMessage={showDeposit ? depositError : undefined}
@@ -1152,123 +1038,21 @@ export default function DashboardSolo({
                 }}
             />
 
-            {showCreateFundModal && (
-                <Portal>
-                    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
-                        <div
-                            className={`absolute inset-0 bg-on-surface/50 backdrop-blur-sm transition-opacity duration-300 ${
-                                isCreateFundAnimated ? "opacity-100" : "opacity-0"
-                            }`}
-                            onClick={closeCreateFundModal}
-                        />
-                        <div
-                            className={`glass-modal relative m-4 w-full max-w-sm overflow-hidden rounded-[1.75rem] p-5 transition-all duration-300 ${
-                                isCreateFundAnimated
-                                    ? "translate-y-0 opacity-100"
-                                    : "translate-y-6 opacity-0"
-                            }`}
-                        >
-                            <button
-                                type="button"
-                                onClick={closeCreateFundModal}
-                                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-glass-border bg-surface-low text-on-surface-variant shadow-sm"
-                                aria-label="Cerrar"
-                            >
-                                <X size={14} />
-                            </button>
-                            <h3 className="pr-8 text-base font-semibold tracking-tight text-on-surface">
-                                {editingFund ? "Editar bolsillo" : "Crear bolsillo"}
-                            </h3>
-                            <p className="mt-0.5 text-xs text-on-surface-variant">
-                                Organiza tu dinero en bolsillos personales.
-                            </p>
-                            <label className="mt-4 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
-                                Nombre
-                            </label>
-                            <input
-                                autoFocus
-                                value={newFundName}
-                                onChange={(e) => setNewFundName(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") handleSaveFund();
-                                }}
-                                placeholder="Ej. Gasolina, Comida..."
-                                className="mt-1.5 w-full rounded-2xl border border-glass-border bg-surface-low px-3.5 py-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant focus:ring-2 focus:ring-accent/30"
-                            />
-                            <label className="mt-3.5 block text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
-                                Color
-                            </label>
-                            <div className="mt-2 grid grid-cols-6 gap-2">
-                                {FUND_COLOR_OPTIONS.map((option) => {
-                                    const isSelected = newFundColor === option.value;
-                                    return (
-                                        <button
-                                            key={option.id}
-                                            type="button"
-                                            onClick={() => setNewFundColor(option.value)}
-                                            title={option.label}
-                                            aria-label={option.label}
-                                            className={`mx-auto h-8 w-8 rounded-full shadow-sm transition-transform ${
-                                                isSelected
-                                                    ? "scale-110 ring-2 ring-accent ring-offset-2 ring-offset-[var(--sheet-from)]"
-                                                    : "hover:scale-105"
-                                            }`}
-                                            style={{ backgroundColor: option.value }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setNewFundIsDefault((v) => !v)}
-                                className={`mt-3.5 flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors ${
-                                    newFundIsDefault
-                                        ? "border-accent/35 bg-accent/10"
-                                        : "border-glass-border bg-surface-low hover:bg-surface-container"
-                                }`}
-                                aria-pressed={newFundIsDefault}
-                            >
-                                <span
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                                        newFundIsDefault
-                                            ? "bg-accent/20 text-accent"
-                                            : "bg-surface-container text-on-surface-variant"
-                                    }`}
-                                >
-                                    <Star
-                                        size={16}
-                                        className={newFundIsDefault ? "fill-accent" : undefined}
-                                    />
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-sm font-medium text-on-surface">
-                                        Bolsillo principal
-                                    </span>
-                                    <span className="mt-0.5 block text-[11px] text-on-surface-variant">
-                                        Se usa por defecto al registrar gastos.
-                                    </span>
-                                </span>
-                            </button>
-                            {fundActionError ? (
-                                <p className="alert-error mt-3 rounded-xl px-3 py-2 text-xs">
-                                    {fundActionError}
-                                </p>
-                            ) : null}
-                            <button
-                                type="button"
-                                disabled={isSavingFund}
-                                onClick={handleSaveFund}
-                                className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-on-primary disabled:opacity-60"
-                            >
-                                {isSavingFund ? (
-                                    <LoaderCircle size={16} className="animate-spin" />
-                                ) : null}
-                                {editingFund ? "Guardar" : "Crear bolsillo"}
-                            </button>
-                        </div>
-                    </div>
-                </Portal>
-            )}
+            <FundEditorModal
+                open={showCreateFundModal}
+                onClose={() => {
+                    setShowCreateFundModal(false);
+                    setEditingFund(null);
+                }}
+                editingFund={editingFund}
+                createScope="personal"
+                defaultLabel="principal"
+                onSaved={({ fund, funds }) => {
+                    useFundsStore.getState().setFunds(funds);
+                    userPickedFundRef.current = true;
+                    setSelectedFundId(fund.id);
+                }}
+            />
 
             <ProductTour open={dashTour.open} steps={dashTour.steps} onClose={dashTour.close} />
         </div>

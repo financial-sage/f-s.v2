@@ -24,10 +24,26 @@ import {
   getPersonalFund,
   personalFundDisplayName,
 } from "@/lib/funds";
-import { isIndividualHousehold } from "@/lib/household";
+import {
+  buildFundMonthHistory,
+  buildFundMonthStats,
+  displayFundNameForBalance,
+  firstName,
+  isBalanceReportFund,
+  listFundSpendsInWindow,
+  listMonthKeys,
+  monthWindow,
+  pickTopMovers,
+  type FundBalanceExpense,
+  type FundMonthHistoryPoint,
+  type FundMonthStats,
+  type FundRecentMovement,
+} from "@/lib/funds-balance";
+import { isIndividualHousehold, isMultiMember } from "@/lib/household";
 import { perfLog, perfNow } from "@/lib/perf";
 import {
   getRequestFamilyId,
+  getRequestFamilyMemberCount,
   requireRequestFamilyId,
   requireRequestUser,
 } from "@/lib/request-context";
@@ -41,6 +57,7 @@ function revalidateFundPaths(options?: { includeHome?: boolean; includeFixed?: b
   if (options?.includeHome) revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/profile");
+  revalidatePath("/bolsillos");
   if (options?.includeFixed) revalidatePath("/fixed-expenses");
 }
 
@@ -904,5 +921,143 @@ export async function getFundsOverviewAction() {
     personalFundId: getPersonalFund(funds, user.id)?.id ?? null,
     sharedDefaultFundId: defaultShared?.id ?? null,
     fixedExpensesFundId: fixedFund?.id ?? null,
+  };
+}
+
+export type BolsillosFundRow = {
+  fund: FamilyFund;
+  balance: number;
+  displayName: string;
+  stats: FundMonthStats;
+  /** Last 6 calendar months (current first). */
+  history: FundMonthHistoryPoint[];
+  /** Spends inside the same 6-month window (client filters by month). */
+  movements: FundRecentMovement[];
+};
+
+export type BolsillosBalanceOverview = {
+  monthKey: string;
+  monthLabel: string;
+  historyMonthKeys: string[];
+  totalSpentThisMonth: number;
+  totalSpentLastMonth: number;
+  totalDelta: number;
+  totalDeltaPct: number | null;
+  prevMonthEmpty: boolean;
+  isCouple: boolean;
+  funds: BolsillosFundRow[];
+  topUp: FundMonthStats[];
+  topDown: FundMonthStats[];
+  personalFundId: string | null;
+  sharedDefaultFundId: string | null;
+};
+
+export async function getBolsillosBalanceAction(): Promise<BolsillosBalanceOverview> {
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+  const admin = getSupabaseAdminClient();
+  const { monthKey, prevMonthKey, monthLabel } = monthWindow();
+  const historyMonthKeys = listMonthKeys(6);
+
+  const [funds, memberCount, membersResult, expensesResult] = await Promise.all([
+    getFamilyFundsFast(familyId),
+    getRequestFamilyMemberCount(familyId),
+    admin.from("profiles").select("id, full_name").eq("family_id", familyId),
+    admin
+      .from("expenses")
+      .select(
+        "id, amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, transfer_group_id, is_active, is_settled, expense_date"
+      )
+      .eq("family_id", familyId)
+      .eq("is_active", true),
+  ]);
+
+  if (expensesResult.error) {
+    throw new Error(expensesResult.error.message || "No se pudieron cargar los gastos.");
+  }
+
+  const rows = (expensesResult.data ?? []) as FundBalanceExpense[];
+  const nameById: Record<string, string> = {};
+  for (const member of membersResult.data ?? []) {
+    const row = member as { id: string; full_name?: string | null };
+    nameById[row.id] = firstName(row.full_name);
+  }
+
+  const defaultShared = getDefaultSharedFund(funds);
+  const personal = getPersonalFund(funds, user.id);
+  const isCouple = isMultiMember(memberCount);
+
+  const visible = funds
+    .filter(isBalanceReportFund)
+    .filter((f) => f.scope === "shared" || f.owner_profile_id === user.id)
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+
+  const fundRows: BolsillosFundRow[] = visible.map((fund) => {
+    const displayName = displayFundNameForBalance(fund, personal?.id ?? null);
+    const stats = buildFundMonthStats({
+      fund,
+      displayName,
+      expenses: rows,
+      monthKey,
+      prevMonthKey,
+      includeByPayer: isCouple,
+      nameById,
+    });
+    return {
+      fund,
+      displayName,
+      balance: calculateFundCashBalance(rows, fund.id, {
+        treatLegacyJointAsFundId: defaultShared?.id ?? null,
+      }),
+      stats,
+      history: buildFundMonthHistory({
+        expenses: rows,
+        fundId: fund.id,
+        monthKeys: historyMonthKeys,
+        includeByPayer: isCouple,
+        nameById,
+      }),
+      movements: listFundSpendsInWindow(
+        rows,
+        fund.id,
+        historyMonthKeys,
+        nameById,
+        120
+      ),
+    };
+  });
+
+  const statsList = fundRows.map((row) => row.stats);
+  const totalSpentThisMonth = Math.round(
+    statsList.reduce((s, st) => s + st.spentThisMonth, 0) * 100
+  ) / 100;
+  const totalSpentLastMonth = Math.round(
+    statsList.reduce((s, st) => s + st.spentLastMonth, 0) * 100
+  ) / 100;
+  const totalDelta = Math.round((totalSpentThisMonth - totalSpentLastMonth) * 100) / 100;
+  const prevMonthEmpty = totalSpentLastMonth <= 0.009;
+  const totalDeltaPct =
+    prevMonthEmpty || totalSpentLastMonth === 0
+      ? null
+      : Math.round(((totalSpentThisMonth - totalSpentLastMonth) / totalSpentLastMonth) * 1000) /
+        10;
+
+  const { topUp, topDown } = pickTopMovers(statsList, 3);
+
+  return {
+    monthKey,
+    monthLabel,
+    historyMonthKeys,
+    totalSpentThisMonth,
+    totalSpentLastMonth,
+    totalDelta,
+    totalDeltaPct,
+    prevMonthEmpty,
+    isCouple,
+    funds: fundRows,
+    topUp,
+    topDown,
+    personalFundId: personal?.id ?? null,
+    sharedDefaultFundId: defaultShared?.id ?? null,
   };
 }

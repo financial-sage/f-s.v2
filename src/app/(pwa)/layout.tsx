@@ -9,7 +9,7 @@ import RealtimeSync from "@/components/RealtimeSync";
 import StoreHydrator from "@/components/StoreHydrator";
 import FirstRunGate from "@/components/FirstRunGate";
 import PartnerFirstMoveCelebration from "@/components/PartnerFirstMoveCelebration";
-import RecommendationsSoftNotice from "@/components/RecommendationsSoftNotice";
+import CfoPresenceHost from "@/components/CfoPresenceHost";
 import AppShellScrollLock from "@/components/AppShellScrollLock";
 
 export const metadata: Metadata = {
@@ -69,8 +69,8 @@ export default function PwaLayout({
         <PageTransition>{children}</PageTransition>
       </main>
       <FamilyNavProvider />
-      {/* Above BottomNav (z-50) so the recommendations chip stays tappable. */}
-      <RecommendationsSoftNotice />
+      {/* Above BottomNav (z-50): CFO presence pill → modal (ADR-0011). */}
+      <CfoPresenceHost />
     </ExpenseModalProvider>
   );
 }

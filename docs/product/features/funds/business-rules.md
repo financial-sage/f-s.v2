@@ -55,3 +55,12 @@
 
 29. Mientras existan filas legacy con `responsible_for = 'joint_fund'` y sin `fund_id`, el sistema las trata como pertenecientes al fondo compartido default tras el backfill.
 30. El literal `joint_fund` deja de ser la identidad de bolsillo; la identidad es `family_funds.id`.
+
+## Balance de bolsillos (`/bolsillos`)
+
+31. El informe de gasto del mes cuenta gastos activos imputados a un `fund_id` de bolsillo de gasto (excluye Ahorro y Gastos fijos, que tienen pantallas propias).
+32. No cuentan como gasto del informe: `deposit`, `withdrawal`, ni movimientos con `transfer_group_id` (transferencias entre cajas).
+33. El periodo es el mes calendario actual frente al mes calendario anterior (Δ en € y % si el mes anterior tuvo gasto).
+34. En hogares de pareja, el desglose “quién” usa `paid_by` (quien registró/pagó), no `responsible_for`.
+35. En hogares individuales no se muestra desglose por persona.
+36. La admin (crear, aportar, transferir, archivar) convive en la misma ruta bajo la sección Administrar.

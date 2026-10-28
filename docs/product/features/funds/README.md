@@ -18,6 +18,7 @@ Esta Feature generaliza el comportamiento histórico del **fondo común** para p
 | Transferencias | Sí, entre fondos de la misma familia |
 | Aportes | Directos a cada fondo |
 | Desde cuentas | También pueden recibir **transferencias desde cuentas** (feature Accounts); ambos caminos coexisten |
+| Balance | Ruta `/bolsillos`: gasto del mes por bolsillo, Δ vs mes anterior, desglose por quien pagó (pareja) y admin |
 
 ---
 
@@ -64,6 +65,8 @@ Un gasto de restaurante puede imputarse al fondo “Restaurantes” y a la categ
 # Experiencias
 
 - Ver saldos por fondo en el Dashboard.
+- Abrir **`/bolsillos`**: informe del mes (total gastado + Δ vs mes anterior + top bolsillos que subieron/bajaron).
+- En cada bolsillo: saldo, gastado del mes, Δ MoM; en pareja, quién pagó más (`paid_by`).
 - Crear fondos compartidos adicionales.
 - Aportar directamente a un fondo.
 - Recibir transferencias desde una cuenta (Accounts).
@@ -71,3 +74,10 @@ Un gasto de restaurante puede imputarse al fondo “Restaurantes” y a la categ
 - Transferir entre fondos.
 - Transferir de un fondo hacia una cuenta.
 - Liquidar deudas persona ↔ fondo compartido.
+
+---
+
+# Documentos
+
+- [business-rules.md](./business-rules.md)
+- [technical-spec.md](./technical-spec.md)

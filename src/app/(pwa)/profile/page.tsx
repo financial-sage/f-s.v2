@@ -276,7 +276,7 @@ export default async function ProfilePage() {
                   <Sparkles size={16} />
                 </div>
                 <span className="text-sm font-medium text-on-surface">
-                  Recomendaciones
+                  Notas para ti
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-light text-on-surface-variant">

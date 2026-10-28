@@ -163,11 +163,11 @@ Principio: *la mejor respuesta no es la del modelo solo, sino la que combina cor
 | Capacidad | En documentación / estado |
 | --- | --- |
 | **IA contextual en Inicio** | **Guidance V1 cerrada** (ADR-0008): explicaciones deterministas (“¿Por qué?”), modal + `/guidance` — **sin chat ni LLM**. |
-| **Recomendaciones persistentes** | **Definido** (ADR-0009): reglas eligen candidatas; **IA solo redacta** CARE; aviso suave fuera del scroll; aceptar / posponer / descartar. Fases: recs → balance mes vs mes → informe de periodo (3/6/12) bajo demanda. **Sin chat.** |
+| **Recomendaciones / Notas CFO** | **ADR-0009 + ADR-0011**: reglas eligen hallazgos; **IA solo redacta** CARE; kinds (`recommendation`, `alert`, `summary`, `nudge`, `celebration`); pastilla decorativa → modal; historial Activas \| Anteriores. Fases posteriores: push, proyecciones/scores, tono/audio. **Sin chat.** |
 | **Conversación / AI Assistant** | Visión de producto: chat contextual como copiloto. **Aplazado** (no es el siguiente foco). |
 | **Simulador de decisiones** | Capacidad de producto documentada; exploración de escenarios (“¿qué pasaría si…?”). |
 
-En resumen: **hoy** Guidance explica con honestidad lo que el sistema ya sabe; **siguiente** Recommendations propone y recuerda (con IA de redacción) e incorpora balances en el tiempo; la conversación libre queda para después — siempre sin decidir por la familia ni inventar hechos.
+En resumen: **hoy** Guidance explica el mapa; **CFO Presence** (evolución de Recommendations) entrega notas vivas fuera del scroll con historial releyible; la conversación libre queda para después — siempre sin decidir por la familia ni inventar hechos.
 
 ---
 

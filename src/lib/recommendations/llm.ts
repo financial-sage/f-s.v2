@@ -36,21 +36,30 @@ export async function draftCopyWithLlm(
     : "Si mencionas un importe, usa exactamente un valor de los hechos con su símbolo de moneda.";
 
   const model = getOpenAIModel();
+  const kind = candidate.kind ?? "recommendation";
   const ruleBrief =
     candidate.ruleId === "welcome_panel"
-      ? `Esta es la PRIMERA recomendación de bienvenida (perfil recién creado, sin movimientos).
-Explica para qué sirve ESTE panel de recomendaciones: proponer pasos concretos con el tiempo, anclados a hechos reales (cuentas, bolsillos, ahorro, ritmo), sin chat y sin inventar urgencias.
-Cuenta qué puede esperar de la app en las próximas semanas: al registrar ingresos/gastos/ahorro aparecerán sugerencias útiles; hoy solo da la bienvenida y calma.
-No critiques saldos a cero ni pidas “arreglar cuentas” como si hubiera un problema.
-tone: cálido, breve, educativo. No inventes importes.`
-      : `Redacta UNA recomendación accionable sobre la situación actual.`;
+      ? `Esta es la PRIMERA nota de bienvenida (perfil recién creado, sin movimientos).
+Explica para qué sirven estas notas: avisos, empujones, logros y sugerencias anclados a hechos reales, sin chat y sin inventar urgencias.
+Cuenta qué puede esperar en las próximas semanas. Hoy solo da la bienvenida y calma.
+No critiques saldos a cero. tone: cálido, breve, educativo. No inventes importes.`
+      : kind === "celebration"
+        ? `Redacta una CELEBRACIÓN breve de un hito real. Tono alegre pero sobrio (sin emojis excesivos ni dramatismo). No pidas acción urgente.`
+        : kind === "summary"
+          ? `Redacta un RESUMEN narrativo corto del periodo (pulso). Explica qué está pasando con claridad; una sola pista de siguiente paso al final.`
+          : kind === "nudge"
+            ? `Redacta un EMPUJÓN suave (nudge): conecta el hecho con un ajuste pequeño posible. Sin culpa ni alarmismo.`
+            : kind === "alert"
+              ? `Redacta un AVISO temprano con contexto y una acción posible. Calma primero; nada de panico ni lenguaje de crisis.`
+              : `Redacta UNA recomendación accionable sobre la situación actual.`;
 
   try {
     const openai = getOpenAIClient();
-    const prompt = `Eres el copiloto de SinDescuadre (finanzas en pareja/familia). Tono CARE: claridad, acción, tranquilidad, sin culpa ni alarmismo.
+    const prompt = `Eres el acompañante silencioso de SinDescuadre (finanzas en pareja/familia). Tono CARE: claridad, acción, tranquilidad, sin culpa ni alarmismo. Hablas solo cuando hay algo valioso que decir. Nunca te presentes como “CFO” ni uses jerga corporativa.
 
 ${localeBlock}
 
+Tipo de nota (kind): ${kind}
 Regla de candidata: ${candidate.ruleId}
 Prioridad: ${candidate.priority}
 ${ruleBrief}
@@ -61,9 +70,23 @@ Devuelve SOLO JSON válido con esta forma:
 {"title":"…","body":"…","why":["…","…"],"impact":"…"}
 
 title: máximo ~60 caracteres.
-body: 2-3 frases${candidate.ruleId === "welcome_panel" ? " de bienvenida y orientación (no una alarma)" : ", acción concreta posible"}.
+body: 2-3 frases${
+      candidate.ruleId === "welcome_panel"
+        ? " de bienvenida y orientación (no una alarma)"
+        : kind === "celebration"
+          ? " de reconocimiento del logro"
+          : kind === "summary"
+            ? " de narrativa del periodo"
+            : ", con contexto y siguiente paso posible"
+    }.
 why: 1-3 bullets que citan hechos (sin inventar cifras).
-impact: 1 frase sobre el beneficio de ${candidate.ruleId === "welcome_panel" ? "usar este panel con el tiempo" : "actuar"}.
+impact: 1 frase sobre el beneficio de ${
+      candidate.ruleId === "welcome_panel"
+        ? "usar estas notas con el tiempo"
+        : kind === "celebration"
+          ? "reconocer el progreso"
+          : "actuar o entender"
+    }.
 No uses markdown. ${moneyHint}`;
 
     const response = await openai.chat.completions.create({

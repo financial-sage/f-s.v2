@@ -56,13 +56,13 @@ export default function SavingsPanel({
         target: "savings-hero",
         title: isIndividual ? "Tu colchón" : "El ahorro compartido",
         body: isIndividual
-          ? "Aquí acumulas lo que apartas del día a día. No es para gastos sueltos: es tu reserva."
-          : "Aquí ven juntos lo que han apartado. Misma cifra, mismos acuerdos.",
+          ? "El ahorro es lo que apartas y no tocas: no es un bolsillo de gasto del mes. Aquí construyes tu reserva."
+          : "El ahorro es lo que apartan y no tocan: no es un bolsillo de gasto del mes. Misma cifra, mismos acuerdos.",
       },
       {
         target: "savings-contribute",
         title: "Aportar",
-        body: "Puedes mover dinero desde una cuenta, un bolsillo o registrar un ingreso externo.",
+        body: "Puedes mover dinero desde una cuenta o un bolsillo de gasto, o registrar un aporte directo.",
       },
     ],
     [isIndividual]
@@ -288,8 +288,8 @@ export default function SavingsPanel({
           {!overview?.recentMovements.length ? (
             <p className="rounded-2xl border border-dashed border-outline-variant/30 px-4 py-6 text-center text-sm text-on-surface-variant">
               {isIndividual
-                ? "Aún no hay aportes. Cuando organices el mes, aparta aquí el ahorro."
-                : "Aún no hay aportes. Cuando organicen el mes, aparten aquí el ahorro."}
+                ? "Aún no hay aportes. Cuando organices el mes, aparta aquí lo que no quieres tocar — distinto de los bolsillos de gasto."
+                : "Aún no hay aportes. Cuando organicen el mes, aparten aquí lo que no quieren tocar — distinto de los bolsillos de gasto."}
             </p>
           ) : (
             <ul className="space-y-1.5">

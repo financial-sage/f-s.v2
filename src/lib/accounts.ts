@@ -254,3 +254,65 @@ export function isPrivateForeignAccountMovement(
   if (account.visibility !== "private") return false;
   return account.owner_profile_id !== viewerUserId;
 }
+
+type AccountKindLookup =
+  | Map<string, Pick<FamilyAccount, "kind" | "currency_code">>
+  | Array<Pick<FamilyAccount, "id" | "kind" | "currency_code">>
+  | Record<string, Pick<FamilyAccount, "kind" | "currency_code">>;
+
+function lookupAccount(
+  accountsById: AccountKindLookup,
+  accountId: string
+): Pick<FamilyAccount, "kind" | "currency_code"> | undefined {
+  if (accountsById instanceof Map) return accountsById.get(accountId);
+  if (Array.isArray(accountsById)) {
+    return accountsById.find((account) => account.id === accountId);
+  }
+  return accountsById[accountId];
+}
+
+/**
+ * Ledger rows on an investment account stay in that investment’s own history —
+ * not in Historial general / Dashboard (ADR-0010 isolation).
+ * Checking↔investment transfers still show the liquidity leg (checking account_id).
+ */
+export function isInvestmentAccountMovement(
+  expense: Pick<AccountExpenseLike, "account_id">,
+  accountsById: AccountKindLookup
+): boolean {
+  const accountId = expense.account_id;
+  if (!accountId) return false;
+  return isInvestmentAccount(lookupAccount(accountsById, accountId));
+}
+
+export function investmentCurrencyOf(
+  account: Pick<FamilyAccount, "kind" | "currency_code"> | null | undefined,
+  fallback: string
+): string {
+  if (!isInvestmentAccount(account)) return fallback;
+  const code = account?.currency_code?.trim().toUpperCase();
+  return code || fallback;
+}
+
+/** Per-currency totals for the Inversiones hero (never mix COP+EUR into one figure). */
+export function sumInvestmentsByCurrency(
+  rows: Array<{
+    account: Pick<FamilyAccount, "kind" | "currency_code">;
+    balance: number;
+  }>,
+  fallbackCurrency: string
+): Array<{ currency: string; amount: number }> {
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    if (!isInvestmentAccount(row.account)) continue;
+    const currency = investmentCurrencyOf(row.account, fallbackCurrency);
+    const amount = Math.max(0, Number(row.balance) || 0);
+    map.set(
+      currency,
+      Math.round(((map.get(currency) ?? 0) + amount) * 100) / 100
+    );
+  }
+  return [...map.entries()]
+    .map(([currency, amount]) => ({ currency, amount }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}

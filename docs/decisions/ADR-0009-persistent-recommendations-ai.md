@@ -18,7 +18,7 @@ El chat / AI Assistant **no** está en alcance todavía. Se necesita IA para **r
 2. **Candidatas por reglas de dominio** (opción A): el motor elige *qué* recomendar a partir de hechos (margen, cuentas, bolsillos, ahorro, ritmo de gasto, etc.).
 3. **IA solo redacta** título, cuerpo, por qué e impacto sobre hechos ya calculados. Nunca calcula saldos ni inventa cifras. Si faltan datos → no se genera la rec o se marca “aún no sabemos”.
 4. Las recomendaciones son **persistentes** (almacenadas) con ciclo de vida: Nueva → Vista → Aceptada | Pospuesta | Descartada → (opcional) Resuelta.
-5. **UX de entrada:** aviso **suave fuera del scroll** del dashboard (chip / franja fija / anclaje bajo header o sobre bottom nav), más superficie dedicada (`/recommendations` o sección en `/guidance`). **Prohibido** card/banner/strip dentro del scroll de Inicio (se mantiene el espíritu de ADR-0008).
+5. **UX de entrada:** aviso **suave fuera del scroll** del dashboard (chip / franja fija / anclaje bajo header o sobre bottom nav), más superficie dedicada (`/recommendations` o sección en `/guidance`). **Prohibido** card/banner/strip dentro del scroll de Inicio (se mantiene el espíritu de ADR-0008). **Actualización ADR-0011:** la entrada pasa a pastilla decorativa → modal + historial (Notas); el chip queda absorbido.
 6. **Sin chat** en esta fase. El “¿cómo llevo los últimos X meses?” es un **informe bajo demanda** (selector de periodo + narrativa IA sobre agregados), no un hilo libre.
 7. “Aceptar” **no ejecuta** movimientos solos: marca estado y/o navega a un flujo de dominio existente (ahorro, cuentas, historial, etc.).
 8. Entrega por **fases** (ver pack):

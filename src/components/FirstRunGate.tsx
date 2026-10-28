@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ensureFirstRunForUser } from "@/lib/firstRun";
 import { createClient } from "@/utils/supabase/client";
 import { perfLog, perfNow } from "@/lib/perf";
@@ -21,7 +21,6 @@ export function clearFirstRunGateCache() {
  * are seeded as setupCompleted.
  */
 export default function FirstRunGate() {
-  const router = useRouter();
   const pathname = usePathname();
   const [checked, setChecked] = useState(false);
 
@@ -58,6 +57,7 @@ export default function FirstRunGate() {
           .maybeSingle();
 
         const hasFamily = Boolean(profile?.family_id);
+        // Existing household (incl. cloned prod) → never force setup wizard.
         const state = ensureFirstRunForUser(user.id, { hasFamily });
 
         // Family can disappear (local wipe) — never trust a stale "ok" cache.
@@ -65,7 +65,8 @@ export default function FirstRunGate() {
           const result: GateResult = { redirect: "/onboarding" };
           gateCache = { userId: user.id, result };
           perfLog("FirstRunGate", { ms: perfNow() - start, redirect: true }, "client");
-          router.replace(result.redirect);
+          // Hard nav avoids Next 16.2.x App Router "more hooks" crash on soft replace.
+          window.location.replace(result.redirect);
           return;
         }
 
@@ -75,12 +76,9 @@ export default function FirstRunGate() {
           return;
         }
 
+        // Has family_id: skip setup redirect even if localStorage was stale.
         if (!state.setupCompleted) {
-          const result: GateResult = { redirect: "/onboarding?step=setup" };
-          gateCache = { userId: user.id, result };
-          perfLog("FirstRunGate", { ms: perfNow() - start, redirect: true }, "client");
-          router.replace(result.redirect);
-          return;
+          ensureFirstRunForUser(user.id, { hasFamily: true });
         }
 
         gateCache = { userId: user.id, result: { ok: true } };
@@ -98,7 +96,7 @@ export default function FirstRunGate() {
     };
     // Only re-check when landing on auth/onboarding exits; cache covers tab switches.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: avoid auth on every pathname
-  }, [router]);
+  }, []);
 
   // Invisible; only used for side effects.
   if (!checked) return null;

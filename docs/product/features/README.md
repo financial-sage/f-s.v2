@@ -64,7 +64,7 @@ Comprender la situación financiera actual.
 
 ## Funds (Bolsillos)
 
-Gestionar bolsillos compartidos y personales con saldo, aportes directos, gastos imputados a un solo fondo y transferencias.
+Gestionar bolsillos compartidos y personales con saldo, aportes, transferencias y **balance del mes** en `/bolsillos` (gasto vs mes anterior, desglose por quien pagó en pareja). Ver [funds/README](./funds/README.md).
 
 ---
 
@@ -107,6 +107,12 @@ Gestionar obligaciones futuras.
 ## Recommendations
 
 Recibir recomendaciones contextualizadas.
+
+---
+
+## CFO Presence
+
+Notas proactivas (alerta, resumen, nudge, celebración) con pastilla → modal e historial. Ver [cfo-presence/README](./cfo-presence/README.md) y [ADR-0011](../../decisions/ADR-0011-cfo-proactive-presence.md). Evoluciona Recommendations.
 
 ---
 

@@ -9,21 +9,32 @@ import type {
   ForceGeminiDraftResult,
   RecommendationCandidate,
   RecommendationContext,
+  RecommendationKind,
   RecommendationRecord,
   RecommendationStatus,
 } from "./types";
+import { RECOMMENDATION_PERMANENTLY_DELETED_FACT } from "./types";
 
 export type { ForceGeminiDraftItem, ForceGeminiDraftResult };
 
 const DISMISS_COOLDOWN_DAYS = 14;
 const DEFER_DAYS = 3;
+const ARCHIVE_LIMIT = 50;
+const ARCHIVE_DAYS = 90;
 const ACTIVE_STATUSES: RecommendationStatus[] = ["new", "seen"];
+const ARCHIVE_STATUSES: RecommendationStatus[] = [
+  "accepted",
+  "deferred",
+  "dismissed",
+  "resolved",
+];
 
 type DbRow = {
   id: string;
   family_id: string;
   member_id: string | null;
   rule_id: string;
+  kind?: RecommendationKind | null;
   priority: RecommendationRecord["priority"];
   status: RecommendationStatus;
   facts: RecommendationRecord["facts"];
@@ -45,6 +56,7 @@ function mapRow(row: DbRow): RecommendationRecord {
     family_id: row.family_id,
     member_id: row.member_id,
     rule_id: row.rule_id,
+    kind: (row.kind as RecommendationKind) || "recommendation",
     priority: row.priority,
     status: row.status,
     facts: (row.facts ?? {}) as RecommendationRecord["facts"],
@@ -83,7 +95,15 @@ export async function listActiveRecommendations(
     return [];
   }
 
-  return ((data ?? []) as DbRow[]).map(mapRow);
+  return ((data ?? []) as DbRow[])
+    .map(mapRow)
+    .filter((row) => !isPermanentlyDeleted(row.facts));
+}
+
+function isPermanentlyDeleted(
+  facts: RecommendationRecord["facts"] | null | undefined
+) {
+  return Boolean(facts?.[RECOMMENDATION_PERMANENTLY_DELETED_FACT]);
 }
 
 export async function countActiveRecommendations(
@@ -101,6 +121,33 @@ export async function countActiveRecommendations(
     return 0;
   }
   return count ?? 0;
+}
+
+/**
+ * Archived / past notes for re-reading (ADR-0011 historial).
+ */
+export async function listArchivedRecommendations(
+  familyId: string
+): Promise<RecommendationRecord[]> {
+  const supabase = await createClient();
+  const since = daysAgoIso(ARCHIVE_DAYS);
+  const { data, error } = await supabase
+    .from("family_recommendations")
+    .select("*")
+    .eq("family_id", familyId)
+    .in("status", ARCHIVE_STATUSES)
+    .gte("updated_at", since)
+    .order("updated_at", { ascending: false })
+    .limit(ARCHIVE_LIMIT);
+
+  if (error) {
+    console.error("[recommendations] listArchive", error.message);
+    return [];
+  }
+
+  return ((data ?? []) as DbRow[])
+    .map(mapRow)
+    .filter((row) => !isPermanentlyDeleted(row.facts));
 }
 
 /**
@@ -136,6 +183,7 @@ export async function syncRecommendationsForFamily(
   const existing = (existingRows ?? []) as DbRow[];
   const openByRule = new Map<string, DbRow>();
   const blockedRules = new Set<string>();
+  const issuedMilestones = new Set<number>();
 
   for (const row of existing) {
     if (ACTIVE_STATUSES.includes(row.status)) {
@@ -154,6 +202,22 @@ export async function syncRecommendationsForFamily(
     // Welcome is once per household — never recreate after any prior issuance.
     if (row.rule_id === "welcome_panel") {
       blockedRules.add("welcome_panel");
+    }
+    // Savings milestone: never re-issue the same threshold.
+    if (row.rule_id === "savings_milestone") {
+      const m = Number(
+        (row.facts as RecommendationRecord["facts"])?.milestone
+      );
+      if (Number.isFinite(m) && m > 0) issuedMilestones.add(m);
+    }
+    // Month pulse: at most one open; cooldown after any recent close.
+    if (
+      row.rule_id === "month_pulse_summary" &&
+      !ACTIVE_STATUSES.includes(row.status)
+    ) {
+      const updated = new Date(row.updated_at || row.created_at).getTime();
+      const week = new Date(daysAgoIso(7)).getTime();
+      if (updated >= week) blockedRules.add("month_pulse_summary");
     }
   }
 
@@ -234,6 +298,10 @@ export async function syncRecommendationsForFamily(
   for (const candidate of candidates) {
     if (openByRule.has(candidate.ruleId)) continue;
     if (blockedRules.has(candidate.ruleId)) continue;
+    if (candidate.ruleId === "savings_milestone") {
+      const m = Number(candidate.facts.milestone);
+      if (Number.isFinite(m) && issuedMilestones.has(m)) continue;
+    }
     if (openByRule.size >= 3) break;
 
     // Welcome must be AI-drafted even on soft-notice sync (template only as fallback).
@@ -255,6 +323,7 @@ export async function syncRecommendationsForFamily(
       family_id: familyId,
       member_id: null,
       rule_id: candidate.ruleId,
+      kind: candidate.kind ?? "recommendation",
       priority: candidate.priority,
       status: "new" as const,
       facts,
@@ -373,6 +442,7 @@ export async function forceDraftOpenRecommendationsWithGemini(
         }
       : {
           ruleId: row.rule_id as RecommendationCandidate["ruleId"],
+          kind: (row.kind as RecommendationCandidate["kind"]) || "recommendation",
           priority: row.priority,
           facts: {
             ...((row.facts ?? {}) as RecommendationCandidate["facts"]),
@@ -469,6 +539,47 @@ export async function updateRecommendationStatus(
   const { error } = await supabase
     .from("family_recommendations")
     .update(patch as never)
+    .eq("id", id)
+    .eq("family_id", familyId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Hide from Activas / Anteriores; keeps row for cooldown and once-only rules. */
+export async function deleteRecommendation(
+  id: string,
+  familyId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: existing, error: loadError } = await supabase
+    .from("family_recommendations")
+    .select("facts")
+    .eq("id", id)
+    .eq("family_id", familyId)
+    .maybeSingle();
+
+  if (loadError) return { ok: false, error: loadError.message };
+  if (!existing) return { ok: false, error: "Nota no encontrada" };
+
+  const prevFacts =
+    existing.facts && typeof existing.facts === "object"
+      ? (existing.facts as RecommendationRecord["facts"])
+      : {};
+
+  if (isPermanentlyDeleted(prevFacts)) return { ok: true };
+
+  const { error } = await supabase
+    .from("family_recommendations")
+    .update({
+      status: "dismissed",
+      defer_until: null,
+      facts: {
+        ...prevFacts,
+        [RECOMMENDATION_PERMANENTLY_DELETED_FACT]: true,
+      },
+      updated_at: new Date().toISOString(),
+    } as never)
     .eq("id", id)
     .eq("family_id", familyId);
 

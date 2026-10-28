@@ -1,0 +1,38 @@
+diff --git a/node_modules/next/dist/client/components/app-router.js b/node_modules/next/dist/client/components/app-router.js
+index 560525f..d36d718 100644
+--- a/node_modules/next/dist/client/components/app-router.js
++++ b/node_modules/next/dist/client/components/app-router.js
+@@ -111,6 +111,14 @@ function Head({ headCacheNode }) {
+  * The global router that wraps the application components.
+  */ function Router({ actionQueue, globalError, webSocket, staticIndicatorState }) {
+     const state = (0, _useactionqueue.useActionQueue)(actionQueue);
++    return /*#__PURE__*/ (0, _jsxruntime.jsx)(RouterContent, {
++        state: state,
++        globalError: globalError,
++        webSocket: webSocket,
++        staticIndicatorState: staticIndicatorState
++    });
++}
++function RouterContent({ state, globalError, webSocket, staticIndicatorState }) {
+     const { canonicalUrl } = state;
+     // Add memoized pathname/query for useSearchParams and usePathname.
+     const { searchParams, pathname } = (0, _react.useMemo)(()=>{
+diff --git a/node_modules/next/dist/esm/client/components/app-router.js b/node_modules/next/dist/esm/client/components/app-router.js
+index 38c0e17..036c150 100644
+--- a/node_modules/next/dist/esm/client/components/app-router.js
++++ b/node_modules/next/dist/esm/client/components/app-router.js
+@@ -99,6 +99,14 @@ function Head({ headCacheNode }) {
+  * The global router that wraps the application components.
+  */ function Router({ actionQueue, globalError, webSocket, staticIndicatorState }) {
+     const state = useActionQueue(actionQueue);
++    return /*#__PURE__*/ _jsx(RouterContent, {
++        state: state,
++        globalError: globalError,
++        webSocket: webSocket,
++        staticIndicatorState: staticIndicatorState
++    });
++}
++function RouterContent({ state, globalError, webSocket, staticIndicatorState }) {
+     const { canonicalUrl } = state;
+     // Add memoized pathname/query for useSearchParams and usePathname.
+     const { searchParams, pathname } = useMemo(()=>{

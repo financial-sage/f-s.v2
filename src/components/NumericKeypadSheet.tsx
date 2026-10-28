@@ -11,6 +11,8 @@ interface NumericKeypadSheetProps {
   isOpen: boolean;
   title?: string;
   subtitle?: string;
+  /** Short helper under the title (not truncated like subtitle chip). */
+  hint?: string;
   accentColor?: string;
   initialValue?: string;
   showDisplay?: boolean;
@@ -41,6 +43,7 @@ export function NumericKeypadSheet({
   isOpen,
   title,
   subtitle,
+  hint,
   accentColor = DEFAULT_PERSONAL_FUND_COLOR,
   initialValue,
   showDisplay = true,
@@ -95,6 +98,11 @@ export function NumericKeypadSheet({
                     {subtitle}
                   </span>
                 </div>
+              ) : null}
+              {hint ? (
+                <p className="mt-2 max-w-[28ch] text-[11px] font-light leading-snug text-on-surface-variant">
+                  {hint}
+                </p>
               ) : null}
             </div>
             <button

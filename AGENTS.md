@@ -13,5 +13,7 @@ When implementing **Guidance (IA contextual V1)**, follow the project skill `.cu
 
 When implementing **Recommendations (persistentes + IA)**, follow the project skill `.cursor/skills/recommendations-module/SKILL.md` and rule `.cursor/rules/recommendations-module.mdc`. Product source of truth: `docs/product/features/recommendations/` and `docs/decisions/ADR-0009-persistent-recommendations-ai.md`. Rules pick candidates; LLM only drafts CARE copy; soft notice outside dashboard scroll; no chat; balances mes/periodo in later phases.
 
+When implementing **CFO Presence (notas proactivas + historial)**, follow `.cursor/skills/cfo-presence/SKILL.md` and `.cursor/rules/cfo-presence.mdc`. Product source of truth: `docs/product/features/cfo-presence/` and `docs/decisions/ADR-0011-cfo-proactive-presence.md`. Extends recommendations with `kind`; decorative pill → modal; archive; no dashboard scroll cards; no chat.
+
 When touching **UI surfaces** (sheets, modals, placeholders, debt/balance colors), follow `.cursor/rules/ux-surfaces.mdc`: modales premium/delicados; placeholders globales (sin marcas/productos de un solo país); evitar rojo de pánico en saldos/deuda.
 <!-- END:feature-harnesses -->

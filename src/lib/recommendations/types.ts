@@ -6,11 +6,22 @@ export type RecommendationStatus =
   | "dismissed"
   | "resolved";
 
+/** Marked in `facts` when the user removes a note from Activas/Anteriores. */
+export const RECOMMENDATION_PERMANENTLY_DELETED_FACT = "permanently_deleted";
+
 export type RecommendationPriority =
   | "critical"
   | "important"
   | "opportunity"
   | "educational";
+
+/** CFO note kinds (ADR-0011). */
+export type RecommendationKind =
+  | "recommendation"
+  | "alert"
+  | "summary"
+  | "nudge"
+  | "celebration";
 
 /** `gemini` kept for rows drafted before the OpenAI switch. */
 export type RecommendationCopySource = "template" | "openai" | "gemini";
@@ -20,7 +31,10 @@ export type RecommendationRuleId =
   | "account_strained"
   | "suggest_savings"
   | "review_spend_pace"
-  | "organize_accounts";
+  | "organize_accounts"
+  | "spend_pace_nudge"
+  | "savings_milestone"
+  | "month_pulse_summary";
 
 export interface RecommendationFacts {
   [key: string]: string | number | boolean | null | undefined;
@@ -28,6 +42,7 @@ export interface RecommendationFacts {
 
 export interface RecommendationCandidate {
   ruleId: RecommendationRuleId;
+  kind: RecommendationKind;
   priority: RecommendationPriority;
   facts: RecommendationFacts;
   ctaHref: string | null;
@@ -47,6 +62,7 @@ export interface RecommendationRecord {
   family_id: string;
   member_id: string | null;
   rule_id: string;
+  kind: RecommendationKind;
   priority: RecommendationPriority;
   status: RecommendationStatus;
   facts: RecommendationFacts;
@@ -98,3 +114,31 @@ export type ForceGeminiDraftResult = {
 
 export type ForceLlmDraftItem = ForceGeminiDraftItem;
 export type ForceLlmDraftResult = ForceGeminiDraftResult;
+
+export const KIND_LABEL: Record<RecommendationKind, string> = {
+  recommendation: "Sugerencia",
+  alert: "Aviso",
+  summary: "Resumen",
+  nudge: "Empujón",
+  celebration: "Logro",
+};
+
+export const PRIORITY_RANK: Record<RecommendationPriority, number> = {
+  critical: 0,
+  important: 1,
+  opportunity: 2,
+  educational: 3,
+};
+
+export function pickPrimaryRecommendation(
+  rows: RecommendationRecord[]
+): RecommendationRecord | null {
+  if (rows.length === 0) return null;
+  return [...rows].sort((a, b) => {
+    const pr = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    if (pr !== 0) return pr;
+    return (
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  })[0];
+}

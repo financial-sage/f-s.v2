@@ -35,6 +35,7 @@ import {
     type FamilyFund,
 } from "@/lib/funds";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
+import { isInvestmentAccountMovement } from "@/lib/accounts";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -244,6 +245,7 @@ export default function HistoryList({
     const storeFunds = useFundsStore((s) => s.funds);
     const loadFunds = useFundsStore((s) => s.load);
     const storeAccounts = useAccountsStore((s) => s.accounts);
+    const loadAccounts = useAccountsStore((s) => s.load);
     // Prefer store; fall back to SSR props so first paint has real fund colors.
     const funds = storeFunds.length > 0 ? storeFunds : initialFunds;
 
@@ -257,6 +259,10 @@ export default function HistoryList({
         }
         void loadFunds();
     }, [initialFunds, loadFunds]);
+
+    useEffect(() => {
+        void loadAccounts();
+    }, [loadAccounts]);
 
     // Filter states
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -437,6 +443,13 @@ export default function HistoryList({
     const filteredExpenses = useMemo(() => {
         return allExpenses.filter((e) => {
             if (e.concept === "Reembolso del fondo" || isFundSettlementConcept(e.concept)) return false;
+            // Investment ledger has its own history under Cuentas → Inversiones.
+            if (
+                storeAccounts.length > 0 &&
+                isInvestmentAccountMovement(e, storeAccounts)
+            ) {
+                return false;
+            }
             // Fixed-expense real payments stay visible in history (no aportes for that pocket).
             if (effectiveFilters.timeRange !== "all") {
                 const d = new Date(e.expense_date || e.created_at);
@@ -481,7 +494,7 @@ export default function HistoryList({
             if (effectiveFilters.movementType === "expenses" && e.category === "deposit") return false;
             return true;
         });
-    }, [allExpenses, effectiveFilters, currentUserId, funds, viewMonth]);
+    }, [allExpenses, effectiveFilters, currentUserId, funds, viewMonth, storeAccounts]);
 
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
 

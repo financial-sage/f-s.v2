@@ -12,7 +12,7 @@ Complementa: [README](./README.md), [business-rules.md](./business-rules.md), [u
 | Redacción | LLM acotado: input = hechos estructurados; output = copy CARE validado |
 | Persistencia | Tabla(s) nuevas (recomendaciones + eventos de interacción) |
 | Ruta UI | `/recommendations` (lista + detalle +, en fases 2–3, balances) |
-| Aviso Inicio | Componente fijo fuera del scroll (p. ej. anclado), no dentro de `Dashboard*` scroll |
+| Aviso Inicio | Pastilla CFO → modal (ADR-0011); no dentro de `Dashboard*` scroll |
 | Guidance | Sin cambios de contrato; puede enlazarse por CTA |
 | Chat | Ningún endpoint de conversación en este feature |
 | Tope activos V1 | Máx. **3** recomendaciones activas por hogar (prioridad) |

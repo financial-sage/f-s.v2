@@ -27,7 +27,7 @@ Decisión: [ADR-0009](../../../decisions/ADR-0009-persistent-recommendations-ai.
 | Persistencia | Sí — estados e historial de interacción |
 | Chat | **No** en esta feature |
 | Dashboard scroll | **Sin** cards/banners/strips de recomendaciones |
-| Entrada UX | Aviso **suave fuera del scroll** + superficie dedicada |
+| Entrada UX | Pastilla CFO → modal + Notas (Activas \| Anteriores); ver ADR-0011 |
 | Aceptar | Marca estado y/o CTA a flujo existente; **no** ejecuta movimientos sola |
 | Monetización | **Premium** + prueba gratis (individual 7d / pareja = trial de pareja) |
 | Balance mes | Fase 2 — vs mes anterior |

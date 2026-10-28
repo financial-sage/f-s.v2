@@ -19,6 +19,7 @@ import {
   Tags,
   UserRound,
   Wallet,
+  WalletCards,
   type LucideProps,
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
@@ -58,6 +59,7 @@ type NavModule = {
     | "home"
     | "history"
     | "accounts"
+    | "bolsillos"
     | "savings"
     | "fixed-expenses"
     | "categories"
@@ -90,6 +92,14 @@ const NAV_MODULES: NavModule[] = [
     label: "Cuentas",
     icon: Landmark,
     match: (pathname) => pathname === "/accounts" || pathname.startsWith("/accounts/"),
+  },
+  {
+    id: "bolsillos",
+    href: "/bolsillos",
+    label: "Bolsillos",
+    icon: WalletCards,
+    match: (pathname) =>
+      pathname === "/bolsillos" || pathname.startsWith("/bolsillos/"),
   },
   {
     id: "savings",

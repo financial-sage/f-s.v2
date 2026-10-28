@@ -78,7 +78,12 @@ export function ensureFirstRunForUser(
   try {
     const key = storageKey(userId);
     if (window.localStorage.getItem(key)) {
-      return readFirstRun(userId);
+      const current = readFirstRun(userId);
+      // Cloned / existing households should never be forced through setup again.
+      if (options.hasFamily && !current.setupCompleted) {
+        return patchFirstRun(userId, { setupCompleted: true });
+      }
+      return current;
     }
     if (options.hasFamily) {
       const seeded: FirstRunState = { setupCompleted: true, tours: {} };
@@ -105,6 +110,15 @@ export function isTourDone(userId: string, tourId: TourId): boolean {
   return Boolean(readFirstRun(userId).tours[tourId]);
 }
 
+/** Dispatched on `window` after a product tour is marked done. */
+export const TOUR_DONE_EVENT = "fsage:tour-done";
+
 export function markTourDone(userId: string, tourId: TourId) {
-  return patchFirstRun(userId, { tours: { [tourId]: true } });
+  const next = patchFirstRun(userId, { tours: { [tourId]: true } });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(TOUR_DONE_EVENT, { detail: { userId, tourId } })
+    );
+  }
+  return next;
 }

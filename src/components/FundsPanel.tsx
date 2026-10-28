@@ -1,32 +1,43 @@
 "use client";
 
 import { FormattedCurrency } from "@/components/FormattedCurrency";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeftRight, LoaderCircle, Plus, Wallet } from "lucide-react";
+import FundEditorModal from "@/components/FundEditorModal";
+import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import {
   archiveFundAction,
-  createFundAction,
   depositToFundAction,
   getFundsOverviewAction,
   transferBetweenFundsAction,
 } from "@/app/actions/funds";
-import type { FamilyFund } from "@/lib/funds";
-import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
+import { isIndividualHousehold } from "@/lib/household";
+import type { FamilyFund } from "@/lib/funds";
+import { ArrowLeftRight, Edit, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 interface FundsPanelProps {
   currentUserId: string;
+  familyMemberCount?: number;
+  /** Softer chrome when nested inside `/bolsillos` Administrar. */
+  embedded?: boolean;
 }
 
-export default function FundsPanel({ currentUserId }: FundsPanelProps) {
+export default function FundsPanel({
+  currentUserId,
+  familyMemberCount = 2,
+  embedded = false,
+}: FundsPanelProps) {
   const router = useRouter();
+  const isIndividual = isIndividualHousehold(familyMemberCount);
   const { format: formatCurrency } = useCurrency();
   const [funds, setFunds] = useState<FamilyFund[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
-  const [newName, setNewName] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingFund, setEditingFund] = useState<FamilyFund | null>(null);
 
   const [depositFundId, setDepositFundId] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState("0");
@@ -81,23 +92,14 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
     };
   }, []);
 
-  function handleCreateFund() {
-    const name = newName.trim();
-    if (!name) {
-      setError("Escribe un nombre para el bolsillo.");
-      return;
-    }
-    setError("");
-    startTransition(async () => {
-      try {
-        await createFundAction({ name, scope: "shared" });
-        setNewName("");
-        await refresh();
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "No se pudo crear el bolsillo.");
-      }
-    });
+  function openCreate() {
+    setEditingFund(null);
+    setEditorOpen(true);
+  }
+
+  function openEdit(fund: FamilyFund) {
+    setEditingFund(fund);
+    setEditorOpen(true);
   }
 
   function openDeposit(fundId: string) {
@@ -160,20 +162,46 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
   }
 
   return (
-    <section className="mb-4 shrink-0 rounded-3xl border border-outline-variant/30 bg-surface-lowest p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-2">
+    <section
+      className={
+        embedded
+          ? "mb-4 shrink-0 space-y-3"
+          : "mb-4 shrink-0 rounded-3xl border border-outline-variant/30 bg-surface-lowest p-4 shadow-sm"
+      }
+    >
+      <div className="mb-1 flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-bold text-on-surface">Bolsillos</h2>
-          <p className="text-xs text-on-surface-variant">Bolsillos compartidos y personales</p>
+          <h2
+            className={
+              embedded
+                ? "text-[13px] font-medium tracking-tight text-on-surface"
+                : "text-sm font-bold text-on-surface"
+            }
+          >
+            {embedded ? "Tus bolsillos" : "Bolsillos"}
+          </h2>
+          {!embedded ? (
+            <p className="text-xs text-on-surface-variant">Bolsillos compartidos y personales</p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowTransfer((v) => !v)}
-          className="inline-flex items-center gap-1 rounded-full border border-outline-variant/40 bg-surface px-3 py-1.5 text-xs font-semibold text-on-surface"
-        >
-          <ArrowLeftRight size={14} />
-          Transferir
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center gap-1 rounded-full border border-glass-border bg-glass-soft px-3 py-1.5 text-xs font-medium text-on-surface"
+          >
+            <Plus size={14} />
+            Crear
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowTransfer((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-full border border-glass-border bg-glass-soft px-3 py-1.5 text-xs font-medium text-on-surface"
+          >
+            <ArrowLeftRight size={14} />
+            Transferir
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -186,19 +214,37 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
           return (
             <div
               key={fund.id}
-              className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-3 py-2.5"
+              className={
+                embedded
+                  ? "flex items-center justify-between gap-3 rounded-[1.25rem] border border-glass-border bg-surface-lowest/75 px-3.5 py-3"
+                  : "flex items-center justify-between gap-3 rounded-2xl bg-surface px-3 py-2.5"
+              }
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-on-surface">{fund.name}</p>
-                <p className="text-[10px] uppercase tracking-wider text-on-surface-variant">
+                <p className="truncate text-[13px] font-medium text-on-surface">{fund.name}</p>
+                <p className="text-[11px] font-light text-on-surface-variant">
                   {fund.scope === "shared" ? "Compartido" : "Personal"}
                   {fund.is_system ? " · sistema" : ""}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <p className={`text-sm font-bold ${balance < 0 ? "text-red-600" : "text-on-surface"}`}>
+              <div className="flex items-center gap-1.5">
+                <p
+                  className={`text-[13px] font-medium tabular-nums ${
+                    balance < 0
+                      ? "text-amber-800/80 dark:text-amber-200/90"
+                      : "text-on-surface"
+                  }`}
+                >
                   <FormattedCurrency value={balance} />
                 </p>
+                <button
+                  type="button"
+                  onClick={() => openEdit(fund)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant hover:bg-glass-soft hover:text-on-surface"
+                  aria-label={`Editar ${fund.name}`}
+                >
+                  <Edit size={14} strokeWidth={2} />
+                </button>
                 <button
                   type="button"
                   onClick={() => openDeposit(fund.id)}
@@ -210,8 +256,9 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
                 {!fund.is_system && (
                   <button
                     type="button"
+                    disabled={isPending}
                     onClick={() => handleArchive(fund.id)}
-                    className="text-[10px] font-semibold text-on-surface-variant underline"
+                    className="text-[11px] font-medium text-on-surface-variant underline-offset-2 hover:underline disabled:opacity-60"
                   >
                     Archivar
                   </button>
@@ -222,39 +269,13 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
         })}
       </div>
 
-      <div className="mt-3 flex gap-2">
-        <div className="relative flex-1">
-          <Wallet
-            size={14}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
-          />
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nuevo bolsillo compartido"
-            className="w-full rounded-2xl border border-outline-variant/40 bg-surface py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={handleCreateFund}
-          className="inline-flex items-center gap-1 rounded-2xl bg-primary px-3 py-2 text-sm font-semibold text-on-primary disabled:opacity-60"
-        >
-          {isPending ? <LoaderCircle size={14} className="animate-spin" /> : <Plus size={14} />}
-          Crear
-        </button>
-      </div>
-
       {showTransfer && (
-        <div className="mt-3 space-y-2 rounded-2xl border border-outline-variant/30 bg-surface p-3">
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
-            Desde
-          </label>
+        <div className="mt-1 space-y-2 rounded-[1.25rem] border border-glass-border bg-glass-soft p-3.5">
+          <label className="block text-[11px] font-light text-on-surface-variant">Desde</label>
           <select
             value={fromFundId}
             onChange={(e) => setFromFundId(e.target.value)}
-            className="w-full rounded-xl border border-outline-variant/40 bg-surface-lowest px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-outline-variant/30 bg-surface-lowest px-3 py-2.5 text-sm"
           >
             {visibleFunds.map((f) => (
               <option key={f.id} value={f.id}>
@@ -262,13 +283,11 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
               </option>
             ))}
           </select>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
-            Hacia
-          </label>
+          <label className="block text-[11px] font-light text-on-surface-variant">Hacia</label>
           <select
             value={toFundId}
             onChange={(e) => setToFundId(e.target.value)}
-            className="w-full rounded-xl border border-outline-variant/40 bg-surface-lowest px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-outline-variant/30 bg-surface-lowest px-3 py-2.5 text-sm"
           >
             {visibleFunds.map((f) => (
               <option key={f.id} value={f.id}>
@@ -282,12 +301,27 @@ export default function FundsPanel({ currentUserId }: FundsPanelProps) {
               setTransferAmount("0");
               setShowTransferKeypad(true);
             }}
-            className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-on-primary"
+            className="fab-ink flex h-11 w-full items-center justify-center rounded-2xl text-sm font-semibold"
           >
             Elegir importe
           </button>
         </div>
       )}
+
+      <FundEditorModal
+        open={editorOpen}
+        onClose={() => {
+          setEditorOpen(false);
+          setEditingFund(null);
+        }}
+        editingFund={editingFund}
+        createScope={isIndividual ? "personal" : "shared"}
+        defaultLabel={isIndividual ? "principal" : "default"}
+        onSaved={async () => {
+          await refresh();
+          router.refresh();
+        }}
+      />
 
       <NumericKeypadSheet
         isOpen={showDepositKeypad}

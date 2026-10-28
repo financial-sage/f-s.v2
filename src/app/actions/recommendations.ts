@@ -6,6 +6,7 @@ import { getHomePageData, type HomePageData } from "@/lib/dashboard";
 import { RECOMMENDATIONS_PREMIUM_MESSAGE } from "@/lib/premium";
 import { recommendationContextFromHome } from "@/lib/recommendations/from-home";
 import {
+  deleteRecommendation,
   forceDraftOpenRecommendationsWithGemini,
   syncRecommendationsForFamily,
   updateRecommendationStatus,
@@ -132,6 +133,17 @@ export async function dismissRecommendationAction(id: string) {
     gate.home.familyId,
     "dismissed"
   );
+  revalidatePath("/recommendations");
+  revalidatePath("/");
+  return result;
+}
+
+export async function deleteRecommendationAction(id: string) {
+  const gate = await requireFamily();
+  if (!gate.ok) return { ok: false as const, error: gate.reason };
+  const access = await requireRecommendationsAccess(gate.home);
+  if (!access.ok) return { ok: false as const, error: access.error };
+  const result = await deleteRecommendation(id, gate.home.familyId);
   revalidatePath("/recommendations");
   revalidatePath("/");
   return result;
