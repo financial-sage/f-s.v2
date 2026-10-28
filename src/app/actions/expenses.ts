@@ -683,6 +683,19 @@ export async function deleteExpenseAction(expenseId: string) {
     throw new Error(paymentError.message);
   }
 
+  // Soft-delete does not fire FK CASCADE — remove grocery ticket + lines explicitly.
+  const { error: receiptError } = await admin
+    .from("purchase_receipts")
+    .delete()
+    .in("expense_id", deactivateIds);
+
+  if (
+    receiptError &&
+    !/purchase_receipts|schema cache|does not exist/i.test(receiptError.message)
+  ) {
+    throw new Error(receiptError.message);
+  }
+
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/fixed-expenses");
