@@ -16,6 +16,7 @@ import {
   personalFundDisplayName,
   resolveFundColor,
   type FamilyFund,
+  type FundColor,
   type FundScope,
 } from "@/lib/funds";
 import { tintedGlassGradient } from "@/lib/glass";
@@ -50,7 +51,7 @@ export default function FundEditorModal({
 }: FundEditorModalProps) {
   const [animated, setAnimated] = useState(false);
   const [name, setName] = useState("");
-  const [color, setColor] = useState(DEFAULT_SHARED_FUND_COLOR);
+  const [color, setColor] = useState<FundColor>(DEFAULT_SHARED_FUND_COLOR);
   const [isDefault, setIsDefault] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();

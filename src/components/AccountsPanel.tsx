@@ -69,6 +69,7 @@ import {
   type FamilyFund,
 } from "@/lib/funds";
 import {
+  CurrencyFlag,
   CurrencyFlagEdgeWash,
   CurrencyFlagHero,
 } from "@/components/CurrencyFlag";

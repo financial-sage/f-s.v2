@@ -68,6 +68,8 @@ export interface FamilyFund {
   archived_at: string | null;
   color?: string | null;
   purpose?: FundPurpose | null;
+  /** Superadmin grocery trial: pocket used for market / supermarket purchases. */
+  is_grocery?: boolean | null;
 }
 
 export function resolveFundColor(fund?: Pick<FamilyFund, "color" | "scope"> | null) {

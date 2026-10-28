@@ -50,7 +50,7 @@ import {
 
 /** Explicit columns for hot-path fund reads (avoid select *). */
 const FUND_COLUMNS =
-  "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose, created_at, updated_at";
+  "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose, is_grocery, created_at, updated_at";
 
 function revalidateFundPaths(options?: { includeHome?: boolean; includeFixed?: boolean }) {
   // Dashboard lives in Zustand — skip "/" unless the mutation changes ledger data.
@@ -456,6 +456,8 @@ export async function createFundAction(input: {
   scope: FundScope;
   color?: string;
   isDefault?: boolean;
+  /** Superadmin grocery trial. */
+  isGrocery?: boolean;
 }): Promise<FamilyFund> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
@@ -471,6 +473,7 @@ export async function createFundAction(input: {
     (scope === "shared" ? DEFAULT_SHARED_FUND_COLOR : DEFAULT_PERSONAL_FUND_COLOR)
   ).trim();
   const wantDefault = Boolean(input.isDefault);
+  const wantGrocery = Boolean(input.isGrocery);
 
   if (!name) throw new Error("El nombre del bolsillo es obligatorio.");
   if (name.length > 40) throw new Error("El nombre es demasiado largo.");
@@ -482,6 +485,16 @@ export async function createFundAction(input: {
   }
   if (!isAllowedFundColor(color)) {
     throw new Error("Selecciona un color válido.");
+  }
+  if (wantGrocery) {
+    const { isSuperAdminUser } = await import("@/lib/admin");
+    const allowed = await isSuperAdminUser({
+      userId: user.id,
+      email: user.email,
+    });
+    if (!allowed) {
+      throw new Error("La marca de compra/mercado es solo para prueba interna.");
+    }
   }
 
   await ensureFamilyFunds(familyId);
@@ -501,6 +514,7 @@ export async function createFundAction(input: {
           sort_order: 100,
           color,
           purpose: "general" as const,
+          is_grocery: wantGrocery,
         }
       : {
           family_id: familyId,
@@ -512,13 +526,25 @@ export async function createFundAction(input: {
           sort_order: 110,
           color,
           purpose: "general" as const,
+          is_grocery: wantGrocery,
         };
 
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from("family_funds")
     .insert(payload as never)
     .select(FUND_COLUMNS)
     .single();
+
+  if (error && /is_grocery/i.test(error.message)) {
+    const { is_grocery: _g, ...withoutGrocery } = payload;
+    ({ data, error } = await admin
+      .from("family_funds")
+      .insert(withoutGrocery as never)
+      .select(
+        "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose, created_at, updated_at"
+      )
+      .single());
+  }
 
   if (error) {
     if (/duplicate|unique/i.test(error.message)) {
