@@ -1390,7 +1390,7 @@ export default function AccountsPanel({
                     return (
                       <p
                         key={row.currency}
-                        className="text-[1.55rem] font-light leading-none tracking-tight text-on-surface"
+                        className="text-[1.20rem] font-light leading-none tracking-tight text-on-surface"
                       >
                         {isAppCurrency(row.currency) ? (
                           <CurrencyFlagHero code={row.currency}>

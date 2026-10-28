@@ -1,14 +1,33 @@
 ---
-description: Reglas de UX visual para modales, placeholders, color y superficies delicadas. Aplicar al tocar UI de cuentas, formularios, sheets y pantallas de producto.
+description: Diseño UI SinDescuadre — premium, elegante, compacto. Aplicar siempre al tocar superficies, sheets, modales, listas y formularios.
 globs: src/components/**/*.tsx,src/app/(pwa)/**/*.tsx
-alwaysApply: false
+alwaysApply: true
 ---
 
 # UX surfaces (SinDescuadre)
 
+## Mantra (siempre)
+
+**Diseño: premium · elegante · compacto.**
+
+Toda superficie nueva o retocada debe pasar este filtro antes de merge:
+
+1. **Premium** — materiales glass/hairline, tipografía cuidadosa, un acento, cero ruido decorativo.
+2. **Elegante** — poco peso visual; light/medium en vez de bold; iconos finos; cierre discreto.
+3. **Compacto** — densidad útil; filas y metadatos juntos; sin tarjetas anidadas ni chips de relleno.
+
+Si quitar un borde, sombra, fondo o pill no empeora la comprensión, quítalo.
+
+## Listas y detalle (tickets, historial, movimientos)
+
+- Filas con **divisores hairline**, no cards apiladas.
+- Primario: nombre + importe en una línea; secundario: meta en `text-[11px] font-light`.
+- Resúmenes en una **franja tipográfica** (↑3 · ↓2), no pastillas de color.
+- Deltas / deuda: ámbar o neutro — **nunca rojo de pánico**.
+
 ## Modales / sheets
 
-- Deben sentirse **delicados y finos**: tipografía light, mucho aire, un solo propósito.
+- Deben sentirse **delicados y finos**: tipografía light/medium, aire justo, un solo propósito.
 - Handle fino, cierre sin borde ni sombra (solo icono suave).
 - Backdrop ligero + blur; sombra mínima; bordes hairline (`outline-variant/20`).
 - Evitar bloques pesados, sombras densas o bordes gruesos.
@@ -23,8 +42,8 @@ alwaysApply: false
 
 ## Color y alarma
 
-- **Evitar rojo** (`text-red-*`, fondos rojos) para saldos, deudas o avisos a primera vista: genera pánico.
-- Deuda / “Debes”: tono neutro o ámbar suave (`text-on-surface-variant`, `text-amber-800/70`, etc.).
+- **Evitar rojo** (`text-red-*`, fondos rojos) para saldos, deudas, subidas de precio o avisos a primera vista: genera pánico.
+- Deuda / “Debes” / “subió de precio”: tono neutro o ámbar suave (`text-on-surface-variant`, `text-amber-800/70`, etc.).
 - Rojo solo si el producto define un error de validación bloqueante o un estado realmente crítico ya acordado.
 
 ## Cuentas (ADR-0010)
@@ -36,3 +55,4 @@ alwaysApply: false
 ## Principio
 
 Claridad antes que control. Dos audiencias, una UI: lo avanzado en “Más opciones”, no en el primer viewport.
+Premium se nota en lo que **no** pones.

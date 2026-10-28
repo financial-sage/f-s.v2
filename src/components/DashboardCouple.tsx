@@ -51,11 +51,12 @@ import { Portal } from "@/components/ui/Portal";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useFitItemCount } from "@/hooks/useFitItemCount";
 import { useAccountsStore } from "@/store/useAccountsStore";
+import { useCategoriesStore } from "@/store/useCategoriesStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
-import { getCategoryDetails } from "@/lib/categoryMap";
+import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
 import { isAccountOnlyMovement } from "@/lib/accounts";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import {
@@ -101,6 +102,7 @@ interface CoupleDashboardExpense {
     paidBy?: string;
     responsible_for?: string | null;
     category?: string | null;
+    category_id?: string | null;
     split_type: ExpenseSplitType;
     splitType?: ExpenseSplitType;
     expense_date: string;
@@ -170,11 +172,6 @@ function formatExpenseDate(dateInput: string) {
         .replace(".", "");
 }
 
-function getExpenseCategoryPresentation(category?: string | null) {
-    const { icon, label } = getCategoryDetails(category ?? "");
-    return { icon, label };
-}
-
 function pickInitialFunds(initialFunds?: FamilyFund[]) {
     if (initialFunds?.length) return initialFunds;
     return useFundsStore.getState().funds;
@@ -211,7 +208,13 @@ export default function DashboardCouple({
     const isPremium = useExpenseStore((s) => s.isPremium);
     const storeFunds = useFundsStore((s) => s.funds);
     const storeAccounts = useAccountsStore((s) => s.accounts);
+    const familyCategories = useCategoriesStore((s) => s.categories);
+    const loadCategories = useCategoriesStore((s) => s.load);
     const colorFunds = storeFunds.length > 0 ? storeFunds : initialFunds;
+
+    useEffect(() => {
+        void loadCategories();
+    }, [loadCategories]);
 
     const dashboardTourSteps = useMemo<ProductTourStep[]>(
         () => [
@@ -273,6 +276,7 @@ export default function DashboardCouple({
             paid_by: e.paid_by,
             responsible_for: e.responsible_for,
             category: e.category,
+            category_id: e.category_id,
             split_type: (e.split_type as ExpenseSplitType) || "full",
             expense_date: e.expense_date,
             created_at: e.created_at,
@@ -1917,8 +1921,11 @@ export default function DashboardCouple({
                         ) : (
                             <div className="min-h-0 overflow-hidden">
                                 {currentList.map((expense, index) => {
-                                    const categoryPresentation = getExpenseCategoryPresentation(expense.category);
-                                    const Icon = categoryPresentation.icon;
+                                    const Icon = resolveExpenseCategoryIcon({
+                                        category: expense.category,
+                                        categoryId: expense.category_id,
+                                        categories: familyCategories,
+                                    });
                                     const isDeposit = expense.category === "deposit";
                                     const isWithdrawal = expense.category === "withdrawal";
                                     const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
@@ -1985,7 +1992,16 @@ export default function DashboardCouple({
                                                             type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setExpenseToEdit(expense);
+                                                                setExpenseToEdit({
+                                                                    id: expense.id,
+                                                                    amount: expense.amount,
+                                                                    concept: expense.concept,
+                                                                    category: expense.category,
+                                                                    category_id: expense.category_id,
+                                                                    paid_by: expense.paid_by,
+                                                                    responsible_for: expense.responsible_for,
+                                                                    fund_id: expense.fund_id ?? null,
+                                                                });
                                                                 setIsExpenseModalOpen(true);
                                                                 setActiveActionId(null);
                                                             }}

@@ -11,6 +11,13 @@ export type ReceiptFundOption = {
   name: string;
 };
 
+export type ParsedReceiptLine = {
+  name: string;
+  quantity: number | null;
+  unitPrice: number | null;
+  lineTotal: number | null;
+};
+
 export type ParsedReceipt = {
   merchant: string | null;
   /** Final concept for the form: product if 1 line, merchant if many. */
@@ -28,6 +35,8 @@ export type ParsedReceipt = {
   fundId: string | null;
   confidence: "high" | "medium" | "low";
   rawNotes: string | null;
+  /** Present when includeLineItems was requested (grocery trial). */
+  lines?: ParsedReceiptLine[];
 };
 
 const CATEGORY_CATALOG = [...topCategories, ...extraCategories].map((c) => ({
@@ -131,11 +140,45 @@ function buildDescription(input: {
  * Parse a receipt / voucher image with OpenAI Vision.
  * Returns structured fields for the expense form; never invents a total if unclear.
  */
+function parseReceiptLines(raw: unknown): ParsedReceiptLine[] {
+  if (!Array.isArray(raw)) return [];
+  const lines: ParsedReceiptLine[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const name =
+      typeof o.name === "string"
+        ? o.name.trim().slice(0, 160)
+        : typeof o.description === "string"
+          ? o.description.trim().slice(0, 160)
+          : typeof o.product === "string"
+            ? o.product.trim().slice(0, 160)
+            : typeof o.label === "string"
+              ? o.label.trim().slice(0, 160)
+              : "";
+    if (!name) continue;
+    lines.push({
+      name,
+      quantity: toNumber(o.quantity ?? o.qty ?? o.cant),
+      unitPrice: toNumber(
+        o.unitPrice ?? o.unit_price ?? o.price ?? o.precio ?? o.importe_unitario
+      ),
+      lineTotal: toNumber(
+        o.lineTotal ?? o.line_total ?? o.importe ?? o.amount ?? o.total
+      ),
+    });
+    if (lines.length >= 80) break;
+  }
+  return lines;
+}
+
 export async function parseReceiptImage(input: {
   mimeType: string;
   base64: string;
   localeHint?: string;
   funds?: ReceiptFundOption[];
+  /** Superadmin grocery trial: also extract product lines. */
+  includeLineItems?: boolean;
 }): Promise<ParsedReceipt> {
   if (!isOpenAIConfigured()) {
     throw new Error("OpenAI no configurado (falta OPENAI_API_KEY).");
@@ -147,6 +190,7 @@ export async function parseReceiptImage(input: {
     input.localeHint?.trim() ||
     "español; puede ser ticket de España o Latinoamérica";
   const funds = input.funds ?? [];
+  const includeLineItems = Boolean(input.includeLineItems);
   const fundsBlock =
     funds.length > 0
       ? funds.map((f) => `${f.id}=${f.name}`).join(", ")
@@ -154,6 +198,21 @@ export async function parseReceiptImage(input: {
   const categoriesBlock = CATEGORY_CATALOG.map(
     (c) => `${c.id}=${c.label}`
   ).join(", ");
+
+  const linesBlock = includeLineItems
+    ? `
+  "lines": [
+    { "name": "producto", "quantity": 1, "unitPrice": 1.15, "lineTotal": 1.15 }
+  ]`
+    : "";
+
+  const linesRules = includeLineItems
+    ? `
+- "lines": OBLIGATORIO cuando el documento es un ticket/factura de supermercado (Alcampo, Mercadona, Carrefour, etc.).
+  Lista TODOS los productos visibles (máx ~60) con name, quantity si aparece, unitPrice y/o lineTotal.
+  Omite solo: totales, IVA/impuestos, cambio, redondeo y cabeceras. No inventes productos que no se lean.
+  Si el ticket tiene desglose y no lo extraes, está mal. Solo lines = [] si realmente no hay líneas de producto.`
+    : "";
 
   const prompt = `Eres un extractor de datos de tickets, facturas electrónicas (PDF rasterizado), vouchers o tickets en foto para SinDescuadre (finanzas en pareja/familia).
 Idioma del documento: ${locale}.
@@ -173,7 +232,8 @@ Lee la imagen y devuelve SOLO JSON válido con esta forma:
   "fundId": "uuid de la lista de bolsillos o null",
   "fundNameHint": "nombre del bolsillo si no estás seguro del id, o null",
   "confidence": "high|medium|low",
-  "rawNotes": "duda breve si la hubo, o null"
+  "rawNotes": "duda breve si la hubo, o null"${includeLineItems ? "," : ""}
+${linesBlock}
 }
 
 Bolsillos disponibles (elige el más coherente con el ticket; si ninguno encaja, null):
@@ -191,7 +251,7 @@ Reglas:
   - si itemCount > 1 → el nombre del establecimiento (merchant)
 - "fundId": el bolsillo cuyo nombre mejor encaja (ej. restaurante→bolsillo Comida/Restaurantes; supermercado→Super/Compras). Solo ids de la lista.
 - "categoryId": icono/categoría del gasto (dining, super, transport, …).
-- Si hay varios totales, prioriza el total cobrado / a pagar.`;
+- Si hay varios totales, prioriza el total cobrado / a pagar.${linesRules}`;
 
   const response = await openai.chat.completions.create({
     model,
@@ -245,12 +305,21 @@ Reglas:
       ? parsed.description.trim().slice(0, 80)
       : null;
 
+  const lines = includeLineItems
+    ? parseReceiptLines(
+        parsed.lines ?? parsed.items ?? parsed.products ?? parsed.lineItems
+      )
+    : undefined;
+  const resolvedItemCount =
+    itemCount ??
+    (lines && lines.length > 0 ? lines.length : null);
+
   return {
     merchant,
     primaryProduct,
-    itemCount,
+    itemCount: resolvedItemCount,
     description: buildDescription({
-      itemCount,
+      itemCount: resolvedItemCount,
       primaryProduct,
       merchant,
       description: rawDescription,
@@ -272,5 +341,6 @@ Reglas:
       typeof parsed.rawNotes === "string" && parsed.rawNotes.trim()
         ? parsed.rawNotes.trim()
         : null,
+    ...(lines ? { lines } : {}),
   };
 }

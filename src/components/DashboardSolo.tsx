@@ -7,11 +7,8 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
     ArrowLeftRight,
     BarChart3,
-    Bolt,
     CalendarClock,
-    CarFront,
     CheckCircle2,
-    Coffee,
     Edit,
     Eye,
     EyeOff,
@@ -20,13 +17,10 @@ import {
     PiggyBank,
     Plus,
     Receipt,
-    ReceiptText,
-    ShoppingBag,
     Sparkles,
     Trash2,
     Wallet,
     X,
-    type LucideIcon,
 } from "lucide-react";
 import {
     depositToFundAction,
@@ -52,8 +46,10 @@ import {
     resolveFundUiColor,
     type FamilyFund,
 } from "@/lib/funds";
+import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import { useAccountsStore } from "@/store/useAccountsStore";
+import { useCategoriesStore } from "@/store/useCategoriesStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import ProductTour from "@/components/ProductTour";
@@ -81,14 +77,6 @@ interface DashboardSoloProps {
     initialFunds?: FamilyFund[];
     entitlement?: HouseholdEntitlement | null;
 }
-
-const iconMap: Record<DashboardTransaction["iconKey"], LucideIcon> = {
-    "shopping-cart": ShoppingBag,
-    coffee: Coffee,
-    car: CarFront,
-    utensils: ReceiptText,
-    receipt: Bolt,
-};
 
 function getInitials(name: string) {
     return (
@@ -129,8 +117,14 @@ export default function DashboardSolo({
     const storeExpenses = useExpenseStore((s) => s.expenses);
     const storeFunds = useFundsStore((s) => s.funds);
     const storeAccounts = useAccountsStore((s) => s.accounts);
+    const familyCategories = useCategoriesStore((s) => s.categories);
+    const loadCategories = useCategoriesStore((s) => s.load);
     const colorFunds = storeFunds.length > 0 ? storeFunds : initialFunds;
     const displayName = userName?.trim() || "Usuario";
+
+    useEffect(() => {
+        void loadCategories();
+    }, [loadCategories]);
 
     const dashboardTourSteps = useMemo<ProductTourStep[]>(
         () => [
@@ -841,9 +835,13 @@ export default function DashboardSolo({
                         ) : (
                             <div className="min-h-0 overflow-hidden">
                                 {currentList.map((tx, index) => {
-                                    const Icon = iconMap[tx.iconKey] ?? ReceiptText;
                                     const isDeposit = tx.category === "deposit";
                                     const storeRow = storeExpenses.find((e) => e.id === tx.id);
+                                    const Icon = resolveExpenseCategoryIcon({
+                                        category: storeRow?.category ?? tx.category,
+                                        categoryId: storeRow?.category_id,
+                                        categories: familyCategories,
+                                    });
                                     const iconColor = resolveMovementIconColor(
                                         {
                                             amount: tx.amount,
@@ -918,6 +916,15 @@ export default function DashboardSolo({
                                                             id: tx.id,
                                                             amount: tx.amount,
                                                             concept: tx.concept,
+                                                            category: storeRow?.category ?? tx.category,
+                                                            category_id: storeRow?.category_id ?? null,
+                                                            paid_by: storeRow?.paid_by ?? currentUserId,
+                                                            responsible_for:
+                                                                storeRow?.responsible_for ?? null,
+                                                            fund_id:
+                                                                storeRow?.fund_id ??
+                                                                tx.fundId ??
+                                                                null,
                                                         });
                                                         setIsExpenseModalOpen(true);
                                                         setActiveActionId(null);

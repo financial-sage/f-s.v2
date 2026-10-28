@@ -10,9 +10,8 @@ import {
     ChevronRight,
     Edit,
     Lock,
-    Receipt,
-    ReceiptText,
     SlidersHorizontal,
+    Ticket,
     Trash2,
     X,
 } from "lucide-react";
@@ -21,8 +20,14 @@ import {
     ExpenseDebtStatus,
     isFundSettlementConcept,
 } from "@/components/ExpenseDebtStatus";
+import { getIsSuperAdminAction } from "@/app/actions/admin";
 import { deleteExpenseAction } from "@/app/actions/expenses";
-import { getCategoryDetails } from "@/lib/categoryMap";
+import {
+    getPurchaseReceiptDetailForExpenseAction,
+    listPurchaseReceiptExpenseIdsAction,
+    type PurchaseCompareResult,
+} from "@/app/actions/purchase-receipts";
+import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import {
     calculatePersonalPocketBalance,
@@ -36,10 +41,12 @@ import {
 } from "@/lib/funds";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import { isInvestmentAccountMovement } from "@/lib/accounts";
+import PurchaseCompareSheet from "@/components/PurchaseCompareSheet";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useAccountsStore } from "@/store/useAccountsStore";
+import { useCategoriesStore } from "@/store/useCategoriesStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
@@ -242,10 +249,19 @@ export default function HistoryList({
     const [isDeleting, startDeletingTransition] = useTransition();
     const [systemNotification, setSystemNotification] = useState<string | null>(null);
     const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
+    const [receiptExpenseIds, setReceiptExpenseIds] = useState<Set<string>>(
+        () => new Set()
+    );
+    const [receiptCompare, setReceiptCompare] =
+        useState<PurchaseCompareResult | null>(null);
+    const [receiptCompareOpen, setReceiptCompareOpen] = useState(false);
+    const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
     const storeFunds = useFundsStore((s) => s.funds);
     const loadFunds = useFundsStore((s) => s.load);
     const storeAccounts = useAccountsStore((s) => s.accounts);
     const loadAccounts = useAccountsStore((s) => s.load);
+    const familyCategories = useCategoriesStore((s) => s.categories);
+    const loadCategories = useCategoriesStore((s) => s.load);
     // Prefer store; fall back to SSR props so first paint has real fund colors.
     const funds = storeFunds.length > 0 ? storeFunds : initialFunds;
 
@@ -263,6 +279,42 @@ export default function HistoryList({
     useEffect(() => {
         void loadAccounts();
     }, [loadAccounts]);
+
+    useEffect(() => {
+        void loadCategories();
+    }, [loadCategories]);
+
+    useEffect(() => {
+        let cancelled = false;
+        void (async () => {
+            const isAdmin = await getIsSuperAdminAction();
+            if (!isAdmin || cancelled) return;
+            const ids = await listPurchaseReceiptExpenseIdsAction();
+            if (cancelled) return;
+            setReceiptExpenseIds(new Set(ids));
+        })();
+        return () => {
+            cancelled = true;
+        };
+        // Re-check when the expense list changes (new grocery ticket after scan).
+    }, [allExpenses.length]);
+
+    async function openReceiptDetail(expenseId: string) {
+        setReceiptLoadingId(expenseId);
+        try {
+            const result = await getPurchaseReceiptDetailForExpenseAction(expenseId);
+            if (!result.ok) {
+                setSystemNotification(result.error);
+                window.setTimeout(() => setSystemNotification(null), 2800);
+                return;
+            }
+            setReceiptCompare(result.compare);
+            setReceiptCompareOpen(true);
+            setActiveActionId(null);
+        } finally {
+            setReceiptLoadingId(null);
+        }
+    }
 
     // Filter states
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -534,7 +586,11 @@ export default function HistoryList({
     };
 
     const renderExpenseCard = (expense: HistoryExpenseRow, index: number) => {
-        const { icon: Icon } = getCategoryDetails(expense.category ?? "");
+        const Icon = resolveExpenseCategoryIcon({
+            category: expense.category,
+            categoryId: expense.category_id,
+            categories: familyCategories,
+        });
         const isDeposit = expense.category === "deposit";
         const isWithdrawal = expense.category === "withdrawal";
         const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
@@ -550,6 +606,8 @@ export default function HistoryList({
             storeAccounts,
             currentUserId
         );
+        const hasReceipt = receiptExpenseIds.has(expense.id);
+        const receiptBusy = receiptLoadingId === expense.id;
 
         return (
             <div
@@ -560,7 +618,7 @@ export default function HistoryList({
                 <button
                     type="button"
                     onClick={() => setActiveActionId((prev) => (prev === expense.id ? null : expense.id))}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-left transition-all duration-300 ease-out ${
+                    className={`flex min-w-0 flex-1 items-center justify-between px-3 py-2 text-left transition-all duration-300 ease-out ${
                         activeActionId === expense.id ? "bg-glass-soft pr-2" : "bg-transparent"
                     }`}
                 >
@@ -596,6 +654,26 @@ export default function HistoryList({
                     </span>
                 </button>
 
+                {hasReceipt ? (
+                    <button
+                        type="button"
+                        disabled={receiptBusy}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            void openReceiptDetail(expense.id);
+                        }}
+                        className="flex w-9 shrink-0 items-center justify-center text-on-surface-variant/70 transition-colors hover:text-on-surface disabled:opacity-50"
+                        aria-label="Ver detalle del ticket"
+                        title="Ver detalle del ticket"
+                    >
+                        {receiptBusy ? (
+                            <span className="h-3 w-3 animate-spin rounded-full border border-outline-variant/40 border-t-on-surface-variant" />
+                        ) : (
+                            <Ticket size={14} strokeWidth={1.5} />
+                        )}
+                    </button>
+                ) : null}
+
                 {/* Slide-out action panel */}
                 <div className={`flex flex-col border-l border-outline-variant/20 transition-all duration-300 ease-out overflow-hidden shrink-0 ${activeActionId === expense.id ? "w-14 opacity-100" : "w-0 opacity-0 border-transparent"}`}>
                     {isModifiable ? (
@@ -613,6 +691,7 @@ export default function HistoryList({
                                         spend_segment: expense.spend_segment,
                                         paid_by: expense.paid_by,
                                         responsible_for: expense.responsible_for,
+                                        fund_id: expense.fund_id ?? null,
                                     });
                                     setIsExpenseModalOpen(true);
                                     setActiveActionId(null);
@@ -1150,6 +1229,14 @@ export default function HistoryList({
                 open={historyTour.open}
                 steps={historyTour.steps}
                 onClose={historyTour.close}
+            />
+
+            <PurchaseCompareSheet
+                open={receiptCompareOpen}
+                compare={receiptCompare}
+                formatMoney={formatCurrency}
+                title="Detalle del ticket"
+                onClose={() => setReceiptCompareOpen(false)}
             />
         </>
     );

@@ -25,6 +25,12 @@ import {
   type ExpenseActor,
   type ExpenseResponsibleFor,
 } from "@/app/actions/expenses";
+import { getIsSuperAdminAction } from "@/app/actions/admin";
+import {
+  getPurchaseCompareForLinesAction,
+  savePurchaseReceiptAction,
+  type PurchaseCompareResult,
+} from "@/app/actions/purchase-receipts";
 import { SoftDecimals } from "@/components/FormattedCurrency";
 import { editExpenseAction } from "@/app/actions/editExpense";
 import BothSplitBelongModal, {
@@ -32,10 +38,16 @@ import BothSplitBelongModal, {
 } from "@/components/BothSplitBelongModal";
 import ConceptSuggestModal from "@/components/ConceptSuggestModal";
 import ProductTour, { type ProductTourStep } from "@/components/ProductTour";
+import PurchaseCompareSheet from "@/components/PurchaseCompareSheet";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useExpenseModal, type ExpenseToEdit } from "@/components/ExpenseModalProvider";
 import { useProductTour } from "@/hooks/useProductTour";
 import { frequentConceptsForFund } from "@/lib/expenses/frequent-concepts";
+import {
+  getGroceryFund,
+  isGroceryFund,
+  type ReceiptLineDraft,
+} from "@/lib/grocery";
 import { createClient } from "@/utils/supabase/client";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
@@ -236,7 +248,7 @@ export default function AddExpenseForm({
 }: AddExpenseFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const { meta: currencyMeta } = useCurrency();
+  const { meta: currencyMeta, format: formatMoney } = useCurrency();
   const isDark = useIsDark();
   const formatAmountDisplay = (value: number) =>
     new Intl.NumberFormat(currencyMeta.locale, {
@@ -351,7 +363,28 @@ export default function AddExpenseForm({
   const [scanBusyPrompt, setScanBusyPrompt] = useState("");
   const [scanBusyTyping, setScanBusyTyping] = useState(false);
   const [scanHint, setScanHint] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [receiptMerchant, setReceiptMerchant] = useState<string | null>(null);
+  const [receiptLines, setReceiptLines] = useState<ReceiptLineDraft[]>([]);
+  const [receiptCompare, setReceiptCompare] =
+    useState<PurchaseCompareResult | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [pendingFinishAfterCompare, setPendingFinishAfterCompare] =
+    useState(false);
   const receiptInputRef = useRef<HTMLInputElement>(null);
+  /** Avoid stale state when persisting right after scan. */
+  const receiptLinesRef = useRef<ReceiptLineDraft[]>([]);
+  const receiptMerchantRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getIsSuperAdminAction().then((v) => {
+      if (!cancelled) setIsSuperAdmin(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const sharedFunds = useMemo(() => listVariableSharedFunds(storeFunds), [storeFunds]);
   const personalFunds = useMemo(() => {
@@ -653,6 +686,7 @@ export default function AddExpenseForm({
       }
 
       if (expenseToEdit.fund_id) {
+        setPaymentSource("fund");
         setSelectedFundId(expenseToEdit.fund_id);
       }
 
@@ -712,11 +746,26 @@ export default function AddExpenseForm({
     setConceptSuggestOpen(false);
     setScanHint("");
     setErrorMessage("");
+    receiptLinesRef.current = [];
+    receiptMerchantRef.current = null;
+    setReceiptLines([]);
+    setReceiptMerchant(null);
+    setReceiptCompare(null);
     try {
       const { prepareReceiptFile } = await import(
         "@/lib/receipts/prepare-image"
       );
       const prepared = await prepareReceiptFile(file);
+
+      // Resolve gate at scan time — state may still be false on first open (race).
+      const adminNow =
+        isSuperAdmin || (await getIsSuperAdminAction());
+      if (adminNow && !isSuperAdmin) setIsSuperAdmin(true);
+
+      const selectedFund =
+        selectableFunds.find((f) => f.id === selectedFundId) ?? null;
+      const selectedIsGrocery = isGroceryFund(selectedFund);
+      const groceryPocket = getGroceryFund(storeFunds);
 
       const form = new FormData();
       form.set("file", prepared);
@@ -737,6 +786,8 @@ export default function AddExpenseForm({
           }))
         )
       );
+      // Server also forces lines for superadmin; send flag when we know.
+      if (adminNow) form.set("includeLineItems", "1");
       const res = await fetch("/api/receipts/parse", {
         method: "POST",
         body: form,
@@ -745,6 +796,7 @@ export default function AddExpenseForm({
       let data: {
         ok?: boolean;
         error?: string;
+        meta?: { includeLineItems?: boolean; lineCount?: number };
         receipt?: {
           merchant?: string | null;
           description?: string | null;
@@ -757,6 +809,7 @@ export default function AddExpenseForm({
           fundId?: string | null;
           confidence?: string;
           rawNotes?: string | null;
+          lines?: ReceiptLineDraft[];
         };
       } = {};
       try {
@@ -811,13 +864,74 @@ export default function AddExpenseForm({
         }
       }
 
+      let nextFundId = selectedFundId;
       if (
         receipt.fundId &&
         selectableFunds.some((f) => f.id === receipt.fundId)
       ) {
         setPaymentSource("fund");
         setSelectedFundId(receipt.fundId);
+        nextFundId = receipt.fundId;
         if (!isSolo) setResponsibleFor("joint_fund");
+      } else if (
+        isSuperAdmin &&
+        groceryPocket &&
+        !isGroceryFund(selectableFunds.find((f) => f.id === selectedFundId))
+      ) {
+        // Soft-assign grocery pocket when scanning a market ticket.
+        if (selectableFunds.some((f) => f.id === groceryPocket.id)) {
+          setPaymentSource("fund");
+          setSelectedFundId(groceryPocket.id);
+          nextFundId = groceryPocket.id;
+          if (!isSolo) setResponsibleFor("joint_fund");
+        }
+      }
+
+      const lines = Array.isArray(receipt.lines)
+        ? receipt.lines
+            .map((line) => ({
+              name: String(line.name ?? "").trim(),
+              quantity:
+                line.quantity != null && Number.isFinite(Number(line.quantity))
+                  ? Number(line.quantity)
+                  : null,
+              unitPrice:
+                line.unitPrice != null && Number.isFinite(Number(line.unitPrice))
+                  ? Number(line.unitPrice)
+                  : null,
+              lineTotal:
+                line.lineTotal != null && Number.isFinite(Number(line.lineTotal))
+                  ? Number(line.lineTotal)
+                  : null,
+            }))
+            .filter((line) => line.name.length > 0)
+        : [];
+      const merchant = receipt.merchant?.trim() || null;
+      receiptMerchantRef.current = merchant;
+      receiptLinesRef.current = lines;
+      setReceiptMerchant(merchant);
+      setReceiptLines(lines);
+
+      const groceryTarget = isGroceryFund(
+        selectableFunds.find((f) => f.id === nextFundId) ?? groceryPocket
+      );
+      if (adminNow && groceryTarget && lines.length > 0) {
+        const fundForCompare =
+          selectableFunds.find((f) => f.id === nextFundId && isGroceryFund(f)) ??
+          groceryPocket;
+        if (fundForCompare) {
+          const compareRes = await getPurchaseCompareForLinesAction({
+            fundId: fundForCompare.id,
+            merchant: receipt.merchant,
+            purchasedAt: receipt.date,
+            total:
+              typeof receipt.total === "number" ? receipt.total : null,
+            lines,
+          });
+          if (compareRes.ok) {
+            setReceiptCompare(compareRes.compare);
+          }
+        }
       }
 
       if (receipt.total == null) {
@@ -829,17 +943,79 @@ export default function AddExpenseForm({
           receipt.rawNotes?.trim() ||
             "Revisa los datos: la lectura no está muy segura."
         );
+      } else if (lines.length > 0) {
+        setScanHint(
+          `Ticket leído · ${lines.length} producto${lines.length === 1 ? "" : "s"}. Revisa y guarda.`
+        );
+      } else if (adminNow && (selectedIsGrocery || groceryTarget || groceryPocket)) {
+        setScanHint(
+          "Ticket leído, pero sin líneas de producto. Prueba otra foto más nítida del desglose."
+        );
       } else {
         setScanHint("Ticket leído. Revisa bolsillo, categoría y guarda.");
       }
       setShowKeypad(false);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudo leer el ticket.";
+      const isChunkMiss =
+        /Loading chunk|ChunkLoadError|Failed to fetch dynamically imported module/i.test(
+          msg
+        ) ||
+        (err instanceof Error && err.name === "ChunkLoadError");
       setErrorMessage(
-        err instanceof Error ? err.message : "No se pudo leer el ticket."
+        isChunkMiss
+          ? "La app se actualizó en segundo plano. Recarga la página e intenta escanear de nuevo."
+          : msg
       );
     } finally {
       setIsScanning(false);
       if (receiptInputRef.current) receiptInputRef.current.value = "";
+    }
+  }
+
+  async function persistGroceryReceiptIfNeeded(params: {
+    expenseId: string | null | undefined;
+    fundId: string | null | undefined;
+    amount: number;
+  }) {
+    const lines = receiptLinesRef.current;
+    const merchant = receiptMerchantRef.current;
+    if (!params.expenseId) {
+      console.warn("[grocery-receipt] missing expenseId after save");
+      return;
+    }
+    if (!params.fundId) {
+      console.warn("[grocery-receipt] missing fundId");
+      return;
+    }
+    if (lines.length === 0) {
+      console.warn("[grocery-receipt] no OCR lines to persist");
+      return;
+    }
+    const adminNow =
+      isSuperAdmin || (await getIsSuperAdminAction());
+    if (!adminNow) return;
+    if (adminNow && !isSuperAdmin) setIsSuperAdmin(true);
+
+    // Server re-checks is_grocery; don't block on possibly-stale client fund flags.
+    try {
+      const saved = await savePurchaseReceiptAction({
+        expenseId: params.expenseId,
+        fundId: params.fundId,
+        merchant,
+        purchasedAt: date,
+        total: params.amount,
+        currency: currencyMeta.code,
+        lines,
+      });
+      if (!saved.ok) {
+        console.warn("[grocery-receipt]", saved.error);
+        setScanHint(
+          saved.error || "El gasto se guardó, pero no el detalle del ticket."
+        );
+      }
+    } catch (err) {
+      console.warn("[grocery-receipt]", err);
     }
   }
 
@@ -1101,7 +1277,13 @@ export default function AddExpenseForm({
                 null
               : null;
 
-          await saveExpenseAction({
+          const resolvedFundId = isSolo
+            ? soloFundId
+            : (isCoupleMode ? responsibleFor : "me") === "joint_fund"
+              ? selectedFundId
+              : null;
+
+          const result = await saveExpenseAction({
             amount: finalAmount,
             concept,
             paidBy: singlePaidBy,
@@ -1111,19 +1293,33 @@ export default function AddExpenseForm({
             categoryId: selectedCategoryId!,
             date,
             splitTypeOverride,
-            fundId: isSolo
-              ? soloFundId
-              : (isCoupleMode ? responsibleFor : "me") === "joint_fund"
-                ? selectedFundId
-                : null,
+            fundId: resolvedFundId,
             paidFromFund: isSolo
               ? Boolean(soloFundId)
               : singlePaidBy === "joint_fund",
           });
+
+          await persistGroceryReceiptIfNeeded({
+            expenseId:
+              result && "expenseId" in result
+                ? (result.expenseId as string | null)
+                : null,
+            fundId: resolvedFundId,
+            amount: finalAmount,
+          });
         }
       }
 
-      await finishAfterSave();
+      if (
+        (isSuperAdmin || receiptLinesRef.current.length > 0) &&
+        receiptCompare &&
+        receiptLinesRef.current.length > 0
+      ) {
+        setCompareOpen(true);
+        setPendingFinishAfterCompare(true);
+      } else {
+        await finishAfterSave();
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "No se pudo guardar el gasto."
@@ -1354,6 +1550,35 @@ export default function AddExpenseForm({
             <p className="w-full text-center text-[11px] font-light text-accent/90">
               {scanHint}
             </p>
+          ) : null}
+
+          {isSuperAdmin && receiptCompare && receiptLines.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setCompareOpen(true)}
+              className="mt-1.5 w-full border-t border-outline-variant/15 px-0.5 pt-2 text-left"
+            >
+              <p className="text-[12px] font-medium tracking-tight text-on-surface">
+                Ticket
+                {receiptMerchant ? (
+                  <span className="font-light text-on-surface-variant">
+                    {" "}
+                    · {receiptMerchant}
+                  </span>
+                ) : null}
+              </p>
+              <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
+                {receiptLines.length} producto
+                {receiptLines.length === 1 ? "" : "s"}
+                {receiptCompare.raised > 0
+                  ? ` · ↑${receiptCompare.raised}`
+                  : ""}
+                {receiptCompare.lowered > 0
+                  ? ` · ↓${receiptCompare.lowered}`
+                  : ""}
+                <span className="text-on-surface/70"> · Ver detalle</span>
+              </p>
+            </button>
           ) : null}
 
           <div
@@ -2009,6 +2234,19 @@ export default function AddExpenseForm({
         open={expenseTour.open}
         steps={expenseTour.steps}
         onClose={expenseTour.close}
+      />
+
+      <PurchaseCompareSheet
+        open={compareOpen}
+        compare={receiptCompare}
+        formatMoney={formatMoney}
+        onClose={() => {
+          setCompareOpen(false);
+          if (pendingFinishAfterCompare) {
+            setPendingFinishAfterCompare(false);
+            void finishAfterSave();
+          }
+        }}
       />
     </form>
   );

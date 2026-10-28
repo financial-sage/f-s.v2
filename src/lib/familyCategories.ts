@@ -1,6 +1,7 @@
 /** Family spend categories (shared / personal) + optional subcategories. */
 
 import type { LucideIcon } from "lucide-react";
+import { getCategoryDetails } from "@/lib/categoryMap";
 import {
   Baby,
   Bath,
@@ -257,6 +258,48 @@ export function resolveCategoryIcon(
   if (iconId && isCategoryIconId(iconId)) {
     return ICON_BY_ID.get(iconId)!.icon;
   }
+  return Tags;
+}
+
+/**
+ * Icon for an expense row: prefers family_categories (by id, then name),
+ * then legacy tile ids (dining/home/…), then Tags.
+ */
+export function resolveExpenseCategoryIcon(input: {
+  category?: string | null;
+  categoryId?: string | null;
+  categories?: Pick<FamilyCategory, "id" | "parent_id" | "name" | "icon">[];
+}): LucideIcon {
+  const legacyKey = String(input.category ?? "").trim().toLowerCase();
+  if (legacyKey === "deposit" || legacyKey === "withdrawal") {
+    return getCategoryDetails(legacyKey).icon;
+  }
+
+  const rows = input.categories ?? [];
+  if (input.categoryId) {
+    const row = rows.find((c) => c.id === input.categoryId);
+    if (row) {
+      const source =
+        row.parent_id != null
+          ? (rows.find((c) => c.id === row.parent_id) ?? row)
+          : row;
+      return resolveCategoryIcon(source.icon);
+    }
+  }
+
+  if (input.category && rows.length > 0) {
+    const name = input.category.trim().toLowerCase();
+    const byName = rows.find(
+      (c) => c.parent_id == null && c.name.trim().toLowerCase() === name
+    );
+    if (byName) return resolveCategoryIcon(byName.icon);
+  }
+
+  if (legacyKey) {
+    const legacy = getCategoryDetails(legacyKey);
+    if (legacy.id !== "misc") return legacy.icon;
+  }
+
   return Tags;
 }
 

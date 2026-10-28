@@ -49,8 +49,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Never fall back to the app shell for JS/CSS/chunks — that returns HTML and
+  // surfaces as "Loading chunk … failed" after a Next.js restart / HMR.
+  const isStaticAsset =
+    url.pathname.startsWith("/_next/") ||
+    /\.(?:js|css|map|mjs|woff2?|ttf|otf)$/i.test(url.pathname);
+
   event.respondWith(
     fetch(event.request).catch(async () => {
+      if (isStaticAsset) {
+        return Response.error();
+      }
       const cachedResponse = await caches.match(event.request);
       return cachedResponse || caches.match("/");
     })

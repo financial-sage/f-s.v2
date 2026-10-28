@@ -15,5 +15,5 @@ When implementing **Recommendations (persistentes + IA)**, follow the project sk
 
 When implementing **CFO Presence (notas proactivas + historial)**, follow `.cursor/skills/cfo-presence/SKILL.md` and `.cursor/rules/cfo-presence.mdc`. Product source of truth: `docs/product/features/cfo-presence/` and `docs/decisions/ADR-0011-cfo-proactive-presence.md`. Extends recommendations with `kind`; decorative pill → modal; archive; no dashboard scroll cards; no chat.
 
-When touching **UI surfaces** (sheets, modals, placeholders, debt/balance colors), follow `.cursor/rules/ux-surfaces.mdc`: modales premium/delicados; placeholders globales (sin marcas/productos de un solo país); evitar rojo de pánico en saldos/deuda.
+When touching **UI surfaces** (sheets, modals, listas, tickets, placeholders, debt/balance colors), follow `.cursor/rules/ux-surfaces.mdc` (**alwaysApply**): mantra **premium · elegante · compacto**; sheets delicados; listas con hairline (no cards apiladas); placeholders globales (sin marcas/productos de un solo país); evitar rojo de pánico en saldos/deuda/deltas.
 <!-- END:feature-harnesses -->

@@ -70,3 +70,13 @@ export async function broadcastAppUpdateAdminAction() {
   revalidatePath("/admin");
   return { ok: true as const, ...result };
 }
+
+/** Client-safe gate for superadmin-only trials (e.g. grocery price compare). */
+export async function getIsSuperAdminAction(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  return isSuperAdminUser({ userId: user.id, email: user.email });
+}

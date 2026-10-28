@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import type { FamilyFund } from "@/lib/funds";
 import { useAccountsStore } from "@/store/useAccountsStore";
+import { useCategoriesStore } from "@/store/useCategoriesStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 
@@ -25,6 +26,7 @@ export default function StoreHydrator({
   const fetchData = useExpenseStore((s) => s.fetchData);
   const loadFunds = useFundsStore((s) => s.load);
   const loadAccounts = useAccountsStore((s) => s.load);
+  const loadCategories = useCategoriesStore((s) => s.load);
   const lastEmptyFetchPath = useRef<string | null>(null);
 
   useEffect(() => {
@@ -70,7 +72,8 @@ export default function StoreHydrator({
     }
     void loadFunds();
     void loadAccounts();
-  }, [loadFunds, loadAccounts, pathname]);
+    void loadCategories();
+  }, [loadFunds, loadAccounts, loadCategories, pathname]);
 
   return null;
 }

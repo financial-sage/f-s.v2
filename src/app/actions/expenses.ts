@@ -63,6 +63,58 @@ function resolveActor(
   return currentUserId;
 }
 
+async function insertExpenseRow(
+  admin: ReturnType<typeof getSupabaseAdminClient>,
+  payload: Record<string, unknown>
+): Promise<{ id: string | null; error: { message: string } | null }> {
+  const { data, error } = await admin
+    .from("expenses")
+    .insert(payload as never)
+    .select("id")
+    .single();
+  const idFromData =
+    data && typeof (data as { id?: unknown }).id === "string"
+      ? (data as { id: string }).id
+      : null;
+  if (!error && idFromData) {
+    return { id: idFromData, error: null };
+  }
+  // Fallback without select (older clients / RLS quirks), then resolve id.
+  if (error && /select|returning/i.test(error.message)) {
+    const retry = await admin.from("expenses").insert(payload as never);
+    if (retry.error) return { id: null, error: retry.error };
+  } else if (error) {
+    return { id: null, error };
+  }
+
+  // Insert likely succeeded without a returned id — resolve the newest match.
+  const familyId = payload.family_id;
+  const concept = payload.concept;
+  const amount = payload.amount;
+  if (
+    typeof familyId === "string" &&
+    typeof concept === "string" &&
+    typeof amount === "number"
+  ) {
+    const { data: found } = await admin
+      .from("expenses")
+      .select("id")
+      .eq("family_id", familyId)
+      .eq("concept", concept)
+      .eq("amount", amount)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const foundId =
+      found && typeof (found as { id?: unknown }).id === "string"
+        ? (found as { id: string }).id
+        : null;
+    if (foundId) return { id: foundId, error: null };
+  }
+
+  return { id: null, error: error ?? { message: "No se pudo obtener el id del gasto." } };
+}
+
 export async function saveExpenseAction({
   amount,
   concept,
@@ -220,18 +272,16 @@ export async function saveExpenseAction({
       paid_from_account: true,
     };
 
-    let { error: insertError } = await admin.from("expenses").insert(payload as never);
-    if (insertError && /category_id|column/i.test(insertError.message)) {
+    let insert = await insertExpenseRow(admin, payload as Record<string, unknown>);
+    if (insert.error && /category_id|column/i.test(insert.error.message)) {
       const { category_id: _c, ...withoutCat } = payload;
-      ({ error: insertError } = await admin
-        .from("expenses")
-        .insert(withoutCat as never));
+      insert = await insertExpenseRow(admin, withoutCat as Record<string, unknown>);
     }
-    if (insertError) {
+    if (insert.error) {
       throw new Error(
-        /account_id|paid_from_account|column/i.test(insertError.message)
+        /account_id|paid_from_account|column/i.test(insert.error.message)
           ? "Falta aplicar la migración de cuentas. Ejecuta database/migrations/003_family_accounts.sql"
-          : insertError.message
+          : insert.error.message
       );
     }
 
@@ -249,6 +299,7 @@ export async function saveExpenseAction({
 
     return {
       success: true as const,
+      expenseId: insert.id,
       balanceWarning,
       firstMoveTrialStarted: trial.started,
     };
@@ -348,27 +399,32 @@ export async function saveExpenseAction({
     paid_from_account: false,
   };
 
-  let { error: insertError } = await admin.from("expenses").insert(payload as never);
+  let insert = await insertExpenseRow(admin, payload as Record<string, unknown>);
 
-  if (insertError && /invalid input value for enum/i.test(insertError.message) && splitType === "fund_transfer") {
-    ({ error: insertError } = await admin.from("expenses").insert(
-      {
-        ...payload,
-        split_type: "shared_custom",
-        payer_share_pct: isPaidFromFund ? 0 : payload.payer_share_pct,
-      } as never
-    ));
+  if (
+    insert.error &&
+    /invalid input value for enum/i.test(insert.error.message) &&
+    splitType === "fund_transfer"
+  ) {
+    insert = await insertExpenseRow(admin, {
+      ...payload,
+      split_type: "shared_custom",
+      payer_share_pct: isPaidFromFund ? 0 : payload.payer_share_pct,
+    } as Record<string, unknown>);
   }
 
-  if (insertError && /category_id|column/i.test(insertError.message)) {
+  if (insert.error && /category_id|column/i.test(insert.error.message)) {
     const { category_id: _c, ...withoutCat } = payload;
-    ({ error: insertError } = await admin
-      .from("expenses")
-      .insert(withoutCat as never));
+    insert = await insertExpenseRow(admin, withoutCat as Record<string, unknown>);
   }
 
   // Columns may not exist yet if migration not applied — retry without fund/account fields
-  if (insertError && /fund_id|paid_from_fund|account_id|paid_from_account|column/i.test(insertError.message)) {
+  if (
+    insert.error &&
+    /fund_id|paid_from_fund|account_id|paid_from_account|column/i.test(
+      insert.error.message
+    )
+  ) {
     const {
       fund_id: _f,
       paid_from_fund: _p,
@@ -377,11 +433,14 @@ export async function saveExpenseAction({
       category_id: _c,
       ...legacyPayload
     } = payload;
-    ({ error: insertError } = await admin.from("expenses").insert(legacyPayload as never));
+    insert = await insertExpenseRow(
+      admin,
+      legacyPayload as Record<string, unknown>
+    );
   }
 
-  if (insertError) {
-    throw new Error(insertError.message);
+  if (insert.error) {
+    throw new Error(insert.error.message);
   }
 
   const { maybeStartCoupleTrialOnFirstMovement } = await import("@/lib/premiumServer");
@@ -395,7 +454,11 @@ export async function saveExpenseAction({
   revalidatePath("/add-expense");
   revalidatePath("/history");
 
-  return { success: true as const, firstMoveTrialStarted: trial.started };
+  return {
+    success: true as const,
+    expenseId: insert.id,
+    firstMoveTrialStarted: trial.started,
+  };
 }
 
 export async function createDeposit({

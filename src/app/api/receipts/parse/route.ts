@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isSuperAdminUser } from "@/lib/admin";
 import { createClient } from "@/utils/supabase/server";
 import { parseReceiptImage } from "@/lib/receipts/parse-receipt";
 import { isOpenAIConfigured } from "@/lib/ai/openai";
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   let base64 = "";
   let localeHint: string | undefined;
   let funds: { id: string; name: string }[] = [];
+  let wantLineItems = false;
 
   const contentType = request.headers.get("content-type") || "";
 
@@ -46,6 +48,9 @@ export async function POST(request: Request) {
       const form = await request.formData();
       const file = form.get("file");
       localeHint = String(form.get("localeHint") ?? "") || undefined;
+      wantLineItems =
+        String(form.get("includeLineItems") ?? "") === "1" ||
+        String(form.get("includeLineItems") ?? "").toLowerCase() === "true";
       const fundsRaw = String(form.get("funds") ?? "");
       if (fundsRaw) {
         try {
@@ -90,23 +95,47 @@ export async function POST(request: Request) {
         base64?: string;
         localeHint?: string;
         funds?: { id: string; name: string }[];
+        includeLineItems?: boolean;
       };
       mimeType = body.mimeType || "image/jpeg";
       base64 = (body.base64 || "").replace(/^data:[^;]+;base64,/, "");
       localeHint = body.localeHint;
       funds = Array.isArray(body.funds) ? body.funds : [];
+      wantLineItems = Boolean(body.includeLineItems);
       if (!base64) {
         return NextResponse.json({ error: "Falta la imagen." }, { status: 400 });
       }
     }
+
+    const isAdmin = await isSuperAdminUser({
+      userId: user.id,
+      email: user.email,
+    });
+    // Superadmin grocery trial: always extract product lines for admins
+    // (client flag can race; wantLineItems kept for future non-admin use).
+    const includeLineItems = isAdmin || wantLineItems;
 
     const receipt = await parseReceiptImage({
       mimeType,
       base64,
       localeHint,
       funds,
+      includeLineItems,
     });
-    return NextResponse.json({ ok: true, receipt });
+    console.info("[receipts/parse]", {
+      includeLineItems,
+      lineCount: Array.isArray(receipt.lines) ? receipt.lines.length : 0,
+      merchant: receipt.merchant,
+      total: receipt.total,
+    });
+    return NextResponse.json({
+      ok: true,
+      receipt,
+      meta: {
+        includeLineItems,
+        lineCount: Array.isArray(receipt.lines) ? receipt.lines.length : 0,
+      },
+    });
   } catch (err) {
     console.error("[receipts/parse]", err);
     return NextResponse.json(

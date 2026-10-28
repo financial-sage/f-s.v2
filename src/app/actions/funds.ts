@@ -574,6 +574,7 @@ export async function updateFundAction(input: {
   name: string;
   color: string;
   isDefault?: boolean;
+  isGrocery?: boolean;
 }): Promise<FamilyFund> {
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
@@ -619,17 +620,46 @@ export async function updateFundAction(input: {
     );
   }
 
-  const { data, error } = await admin
+  if (input.isGrocery === true) {
+    const { isSuperAdminUser } = await import("@/lib/admin");
+    const allowed = await isSuperAdminUser({
+      userId: user.id,
+      email: user.email,
+    });
+    if (!allowed) {
+      throw new Error("Solo superadmin puede marcar bolsillos de compra.");
+    }
+  }
+
+  const updates: Record<string, unknown> = {
+    name,
+    color,
+    updated_at: new Date().toISOString(),
+  };
+  if (typeof input.isGrocery === "boolean") {
+    updates.is_grocery = input.isGrocery;
+  }
+
+  let { data, error } = await admin
     .from("family_funds")
-    .update({
-      name,
-      color,
-      updated_at: new Date().toISOString(),
-    } as never)
+    .update(updates as never)
     .eq("id", input.fundId)
     .eq("family_id", familyId)
     .select(FUND_COLUMNS)
     .single();
+
+  if (error && /is_grocery/i.test(error.message) && "is_grocery" in updates) {
+    const { is_grocery: _g, ...withoutGrocery } = updates;
+    ({ data, error } = await admin
+      .from("family_funds")
+      .update(withoutGrocery as never)
+      .eq("id", input.fundId)
+      .eq("family_id", familyId)
+      .select(
+        "id, family_id, name, scope, owner_profile_id, is_default, is_system, sort_order, archived_at, color, purpose, created_at, updated_at"
+      )
+      .single());
+  }
 
   if (error) {
     if (/duplicate|unique/i.test(error.message)) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { getIsSuperAdminAction } from "@/app/actions/admin";
 import { Portal } from "@/components/ui/Portal";
 import {
   createFundAction,
@@ -7,6 +8,7 @@ import {
   setDefaultFundAction,
   updateFundAction,
 } from "@/app/actions/funds";
+import { looksLikeGroceryFundName } from "@/lib/grocery";
 import {
   DEFAULT_PERSONAL_FUND_COLOR,
   DEFAULT_SHARED_FUND_COLOR,
@@ -20,7 +22,7 @@ import {
   type FundScope,
 } from "@/lib/funds";
 import { tintedGlassGradient } from "@/lib/glass";
-import { Star, Wallet, X } from "lucide-react";
+import { ShoppingCart, Star, Wallet, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
 export type FundEditorSaved = {
@@ -53,6 +55,8 @@ export default function FundEditorModal({
   const [name, setName] = useState("");
   const [color, setColor] = useState<FundColor>(DEFAULT_SHARED_FUND_COLOR);
   const [isDefault, setIsDefault] = useState(false);
+  const [isGrocery, setIsGrocery] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -61,6 +65,11 @@ export default function FundEditorModal({
       setAnimated(false);
       return;
     }
+    let cancelled = false;
+    void (async () => {
+      const v = await getIsSuperAdminAction();
+      if (!cancelled) setIsSuperAdmin(v);
+    })();
     if (editingFund) {
       setName(
         editingFund.scope === "personal"
@@ -71,6 +80,7 @@ export default function FundEditorModal({
       setIsDefault(
         Boolean(editingFund.is_default) && !isFixedExpensesFund(editingFund)
       );
+      setIsGrocery(Boolean(editingFund.is_grocery));
     } else {
       setName("");
       setColor(
@@ -79,13 +89,23 @@ export default function FundEditorModal({
           : DEFAULT_SHARED_FUND_COLOR
       );
       setIsDefault(false);
+      setIsGrocery(false);
     }
     setError("");
     const id = requestAnimationFrame(() =>
       requestAnimationFrame(() => setAnimated(true))
     );
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(id);
+    };
   }, [open, editingFund, createScope]);
+
+  const nameSuggestsGrocery = looksLikeGroceryFundName(name);
+  const showGroceryConfirm =
+    isSuperAdmin &&
+    !isFixedExpensesFund(editingFund ?? undefined) &&
+    (nameSuggestsGrocery || isGrocery || Boolean(editingFund?.is_grocery));
 
   function requestClose() {
     setAnimated(false);
@@ -104,6 +124,7 @@ export default function FundEditorModal({
         let fund: FamilyFund;
         let funds: FamilyFund[];
         let mode: FundEditorSaved["mode"];
+        const groceryPayload = isSuperAdmin ? { isGrocery } : {};
 
         if (editingFund) {
           const onlyDefault =
@@ -114,7 +135,8 @@ export default function FundEditorModal({
               (editingFund.scope === "personal"
                 ? personalFundDisplayName(editingFund)
                 : editingFund.name) &&
-            color === (editingFund.color ?? color);
+            color === (editingFund.color ?? color) &&
+            Boolean(editingFund.is_grocery) === isGrocery;
 
           if (onlyDefault) {
             const result = await setDefaultFundAction(editingFund.id);
@@ -126,6 +148,7 @@ export default function FundEditorModal({
               name: trimmed,
               color,
               isDefault: isFixedExpensesFund(editingFund) ? undefined : isDefault,
+              ...groceryPayload,
             });
             const overview = await getFamilyFundsMetaAction();
             funds = overview.funds;
@@ -137,6 +160,7 @@ export default function FundEditorModal({
             scope: createScope,
             color,
             isDefault,
+            ...groceryPayload,
           });
           const overview = await getFamilyFundsMetaAction();
           funds = overview.funds;
@@ -224,7 +248,18 @@ export default function FundEditorModal({
           </label>
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setName(next);
+              if (
+                isSuperAdmin &&
+                !editingFund?.is_grocery &&
+                looksLikeGroceryFundName(next) &&
+                !isGrocery
+              ) {
+                // Soft-suggest: leave toggle off until user confirms via card.
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
             }}
@@ -306,6 +341,55 @@ export default function FundEditorModal({
               />
             </div>
           </div>
+
+          {showGroceryConfirm ? (
+            <div
+              className={`mt-3 rounded-2xl border px-3 py-3 ${
+                isGrocery
+                  ? "border-accent/35 bg-accent/10"
+                  : "border-glass-border bg-surface-low"
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface-lowest/80 text-on-surface shadow-sm">
+                  <ShoppingCart size={15} strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold tracking-tight text-on-surface">
+                    ¿Es tu bolsillo de compra / supermercado?
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-on-surface-variant">
+                    Guardaremos el detalle del ticket para comparar precios entre
+                    compras.
+                  </p>
+                  <div className="mt-2.5 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsGrocery(false)}
+                      className={`flex-1 rounded-xl border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+                        !isGrocery
+                          ? "border-on-surface/20 bg-on-surface text-on-primary"
+                          : "border-glass-border bg-surface-lowest text-on-surface-variant"
+                      }`}
+                    >
+                      No, solo gasto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsGrocery(true)}
+                      className={`flex-1 rounded-xl border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+                        isGrocery
+                          ? "border-accent/40 bg-accent text-on-primary"
+                          : "border-glass-border bg-surface-lowest text-on-surface-variant"
+                      }`}
+                    >
+                      Sí
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {showDefaultToggle ? (
             <button

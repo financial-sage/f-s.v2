@@ -9,6 +9,15 @@ export default function PWARegister() {
       return;
     }
 
+    // Dev: SW + Next HMR/restarts cause stale chunk URLs ("Loading chunk … failed").
+    // Unregister any leftover SW from a prior prod build on this origin.
+    if (process.env.NODE_ENV !== "production") {
+      void navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const reg of regs) void reg.unregister();
+      });
+      return;
+    }
+
     const register = async () => {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js");
