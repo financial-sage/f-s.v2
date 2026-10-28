@@ -886,7 +886,7 @@ export default function HistoryList({
                 {groups.length === 0 ? (
                     <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pt-20 text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-lowest/80 shadow-sm">
-                            <ReceiptText size={22} className="text-outline-variant" />
+                            <Ticket size={22} className="text-outline-variant" />
                         </div>
                         <p className="text-sm font-medium text-on-surface-variant">
                             {activeFilterCount > 0
