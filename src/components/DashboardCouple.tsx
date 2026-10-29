@@ -1427,7 +1427,7 @@ export default function DashboardCouple({
                         (isJointModel && fundOwesMe > 0) ||
                         (!isJointModel && hasP2PBalance);
                     const tileClass =
-                        "flex min-w-0 items-center gap-1 rounded-xl bg-surface-low px-2.5 py-2 text-left transition-colors hover:bg-surface-container";
+                        "flex min-w-0 items-center gap-1 rounded-xl bg-glass-soft/70 px-2.5 py-2 text-left shadow-[0_4px_16px_rgba(43,52,55,0.06)] backdrop-blur-md transition-colors hover:bg-glass-soft/90";
 
                     return (
                         <section

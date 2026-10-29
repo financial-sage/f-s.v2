@@ -706,7 +706,7 @@ export default function DashboardSolo({
                             <Link
                                 key={key}
                                 href={href}
-                                className="flex min-w-0 items-center gap-1 rounded-xl bg-surface-low px-2.5 py-2 text-left transition-colors hover:bg-surface-container"
+                                className="flex min-w-0 items-center gap-1 rounded-xl bg-glass-soft/70 px-2.5 py-2 text-left shadow-[0_4px_16px_rgba(43,52,55,0.06)] backdrop-blur-md transition-colors hover:bg-glass-soft/90"
                             >
                                 <Icon size={11} className="shrink-0 text-on-surface-variant" />
                                 <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">

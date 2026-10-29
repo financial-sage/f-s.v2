@@ -593,7 +593,7 @@ export async function getHomePageData(): Promise<
     supabase
       .from("family_accounts")
       .select(
-        "id, family_id, name, scope, owner_profile_id, visibility, color, sort_order, archived_at"
+        "id, family_id, name, scope, owner_profile_id, visibility, kind, currency_code, color, sort_order, archived_at"
       )
       .eq("family_id", familyId)
       .is("archived_at", null),
