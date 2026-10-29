@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isSuperAdminUser } from "@/lib/admin";
 import {
   normalizeProductKey,
+  normalizeReceiptLines,
   type ReceiptLineDraft,
 } from "@/lib/grocery";
 import {
@@ -36,15 +36,8 @@ export type PurchaseCompareResult = {
   firstSeen: number;
 };
 
-async function requireSuperAdminFamily() {
+async function requireFamilyMember() {
   const user = await requireRequestUser();
-  const allowed = await isSuperAdminUser({
-    userId: user.id,
-    email: user.email,
-  });
-  if (!allowed) {
-    throw new Error("Solo superadmin puede usar la comparativa de compras.");
-  }
   const familyId = await requireRequestFamilyId(user.id);
   return { user, familyId };
 }
@@ -59,26 +52,10 @@ export async function savePurchaseReceiptAction(input: {
   lines: ReceiptLineDraft[];
 }): Promise<{ ok: true; receiptId: string } | { ok: false; error: string }> {
   try {
-    const { user, familyId } = await requireSuperAdminFamily();
+    const { user, familyId } = await requireFamilyMember();
     const admin = getSupabaseAdminClient();
 
-    const lines = (input.lines ?? [])
-      .map((line) => ({
-        name: String(line.name ?? "").trim().slice(0, 160),
-        quantity:
-          line.quantity != null && Number.isFinite(line.quantity)
-            ? Number(line.quantity)
-            : null,
-        unitPrice:
-          line.unitPrice != null && Number.isFinite(line.unitPrice)
-            ? Number(line.unitPrice)
-            : null,
-        lineTotal:
-          line.lineTotal != null && Number.isFinite(line.lineTotal)
-            ? Number(line.lineTotal)
-            : null,
-      }))
-      .filter((line) => line.name.length > 0);
+    const lines = normalizeReceiptLines(input.lines ?? []);
 
     if (lines.length === 0) {
       return { ok: false, error: "Sin líneas de ticket para guardar." };
@@ -153,23 +130,7 @@ export async function savePurchaseReceiptAction(input: {
 }
 
 function normalizeDraftLines(lines: ReceiptLineDraft[]) {
-  return (lines ?? [])
-    .map((line) => ({
-      name: String(line.name ?? "").trim().slice(0, 160),
-      quantity:
-        line.quantity != null && Number.isFinite(line.quantity)
-          ? Number(line.quantity)
-          : null,
-      unitPrice:
-        line.unitPrice != null && Number.isFinite(line.unitPrice)
-          ? Number(line.unitPrice)
-          : null,
-      lineTotal:
-        line.lineTotal != null && Number.isFinite(line.lineTotal)
-          ? Number(line.lineTotal)
-          : null,
-    }))
-    .filter((line) => line.name.length > 0);
+  return normalizeReceiptLines(lines ?? []);
 }
 
 function resolveUnitPrice(input: {
@@ -336,7 +297,7 @@ export async function getPurchaseCompareForLinesAction(input: {
   { ok: true; compare: PurchaseCompareResult } | { ok: false; error: string }
 > {
   try {
-    const { familyId } = await requireSuperAdminFamily();
+    const { familyId } = await requireFamilyMember();
     const drafts = normalizeDraftLines(input.lines);
     const keys = [
       ...new Set(drafts.map((line) => normalizeProductKey(line.name)).filter(Boolean)),
@@ -365,10 +326,10 @@ export async function getPurchaseCompareForLinesAction(input: {
   }
 }
 
-/** Expense ids that have a saved grocery ticket (superadmin trial). */
+/** Expense ids that have a saved grocery ticket. */
 export async function listPurchaseReceiptExpenseIdsAction(): Promise<string[]> {
   try {
-    const { familyId } = await requireSuperAdminFamily();
+    const { familyId } = await requireFamilyMember();
     const admin = getSupabaseAdminClient();
     const { data, error } = await admin
       .from("purchase_receipts")
@@ -397,7 +358,7 @@ export async function getPurchaseReceiptDetailForExpenseAction(
   | { ok: false; error: string }
 > {
   try {
-    const { familyId } = await requireSuperAdminFamily();
+    const { familyId } = await requireFamilyMember();
     const admin = getSupabaseAdminClient();
     const id = String(expenseId ?? "").trim();
     if (!id) return { ok: false, error: "Gasto no válido." };

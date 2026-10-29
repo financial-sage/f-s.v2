@@ -5,6 +5,7 @@ import {
   parseJsonObject,
 } from "@/lib/ai/openai";
 import { extraCategories, topCategories } from "@/lib/categoryMap";
+import { normalizeWeightLine } from "@/lib/grocery";
 
 export type ReceiptFundOption = {
   id: string;
@@ -35,7 +36,7 @@ export type ParsedReceipt = {
   fundId: string | null;
   confidence: "high" | "medium" | "low";
   rawNotes: string | null;
-  /** Present when includeLineItems was requested (grocery trial). */
+  /** Product lines for grocery ticket detail + price compare. */
   lines?: ParsedReceiptLine[];
 };
 
@@ -57,13 +58,92 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
-function toDate(value: unknown): string | null {
+/** Quantity keeps 3 decimals (kg / grams before normalize). */
+function toQuantity(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value * 1000) / 1000;
+  }
+  if (typeof value === "string") {
+    const normalized = value.replace(/\s/g, "").replace(",", ".");
+    const n = Number(normalized.replace(/[^\d.-]/g, ""));
+    return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : null;
+  }
+  return null;
+}
+
+function toUnitHint(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const u = value.trim().toLowerCase();
+  if (!u) return null;
+  if (/^(g|gr|grs|gramo|gramos)$/.test(u)) return "g";
+  if (/^(kg|kgs|kilo|kilos)$/.test(u)) return "kg";
+  if (/^(ud|uds|u|un|unidad|unidades|pz|pza)$/.test(u)) return "ud";
+  return null;
+}
+
+/** Max age / future skew for a scanned ticket date vs "today" (UTC calendar). */
+const RECEIPT_DATE_MAX_PAST_DAYS = 90;
+const RECEIPT_DATE_MAX_FUTURE_DAYS = 2;
+
+function utcDayMs(year: number, monthIndex: number, day: number) {
+  return Date.UTC(year, monthIndex, day);
+}
+
+/**
+ * Normalize OCR dates and drop improbable years (e.g. 2023 on a 2026 scan).
+ * Returns YYYY-MM-DD or null — null keeps the form's "today".
+ */
+function toDate(value: unknown, today = new Date()): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-  const parsed = Date.parse(trimmed);
-  if (!Number.isFinite(parsed)) return null;
-  return new Date(parsed).toISOString().slice(0, 10);
+  let yyyy: number;
+  let mm: number;
+  let dd: number;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    yyyy = Number(trimmed.slice(0, 4));
+    mm = Number(trimmed.slice(5, 7));
+    dd = Number(trimmed.slice(8, 10));
+  } else {
+    const parsed = Date.parse(trimmed);
+    if (!Number.isFinite(parsed)) return null;
+    const d = new Date(parsed);
+    yyyy = d.getUTCFullYear();
+    mm = d.getUTCMonth() + 1;
+    dd = d.getUTCDate();
+  }
+  if (
+    !Number.isFinite(yyyy) ||
+    !Number.isFinite(mm) ||
+    !Number.isFinite(dd) ||
+    mm < 1 ||
+    mm > 12 ||
+    dd < 1 ||
+    dd > 31
+  ) {
+    return null;
+  }
+
+  const candidateMs = utcDayMs(yyyy, mm - 1, dd);
+  // Reject impossible calendar dates (e.g. 2026-02-31 → rolls over).
+  const check = new Date(candidateMs);
+  if (
+    check.getUTCFullYear() !== yyyy ||
+    check.getUTCMonth() !== mm - 1 ||
+    check.getUTCDate() !== dd
+  ) {
+    return null;
+  }
+
+  const todayMs = utcDayMs(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
+  );
+  const diffDays = Math.round((candidateMs - todayMs) / 86_400_000);
+  if (diffDays > RECEIPT_DATE_MAX_FUTURE_DAYS) return null;
+  if (diffDays < -RECEIPT_DATE_MAX_PAST_DAYS) return null;
+
+  return `${String(yyyy).padStart(4, "0")}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
 }
 
 function toItemCount(value: unknown): number | null {
@@ -157,16 +237,18 @@ function parseReceiptLines(raw: unknown): ParsedReceiptLine[] {
               ? o.label.trim().slice(0, 160)
               : "";
     if (!name) continue;
-    lines.push({
+    const normalized = normalizeWeightLine({
       name,
-      quantity: toNumber(o.quantity ?? o.qty ?? o.cant),
+      quantity: toQuantity(o.quantity ?? o.qty ?? o.cant ?? o.weight),
       unitPrice: toNumber(
         o.unitPrice ?? o.unit_price ?? o.price ?? o.precio ?? o.importe_unitario
       ),
       lineTotal: toNumber(
         o.lineTotal ?? o.line_total ?? o.importe ?? o.amount ?? o.total
       ),
+      unit: toUnitHint(o.unit ?? o.unidad ?? o.qtyUnit ?? o.quantityUnit),
     });
+    lines.push(normalized);
     if (lines.length >= 80) break;
   }
   return lines;
@@ -177,7 +259,7 @@ export async function parseReceiptImage(input: {
   base64: string;
   localeHint?: string;
   funds?: ReceiptFundOption[];
-  /** Superadmin grocery trial: also extract product lines. */
+  /** Extract product lines for grocery ticket detail + price compare. */
   includeLineItems?: boolean;
 }): Promise<ParsedReceipt> {
   if (!isOpenAIConfigured()) {
@@ -202,21 +284,31 @@ export async function parseReceiptImage(input: {
   const linesBlock = includeLineItems
     ? `
   "lines": [
-    { "name": "producto", "quantity": 1, "unitPrice": 1.15, "lineTotal": 1.15 }
+    { "name": "producto", "quantity": 1, "unit": "ud", "unitPrice": 1.15, "lineTotal": 1.15 }
   ]`
     : "";
 
   const linesRules = includeLineItems
     ? `
 - "lines": OBLIGATORIO cuando el documento es un ticket/factura de supermercado (Alcampo, Mercadona, Carrefour, etc.).
-  Lista TODOS los productos visibles (máx ~60) con name, quantity si aparece, unitPrice y/o lineTotal.
+  Lista TODOS los productos visibles (máx ~60) con name, quantity, unit, unitPrice y/o lineTotal.
   Omite solo: totales, IVA/impuestos, cambio, redondeo y cabeceras. No inventes productos que no se lean.
-  Si el ticket tiene desglose y no lo extraes, está mal. Solo lines = [] si realmente no hay líneas de producto.`
+  Si el ticket tiene desglose y no lo extraes, está mal. Solo lines = [] si realmente no hay líneas de producto.
+  Productos a peso (fruta, verdura, carne, charcutería):
+  - "unit" = "kg" siempre (nunca "g").
+  - "quantity" en kilogramos (450 g → 0.45; 1,250 kg → 1.25).
+  - "unitPrice" = precio por kilo (€/kg, $/kg, …) tal como aparece en el ticket.
+  - "lineTotal" = importe cobrado de esa línea (peso × €/kg).
+  Ejemplo: PLÁTANO 1,99 €/kg · 450 g · 0,90 € →
+  { "name": "PLÁTANO", "quantity": 0.45, "unit": "kg", "unitPrice": 1.99, "lineTotal": 0.90 }
+  Unidades sueltas (latas, bricks, packs): "unit" = "ud", quantity = nº de unidades.`
     : "";
 
+  const todayIso = new Date().toISOString().slice(0, 10);
   const prompt = `Eres un extractor de datos de tickets, facturas electrónicas (PDF rasterizado), vouchers o tickets en foto para SinDescuadre (finanzas en pareja/familia).
 Idioma del documento: ${locale}.
 Puede ser una o varias páginas unidas en vertical (factura electrónica).
+Hoy (referencia) es ${todayIso}.
 
 Lee la imagen y devuelve SOLO JSON válido con esta forma:
 {
@@ -244,6 +336,7 @@ ${categoriesBlock}
 
 Reglas:
 - "total" = importe FINAL a pagar (con impuestos si ya van incluidos). Si no estás seguro → null. No inventes.
+- "date": fecha del ticket en YYYY-MM-DD. Si el año es de 2 dígitos (p. ej. 27/10/26), usa el siglo actual (${todayIso.slice(0, 4)} → 2026). No inventes años antiguos. Si no lees la fecha con claridad → null.
 - "itemCount": nº aproximado de líneas de producto (1 = un solo producto/servicio; >1 = varios).
 - "primaryProduct": si itemCount es 1, el nombre del producto/servicio; si hay muchos, null.
 - "description":

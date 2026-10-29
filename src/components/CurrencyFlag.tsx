@@ -1,4 +1,5 @@
 import type { AppCurrency } from "@/lib/currency";
+import { cn } from "@/components/ui/cn";
 import type { ReactNode } from "react";
 
 const SIZE = {
@@ -124,60 +125,94 @@ export function CurrencyFlag({
 }
 
 const FLAG_FADE_MASK =
-  "linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.5) 28%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.06) 78%, transparent 100%)";
+  "linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.72) 22%, rgba(0,0,0,0.32) 52%, rgba(0,0,0,0.08) 78%, transparent 100%)";
+/** Flush-to-edge: solid at the card border, then a clear fade into the amount. */
+const FLAG_FLUSH_FADE_MASK =
+  "linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.78) 28%, rgba(0,0,0,0.35) 58%, rgba(0,0,0,0.06) 82%, transparent 100%)";
 
-/** Stronger fade for list edge wash — flag stays subtle, not prominent.
- *  Right-edge version: solid on the right, fades toward the left. */
-const FLAG_EDGE_FADE_MASK =
-  "linear-gradient(270deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.28) 32%, rgba(0,0,0,0.1) 58%, transparent 82%)";
+/** List edge wash — more pronounced dissolve toward the content. */
+const FLAG_EDGE_FADE_RIGHT =
+  "linear-gradient(270deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 28%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.04) 78%, transparent 100%)";
+/** Left-edge version: solid on the left, fades toward the right. */
+const FLAG_EDGE_FADE_LEFT =
+  "linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 28%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.04) 78%, transparent 100%)";
 
 /**
- * Hero wash: tall flag on the left with L→R fade; amount sits to the right
- * so the flag stays visible (not covered by the number).
+ * Hero wash: flag to the left of the amount with a light L→R fade.
+ * `flushLeft`: flag sits on the card’s left edge — parent row must bleed
+ * with `-mx-5` (see AccountsPanel investment hero).
  */
 export function CurrencyFlagHero({
   code,
   children,
+  flushLeft = false,
   className = "",
 }: {
   code: AppCurrency;
   children: ReactNode;
+  flushLeft?: boolean;
   className?: string;
 }) {
+  const mask = flushLeft ? FLAG_FLUSH_FADE_MASK : FLAG_FADE_MASK;
   return (
-    <span className={`relative inline-flex items-center ${className}`.trim()}>
+    <span
+      className={cn(
+        "relative inline-flex items-center",
+        flushLeft && "gap-2.5",
+        className
+      )}
+    >
       <span
-        className="pointer-events-none relative z-0 h-[1em] w-[2.1em] shrink-0 overflow-hidden rounded-[3px]"
+        className={cn(
+          "pointer-events-none relative z-0 h-[1em] shrink-0 overflow-hidden",
+          flushLeft
+            ? "w-[2.5em] rounded-none"
+            : "w-[2.1em] rounded-[3px]"
+        )}
         style={{
-          WebkitMaskImage: FLAG_FADE_MASK,
-          maskImage: FLAG_FADE_MASK,
+          WebkitMaskImage: mask,
+          maskImage: mask,
         }}
         aria-hidden
       >
         <FlagSvg
           code={code}
-          className="h-full w-full rounded-[3px] object-cover opacity-75"
+          className={cn(
+            "h-full w-full object-cover",
+            flushLeft ? "opacity-95" : "rounded-[3px] opacity-90"
+          )}
         />
       </span>
-      <span className="relative z-[1] -ml-5 pl-6">{children}</span>
+      <span
+        className={cn("relative z-[1]", !flushLeft && "-ml-5 pl-6")}
+      >
+        {children}
+      </span>
     </span>
   );
 }
 
-/** Full-height edge wash for list rows (flush to card right, fades left). */
+/** Full-height edge wash (flush to card edge, fades inward). */
 export function CurrencyFlagEdgeWash({
   code,
+  side = "right",
   className = "",
 }: {
   code: AppCurrency;
+  side?: "left" | "right";
   className?: string;
 }) {
+  const mask = side === "left" ? FLAG_EDGE_FADE_LEFT : FLAG_EDGE_FADE_RIGHT;
   return (
     <span
-      className={`pointer-events-none absolute inset-y-0 right-0 z-0 w-[5.5rem] overflow-hidden ${className}`.trim()}
+      className={cn(
+        "pointer-events-none absolute inset-y-0 z-0 w-[5.5rem] overflow-hidden",
+        side === "left" ? "left-0" : "right-0",
+        className
+      )}
       style={{
-        WebkitMaskImage: FLAG_EDGE_FADE_MASK,
-        maskImage: FLAG_EDGE_FADE_MASK,
+        WebkitMaskImage: mask,
+        maskImage: mask,
       }}
       aria-hidden
     >

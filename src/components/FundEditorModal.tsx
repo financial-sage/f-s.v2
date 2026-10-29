@@ -1,6 +1,5 @@
 "use client";
 
-import { getIsSuperAdminAction } from "@/app/actions/admin";
 import { Portal } from "@/components/ui/Portal";
 import {
   createFundAction,
@@ -56,7 +55,6 @@ export default function FundEditorModal({
   const [color, setColor] = useState<FundColor>(DEFAULT_SHARED_FUND_COLOR);
   const [isDefault, setIsDefault] = useState(false);
   const [isGrocery, setIsGrocery] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -65,11 +63,6 @@ export default function FundEditorModal({
       setAnimated(false);
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      const v = await getIsSuperAdminAction();
-      if (!cancelled) setIsSuperAdmin(v);
-    })();
     if (editingFund) {
       setName(
         editingFund.scope === "personal"
@@ -96,14 +89,12 @@ export default function FundEditorModal({
       requestAnimationFrame(() => setAnimated(true))
     );
     return () => {
-      cancelled = true;
       cancelAnimationFrame(id);
     };
   }, [open, editingFund, createScope]);
 
   const nameSuggestsGrocery = looksLikeGroceryFundName(name);
   const showGroceryConfirm =
-    isSuperAdmin &&
     !isFixedExpensesFund(editingFund ?? undefined) &&
     (nameSuggestsGrocery || isGrocery || Boolean(editingFund?.is_grocery));
 
@@ -124,7 +115,7 @@ export default function FundEditorModal({
         let fund: FamilyFund;
         let funds: FamilyFund[];
         let mode: FundEditorSaved["mode"];
-        const groceryPayload = isSuperAdmin ? { isGrocery } : {};
+        const groceryPayload = { isGrocery };
 
         if (editingFund) {
           const onlyDefault =
@@ -252,7 +243,6 @@ export default function FundEditorModal({
               const next = e.target.value;
               setName(next);
               if (
-                isSuperAdmin &&
                 !editingFund?.is_grocery &&
                 looksLikeGroceryFundName(next) &&
                 !isGrocery

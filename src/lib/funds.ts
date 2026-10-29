@@ -68,7 +68,7 @@ export interface FamilyFund {
   archived_at: string | null;
   color?: string | null;
   purpose?: FundPurpose | null;
-  /** Superadmin grocery trial: pocket used for market / supermarket purchases. */
+  /** Pocket used for market / supermarket purchases (ticket detail + price compare). */
   is_grocery?: boolean | null;
 }
 

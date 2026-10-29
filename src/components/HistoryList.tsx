@@ -20,7 +20,6 @@ import {
     ExpenseDebtStatus,
     isFundSettlementConcept,
 } from "@/components/ExpenseDebtStatus";
-import { getIsSuperAdminAction } from "@/app/actions/admin";
 import { deleteExpenseAction } from "@/app/actions/expenses";
 import {
     getPurchaseReceiptDetailForExpenseAction,
@@ -287,8 +286,6 @@ export default function HistoryList({
     useEffect(() => {
         let cancelled = false;
         void (async () => {
-            const isAdmin = await getIsSuperAdminAction();
-            if (!isAdmin || cancelled) return;
             const ids = await listPurchaseReceiptExpenseIdsAction();
             if (cancelled) return;
             setReceiptExpenseIds(new Set(ids));

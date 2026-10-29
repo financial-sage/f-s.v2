@@ -1374,12 +1374,16 @@ export default function AccountsPanel({
               </div>
             </div>
 
-            <div className="relative z-10 mt-4 flex items-start gap-2.5">
+            <div
+              className={`relative z-10 mt-4 flex items-start gap-2.5 ${
+                accountsTab === "investment" ? "-mx-8 pr-5" : ""
+              }`}
+            >
               {balanceVisible &&
               accountsTab === "investment" &&
               tabTotals.byCurrency &&
               tabTotals.byCurrency.length > 1 ? (
-                <div className="min-w-0 flex-1 space-y-2">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   {tabTotals.byCurrency.map((row) => {
                     const code = isAppCurrency(row.currency)
                       ? row.currency
@@ -1390,10 +1394,10 @@ export default function AccountsPanel({
                     return (
                       <p
                         key={row.currency}
-                        className="text-[1.20rem] font-light leading-none tracking-tight text-on-surface"
+                        className="text-[1.05rem] font-light leading-none tracking-tight text-on-surface"
                       >
                         {isAppCurrency(row.currency) ? (
-                          <CurrencyFlagHero code={row.currency}>
+                          <CurrencyFlagHero code={row.currency} flushLeft>
                             {amount}
                           </CurrencyFlagHero>
                         ) : (
@@ -1405,7 +1409,11 @@ export default function AccountsPanel({
                 </div>
               ) : (
                 <p
-                  className={`text-[2.65rem] font-light leading-none tracking-tight ${
+                  className={`font-light leading-none tracking-tight ${
+                    accountsTab === "investment"
+                      ? "text-[1.85rem]"
+                      : "text-[2.65rem]"
+                  } ${
                     accountsTab === "checking" && tabTotals.amount < 0
                       ? "text-amber-800/80 dark:text-amber-200/90"
                       : "text-on-surface"
@@ -1415,7 +1423,10 @@ export default function AccountsPanel({
                     accountsTab === "investment" &&
                     tabTotals.byCurrency?.[0] &&
                     isAppCurrency(tabTotals.byCurrency[0].currency) ? (
-                      <CurrencyFlagHero code={tabTotals.byCurrency[0].currency}>
+                      <CurrencyFlagHero
+                        code={tabTotals.byCurrency[0].currency}
+                        flushLeft
+                      >
                         <FormattedCurrency
                           value={tabTotals.amount}
                           currency={tabTotals.byCurrency[0].currency}

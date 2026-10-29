@@ -456,7 +456,7 @@ export async function createFundAction(input: {
   scope: FundScope;
   color?: string;
   isDefault?: boolean;
-  /** Superadmin grocery trial. */
+  /** Marks pocket for grocery ticket detail + price compare. */
   isGrocery?: boolean;
 }): Promise<FamilyFund> {
   const user = await requireUser();
@@ -485,16 +485,6 @@ export async function createFundAction(input: {
   }
   if (!isAllowedFundColor(color)) {
     throw new Error("Selecciona un color válido.");
-  }
-  if (wantGrocery) {
-    const { isSuperAdminUser } = await import("@/lib/admin");
-    const allowed = await isSuperAdminUser({
-      userId: user.id,
-      email: user.email,
-    });
-    if (!allowed) {
-      throw new Error("La marca de compra/mercado es solo para prueba interna.");
-    }
   }
 
   await ensureFamilyFunds(familyId);
@@ -618,17 +608,6 @@ export async function updateFundAction(input: {
     throw new Error(
       "No puedes quitar el predeterminado. Marca otro bolsillo como por defecto."
     );
-  }
-
-  if (input.isGrocery === true) {
-    const { isSuperAdminUser } = await import("@/lib/admin");
-    const allowed = await isSuperAdminUser({
-      userId: user.id,
-      email: user.email,
-    });
-    if (!allowed) {
-      throw new Error("Solo superadmin puede marcar bolsillos de compra.");
-    }
   }
 
   const updates: Record<string, unknown> = {

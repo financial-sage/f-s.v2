@@ -25,7 +25,6 @@ import {
   type ExpenseActor,
   type ExpenseResponsibleFor,
 } from "@/app/actions/expenses";
-import { getIsSuperAdminAction } from "@/app/actions/admin";
 import {
   getPurchaseCompareForLinesAction,
   savePurchaseReceiptAction,
@@ -46,6 +45,7 @@ import { frequentConceptsForFund } from "@/lib/expenses/frequent-concepts";
 import {
   getGroceryFund,
   isGroceryFund,
+  normalizeReceiptLines,
   type ReceiptLineDraft,
 } from "@/lib/grocery";
 import { createClient } from "@/utils/supabase/client";
@@ -363,7 +363,6 @@ export default function AddExpenseForm({
   const [scanBusyPrompt, setScanBusyPrompt] = useState("");
   const [scanBusyTyping, setScanBusyTyping] = useState(false);
   const [scanHint, setScanHint] = useState("");
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [receiptMerchant, setReceiptMerchant] = useState<string | null>(null);
   const [receiptLines, setReceiptLines] = useState<ReceiptLineDraft[]>([]);
   const [receiptCompare, setReceiptCompare] =
@@ -375,16 +374,6 @@ export default function AddExpenseForm({
   /** Avoid stale state when persisting right after scan. */
   const receiptLinesRef = useRef<ReceiptLineDraft[]>([]);
   const receiptMerchantRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void getIsSuperAdminAction().then((v) => {
-      if (!cancelled) setIsSuperAdmin(v);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const sharedFunds = useMemo(() => listVariableSharedFunds(storeFunds), [storeFunds]);
   const personalFunds = useMemo(() => {
@@ -757,11 +746,6 @@ export default function AddExpenseForm({
       );
       const prepared = await prepareReceiptFile(file);
 
-      // Resolve gate at scan time — state may still be false on first open (race).
-      const adminNow =
-        isSuperAdmin || (await getIsSuperAdminAction());
-      if (adminNow && !isSuperAdmin) setIsSuperAdmin(true);
-
       const selectedFund =
         selectableFunds.find((f) => f.id === selectedFundId) ?? null;
       const selectedIsGrocery = isGroceryFund(selectedFund);
@@ -786,8 +770,6 @@ export default function AddExpenseForm({
           }))
         )
       );
-      // Server also forces lines for superadmin; send flag when we know.
-      if (adminNow) form.set("includeLineItems", "1");
       const res = await fetch("/api/receipts/parse", {
         method: "POST",
         body: form,
@@ -846,7 +828,20 @@ export default function AddExpenseForm({
       if (conceptFromScan) {
         setConcept(conceptFromScan.slice(0, 80));
       }
-      if (receipt.date) setDate(receipt.date.slice(0, 10));
+      if (receipt.date) {
+        // Server already drops improbable OCR years; keep a client guard so
+        // history (this month) does not hide a just-scanned expense.
+        const nextDate = receipt.date.slice(0, 10);
+        const parsed = Date.parse(`${nextDate}T12:00:00`);
+        if (Number.isFinite(parsed)) {
+          const diffDays = Math.round(
+            (parsed - Date.now()) / 86_400_000
+          );
+          if (diffDays <= 2 && diffDays >= -90) {
+            setDate(nextDate);
+          }
+        }
+      }
 
       // Prefer keeping the user's selected category; receipt may only hint.
       if (!selectedCategoryId) {
@@ -874,7 +869,6 @@ export default function AddExpenseForm({
         nextFundId = receipt.fundId;
         if (!isSolo) setResponsibleFor("joint_fund");
       } else if (
-        isSuperAdmin &&
         groceryPocket &&
         !isGroceryFund(selectableFunds.find((f) => f.id === selectedFundId))
       ) {
@@ -888,23 +882,7 @@ export default function AddExpenseForm({
       }
 
       const lines = Array.isArray(receipt.lines)
-        ? receipt.lines
-            .map((line) => ({
-              name: String(line.name ?? "").trim(),
-              quantity:
-                line.quantity != null && Number.isFinite(Number(line.quantity))
-                  ? Number(line.quantity)
-                  : null,
-              unitPrice:
-                line.unitPrice != null && Number.isFinite(Number(line.unitPrice))
-                  ? Number(line.unitPrice)
-                  : null,
-              lineTotal:
-                line.lineTotal != null && Number.isFinite(Number(line.lineTotal))
-                  ? Number(line.lineTotal)
-                  : null,
-            }))
-            .filter((line) => line.name.length > 0)
+        ? normalizeReceiptLines(receipt.lines)
         : [];
       const merchant = receipt.merchant?.trim() || null;
       receiptMerchantRef.current = merchant;
@@ -915,7 +893,7 @@ export default function AddExpenseForm({
       const groceryTarget = isGroceryFund(
         selectableFunds.find((f) => f.id === nextFundId) ?? groceryPocket
       );
-      if (adminNow && groceryTarget && lines.length > 0) {
+      if (groceryTarget && lines.length > 0) {
         const fundForCompare =
           selectableFunds.find((f) => f.id === nextFundId && isGroceryFund(f)) ??
           groceryPocket;
@@ -947,7 +925,7 @@ export default function AddExpenseForm({
         setScanHint(
           `Ticket leído · ${lines.length} producto${lines.length === 1 ? "" : "s"}. Revisa y guarda.`
         );
-      } else if (adminNow && (selectedIsGrocery || groceryTarget || groceryPocket)) {
+      } else if (selectedIsGrocery || groceryTarget || groceryPocket) {
         setScanHint(
           "Ticket leído, pero sin líneas de producto. Prueba otra foto más nítida del desglose."
         );
@@ -992,10 +970,6 @@ export default function AddExpenseForm({
       console.warn("[grocery-receipt] no OCR lines to persist");
       return;
     }
-    const adminNow =
-      isSuperAdmin || (await getIsSuperAdminAction());
-    if (!adminNow) return;
-    if (adminNow && !isSuperAdmin) setIsSuperAdmin(true);
 
     // Server re-checks is_grocery; don't block on possibly-stale client fund flags.
     try {
@@ -1310,11 +1284,7 @@ export default function AddExpenseForm({
         }
       }
 
-      if (
-        (isSuperAdmin || receiptLinesRef.current.length > 0) &&
-        receiptCompare &&
-        receiptLinesRef.current.length > 0
-      ) {
+      if (receiptCompare && receiptLinesRef.current.length > 0) {
         setCompareOpen(true);
         setPendingFinishAfterCompare(true);
       } else {
@@ -1552,7 +1522,7 @@ export default function AddExpenseForm({
             </p>
           ) : null}
 
-          {isSuperAdmin && receiptCompare && receiptLines.length > 0 ? (
+          {receiptCompare && receiptLines.length > 0 ? (
             <button
               type="button"
               onClick={() => setCompareOpen(true)}

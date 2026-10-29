@@ -71,7 +71,7 @@ export async function broadcastAppUpdateAdminAction() {
   return { ok: true as const, ...result };
 }
 
-/** Client-safe gate for superadmin-only trials (e.g. grocery price compare). */
+/** Client-safe gate for superadmin-only tools (admin, recommendations QA, …). */
 export async function getIsSuperAdminAction(): Promise<boolean> {
   const supabase = await createClient();
   const {
