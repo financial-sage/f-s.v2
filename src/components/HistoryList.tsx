@@ -50,6 +50,7 @@ import { useFundsStore } from "@/store/useFundsStore";
 import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
+import { isTourDone, TOUR_DONE_EVENT } from "@/lib/firstRun";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface HistoryExpenseRow {
@@ -233,6 +234,24 @@ export default function HistoryList({
     const historyTour = useProductTour(currentUserId, "history", historyTourSteps, {
         hasFamily: true,
     });
+
+    const receiptTourSteps = useMemo<ProductTourStep[]>(
+        () => [
+            {
+                target: "history-receipt",
+                title: "Ticket escaneado",
+                body: "Aquí puedes ver el detalle del recibo escaneado y comparar precios con compras anteriores.",
+                placement: "bottom",
+            },
+        ],
+        []
+    );
+    const receiptTour = useProductTour(
+        currentUserId,
+        "historyReceipt",
+        receiptTourSteps,
+        { hasFamily: true, autoStart: false }
+    );
 
     // Prefer store when warm with data; never blank History if SSR still has rows.
     const preferStore =
@@ -493,10 +512,7 @@ export default function HistoryList({
         return allExpenses.filter((e) => {
             if (e.concept === "Reembolso del fondo" || isFundSettlementConcept(e.concept)) return false;
             // Investment ledger has its own history under Cuentas → Inversiones.
-            if (
-                storeAccounts.length > 0 &&
-                isInvestmentAccountMovement(e, storeAccounts)
-            ) {
+            if (isInvestmentAccountMovement(e, storeAccounts)) {
                 return false;
             }
             // Fixed-expense real payments stay visible in history (no aportes for that pocket).
@@ -546,6 +562,29 @@ export default function HistoryList({
     }, [allExpenses, effectiveFilters, currentUserId, funds, viewMonth, storeAccounts]);
 
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
+
+    const firstReceiptExpenseId = useMemo(
+        () => filteredExpenses.find((e) => receiptExpenseIds.has(e.id))?.id ?? null,
+        [filteredExpenses, receiptExpenseIds]
+    );
+
+    useEffect(() => {
+        if (!currentUserId || !firstReceiptExpenseId) return;
+        if (!isTourDone(currentUserId, "history")) return;
+        receiptTour.start(700);
+    }, [currentUserId, firstReceiptExpenseId, receiptTour.start]);
+
+    useEffect(() => {
+        if (!currentUserId || !firstReceiptExpenseId) return;
+        const onTourDone = (event: Event) => {
+            const detail = (event as CustomEvent<{ tourId?: string }>).detail;
+            if (detail?.tourId === "history") {
+                receiptTour.start(500);
+            }
+        };
+        window.addEventListener(TOUR_DONE_EVENT, onTourDone);
+        return () => window.removeEventListener(TOUR_DONE_EVENT, onTourDone);
+    }, [currentUserId, firstReceiptExpenseId, receiptTour.start]);
 
     const sharedFunds = useMemo(
         () => listVariableSharedFunds(funds),
@@ -655,6 +694,11 @@ export default function HistoryList({
                     <button
                         type="button"
                         disabled={receiptBusy}
+                        data-tour={
+                            expense.id === firstReceiptExpenseId
+                                ? "history-receipt"
+                                : undefined
+                        }
                         onClick={(e) => {
                             e.stopPropagation();
                             void openReceiptDetail(expense.id);
@@ -1226,6 +1270,11 @@ export default function HistoryList({
                 open={historyTour.open}
                 steps={historyTour.steps}
                 onClose={historyTour.close}
+            />
+            <ProductTour
+                open={receiptTour.open}
+                steps={receiptTour.steps}
+                onClose={receiptTour.close}
             />
 
             <PurchaseCompareSheet

@@ -47,6 +47,7 @@ import {
     type FamilyFund,
 } from "@/lib/funds";
 import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
+import { isInvestmentAccountMovement } from "@/lib/accounts";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import { useAccountsStore } from "@/store/useAccountsStore";
 import { useCategoriesStore } from "@/store/useCategoriesStore";
@@ -273,7 +274,21 @@ export default function DashboardSolo({
         itemHeightPx: 64,
         minItems: 1,
     });
-    const currentList = transactions.slice(0, visibleRecentCount);
+    const visibleTransactions = useMemo(
+        () =>
+            transactions.filter(
+                (tx) =>
+                    !isInvestmentAccountMovement(
+                        {
+                            account_id: tx.accountId ?? null,
+                            concept: tx.concept,
+                        },
+                        storeAccounts
+                    )
+            ),
+        [transactions, storeAccounts]
+    );
+    const currentList = visibleTransactions.slice(0, visibleRecentCount);
     const transitionStages = [
         "Tu pareja se ha unido",
         "Sincronizando movimientos",
@@ -815,10 +830,10 @@ export default function DashboardSolo({
                     >
                     <div
                         className={`flex max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-glass-border bg-glass shadow-[var(--glass-shadow)] backdrop-blur-md ${
-                            transactions.length === 0 ? "flex-1" : "shrink-0"
+                            visibleTransactions.length === 0 ? "flex-1" : "shrink-0"
                         }`}
                     >
-                        {transactions.length === 0 ? (
+                        {visibleTransactions.length === 0 ? (
                             <div className="flex h-full flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
                                 <div className="relative mb-4 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-primary opacity-10 animate-ping duration-1000" />

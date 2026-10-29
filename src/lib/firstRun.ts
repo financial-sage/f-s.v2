@@ -8,6 +8,8 @@ export type TourId =
   | "savings"
   | "fixedExpenses"
   | "history"
+  /** First grocery ticket icon in history (scanned receipt detail). */
+  | "historyReceipt"
   /** First time opening the add-expense sheet. */
   | "expenseForm"
   /** When “Cobrar” first appears on the couple dashboard. */

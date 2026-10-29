@@ -271,18 +271,27 @@ function lookupAccount(
   return accountsById[accountId];
 }
 
+/** Investment-only ledger concepts when account kind is not yet hydrated. */
+const INVESTMENT_LEDGER_CONCEPT =
+  /^Valor (inicial|actual)\s*·/i;
+
 /**
  * Ledger rows on an investment account stay in that investment’s own history —
  * not in Historial general / Dashboard (ADR-0010 isolation).
  * Checking↔investment transfers still show the liquidity leg (checking account_id).
  */
 export function isInvestmentAccountMovement(
-  expense: Pick<AccountExpenseLike, "account_id">,
+  expense: Pick<AccountExpenseLike, "account_id"> & { concept?: string | null },
   accountsById: AccountKindLookup
 ): boolean {
   const accountId = expense.account_id;
-  if (!accountId) return false;
-  return isInvestmentAccount(lookupAccount(accountsById, accountId));
+  if (accountId) {
+    const account = lookupAccount(accountsById, accountId);
+    if (account) return isInvestmentAccount(account);
+  }
+  // Accounts not hydrated yet — still hide known investment valuation rows.
+  const concept = String(expense.concept ?? "");
+  return INVESTMENT_LEDGER_CONCEPT.test(concept);
 }
 
 export function investmentCurrencyOf(

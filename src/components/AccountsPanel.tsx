@@ -535,6 +535,10 @@ export default function AccountsPanel({
     };
   }, [accountsTab, balances, tabAccounts, totalLiquidity, householdCurrency]);
 
+  const investmentMultiCurrency =
+    accountsTab === "investment" &&
+    (tabTotals.byCurrency?.length ?? 0) > 1;
+
   const tabEmptyCopy = useMemo(() => {
     if (accountsTab === "credit") {
       return {
@@ -1120,7 +1124,9 @@ export default function AccountsPanel({
                         : "pl-[2.625rem]"
                     }`}
                   >
-                    {investment && isAppCurrency(account.currency_code) ? (
+                    {investment &&
+                    investmentMultiCurrency &&
+                    isAppCurrency(account.currency_code) ? (
                       <CurrencyFlagEdgeWash code={account.currency_code} />
                     ) : null}
                     <div
@@ -1376,15 +1382,12 @@ export default function AccountsPanel({
 
             <div
               className={`relative z-10 mt-4 flex items-start gap-2.5 ${
-                accountsTab === "investment" ? "-mx-8 pr-5" : ""
+                investmentMultiCurrency ? "-mx-8 pr-5" : ""
               }`}
             >
-              {balanceVisible &&
-              accountsTab === "investment" &&
-              tabTotals.byCurrency &&
-              tabTotals.byCurrency.length > 1 ? (
+              {balanceVisible && investmentMultiCurrency ? (
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  {tabTotals.byCurrency.map((row) => {
+                  {tabTotals.byCurrency!.map((row) => {
                     const code = isAppCurrency(row.currency)
                       ? row.currency
                       : householdCurrency;
@@ -1420,24 +1423,16 @@ export default function AccountsPanel({
                   }`}
                 >
                   {balanceVisible ? (
-                    accountsTab === "investment" &&
-                    tabTotals.byCurrency?.[0] &&
-                    isAppCurrency(tabTotals.byCurrency[0].currency) ? (
-                      <CurrencyFlagHero
-                        code={tabTotals.byCurrency[0].currency}
-                        flushLeft
-                      >
-                        <FormattedCurrency
-                          value={tabTotals.amount}
-                          currency={tabTotals.byCurrency[0].currency}
-                        />
-                      </CurrencyFlagHero>
-                    ) : (
-                      <FormattedCurrency
-                        value={tabTotals.amount}
-                        currency={householdCurrency}
-                      />
-                    )
+                    <FormattedCurrency
+                      value={tabTotals.amount}
+                      currency={
+                        accountsTab === "investment" &&
+                        tabTotals.byCurrency?.[0] &&
+                        isAppCurrency(tabTotals.byCurrency[0].currency)
+                          ? tabTotals.byCurrency[0].currency
+                          : householdCurrency
+                      }
+                    />
                   ) : (
                     "••••••"
                   )}
