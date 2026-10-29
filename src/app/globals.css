@@ -42,6 +42,8 @@
   --outline-variant: #c4bcae;
 
   --error: #9e422c;
+  /* Negative balances / debt — terracotta caution, not gold and not panic red. */
+  --balance-negative: #a14a32;
 
   --sage: var(--primary);
   --sage-dark: var(--primary-dim);
@@ -128,6 +130,7 @@ html.dark {
   --outline-variant: #7a7468;
 
   --error: #e07a6a;
+  --balance-negative: #e08a78;
 
   --sage: var(--primary);
   --sage-dark: var(--primary-dim);
@@ -200,6 +203,7 @@ html.dark {
   --color-outline-variant: var(--outline-variant);
 
   --color-error: var(--error);
+  --color-balance-negative: var(--balance-negative);
 
   --color-sage: var(--sage);
   --color-sage-dark: var(--sage-dark);
@@ -512,6 +516,11 @@ html.app-shell-lock body {
     inset 0 1px 1px rgb(255 255 255 / 0.12),
     inset 0 -1px 2px rgb(0 0 0 / 0.32),
     0 1px 2px rgb(0 0 0 / 0.28);
+}
+
+/* Saldo en negativo / “Debes” — marcado, sin rojo de pánico ni dorado de acento */
+.text-balance-negative {
+  color: var(--balance-negative);
 }
 
 /* Modal / sheet alert chips — readable in light and dark */

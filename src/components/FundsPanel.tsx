@@ -231,7 +231,7 @@ export default function FundsPanel({
                 <p
                   className={`text-[13px] font-medium tabular-nums ${
                     balance < 0
-                      ? "text-amber-800/80 dark:text-amber-200/90"
+                      ? "text-balance-negative"
                       : "text-on-surface"
                   }`}
                 >

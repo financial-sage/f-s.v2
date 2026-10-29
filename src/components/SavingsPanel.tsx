@@ -432,7 +432,7 @@ export default function SavingsPanel({
                         <span
                           className={`w-full truncate text-[10px] font-medium tabular-nums ${
                             account.balance < 0
-                              ? "text-red-600"
+                              ? "text-balance-negative"
                               : "text-on-surface-variant"
                           }`}
                         >
@@ -477,7 +477,7 @@ export default function SavingsPanel({
                         <span
                           className={`w-full truncate text-[10px] font-medium tabular-nums ${
                             fund.balance < 0
-                              ? "text-red-600"
+                              ? "text-balance-negative"
                               : "text-on-surface-variant"
                           }`}
                         >

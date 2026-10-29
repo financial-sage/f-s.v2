@@ -544,7 +544,7 @@ export default function DashboardSolo({
                             <p
                                 className={`text-[2.65rem] font-light leading-none tracking-tight ${
                                     Math.round((displayBalance || 0) * 100) / 100 < 0
-                                        ? "text-[#8B5A2B]/90 dark:text-[#C4A574]/90"
+                                        ? "text-balance-negative"
                                         : "text-on-surface"
                                 }`}
                             >
@@ -712,7 +712,15 @@ export default function DashboardSolo({
                                 <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
                                     {label}
                                 </span>
-                                <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
+                                <span
+                                    className={`shrink-0 text-[10px] font-medium tabular-nums ${
+                                        key === "accounts" &&
+                                        hasVisibleAccounts &&
+                                        accountsVisibleLiquidity < 0
+                                            ? "text-balance-negative"
+                                            : "text-on-surface"
+                                    }`}
+                                >
                                     {value}
                                 </span>
                             </Link>

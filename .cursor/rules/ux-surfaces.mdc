@@ -43,7 +43,8 @@ Si quitar un borde, sombra, fondo o pill no empeora la comprensión, quítalo.
 ## Color y alarma
 
 - **Evitar rojo** (`text-red-*`, fondos rojos) para saldos, deudas, subidas de precio o avisos a primera vista: genera pánico.
-- Deuda / “Debes” / “subió de precio”: tono neutro o ámbar suave (`text-on-surface-variant`, `text-amber-800/70`, etc.).
+- Deuda / “Debes” / saldo negativo: `text-balance-negative` (terracota de marca) — marcado, sin dorado de acento ni rojo de pánico.
+- “Subió de precio” y avisos suaves: neutro o ámbar; no usar el dorado del acento como si fuera positivo.
 - Rojo solo si el producto define un error de validación bloqueante o un estado realmente crítico ya acordado.
 
 ## Cuentas (ADR-0010)

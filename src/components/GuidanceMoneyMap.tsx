@@ -18,9 +18,8 @@ type Props = {
   monthSpent: number;
 };
 
-/** Copper, a touch deeper than brand accent — calm attention, not alarm. */
-const strainedAmountClass =
-  "text-[color-mix(in_srgb,var(--accent)_42%,#6b4423)]";
+/** Terracota de saldo negativo — marcado, sin dorado ni rojo de pánico. */
+const strainedAmountClass = "text-balance-negative";
 
 export default function GuidanceMoneyMap({
   hasVisibleAccounts,

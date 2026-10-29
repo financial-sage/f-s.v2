@@ -492,7 +492,7 @@ export default function BolsillosPanel({
                           <span
                             className={`block text-[11px] font-light tabular-nums ${
                               row.balance < 0
-                                ? "text-amber-800/80 dark:text-amber-200/90"
+                                ? "text-balance-negative"
                                 : "text-on-surface-variant"
                             }`}
                           >
@@ -579,7 +579,7 @@ export default function BolsillosPanel({
                           Más que el mes pasado
                         </p>
                       </div>
-                      <p className="shrink-0 text-[13px] font-medium tabular-nums text-amber-900/80 dark:text-amber-100/90">
+                      <p className="shrink-0 text-[13px] font-medium tabular-nums text-on-surface">
                         +
                         <FormattedCurrency value={row.delta} />
                       </p>
@@ -646,7 +646,7 @@ export default function BolsillosPanel({
                   <p
                     className={`mt-0.5 text-[1.75rem] font-light leading-none tracking-tight tabular-nums ${
                       detail.balance < 0
-                        ? "text-amber-800/80 dark:text-amber-200/90"
+                        ? "text-balance-negative"
                         : "text-on-surface"
                     }`}
                   >

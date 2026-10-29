@@ -1295,7 +1295,7 @@ export default function DashboardCouple({
                             <p
                                 className={`text-[2.65rem] font-light leading-none tracking-tight ${
                                     Math.round((heroBalance || 0) * 100) / 100 < 0
-                                        ? "text-[#8B5A2B]/90 dark:text-[#C4A574]/90"
+                                        ? "text-balance-negative"
                                         : "text-on-surface"
                                 }`}
                             >
@@ -1456,7 +1456,14 @@ export default function DashboardCouple({
                                     <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
                                         Cuentas
                                     </span>
-                                    <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
+                                    <span
+                                        className={`shrink-0 text-[10px] font-medium tabular-nums ${
+                                            hasVisibleAccounts &&
+                                            accountsVisibleLiquidity < 0
+                                                ? "text-balance-negative"
+                                                : "text-on-surface"
+                                        }`}
+                                    >
                                         {hasVisibleAccounts
                                             ? balanceVisible
                                                 ? <FormattedCurrency value={accountsVisibleLiquidity} />
@@ -1481,7 +1488,13 @@ export default function DashboardCouple({
                                     <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
                                         Mi bolsillo
                                     </span>
-                                    <span className="shrink-0 text-[10px] font-medium tabular-nums text-on-surface">
+                                    <span
+                                        className={`shrink-0 text-[10px] font-medium tabular-nums ${
+                                            myAvailableFund < 0
+                                                ? "text-balance-negative"
+                                                : "text-on-surface"
+                                        }`}
+                                    >
                                         {balanceVisible
                                             ? <FormattedCurrency value={myAvailableFund} />
                                             : "••••"}

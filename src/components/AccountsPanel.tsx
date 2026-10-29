@@ -1081,9 +1081,9 @@ export default function AccountsPanel({
                     <p
                       className={`text-[13px] font-light tabular-nums tracking-tight ${
                         credit && shownAmount > 0
-                          ? "text-amber-800/75 dark:text-amber-200/85"
+                          ? "text-balance-negative"
                           : !credit && balance < 0
-                            ? "text-amber-800/75 dark:text-amber-200/85"
+                            ? "text-balance-negative"
                             : "text-on-surface"
                       }`}
                     >
@@ -1418,7 +1418,7 @@ export default function AccountsPanel({
                       : "text-[2.65rem]"
                   } ${
                     accountsTab === "checking" && tabTotals.amount < 0
-                      ? "text-amber-800/80 dark:text-amber-200/90"
+                      ? "text-balance-negative"
                       : "text-on-surface"
                   }`}
                 >
@@ -2125,11 +2125,11 @@ export default function AccountsPanel({
                           <div className="shrink-0 text-right">
                             <p
                               className={`inline-flex items-center gap-1 text-[13px] font-light tabular-nums tracking-tight ${
-                                flat
+                                  flat
                                   ? "text-on-surface-variant"
                                   : up
                                     ? "text-on-surface"
-                                    : "text-amber-800/75 dark:text-amber-200/85"
+                                    : "text-balance-negative"
                               }`}
                             >
                               {!flat ? (
@@ -2160,7 +2160,7 @@ export default function AccountsPanel({
                                 className={`mt-0.5 text-[10px] font-light tabular-nums ${
                                   (m.pctFromPrevious ?? 0) >= 0
                                     ? "text-on-surface-variant/80"
-                                    : "text-amber-800/65 dark:text-amber-200/75"
+                                    : "text-balance-negative"
                                 }`}
                               >
                                 {(m.pctFromPrevious ?? 0) >= 0 ? "+" : "−"}
