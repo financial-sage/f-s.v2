@@ -547,6 +547,47 @@ export function calculateSoloPersonalFundBalance(
   return Math.round((tagged + income - out - withdrawals) * 100) / 100;
 }
 
+/**
+ * Balance shown for a pocket in lists (Bolsillos, Administrar, transferencias).
+ * Shared: caja tagged with fund_id.
+ * Own primary personal in couple: full personal pocket (incl. adelantos a compartidos),
+ * same as dashboard `myAvailableFund` — not only caja with personal fund_id.
+ * Own personal in solo: solo personal-fund rules.
+ */
+export function calculateDisplayedFundBalance(
+  expenses: FundExpenseLike[],
+  fund: FamilyFund,
+  userId: string,
+  options: {
+    individual: boolean;
+    defaultPersonalFundId: string | null;
+    sharedFundIds?: ReadonlySet<string> | readonly string[];
+    treatLegacyJointAsFundId?: string | null;
+  }
+): number {
+  if (fund.scope === "personal" && fund.owner_profile_id === userId) {
+    if (options.individual) {
+      return calculateSoloPersonalFundBalance(
+        expenses,
+        fund,
+        userId,
+        options.defaultPersonalFundId
+      );
+    }
+    if (fund.id === options.defaultPersonalFundId) {
+      return calculatePersonalPocketBalance(
+        expenses,
+        userId,
+        options.sharedFundIds
+      );
+    }
+  }
+
+  return calculateFundCashBalance(expenses, fund.id, {
+    treatLegacyJointAsFundId: options.treatLegacyJointAsFundId ?? null,
+  });
+}
+
 export function listActiveFunds(funds: FamilyFund[]) {
   return [...funds]
     .filter((f) => !f.archived_at)

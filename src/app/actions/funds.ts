@@ -18,8 +18,7 @@ import {
   isSavingsFund,
 } from "@/lib/funds";
 import {
-  calculateFundCashBalance,
-  calculateSoloPersonalFundBalance,
+  calculateDisplayedFundBalance,
   getDefaultSharedFund,
   getPersonalFund,
   personalFundDisplayName,
@@ -700,11 +699,31 @@ export async function archiveFundAction(fundId: string) {
 
   const { data: expenses } = await admin
     .from("expenses")
-    .select("amount, category, paid_by, responsible_for, fund_id, paid_from_fund, transfer_group_id, is_active")
+    .select(
+      "amount, category, paid_by, responsible_for, fund_id, paid_from_fund, account_id, transfer_group_id, is_active"
+    )
     .eq("family_id", familyId)
     .eq("is_active", true);
 
-  const balance = calculateFundCashBalance((expenses ?? []) as never[], fundId);
+  const funds = await getFamilyFundsFast(familyId);
+  const memberCount = await getRequestFamilyMemberCount(familyId);
+  const defaultShared = getDefaultSharedFund(funds);
+  const personal = getPersonalFund(funds, user.id);
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
+  const typedFund = fund as FamilyFund;
+  const balance = calculateDisplayedFundBalance(
+    (expenses ?? []) as never[],
+    typedFund,
+    user.id,
+    {
+      individual: isIndividualHousehold(memberCount),
+      defaultPersonalFundId: personal?.id ?? null,
+      sharedFundIds,
+      treatLegacyJointAsFundId: defaultShared?.id ?? null,
+    }
+  );
   if (Math.abs(balance) > 0.009) {
     throw new Error("El bolsillo debe tener saldo 0 antes de archivarlo.");
   }
@@ -821,24 +840,25 @@ export async function transferBetweenFundsAction(input: {
   const admin = getSupabaseAdminClient();
   const { data: expenses } = await admin
     .from("expenses")
-    .select("amount, category, paid_by, responsible_for, fund_id, paid_from_fund, transfer_group_id, is_active")
+    .select(
+      "amount, category, paid_by, responsible_for, fund_id, paid_from_fund, account_id, transfer_group_id, is_active"
+    )
     .eq("family_id", familyId)
     .eq("is_active", true);
 
   const defaultShared = getDefaultSharedFund(funds);
   const defaultPersonal = getPersonalFund(funds, user.id);
+  const memberCount = await getRequestFamilyMemberCount(familyId);
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
   const expenseRows = (expenses ?? []) as never[];
-  const balance =
-    from.scope === "personal"
-      ? calculateSoloPersonalFundBalance(
-          expenseRows,
-          from,
-          user.id,
-          defaultPersonal?.id ?? null
-        )
-      : calculateFundCashBalance(expenseRows, from.id, {
-          treatLegacyJointAsFundId: defaultShared?.id ?? null,
-        });
+  const balance = calculateDisplayedFundBalance(expenseRows, from, user.id, {
+    individual: isIndividualHousehold(memberCount),
+    defaultPersonalFundId: defaultPersonal?.id ?? null,
+    sharedFundIds,
+    treatLegacyJointAsFundId: defaultShared?.id ?? null,
+  });
 
   if (balance + 0.009 < amount) {
     throw new Error("Saldo insuficiente en el bolsillo de origen.");
@@ -918,17 +938,22 @@ export async function getFundsOverviewAction() {
   const familyId = await getUserFamilyId(user.id);
   const funds = await getFamilyFundsFast(familyId);
   const admin = getSupabaseAdminClient();
+  const memberCount = await getRequestFamilyMemberCount(familyId);
 
   const { data: expenses } = await admin
     .from("expenses")
     .select(
-      "amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, transfer_group_id, is_active, is_settled"
+      "amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, transfer_group_id, is_active, is_settled"
     )
     .eq("family_id", familyId)
     .eq("is_active", true);
 
   const defaultShared = getDefaultSharedFund(funds);
   const fixedFund = getFixedExpensesFund(funds);
+  const personal = getPersonalFund(funds, user.id);
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
   const rows = (expenses ?? []) as Array<{
     amount: number;
     category?: string | null;
@@ -937,10 +962,12 @@ export async function getFundsOverviewAction() {
     responsible_for?: string | null;
     fund_id?: string | null;
     paid_from_fund?: boolean | null;
+    account_id?: string | null;
     transfer_group_id?: string | null;
     is_active?: boolean | null;
     is_settled?: boolean | null;
   }>;
+  const individual = isIndividualHousehold(memberCount);
 
   return {
     funds,
@@ -949,11 +976,14 @@ export async function getFundsOverviewAction() {
       .filter((f) => f.scope === "shared" || f.owner_profile_id === user.id)
       .map((fund) => ({
         fund,
-        balance: calculateFundCashBalance(rows, fund.id, {
+        balance: calculateDisplayedFundBalance(rows, fund, user.id, {
+          individual,
+          defaultPersonalFundId: personal?.id ?? null,
+          sharedFundIds,
           treatLegacyJointAsFundId: defaultShared?.id ?? null,
         }),
       })),
-    personalFundId: getPersonalFund(funds, user.id)?.id ?? null,
+    personalFundId: personal?.id ?? null,
     sharedDefaultFundId: defaultShared?.id ?? null,
     fixedExpensesFundId: fixedFund?.id ?? null,
   };
@@ -974,6 +1004,8 @@ export type BolsillosBalanceOverview = {
   monthKey: string;
   monthLabel: string;
   historyMonthKeys: string[];
+  /** Sum of Queda for visible spending pockets (same rows as `funds`). */
+  totalRemaining: number;
   totalSpentThisMonth: number;
   totalSpentLastMonth: number;
   totalDelta: number;
@@ -1021,6 +1053,10 @@ export async function getBolsillosBalanceAction(): Promise<BolsillosBalanceOverv
   const defaultShared = getDefaultSharedFund(funds);
   const personal = getPersonalFund(funds, user.id);
   const isCouple = isMultiMember(memberCount);
+  const individual = isIndividualHousehold(memberCount);
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
 
   const visible = funds
     .filter(isBalanceReportFund)
@@ -1041,7 +1077,10 @@ export async function getBolsillosBalanceAction(): Promise<BolsillosBalanceOverv
     return {
       fund,
       displayName,
-      balance: calculateFundCashBalance(rows, fund.id, {
+      balance: calculateDisplayedFundBalance(rows, fund, user.id, {
+        individual,
+        defaultPersonalFundId: personal?.id ?? null,
+        sharedFundIds,
         treatLegacyJointAsFundId: defaultShared?.id ?? null,
       }),
       stats,
@@ -1063,6 +1102,8 @@ export async function getBolsillosBalanceAction(): Promise<BolsillosBalanceOverv
   });
 
   const statsList = fundRows.map((row) => row.stats);
+  const totalRemaining =
+    Math.round(fundRows.reduce((s, row) => s + row.balance, 0) * 100) / 100;
   const totalSpentThisMonth = Math.round(
     statsList.reduce((s, st) => s + st.spentThisMonth, 0) * 100
   ) / 100;
@@ -1083,6 +1124,7 @@ export async function getBolsillosBalanceAction(): Promise<BolsillosBalanceOverv
     monthKey,
     monthLabel,
     historyMonthKeys,
+    totalRemaining,
     totalSpentThisMonth,
     totalSpentLastMonth,
     totalDelta,

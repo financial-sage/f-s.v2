@@ -24,6 +24,7 @@ import { deleteExpenseAction } from "@/app/actions/expenses";
 import {
     getPurchaseReceiptDetailForExpenseAction,
     listPurchaseReceiptExpenseIdsAction,
+    updatePurchaseReceiptLineUnitPriceAction,
     type PurchaseCompareResult,
 } from "@/app/actions/purchase-receipts";
 import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
@@ -1283,6 +1284,15 @@ export default function HistoryList({
                 formatMoney={formatCurrency}
                 title="Detalle del ticket"
                 onClose={() => setReceiptCompareOpen(false)}
+                onUpdateLinePrice={async (lineId, unitPrice) => {
+                    const result = await updatePurchaseReceiptLineUnitPriceAction({
+                        lineId,
+                        unitPrice,
+                    });
+                    if (!result.ok) return result;
+                    setReceiptCompare(result.compare);
+                    return { ok: true as const };
+                }}
             />
         </>
     );

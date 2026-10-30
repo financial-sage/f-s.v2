@@ -13,6 +13,8 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export type PurchaseCompareLine = {
+  /** Persisted line id when loaded from a saved ticket; null in pre-save compare. */
+  id: string | null;
   name: string;
   nameKey: string;
   quantity: number | null;
@@ -232,7 +234,9 @@ function buildCompareResult(input: {
   merchant?: string | null;
   purchasedAt?: string | null;
   total?: number | null;
-  drafts: ReturnType<typeof normalizeDraftLines>;
+  drafts: Array<
+    ReturnType<typeof normalizeDraftLines>[number] & { id?: string | null }
+  >;
   previousByKey: Map<
     string,
     { unitPrice: number | null; merchant: string | null; date: string | null }
@@ -262,6 +266,7 @@ function buildCompareResult(input: {
       firstSeen += 1;
     }
     return {
+      id: line.id?.trim() || null,
       name: line.name,
       nameKey,
       quantity: line.quantity,
@@ -365,7 +370,7 @@ export async function getPurchaseReceiptDetailForExpenseAction(
 
     const { data: receipt, error: receiptError } = await admin
       .from("purchase_receipts")
-      .select("id, fund_id, merchant, purchased_at, total, created_at")
+      .select("id")
       .eq("family_id", familyId)
       .eq("expense_id", id)
       .order("created_at", { ascending: false })
@@ -376,74 +381,184 @@ export async function getPurchaseReceiptDetailForExpenseAction(
       return { ok: false, error: "No hay ticket guardado para este gasto." };
     }
 
-    const receiptRow = receipt as {
-      id: string;
-      fund_id?: string | null;
-      merchant?: string | null;
-      purchased_at?: string | null;
-      total?: number | null;
-      created_at?: string | null;
-    };
-
-    const { data: lineRows, error: linesError } = await admin
-      .from("purchase_receipt_lines")
-      .select("name, quantity, unit_price, line_total, sort_order")
-      .eq("receipt_id", receiptRow.id)
-      .order("sort_order", { ascending: true });
-
-    if (linesError) {
-      return { ok: false, error: linesError.message };
-    }
-
-    const drafts = normalizeDraftLines(
-      (lineRows ?? []).map((row) => {
-        const r = row as {
-          name?: string;
-          quantity?: number | null;
-          unit_price?: number | null;
-          line_total?: number | null;
-        };
-        return {
-          name: String(r.name ?? ""),
-          quantity: r.quantity ?? null,
-          unitPrice: r.unit_price ?? null,
-          lineTotal: r.line_total ?? null,
-        };
-      })
+    return getPurchaseReceiptDetailByReceiptId(
+      (receipt as { id: string }).id,
+      familyId
     );
-
-    const keys = [
-      ...new Set(drafts.map((line) => normalizeProductKey(line.name)).filter(Boolean)),
-    ];
-
-    const previousByKey = receiptRow.fund_id
-      ? await loadPreviousPrices({
-          familyId,
-          fundId: receiptRow.fund_id,
-          keys,
-          excludeReceiptId: receiptRow.id,
-          beforeCreatedAt: receiptRow.created_at ?? null,
-        })
-      : new Map();
-
-    return {
-      ok: true,
-      receiptId: receiptRow.id,
-      compare: buildCompareResult({
-        merchant: receiptRow.merchant,
-        purchasedAt: receiptRow.purchased_at,
-        total:
-          receiptRow.total != null && Number.isFinite(Number(receiptRow.total))
-            ? Number(receiptRow.total)
-            : null,
-        drafts,
-        previousByKey,
-      }),
-    };
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : "No se pudo cargar el ticket.",
     };
   }
+}
+
+/** Correct a saved ticket line unit price (OCR mistakes). Does not change the expense amount. */
+export async function updatePurchaseReceiptLineUnitPriceAction(input: {
+  lineId: string;
+  unitPrice: number;
+}): Promise<
+  | { ok: true; compare: PurchaseCompareResult; receiptId: string }
+  | { ok: false; error: string }
+> {
+  try {
+    const { familyId } = await requireFamilyMember();
+    const admin = getSupabaseAdminClient();
+    const lineId = String(input.lineId ?? "").trim();
+    const unitPrice = Number(input.unitPrice);
+
+    if (!lineId) return { ok: false, error: "Línea no válida." };
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      return { ok: false, error: "Importe no válido." };
+    }
+    const roundedUnit = Math.round(unitPrice * 100) / 100;
+
+    const { data: existing, error: loadError } = await admin
+      .from("purchase_receipt_lines")
+      .select("id, receipt_id, quantity, family_id")
+      .eq("id", lineId)
+      .eq("family_id", familyId)
+      .maybeSingle();
+
+    if (loadError || !existing) {
+      return { ok: false, error: "No se encontró esa línea del ticket." };
+    }
+
+    const row = existing as {
+      id: string;
+      receipt_id: string;
+      quantity?: number | null;
+      family_id: string;
+    };
+
+    const qty =
+      row.quantity != null && Number.isFinite(Number(row.quantity))
+        ? Number(row.quantity)
+        : null;
+    const lineTotal =
+      qty != null && qty > 0
+        ? Math.round(roundedUnit * qty * 100) / 100
+        : roundedUnit;
+
+    const { error: updateError } = await admin
+      .from("purchase_receipt_lines")
+      .update({
+        unit_price: roundedUnit,
+        line_total: lineTotal,
+      } as never)
+      .eq("id", lineId)
+      .eq("family_id", familyId);
+
+    if (updateError) {
+      return { ok: false, error: updateError.message };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/history");
+
+    return getPurchaseReceiptDetailByReceiptId(row.receipt_id, familyId);
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "No se pudo actualizar el importe.",
+    };
+  }
+}
+
+async function getPurchaseReceiptDetailByReceiptId(
+  receiptId: string,
+  familyId: string
+): Promise<
+  | { ok: true; compare: PurchaseCompareResult; receiptId: string }
+  | { ok: false; error: string }
+> {
+  const admin = getSupabaseAdminClient();
+  const { data: receipt, error: receiptError } = await admin
+    .from("purchase_receipts")
+    .select("id, fund_id, merchant, purchased_at, total, created_at")
+    .eq("family_id", familyId)
+    .eq("id", receiptId)
+    .maybeSingle();
+
+  if (receiptError || !receipt) {
+    return { ok: false, error: "No se pudo recargar el ticket." };
+  }
+
+  const receiptRow = receipt as {
+    id: string;
+    fund_id?: string | null;
+    merchant?: string | null;
+    purchased_at?: string | null;
+    total?: number | null;
+    created_at?: string | null;
+  };
+
+  const { data: lineRows, error: linesError } = await admin
+    .from("purchase_receipt_lines")
+    .select("id, name, quantity, unit_price, line_total, sort_order")
+    .eq("receipt_id", receiptRow.id)
+    .order("sort_order", { ascending: true });
+
+  if (linesError) {
+    return { ok: false, error: linesError.message };
+  }
+
+  const drafts = (lineRows ?? [])
+    .map((row) => {
+      const r = row as {
+        id?: string;
+        name?: string;
+        quantity?: number | null;
+        unit_price?: number | null;
+        line_total?: number | null;
+      };
+      const [normalized] = normalizeDraftLines([
+        {
+          name: String(r.name ?? ""),
+          quantity: r.quantity ?? null,
+          unitPrice: r.unit_price ?? null,
+          lineTotal: r.line_total ?? null,
+        },
+      ]);
+      if (!normalized) return null;
+      return {
+        ...normalized,
+        id: String(r.id ?? "").trim() || null,
+      };
+    })
+    .filter(
+      (line): line is ReceiptLineDraft & { id: string | null } => line != null
+    );
+
+  const keys = [
+    ...new Set(drafts.map((line) => normalizeProductKey(line.name)).filter(Boolean)),
+  ];
+
+  const previousByKey = receiptRow.fund_id
+    ? await loadPreviousPrices({
+        familyId,
+        fundId: receiptRow.fund_id,
+        keys,
+        excludeReceiptId: receiptRow.id,
+        beforeCreatedAt: receiptRow.created_at ?? null,
+      })
+    : new Map();
+
+  return {
+    ok: true,
+    receiptId: receiptRow.id,
+    compare: buildCompareResult({
+      merchant: receiptRow.merchant,
+      purchasedAt: receiptRow.purchased_at,
+      total:
+        receiptRow.total != null && Number.isFinite(Number(receiptRow.total))
+          ? Number(receiptRow.total)
+          : null,
+      drafts,
+      previousByKey,
+    }),
+  };
 }

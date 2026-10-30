@@ -391,7 +391,7 @@ export default function BolsillosPanel({
             <div className="relative z-10 flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-light text-on-surface-variant">
-                  Gastado este mes
+                  Queda en total
                 </p>
                 <p className="mt-0.5 text-[13px] font-light text-on-surface/70">
                   {overview?.monthLabel}
@@ -405,8 +405,20 @@ export default function BolsillosPanel({
               </div>
             </div>
 
-            <p className="relative z-10 mt-4 text-[2.65rem] font-light leading-none tracking-tight tabular-nums text-on-surface">
-              <FormattedCurrency value={overview?.totalSpentThisMonth ?? 0} />
+            <p
+              className={`relative z-10 mt-4 text-[2.65rem] font-light leading-none tracking-tight tabular-nums ${
+                (overview?.totalRemaining ?? 0) < 0
+                  ? "text-balance-negative"
+                  : "text-on-surface"
+              }`}
+            >
+              <FormattedCurrency value={overview?.totalRemaining ?? 0} />
+            </p>
+            <p className="relative z-10 mt-2 text-[12px] font-light text-on-surface-variant">
+              Gastado este mes{" "}
+              <span className="tabular-nums text-on-surface/80">
+                <FormattedCurrency value={overview?.totalSpentThisMonth ?? 0} />
+              </span>
             </p>
 
             <div className="relative z-10 mt-5 flex flex-wrap gap-2">
