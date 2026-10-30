@@ -32,10 +32,10 @@ Decisión: [ADR-0011](../../../decisions/ADR-0011-cfo-proactive-presence.md). Im
 ## UX
 
 16. Scroll de Inicio **sin** cards de notas.
-17. Entrada: **pastilla decorativa** fuera del scroll → **modal** con la nota prioritaria.
+17. Entrada: **pastilla decorativa** fuera del scroll. Auto-apertura **una vez al día** del modal con la nota prioritaria; toque en la pastilla → `/recommendations` (Activas).
 17b. La pastilla y el auto-modal **no aparecen** hasta que el tour de producto del **dashboard** esté completado (skip o done).
 18. Auto-apertura del modal: como máximo **una vez por día** local, salvo nota `critical` nueva.
-19. Superficie dedicada `/recommendations` presentada como **Notas** (Activas | Anteriores).
+19. Superficie dedicada `/recommendations` presentada como **Notas** (activas; enlace sutil a anteriores).
 20. Soft notice previo queda **sustituido** por la pastilla.
 
 ## Monetización

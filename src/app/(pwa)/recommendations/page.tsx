@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
-import RecommendationsAdminTools from "@/components/RecommendationsAdminTools";
 import RecommendationsPremiumGate from "@/components/RecommendationsPremiumGate";
 import CfoNotesPage from "@/components/CfoNotesPage";
 import { isSuperAdminUser } from "@/lib/admin";
@@ -89,8 +88,6 @@ export default async function RecommendationsPage() {
             {accessLabel}: {trialHint}
           </p>
         ) : null}
-
-        <RecommendationsAdminTools isSuperAdmin={isSuperAdmin} />
 
         {!canUse ? (
           <RecommendationsPremiumGate

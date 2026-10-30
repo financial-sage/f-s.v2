@@ -158,7 +158,7 @@ export default function CfoNoteModal({
                 onClick={onClose}
                 className="pt-0.5 text-center text-[11px] font-light tracking-wide text-on-surface-variant/80 underline-offset-4 transition-colors hover:text-on-surface hover:underline"
               >
-                Notas anteriores
+                Recomendaciones anteriores
               </Link>
             </div>
           </div>

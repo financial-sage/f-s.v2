@@ -32,7 +32,7 @@ ALTER TABLE family_recommendations
 
 - `CfoPresencePill` — reemplaza `RecommendationsSoftNotice`
 - `CfoNoteModal` — detalle + acciones + link a Anteriores
-- Página `/recommendations` — tabs Activas | Anteriores
+- Página `/recommendations` — activas + enlace “Recomendaciones anteriores”
 
 ## Fases 2–4
 

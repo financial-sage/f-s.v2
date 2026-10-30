@@ -198,32 +198,25 @@ export default function CfoNotesPage({ active, archive }: Props) {
     });
   }
 
+  const showingArchive = tab === "anteriores";
+
   return (
     <>
-      <div className="flex gap-1 rounded-full border border-outline-variant/25 bg-surface-lowest/80 p-1">
-        <button
-          type="button"
-          onClick={() => setTab("activas")}
-          className={`flex-1 rounded-full px-3 py-2 text-[12px] font-light transition-colors ${
-            tab === "activas"
-              ? "bg-accent/20 text-on-surface"
-              : "text-on-surface-variant hover:text-on-surface"
-          }`}
-        >
-          Activas ({visibleActive.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("anteriores")}
-          className={`flex-1 rounded-full px-3 py-2 text-[12px] font-light transition-colors ${
-            tab === "anteriores"
-              ? "bg-accent/20 text-on-surface"
-              : "text-on-surface-variant hover:text-on-surface"
-          }`}
-        >
-          Anteriores ({visibleArchive.length})
-        </button>
-      </div>
+      {showingArchive ? (
+        <div className="mb-1 flex items-center justify-between gap-3 px-0.5">
+          <p className="text-[11px] font-light tracking-wide text-on-surface-variant">
+            Anteriores
+            {visibleArchive.length > 0 ? ` · ${visibleArchive.length}` : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() => setTab("activas")}
+            className="text-[11px] font-light text-on-surface-variant/80 underline-offset-4 transition-colors hover:text-on-surface hover:underline"
+          >
+            Volver a activas
+          </button>
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <div className="rounded-[1.85rem] border border-glass-border bg-surface-lowest/90 px-5 py-8 text-center shadow-[0_12px_28px_rgba(43,52,55,0.06)]">
@@ -231,21 +224,23 @@ export default function CfoNotesPage({ active, archive }: Props) {
             <Sparkles size={18} strokeWidth={1.75} />
           </div>
           <p className="text-[15px] font-light text-on-surface">
-            {tab === "activas"
-              ? "No hay notas activas"
-              : "Aún no hay notas anteriores"}
+            {showingArchive
+              ? "Aún no hay recomendaciones anteriores"
+              : "No hay notas activas"}
           </p>
           <p className="mt-2 text-[13px] font-light leading-relaxed text-on-surface-variant">
-            {tab === "activas"
-              ? "Cuando el contexto lo pida (ahorro, ritmo, logros), aparecerán aquí y en la pastilla."
-              : "Las notas que aceptes o descartes se guardan para que puedas volver a leerlas."}
+            {showingArchive
+              ? "Las que aceptes o descartes se guardan aquí para volver a leerlas."
+              : "Cuando el contexto lo pida (ahorro, ritmo, logros), aparecerán aquí y en la pastilla."}
           </p>
-          <Link
-            href="/guidance"
-            className="mt-5 inline-block text-[13px] font-light text-on-surface/75 underline-offset-4 hover:underline"
-          >
-            Ver orientación
-          </Link>
+          {!showingArchive ? (
+            <Link
+              href="/guidance"
+              className="mt-5 inline-block text-[13px] font-light text-on-surface/75 underline-offset-4 hover:underline"
+            >
+              Ver orientación
+            </Link>
+          ) : null}
         </div>
       ) : (
         <ul className="space-y-4">
@@ -253,17 +248,30 @@ export default function CfoNotesPage({ active, archive }: Props) {
             <NoteCard
               key={row.id}
               row={row}
-              showActions={tab === "activas"}
+              showActions={!showingArchive}
               deleting={deleting && pendingDeleteId === row.id}
               onDelete={() => confirmDelete(row.id)}
               onOpen={() => {
                 setModalNote(toPayload(row));
-                setModalReadOnly(tab === "anteriores");
+                setModalReadOnly(showingArchive);
               }}
             />
           ))}
         </ul>
       )}
+
+      {!showingArchive ? (
+        <div className="flex justify-center pt-2">
+          <button
+            type="button"
+            onClick={() => setTab("anteriores")}
+            className="text-[11px] font-light tracking-wide text-on-surface-variant/70 underline-offset-4 transition-colors hover:text-on-surface-variant hover:underline"
+          >
+            Recomendaciones anteriores
+            {visibleArchive.length > 0 ? ` (${visibleArchive.length})` : ""}
+          </button>
+        </div>
+      ) : null}
 
       <CfoNoteModal
         open={Boolean(modalNote)}
@@ -278,7 +286,7 @@ export default function CfoNotesPage({ active, archive }: Props) {
       <ConfirmDialog
         open={Boolean(pendingDeleteId)}
         title="Eliminar nota"
-        description="Se quitará del todo de Activas y Anteriores. No se puede deshacer."
+        description="Se quitará del todo. No se puede deshacer."
         confirmLabel="Sí, eliminar"
         busy={deleting}
         busyLabel="Eliminando…"

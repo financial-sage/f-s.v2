@@ -8,7 +8,7 @@
 
 CFO Presence hace **viva** la capa de apoyo: el sistema detecta hallazgos, los convierte en **notas** en lenguaje natural (CARE) y las entrega en el momento adecuado **sin** cargar el scroll del dashboard ni abrir un chat.
 
-Evoluciona Recommendations (ADR-0009): mismas reglas + IA de redacción, más tipos de mensaje, pastilla → modal, e **historial releyible**.
+Evoluciona Recommendations (ADR-0009): mismas reglas + IA de redacción, más tipos de mensaje, pastilla (auto-modal 1×/día; toque → lista Activas), e **historial releyible**.
 
 Visión narrativa: [CFO Familiar Proactivo](../../../CFO%20Familiar%20Proactivo.md). Decisión: [ADR-0011](../../../decisions/ADR-0011-cfo-proactive-presence.md).
 
@@ -37,7 +37,7 @@ Visión narrativa: [CFO Familiar Proactivo](../../../CFO%20Familiar%20Proactivo.
 
 - `kind` + reglas ampliadas (nudge / celebration / summary / alert ligeros).
 - Pastilla + modal + auto-apertura acotada.
-- Página Notas: Activas | Anteriores.
+- Página Notas: activas + enlace sutil a anteriores.
 - Soft notice absorbido.
 
 ## Fase 2 — Push + preferencias

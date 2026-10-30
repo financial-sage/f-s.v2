@@ -19,7 +19,7 @@ globs:
 ## Invariantes
 
 - Sin cards de IA en el scroll del dashboard.
-- Pastilla fuera del scroll → modal; historial releyible.
+- Pastilla fuera del scroll; auto-modal 1×/día; toque → `/recommendations` (Activas); historial releyible.
 - Reglas eligen; IA solo redacta.
 - Sin chat / push / audio en Fase 1.
 - Guidance no se fusiona.

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
 import CfoNoteModal, { type CfoNotePayload } from "@/components/CfoNoteModal";
@@ -40,11 +40,13 @@ function criticalSeenKey(familyId: string, noteId: string) {
 
 /**
  * Decorative CFO presence pill outside the dashboard scroll (ADR-0011).
- * Opens a premium modal with the primary note; auto-opens once per day.
+ * Auto-opens the primary note once per day; tapping the pill goes to
+ * `/recommendations` (Activas) so the user can see all notes.
  * Hidden until the dashboard product tour is done.
  */
 export default function CfoPresencePill() {
   const pathname = usePathname();
+  const router = useRouter();
   const [count, setCount] = useState(0);
   const [primary, setPrimary] = useState<CfoNotePayload | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
@@ -193,14 +195,12 @@ export default function CfoPresencePill() {
   }, [count, enterKey, tourReady]);
 
   const openFromPill = () => {
-    if (!primary || !tourReady) return;
-    setModalOpen(true);
+    if (!tourReady || count <= 0) return;
     if (familyId) {
       window.localStorage.setItem(todayKey(familyId), "1");
     }
-    if (primary.status === "new") {
-      void markRecommendationSeenAction(primary.id);
-    }
+    // List of actives — not the same daily modal again.
+    router.push("/recommendations");
   };
 
   if (pathname?.startsWith("/recommendations")) {
