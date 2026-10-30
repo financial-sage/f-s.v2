@@ -3,7 +3,9 @@
 import { getFamilyFundsFast } from "@/app/actions/funds";
 import {
   calculateFundCashBalance,
+  calculatePersonalPocketBalance,
   getFixedExpensesFund,
+  getPersonalFund,
   type FamilyFund,
 } from "@/lib/funds";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -11,6 +13,7 @@ import type {
   FixedExpenseMonthItem,
   FixedExpenseMonthSnapshot,
   FixedExpensePayment,
+  FixedExpenseScope,
   FixedExpenseTemplate,
 } from "@/lib/fixed-expenses/types";
 import {
@@ -19,6 +22,7 @@ import {
   normalizeFixedExpenseFrequency,
   type FixedExpenseFrequency,
 } from "@/lib/fixed-expenses/frequency";
+import { normalizeFixedExpenseScope } from "@/lib/fixed-expenses/scope";
 import { getMonthKey } from "@/lib/budget";
 import {
   requireRequestFamilyId,
@@ -35,6 +39,7 @@ async function getUserFamilyId(userId: string) {
 
 function mapTemplate(row: Record<string, unknown>): FixedExpenseTemplate {
   const anchorRaw = row.anchor_month == null ? 1 : Number(row.anchor_month);
+  const scope = normalizeFixedExpenseScope(row.scope);
   return {
     id: String(row.id),
     family_id: String(row.family_id),
@@ -43,11 +48,33 @@ function mapTemplate(row: Record<string, unknown>): FixedExpenseTemplate {
     due_day: row.due_day == null ? null : Number(row.due_day),
     frequency: normalizeFixedExpenseFrequency(row.frequency),
     anchor_month: Math.min(12, Math.max(1, Math.round(anchorRaw) || 1)),
+    scope,
+    owner_profile_id:
+      scope === "personal" && row.owner_profile_id
+        ? String(row.owner_profile_id)
+        : null,
     is_active: Boolean(row.is_active),
     sort_order: Number(row.sort_order ?? 0),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
+}
+
+function isTemplateVisibleToUser(
+  template: FixedExpenseTemplate,
+  userId: string
+): boolean {
+  if (template.scope === "shared") return true;
+  return template.owner_profile_id === userId;
+}
+
+function assertCanManageTemplate(
+  template: FixedExpenseTemplate,
+  userId: string
+) {
+  if (template.scope === "personal" && template.owner_profile_id !== userId) {
+    throw new Error("Solo puedes gestionar tus gastos fijos personales.");
+  }
 }
 
 function normalizeAnchorMonth(value: unknown, fallbackMonth: number): number {
@@ -138,10 +165,12 @@ async function ensureMonthPayments(
 async function buildMonthSnapshot(
   familyId: string,
   monthKey: string,
-  funds: FamilyFund[]
+  funds: FamilyFund[],
+  viewerUserId: string
 ): Promise<FixedExpenseMonthSnapshot> {
   const admin = getSupabaseAdminClient();
   const fixedFund = getFixedExpensesFund(funds);
+  const personalFund = getPersonalFund(funds, viewerUserId);
 
   const { data: templateRows, error: templateError } = await admin
     .from("fixed_expenses")
@@ -153,7 +182,12 @@ async function buildMonthSnapshot(
 
   if (templateError) throw new Error(templateError.message);
 
-  const templates = (templateRows ?? []).map((row) => mapTemplate(row as Record<string, unknown>));
+  const allTemplates = (templateRows ?? []).map((row) =>
+    mapTemplate(row as Record<string, unknown>)
+  );
+  const templates = allTemplates.filter((t) =>
+    isTemplateVisibleToUser(t, viewerUserId)
+  );
   const payments = await ensureMonthPayments(familyId, monthKey, templates);
   const paymentByTemplate = new Map(payments.map((p) => [p.fixed_expense_id, p]));
 
@@ -176,25 +210,49 @@ async function buildMonthSnapshot(
 
   let pocketDeposits = 0;
   let pocketAvailable = 0;
-  if (fixedFund) {
-    const { data: fundExpenses } = await admin
-      .from("expenses")
-      .select(
-        "amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, transfer_group_id, is_active, is_settled"
-      )
-      .eq("family_id", familyId)
-      .eq("fund_id", fixedFund.id)
-      .eq("is_active", true);
+  let personalPocketAvailable = 0;
 
-    const rows = (fundExpenses ?? []) as never[];
+  const { data: ledgerRows } = await admin
+    .from("expenses")
+    .select(
+      "amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, transfer_group_id, account_id, is_active, is_settled"
+    )
+    .eq("family_id", familyId)
+    .eq("is_active", true);
+
+  const rows = (ledgerRows ?? []) as Array<{
+    amount: number;
+    category?: string | null;
+    concept?: string | null;
+    paid_by: string;
+    responsible_for?: string | null;
+    fund_id?: string | null;
+    paid_from_fund?: boolean | null;
+    transfer_group_id?: string | null;
+    account_id?: string | null;
+    is_settled?: boolean | null;
+  }>;
+
+  if (fixedFund) {
     pocketAvailable = calculateFundCashBalance(rows, fixedFund.id);
     pocketDeposits = rows
       .filter(
-        (e: { category?: string | null; transfer_group_id?: string | null }) =>
-          e.category === "deposit" && !e.transfer_group_id
+        (e) =>
+          e.fund_id === fixedFund.id &&
+          e.category === "deposit" &&
+          !e.transfer_group_id
       )
-      .reduce((sum: number, e: { amount?: number }) => sum + Number(e.amount || 0), 0);
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
   }
+
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
+  personalPocketAvailable = calculatePersonalPocketBalance(
+    rows,
+    viewerUserId,
+    sharedFundIds
+  );
 
   return {
     familyId,
@@ -203,8 +261,10 @@ async function buildMonthSnapshot(
     monthlyCommitted: Math.round(monthlyCommitted * 100) / 100,
     pocketDeposits: Math.round(pocketDeposits * 100) / 100,
     pocketAvailable,
+    personalPocketAvailable,
     items,
     fixedFundId: fixedFund?.id ?? null,
+    personalFundId: personalFund?.id ?? null,
   };
 }
 
@@ -215,7 +275,7 @@ export async function loadFixedExpensesMonthAction(
   const user = await requireUser();
   const familyId = await getUserFamilyId(user.id);
   const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
-  return buildMonthSnapshot(familyId, monthKey, funds);
+  return buildMonthSnapshot(familyId, monthKey, funds, user.id);
 }
 
 export async function createFixedExpenseAction(input: {
@@ -224,6 +284,7 @@ export async function createFixedExpenseAction(input: {
   dueDay?: number | null;
   frequency?: FixedExpenseFrequency;
   anchorMonth?: number | null;
+  scope?: FixedExpenseScope;
   monthKey: string;
 }): Promise<FixedExpenseMonthSnapshot> {
   assertMonthKey(input.monthKey);
@@ -234,10 +295,14 @@ export async function createFixedExpenseAction(input: {
 
   const name = input.name.trim();
   const baseValue = Number(input.baseValue);
+  const scope = normalizeFixedExpenseScope(input.scope);
 
   if (!name) throw new Error("Escribe un nombre.");
   if (!Number.isFinite(baseValue) || baseValue < 0) {
     throw new Error("Ingresa un valor base válido.");
+  }
+  if (scope === "personal" && !getPersonalFund(funds, user.id)) {
+    throw new Error("No tienes un bolsillo personal para cargos fijos personales.");
   }
 
   const { assertCanCreateFixedExpense } = await import("@/lib/premiumServer");
@@ -261,6 +326,8 @@ export async function createFixedExpenseAction(input: {
       due_day: dueDay,
       frequency,
       anchor_month: anchorMonth,
+      scope,
+      owner_profile_id: scope === "personal" ? user.id : null,
       is_active: true,
       sort_order: 100,
     } as never);
@@ -271,10 +338,15 @@ export async function createFixedExpenseAction(input: {
         "Falta aplicar la migración de frecuencia (006_account_kind_fixed_frequency.sql)."
       );
     }
+    if (/scope|owner_profile/i.test(error.message)) {
+      throw new Error(
+        "Falta aplicar la migración de gastos fijos personales (fixed_expenses_personal_scope)."
+      );
+    }
     throw new Error(error.message);
   }
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds);
+  return buildMonthSnapshot(familyId, input.monthKey, funds, user.id);
 }
 
 export async function updateFixedExpenseAction(input: {
@@ -291,6 +363,18 @@ export async function updateFixedExpenseAction(input: {
   const familyId = await getUserFamilyId(user.id);
   const admin = getSupabaseAdminClient();
   const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
+
+  const { data: existingRow, error: existingError } = await admin
+    .from("fixed_expenses")
+    .select("*")
+    .eq("id", input.id)
+    .eq("family_id", familyId)
+    .maybeSingle();
+  if (existingError || !existingRow) throw new Error("Gasto fijo no encontrado.");
+  assertCanManageTemplate(
+    mapTemplate(existingRow as Record<string, unknown>),
+    user.id
+  );
 
   const name = input.name.trim();
   const baseValue = Number(input.baseValue);
@@ -343,7 +427,7 @@ export async function updateFixedExpenseAction(input: {
     .eq("month_key", input.monthKey)
     .eq("status", "pending");
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds);
+  return buildMonthSnapshot(familyId, input.monthKey, funds, user.id);
 }
 
 export async function deactivateFixedExpenseAction(input: {
@@ -356,6 +440,18 @@ export async function deactivateFixedExpenseAction(input: {
   const admin = getSupabaseAdminClient();
   const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
 
+  const { data: existingRow, error: existingError } = await admin
+    .from("fixed_expenses")
+    .select("*")
+    .eq("id", input.id)
+    .eq("family_id", familyId)
+    .maybeSingle();
+  if (existingError || !existingRow) throw new Error("Gasto fijo no encontrado.");
+  assertCanManageTemplate(
+    mapTemplate(existingRow as Record<string, unknown>),
+    user.id
+  );
+
   const { error } = await admin
     .from("fixed_expenses")
     .update({
@@ -367,7 +463,7 @@ export async function deactivateFixedExpenseAction(input: {
 
   if (error) throw new Error(error.message);
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds);
+  return buildMonthSnapshot(familyId, input.monthKey, funds, user.id);
 }
 
 /** Real aporte to the fixed-expenses pocket (same as any other fund). */
@@ -409,7 +505,7 @@ export async function depositToFixedExpensesFundAction(input: {
 
   if (error) throw new Error(error.message);
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds);
+  return buildMonthSnapshot(familyId, input.monthKey, funds, user.id);
 }
 
 function assertPaidDate(paidDate: string) {
@@ -453,12 +549,6 @@ export async function markFixedExpensePaidAction(input: {
   const paidAt = `${paidDate}T12:00:00.000Z`;
 
   const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
-  const fixedFund = getFixedExpensesFund(funds);
-  if (!fixedFund) {
-    throw new Error(
-      "Falta el bolsillo de Gastos fijos. Aplica la migración y recarga la app."
-    );
-  }
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("fixed_expense_payments")
@@ -474,7 +564,21 @@ export async function markFixedExpensePaidAction(input: {
     : paymentRow.fixed_expenses;
   if (!templateRow) throw new Error("Plantilla de gasto fijo no encontrada.");
   const template = mapTemplate(templateRow as Record<string, unknown>);
+  assertCanManageTemplate(template, user.id);
   const concept = template.name || "Gasto fijo";
+
+  const isPersonal = template.scope === "personal";
+  const fixedFund = getFixedExpensesFund(funds);
+  const personalFund = getPersonalFund(funds, user.id);
+  if (!isPersonal && !fixedFund) {
+    throw new Error(
+      "Falta el bolsillo de Gastos fijos. Aplica la migración y recarga la app."
+    );
+  }
+  if (isPersonal && !personalFund) {
+    throw new Error("No tienes un bolsillo personal para registrar este pago.");
+  }
+  const payFundId = isPersonal ? personalFund!.id : fixedFund!.id;
 
   if (
     !isFixedExpenseDueInMonth({
@@ -509,12 +613,12 @@ export async function markFixedExpensePaidAction(input: {
       amount: realValue,
       concept,
       category: "fixed_expense",
-      responsible_for: "joint_fund",
-      split_type: "shared_equal",
+      responsible_for: isPersonal ? user.id : "joint_fund",
+      split_type: isPersonal ? "personal" : "shared_equal",
       expense_date: paidDate,
       created_by: user.id,
       updated_by: user.id,
-      fund_id: fixedFund.id,
+      fund_id: payFundId,
       paid_from_fund: true,
       is_settled: true,
       is_active: true,
@@ -540,7 +644,7 @@ export async function markFixedExpensePaidAction(input: {
   if (updateError) throw new Error(updateError.message);
 
   // Snapshot for the month where the payment landed (UI should follow).
-  return buildMonthSnapshot(familyId, paidMonthKey, funds);
+  return buildMonthSnapshot(familyId, paidMonthKey, funds, user.id);
 }
 
 /** Update date and/or real amount of an already-paid fixed expense. */
@@ -584,6 +688,7 @@ export async function updateFixedExpensePaidAction(input: {
     : paymentRow.fixed_expenses;
   if (!templateRow) throw new Error("Plantilla de gasto fijo no encontrada.");
   const template = mapTemplate(templateRow as Record<string, unknown>);
+  assertCanManageTemplate(template, user.id);
 
   if (
     !isFixedExpenseDueInMonth({
@@ -627,7 +732,7 @@ export async function updateFixedExpensePaidAction(input: {
       .eq("family_id", familyId);
 
     if (updateError) throw new Error(updateError.message);
-    return buildMonthSnapshot(familyId, paidMonthKey, funds);
+    return buildMonthSnapshot(familyId, paidMonthKey, funds, user.id);
   }
 
   // Move paid status to the month of the new date.
@@ -671,7 +776,7 @@ export async function updateFixedExpensePaidAction(input: {
     .eq("family_id", familyId);
   if (targetError) throw new Error(targetError.message);
 
-  return buildMonthSnapshot(familyId, paidMonthKey, funds);
+  return buildMonthSnapshot(familyId, paidMonthKey, funds, user.id);
 }
 
 export async function unmarkFixedExpensePaidAction(input: {
@@ -686,12 +791,22 @@ export async function unmarkFixedExpensePaidAction(input: {
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("fixed_expense_payments")
-    .select("*")
+    .select("*, fixed_expenses(*)")
     .eq("id", input.paymentId)
     .eq("family_id", familyId)
     .maybeSingle();
 
   if (paymentError || !paymentRow) throw new Error("Pago no encontrado.");
+
+  const templateRow = Array.isArray(paymentRow.fixed_expenses)
+    ? paymentRow.fixed_expenses[0]
+    : paymentRow.fixed_expenses;
+  if (templateRow) {
+    assertCanManageTemplate(
+      mapTemplate(templateRow as Record<string, unknown>),
+      user.id
+    );
+  }
 
   if (paymentRow.expense_id) {
     await admin
@@ -720,5 +835,5 @@ export async function unmarkFixedExpensePaidAction(input: {
 
   if (updateError) throw new Error(updateError.message);
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds);
+  return buildMonthSnapshot(familyId, input.monthKey, funds, user.id);
 }

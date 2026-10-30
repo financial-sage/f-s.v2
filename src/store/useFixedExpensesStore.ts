@@ -15,7 +15,11 @@ import type {
   FixedExpenseDerivedTotals,
   FixedExpenseMonthSnapshot,
 } from "@/lib/fixed-expenses/types";
-import type { FixedExpenseFrequency } from "@/lib/fixed-expenses/frequency";
+import {
+  monthlyEquivalent,
+  type FixedExpenseFrequency,
+} from "@/lib/fixed-expenses/frequency";
+import type { FixedExpenseScope } from "@/lib/fixed-expenses/scope";
 import { getMonthKey } from "@/lib/budget";
 
 export interface FixedExpensesState {
@@ -39,23 +43,38 @@ const emptyTotals: FixedExpenseDerivedTotals = {
   totalCount: 0,
 };
 
-function computeTotals(snapshot: FixedExpenseMonthSnapshot | null): FixedExpenseDerivedTotals {
-  const items = snapshot?.items ?? [];
-  const sumBase = items.reduce((sum, item) => sum + Number(item.payment.base_value_snapshot || 0), 0);
+export function computeFixedExpenseTotals(
+  snapshot: FixedExpenseMonthSnapshot | null,
+  options?: { scope?: FixedExpenseScope }
+): FixedExpenseDerivedTotals {
+  const scope = options?.scope;
+  const items = (snapshot?.items ?? []).filter((item) =>
+    scope ? (item.template.scope ?? "shared") === scope : true
+  );
+  const sumBase = items.reduce(
+    (sum, item) => sum + Number(item.payment.base_value_snapshot || 0),
+    0
+  );
   const sumReal = items.reduce((sum, item) => {
     if (item.payment.status !== "paid") return sum;
     return sum + Number(item.payment.real_value || 0);
   }, 0);
-  const budgetTotal = Number(snapshot?.budgetTotal ?? sumBase);
-  const monthlyCommitted = Number(snapshot?.monthlyCommitted ?? sumBase);
+  const monthlyCommitted = items.reduce(
+    (sum, item) =>
+      sum + monthlyEquivalent(item.template.base_value, item.template.frequency),
+    0
+  );
   const pocketDeposits = Number(snapshot?.pocketDeposits ?? 0);
-  const pocketBalance = Number(snapshot?.pocketAvailable ?? 0);
+  const pocketBalance =
+    scope === "personal"
+      ? Number(snapshot?.personalPocketAvailable ?? 0)
+      : Number(snapshot?.pocketAvailable ?? 0);
   const paidCount = items.filter((item) => item.payment.status === "paid").length;
 
   return {
     sumBase: Math.round(sumBase * 100) / 100,
     sumReal: Math.round(sumReal * 100) / 100,
-    budgetTotal: Math.round(budgetTotal * 100) / 100,
+    budgetTotal: Math.round(sumBase * 100) / 100,
     monthlyCommitted: Math.round(monthlyCommitted * 100) / 100,
     pocketDeposits: Math.round(pocketDeposits * 100) / 100,
     pocketBalance: Math.round(pocketBalance * 100) / 100,
@@ -64,6 +83,10 @@ function computeTotals(snapshot: FixedExpenseMonthSnapshot | null): FixedExpense
     paidCount,
     totalCount: items.length,
   };
+}
+
+function computeTotals(snapshot: FixedExpenseMonthSnapshot | null): FixedExpenseDerivedTotals {
+  return computeFixedExpenseTotals(snapshot);
 }
 
 interface FixedExpensesStore extends FixedExpensesState {
@@ -75,6 +98,7 @@ interface FixedExpensesStore extends FixedExpensesState {
     dueDay?: number | null;
     frequency?: FixedExpenseFrequency;
     anchorMonth?: number | null;
+    scope?: FixedExpenseScope;
   }) => Promise<void>;
   updateTemplate: (input: {
     id: string;

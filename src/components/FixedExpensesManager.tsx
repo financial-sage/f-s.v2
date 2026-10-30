@@ -22,9 +22,14 @@ import {
   monthlyEquivalent,
   type FixedExpenseFrequency,
 } from "@/lib/fixed-expenses/frequency";
+import type { FixedExpenseScope } from "@/lib/fixed-expenses/scope";
 import { tintedGlassGradient } from "@/lib/glass";
 import { FIXED_EXPENSES_FUND_COLOR } from "@/lib/funds";
 import { isIndividualHousehold } from "@/lib/household";
+import {
+  computeFixedExpenseTotals,
+  useFixedExpensesStore,
+} from "@/store/useFixedExpensesStore";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Portal } from "@/components/ui/Portal";
@@ -198,8 +203,7 @@ export default function FixedExpensesManager({
 
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const {
-    items,
-    totals,
+    items: allItems,
     isLoading,
     isSaving,
     error,
@@ -211,6 +215,27 @@ export default function FixedExpensesManager({
     updatePaid,
     unmarkPaid,
   } = useFixedExpenses(monthKey);
+  const snapshot = useFixedExpensesStore((s) => s.snapshot);
+
+  const [scopeTab, setScopeTab] = useState<FixedExpenseScope>("shared");
+  const showScopeTabs = !isIndividual;
+
+  const items = useMemo(
+    () =>
+      showScopeTabs
+        ? allItems.filter((item) => (item.template.scope ?? "shared") === scopeTab)
+        : allItems,
+    [allItems, scopeTab, showScopeTabs]
+  );
+
+  const totals = useMemo(
+    () =>
+      computeFixedExpenseTotals(
+        snapshot,
+        showScopeTabs ? { scope: scopeTab } : undefined
+      ),
+    [snapshot, scopeTab, showScopeTabs]
+  );
 
   const [payTarget, setPayTarget] = useState<FixedExpenseMonthItem | null>(null);
   const [payEditing, setPayEditing] = useState(false);
@@ -227,6 +252,7 @@ export default function FixedExpensesManager({
   const [formName, setFormName] = useState("");
   const [formBase, setFormBase] = useState("0");
   const [formFrequency, setFormFrequency] = useState<FixedExpenseFrequency>("monthly");
+  const [formScope, setFormScope] = useState<FixedExpenseScope>("shared");
   const [formMoreOpen, setFormMoreOpen] = useState(false);
   const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
@@ -269,7 +295,7 @@ export default function FixedExpensesManager({
     setPaidExpanded(false);
     if (pendingScrollRef.current) pendingScrollRef.current.scrollTop = 0;
     if (paidScrollRef.current) paidScrollRef.current.scrollTop = 0;
-  }, [monthKey]);
+  }, [monthKey, scopeTab]);
 
   function shiftMonth(delta: -1 | 1) {
     setMonthKey((key) => shiftMonthKey(key, delta));
@@ -358,6 +384,7 @@ export default function FixedExpensesManager({
     setFormName("");
     setFormBase("0");
     setFormFrequency("monthly");
+    setFormScope(showScopeTabs ? scopeTab : "shared");
     setFormMoreOpen(false);
     setFormBaseKeypadOpen(false);
     setFormError("");
@@ -369,6 +396,7 @@ export default function FixedExpensesManager({
     setFormName(item.template.name);
     setFormBase(String(item.template.base_value));
     setFormFrequency(item.template.frequency ?? "monthly");
+    setFormScope(item.template.scope ?? "shared");
     setFormMoreOpen((item.template.frequency ?? "monthly") !== "monthly");
     setFormBaseKeypadOpen(false);
     setFormError("");
@@ -405,7 +433,9 @@ export default function FixedExpensesManager({
           baseValue,
           frequency: formFrequency,
           anchorMonth,
+          scope: showScopeTabs ? formScope : "shared",
         });
+        if (showScopeTabs) setScopeTab(formScope);
       }
       setFormOpen(false);
     } catch (err) {
@@ -489,6 +519,33 @@ export default function FixedExpensesManager({
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 min-h-0 flex-col overflow-hidden px-4">
+        {showScopeTabs ? (
+          <div className="mb-2.5 flex shrink-0 rounded-full border border-outline-variant/20 bg-glass-soft p-0.5">
+            {(
+              [
+                { id: "shared" as const, label: "Familia" },
+                { id: "personal" as const, label: "Míos" },
+              ] as const
+            ).map((tab) => {
+              const active = scopeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setScopeTab(tab.id)}
+                  className={`flex-1 rounded-full px-3 py-1.5 text-[12px] transition-colors ${
+                    active
+                      ? "bg-glass-strong font-medium text-on-surface shadow-sm"
+                      : "font-light text-on-surface-variant"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
         {/* Sticky summary — always visible, single surface */}
         <div
           data-tour="fixed-summary"
@@ -536,22 +593,24 @@ export default function FixedExpensesManager({
                 <FormattedCurrency value={remainingToPay} />
               </p>
             </div>
-            <div className="min-w-0 text-right">
+            <div className={`min-w-0 ${scopeTab === "personal" && showScopeTabs ? "text-right" : ""}`}>
               <p className="text-[10px] font-light uppercase tracking-wider text-on-surface-variant">
-                Bolsillo
+                {scopeTab === "personal" && showScopeTabs ? "Mi bolsillo" : "Bolsillo"}
               </p>
               <p className="mt-0.5 truncate text-[15px] font-light leading-none tracking-tight text-on-surface-variant tabular-nums">
                 <FormattedCurrency value={totals.pocketBalance} />
               </p>
             </div>
-            <button
-              type="button"
-              onClick={openDepositEditor}
-              className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-opacity hover:opacity-90"
-              style={{ backgroundColor: ACCENT }}
-            >
-              Aportar
-            </button>
+            {scopeTab === "shared" || !showScopeTabs ? (
+              <button
+                type="button"
+                onClick={openDepositEditor}
+                className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+                style={{ backgroundColor: ACCENT }}
+              >
+                Aportar
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -590,9 +649,15 @@ export default function FixedExpensesManager({
               >
                 <Plus size={18} />
               </span>
-              <span className="text-sm font-medium text-on-surface">Añade tu primer gasto fijo</span>
+              <span className="text-sm font-medium text-on-surface">
+                {showScopeTabs && scopeTab === "personal"
+                  ? "Añade tu primer gasto fijo personal"
+                  : "Añade tu primer gasto fijo"}
+              </span>
               <span className="max-w-[240px] text-xs font-light text-on-surface-variant">
-                Luz, agua, gimnasio… y ve tachándolos cada mes.
+                {showScopeTabs && scopeTab === "personal"
+                  ? "Gimnasio, streaming, seguro… se descuenta de Mi bolsillo."
+                  : "Luz, agua, alquiler… y ve tachándolos cada mes."}
               </span>
             </button>
           ) : (
@@ -694,7 +759,13 @@ export default function FixedExpensesManager({
               : `Pagar ${payTarget.template.name}`
             : "Pagar"
         }
-        subtitle={payEditing ? "Cambia el importe o la fecha" : "Valor real de este mes"}
+        subtitle={
+          payEditing
+            ? "Cambia el importe o la fecha"
+            : payTarget?.template.scope === "personal"
+              ? "Se descuenta de Mi bolsillo"
+              : "Valor real · bolsillo de fijos"
+        }
         initialValue={payValue}
         errorMessage={payError}
         dateValue={payDate}
@@ -711,7 +782,7 @@ export default function FixedExpensesManager({
       <NumericKeypadSheet
         isOpen={depositOpen}
         title="Aportar al bolsillo"
-        subtitle="Queda registrado en el historial, igual que en cualquier otro bolsillo."
+        subtitle="Aporte al bolsillo compartido de gastos fijos. Queda en el historial."
         initialValue={depositValue}
         errorMessage={depositError}
         onClose={() => setDepositOpen(false)}
@@ -757,11 +828,65 @@ export default function FixedExpensesManager({
             </p>
 
             <form onSubmit={(e) => void submitForm(e)} className="mt-4 space-y-4">
+              {showScopeTabs && !editingId ? (
+                <div className="space-y-2">
+                  <span className="ml-1 block text-[11px] font-light text-on-surface-variant">
+                    ¿De quién es?
+                  </span>
+                  <div className="flex gap-1.5">
+                    {(
+                      [
+                        {
+                          id: "shared" as const,
+                          label: "Familia",
+                          hint: "Bolsillo de fijos",
+                        },
+                        {
+                          id: "personal" as const,
+                          label: "Solo mío",
+                          hint: "Mi bolsillo",
+                        },
+                      ] as const
+                    ).map((opt) => {
+                      const active = formScope === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setFormScope(opt.id)}
+                          className={`flex-1 rounded-2xl border px-3 py-2.5 text-left transition-colors ${
+                            active
+                              ? "border-primary/35 bg-primary/10"
+                              : "border-outline-variant/25 bg-glass"
+                          }`}
+                        >
+                          <span
+                            className={`block text-[13px] ${
+                              active
+                                ? "font-medium text-on-surface"
+                                : "font-light text-on-surface"
+                            }`}
+                          >
+                            {opt.label}
+                          </span>
+                          <span className="mt-0.5 block text-[10px] font-light text-on-surface-variant">
+                            {opt.hint}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <Input
                 label="Nombre"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder="Luz, agua, seguro…"
+                placeholder={
+                  formScope === "personal"
+                    ? "Gimnasio, streaming…"
+                    : "Luz, agua, seguro…"
+                }
                 required
               />
               <div className="space-y-2">

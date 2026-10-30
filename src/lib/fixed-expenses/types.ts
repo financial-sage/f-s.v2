@@ -1,4 +1,7 @@
 import type { FixedExpenseFrequency } from "@/lib/fixed-expenses/frequency";
+import type { FixedExpenseScope } from "@/lib/fixed-expenses/scope";
+
+export type { FixedExpenseScope } from "@/lib/fixed-expenses/scope";
 
 export type FixedExpensePaymentStatus = "pending" | "paid";
 
@@ -11,6 +14,10 @@ export interface FixedExpenseTemplate {
   frequency: FixedExpenseFrequency;
   /** Calendar month 1–12 that anchors the multi-period cycle. */
   anchor_month: number;
+  /** Family shared pocket vs personal (Mi bolsillo). */
+  scope: FixedExpenseScope;
+  /** Set when scope = personal; null for shared. */
+  owner_profile_id: string | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -44,9 +51,13 @@ export interface FixedExpenseMonthSnapshot {
   /** Sum of monthly equivalents of all active templates (capacity weight). */
   monthlyCommitted: number;
   pocketDeposits: number;
+  /** Shared fixed-expenses pocket cash. */
   pocketAvailable: number;
+  /** Current user's personal pocket (Mi bolsillo) cash. */
+  personalPocketAvailable: number;
   items: FixedExpenseMonthItem[];
   fixedFundId: string | null;
+  personalFundId: string | null;
 }
 
 export interface FixedExpenseDerivedTotals {

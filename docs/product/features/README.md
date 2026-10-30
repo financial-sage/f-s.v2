@@ -98,6 +98,12 @@ Lista de movimientos (`/history`). El preview del Dashboard debe usar la **misma
 
 ---
 
+## Gastos fijos
+
+Plantillas mensuales compartidas o **personales** (Familia | Míos). Ver [fixed-expenses/README](./fixed-expenses/README.md).
+
+---
+
 ## Goals
 
 Gestionar objetivos financieros.
