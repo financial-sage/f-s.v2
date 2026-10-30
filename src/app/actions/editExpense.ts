@@ -127,9 +127,27 @@ export async function editExpenseAction(
     return { error: "No se encontró el gasto activo para actualizar." };
   }
 
+  // Keep the fixed-expense checklist amount in sync when this row is a payment.
+  const now = new Date().toISOString();
+  const { error: paymentError } = await admin
+    .from("fixed_expense_payments")
+    .update({
+      real_value: finalAmount,
+      updated_at: now,
+    } as never)
+    .eq("expense_id", originalId);
+
+  if (
+    paymentError &&
+    !/fixed_expense_payments|schema cache|does not exist/i.test(paymentError.message)
+  ) {
+    return { error: "Gasto actualizado, pero no se pudo sincronizar el gasto fijo: " + paymentError.message };
+  }
+
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/add-expense");
+  revalidatePath("/fixed-expenses");
 
   return { success: true, data };
 }

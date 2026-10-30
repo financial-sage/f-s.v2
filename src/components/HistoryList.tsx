@@ -705,8 +705,9 @@ export default function HistoryList({
         const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
         const paidByMe = expense.paid_by === currentUserId;
         const paidByLabel = paidByMe ? "TÚ" : partnerName.toUpperCase().slice(0, 8);
+        const isFixedExpense = expense.category === "fixed_expense";
         const isModifiable =
-            (isDeposit || isWithdrawal || !expense.is_settled) &&
+            (isDeposit || isWithdrawal || isFixedExpense || !expense.is_settled) &&
             isVisibleInMovementHistory(expense, storeAccounts);
         const iconColor = resolveMovementIconColor(
             expense,

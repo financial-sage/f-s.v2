@@ -1948,8 +1948,9 @@ export default function DashboardCouple({
                                     const isDeposit = expense.category === "deposit";
                                     const isWithdrawal = expense.category === "withdrawal";
                                     const isDebt = expense.paid_by !== expense.responsible_for && expense.category !== "deposit";
+                                    const isFixedExpense = expense.category === "fixed_expense";
                                     const isModifiable =
-                                        (isDeposit || isWithdrawal || !expense.is_settled) &&
+                                        (isDeposit || isWithdrawal || isFixedExpense || !expense.is_settled) &&
                                         expense.concept !== "Reembolso del fondo" &&
                                         !isFundSettlementConcept(expense.concept);
                                     const iconColor = resolveMovementIconColor(
