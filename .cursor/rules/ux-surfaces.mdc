@@ -24,6 +24,7 @@ Si quitar un borde, sombra, fondo o pill no empeora la comprensión, quítalo.
 - Primario: nombre + importe en una línea; secundario: meta en `text-[11px] font-light`.
 - Resúmenes en una **franja tipográfica** (↑3 · ↓2), no pastillas de color.
 - Deltas / deuda: ámbar o neutro — **nunca rojo de pánico**.
+- Preview de Inicio ≡ Historial (misma visibilidad): `.cursor/rules/history-module.mdc`.
 
 ## Modales / sheets
 

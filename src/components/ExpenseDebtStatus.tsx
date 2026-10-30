@@ -46,6 +46,4 @@ export {
   isHiddenFundBalanceAdjustment,
 } from "@/lib/funds";
 
-export function isFundSettlementConcept(concept?: string | null) {
-  return String(concept ?? "").startsWith("Liquidación de deuda");
-}
+export { isFundSettlementConcept } from "@/lib/movementHistory";

@@ -92,6 +92,12 @@ Registrar hechos financieros.
 
 ---
 
+## Historial
+
+Lista de movimientos (`/history`). El preview del Dashboard debe usar la **misma visibilidad**. Ver [history/README](./history/README.md).
+
+---
+
 ## Goals
 
 Gestionar objetivos financieros.

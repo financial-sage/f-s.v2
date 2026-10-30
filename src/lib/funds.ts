@@ -206,7 +206,7 @@ export function isPersonalPocketCashOut(
   return true;
 }
 
-/** Silent pocket sync — counts in balance, hidden from Historial. */
+/** Silent pocket sync — counts in balance, hidden from Historial / home preview (`isVisibleInMovementHistory`). */
 export const HIDDEN_FUND_BALANCE_ADJUST_CONCEPT = "Ajuste interno de saldo";
 
 export function isHiddenFundBalanceAdjustment(concept?: string | null) {

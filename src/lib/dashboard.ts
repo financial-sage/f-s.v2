@@ -9,8 +9,10 @@ import {
   isInvestmentAccountMovement,
   isLiquidityAccount,
   listVisibleAccountsForUser,
+  type AccountKindLookup,
   type FamilyAccount,
 } from "@/lib/accounts";
+import { isVisibleInMovementHistory } from "@/lib/movementHistory";
 import { createClient } from "@/utils/supabase/server";
 import type { HouseholdEntitlement } from "@/lib/premium";
 import {
@@ -298,9 +300,14 @@ function calculateBudget(expenses: ExpenseRow[]): DashboardBudget {
 
 function mapTransactions(
   expenses: ExpenseRow[],
-  currentUserId: string
+  currentUserId: string,
+  accountsById: AccountKindLookup = new Map()
 ): DashboardTransaction[] {
-  return expenses.slice(0, 5).map((expense) => {
+  // Same visibility as `/history`; home only truncates.
+  const visible = expenses.filter((expense) =>
+    isVisibleInMovementHistory(expense, accountsById)
+  );
+  return visible.slice(0, 5).map((expense) => {
     const isShared = expense.split_type !== "personal" || Number(expense.payer_share_pct) < 100;
 
     return {
@@ -509,6 +516,7 @@ function buildDashboardFromParts(
   userId: string,
   members: DashboardMember[],
   visibleExpenses: ExpenseRow[],
+  accountsById: AccountKindLookup = new Map(),
 ): DashboardData {
   const membersById = Object.fromEntries(
     members.map((member) => [member.id, member]),
@@ -521,7 +529,7 @@ function buildDashboardFromParts(
     members,
     debt: calculateDebtSummary(visibleExpenses, userId, partnerUserId, membersById),
     budget: calculateBudget(visibleExpenses),
-    transactions: mapTransactions(visibleExpenses, userId),
+    transactions: mapTransactions(visibleExpenses, userId, accountsById),
   };
 }
 
@@ -693,6 +701,7 @@ export async function getHomePageData(): Promise<
     user.id,
     members,
     expenseRowsForDashboard,
+    accountsById,
   );
 
   const partnerId = members.find((member) => member.id !== user.id)?.id ?? null;

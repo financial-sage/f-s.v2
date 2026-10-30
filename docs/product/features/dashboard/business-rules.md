@@ -46,6 +46,12 @@ El Dashboard ofrecerá primero una visión resumida.
 
 El usuario podrá acceder al detalle únicamente cuando lo necesite.
 
+## Regla 5b · Lista reciente ≡ Historial
+
+La lista de movimientos recientes del Dashboard es un **preview truncado** del Historial (`/history`), no un criterio de exclusión distinto.
+
+Misma visibilidad base (`isVisibleInMovementHistory`). Documentación: [history/README](../history/README.md) y [history/business-rules](../history/business-rules.md).
+
 ---
 
 # Regla 6 · Relevancia temporal

@@ -47,7 +47,7 @@ import {
     type FamilyFund,
 } from "@/lib/funds";
 import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
-import { isInvestmentAccountMovement } from "@/lib/accounts";
+import { isVisibleInMovementHistory } from "@/lib/movementHistory";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import { useAccountsStore } from "@/store/useAccountsStore";
 import { useCategoriesStore } from "@/store/useCategoriesStore";
@@ -276,15 +276,14 @@ export default function DashboardSolo({
     });
     const visibleTransactions = useMemo(
         () =>
-            transactions.filter(
-                (tx) =>
-                    !isInvestmentAccountMovement(
-                        {
-                            account_id: tx.accountId ?? null,
-                            concept: tx.concept,
-                        },
-                        storeAccounts
-                    )
+            transactions.filter((tx) =>
+                isVisibleInMovementHistory(
+                    {
+                        account_id: tx.accountId ?? null,
+                        concept: tx.concept,
+                    },
+                    storeAccounts
+                )
             ),
         [transactions, storeAccounts]
     );

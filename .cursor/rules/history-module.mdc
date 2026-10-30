@@ -1,0 +1,23 @@
+---
+description: Historial y preview del Dashboard deben compartir la misma visibilidad de movimientos. Usar al tocar HistoryList, lista reciente de Inicio o tipos ocultos del ledger.
+globs: docs/product/features/history/**,**/HistoryList*,**/DashboardCouple*,**/DashboardSolo*,**/movementHistory*,**/lib/dashboard.ts
+alwaysApply: false
+---
+
+# Historial ↔ Dashboard
+
+## Fuente de verdad
+
+1. `docs/product/features/history/README.md`
+2. `docs/product/features/history/business-rules.md`
+3. Helper: `src/lib/movementHistory.ts` → `isVisibleInMovementHistory`
+
+## Invariantes
+
+- **`/history` define el universo** de movimientos visibles.
+- El listado reciente del **Dashboard** es el mismo universo, solo truncado (y chips de alcance en pareja).
+- **No** añadir filtros de exclusión solo en Dashboard o solo en HistoryList.
+- Cambios de “qué se ve / qué se oculta” → actualizar `isVisibleInMovementHistory` (y la doc de history).
+- Saldos usan el ledger de dominio; no reutilizar el filtro de lista para balances.
+- Ledger de inversiones: Cuentas → Inversiones, no Historial ni home.
+- UX de filas: `.cursor/rules/ux-surfaces.mdc`.

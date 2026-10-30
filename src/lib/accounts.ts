@@ -255,7 +255,7 @@ export function isPrivateForeignAccountMovement(
   return account.owner_profile_id !== viewerUserId;
 }
 
-type AccountKindLookup =
+export type AccountKindLookup =
   | Map<string, Pick<FamilyAccount, "kind" | "currency_code">>
   | Array<Pick<FamilyAccount, "id" | "kind" | "currency_code">>
   | Record<string, Pick<FamilyAccount, "kind" | "currency_code">>;

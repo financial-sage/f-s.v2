@@ -57,10 +57,8 @@ import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
-import {
-    isAccountOnlyMovement,
-    isInvestmentAccountMovement,
-} from "@/lib/accounts";
+import { isAccountOnlyMovement } from "@/lib/accounts";
+import { isVisibleInMovementHistory } from "@/lib/movementHistory";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import {
     calculateFundCashBalance,
@@ -846,16 +844,11 @@ export default function DashboardCouple({
 
     // Filtrar gastos de sistema (withdrawal, transfer y registros internos de liquidación)
     // e inversión (solo viven en Cuentas → Inversiones).
+    /** Same visibility universe as `/history` — only truncated / chip-filtered here. */
     const activityExpenses = useMemo(
         () =>
-            expenses.filter(
-                (expense) =>
-                    expense.category !== "withdrawal" &&
-                    expense.category !== "transfer" &&
-                    expense.category !== "fixed_expense" &&
-                    expense.concept !== "Reembolso del fondo" &&
-                    !isFundSettlementConcept(expense.concept) &&
-                    !isInvestmentAccountMovement(expense, storeAccounts)
+            expenses.filter((expense) =>
+                isVisibleInMovementHistory(expense, storeAccounts)
             ),
         [expenses, storeAccounts]
     );

@@ -499,14 +499,6 @@ export default function BolsillosPanel({
               </button>
               <button
                 type="button"
-                onClick={() => openAdjust()}
-                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low/70 px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
-              >
-                <Scale size={12} strokeWidth={2} />
-                Ajustar
-              </button>
-              <button
-                type="button"
                 onClick={() => setTab("admin")}
                 className="inline-flex items-center gap-1.5 rounded-full bg-surface-low/70 px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
               >

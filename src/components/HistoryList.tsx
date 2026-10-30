@@ -16,11 +16,8 @@ import {
     X,
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
-import {
-    ExpenseDebtStatus,
-    isFundSettlementConcept,
-} from "@/components/ExpenseDebtStatus";
-import { isHiddenFundBalanceAdjustment } from "@/lib/funds";
+import { ExpenseDebtStatus } from "@/components/ExpenseDebtStatus";
+import { isVisibleInMovementHistory } from "@/lib/movementHistory";
 import { deleteExpenseAction } from "@/app/actions/expenses";
 import {
     getPurchaseReceiptDetailForExpenseAction,
@@ -41,7 +38,6 @@ import {
     type FamilyFund,
 } from "@/lib/funds";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
-import { isInvestmentAccountMovement } from "@/lib/accounts";
 import PurchaseCompareSheet from "@/components/PurchaseCompareSheet";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -391,14 +387,7 @@ export default function HistoryList({
     const latestExpenseViewMonth = useMemo(() => {
         let latest: ViewMonth | null = null;
         for (const e of allExpenses) {
-            if (
-                e.concept === "Reembolso del fondo" ||
-                isFundSettlementConcept(e.concept) ||
-                isHiddenFundBalanceAdjustment(e.concept)
-            ) {
-                continue;
-            }
-            if (isInvestmentAccountMovement(e, storeAccounts)) continue;
+            if (!isVisibleInMovementHistory(e, storeAccounts)) continue;
             const raw = String(e.expense_date || e.created_at || "").slice(0, 10);
             if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) continue;
             const d = new Date(`${raw}T12:00:00`);
@@ -572,17 +561,7 @@ export default function HistoryList({
     // Filter pipeline
     const filteredExpenses = useMemo(() => {
         return allExpenses.filter((e) => {
-            if (
-                e.concept === "Reembolso del fondo" ||
-                isFundSettlementConcept(e.concept) ||
-                isHiddenFundBalanceAdjustment(e.concept)
-            ) {
-                return false;
-            }
-            // Investment ledger has its own history under Cuentas → Inversiones.
-            if (isInvestmentAccountMovement(e, storeAccounts)) {
-                return false;
-            }
+            if (!isVisibleInMovementHistory(e, storeAccounts)) return false;
             // Fixed-expense real payments stay visible in history (no aportes for that pocket).
             if (effectiveFilters.timeRange !== "all") {
                 const d = new Date(e.expense_date || e.created_at);
@@ -708,9 +687,7 @@ export default function HistoryList({
         const paidByLabel = paidByMe ? "TÚ" : partnerName.toUpperCase().slice(0, 8);
         const isModifiable =
             (isDeposit || isWithdrawal || !expense.is_settled) &&
-            expense.concept !== "Reembolso del fondo" &&
-            !isFundSettlementConcept(expense.concept) &&
-            !isHiddenFundBalanceAdjustment(expense.concept);
+            isVisibleInMovementHistory(expense, storeAccounts);
         const iconColor = resolveMovementIconColor(
             expense,
             funds,
