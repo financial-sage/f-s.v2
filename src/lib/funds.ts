@@ -206,6 +206,17 @@ export function isPersonalPocketCashOut(
   return true;
 }
 
+/** Silent pocket sync — counts in balance, hidden from Historial. */
+export const HIDDEN_FUND_BALANCE_ADJUST_CONCEPT = "Ajuste interno de saldo";
+
+export function isHiddenFundBalanceAdjustment(concept?: string | null) {
+  const c = String(concept ?? "").trim().toLowerCase();
+  return (
+    c === HIDDEN_FUND_BALANCE_ADJUST_CONCEPT.toLowerCase() ||
+    c.startsWith("ajuste interno de saldo")
+  );
+}
+
 /** Same rules as Zustand `myAvailableFund`: personal deposits − paid spends − withdrawals. */
 export function calculatePersonalPocketBalance(
   expenses: Array<{

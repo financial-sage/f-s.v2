@@ -199,7 +199,14 @@ export const useFixedExpensesStore = create<FixedExpensesStore>((set, get) => ({
         monthKey: get().monthKey,
         paidDate,
       });
-      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
+      // Follow the month of the payment date (may differ from the month you tapped).
+      set({
+        monthKey: snapshot.monthKey,
+        snapshot,
+        isSaving: false,
+        error: null,
+        totals: computeTotals(snapshot),
+      });
     } catch (err) {
       set({
         isSaving: false,
@@ -218,7 +225,13 @@ export const useFixedExpensesStore = create<FixedExpensesStore>((set, get) => ({
         paidDate,
         monthKey: get().monthKey,
       });
-      set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
+      set({
+        monthKey: snapshot.monthKey,
+        snapshot,
+        isSaving: false,
+        error: null,
+        totals: computeTotals(snapshot),
+      });
     } catch (err) {
       set({
         isSaving: false,

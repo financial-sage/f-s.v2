@@ -5,6 +5,7 @@ import FundsPanel from "@/components/FundsPanel";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import {
+  adjustFundBalanceAction,
   depositToFundAction,
   getBolsillosBalanceAction,
   transferBetweenFundsAction,
@@ -29,6 +30,7 @@ import {
   ChartColumn,
   ChevronRight,
   Plus,
+  Scale,
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
@@ -119,6 +121,15 @@ export default function BolsillosPanel({
   const [toFundId, setToFundId] = useState("");
   const [transferAmount, setTransferAmount] = useState("0");
   const [showTransferKeypad, setShowTransferKeypad] = useState(false);
+
+  const [showAdjustPick, setShowAdjustPick] = useState(false);
+  const [adjustFundId, setAdjustFundId] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState("0");
+  const [showAdjustKeypad, setShowAdjustKeypad] = useState(false);
+  const [showAdjustHistoryAsk, setShowAdjustHistoryAsk] = useState(false);
+  const [pendingAdjustTarget, setPendingAdjustTarget] = useState<number | null>(
+    null
+  );
 
   const refresh = useCallback(async () => {
     setError("");
@@ -304,6 +315,54 @@ export default function BolsillosPanel({
     });
   }
 
+  function openAdjust(fundId?: string) {
+    setError("");
+    if (fundId) {
+      const row = overview?.funds.find((f) => f.fund.id === fundId);
+      setAdjustFundId(fundId);
+      setAdjustAmount(String(row?.balance ?? 0));
+      setShowAdjustPick(false);
+      setShowAdjustKeypad(true);
+      return;
+    }
+    setShowAdjustPick(true);
+  }
+
+  function confirmAdjustAmount(nextValue?: string) {
+    const amount = Number((nextValue ?? adjustAmount).replace(/,/g, ".").trim());
+    if (!adjustFundId || !Number.isFinite(amount)) {
+      setError("Ingresa un saldo válido.");
+      return;
+    }
+    setError("");
+    setPendingAdjustTarget(Math.round(amount * 100) / 100);
+    setShowAdjustKeypad(false);
+    setShowAdjustHistoryAsk(true);
+  }
+
+  function applyAdjust(keepHistory: boolean) {
+    if (!adjustFundId || pendingAdjustTarget == null) return;
+    const fundId = adjustFundId;
+    const targetBalance = pendingAdjustTarget;
+    setShowAdjustHistoryAsk(false);
+    setPendingAdjustTarget(null);
+    startTransition(async () => {
+      try {
+        await adjustFundBalanceAction({
+          fundId,
+          targetBalance,
+          keepHistory,
+        });
+        setAdjustFundId(null);
+        setAdjustAmount("0");
+        await refresh();
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "No se pudo ajustar.");
+      }
+    });
+  }
+
   return (
     <div className="relative flex h-dvh flex-col overflow-y-auto overscroll-y-contain no-scrollbar bg-page-gradient text-on-surface">
       <div
@@ -437,6 +496,14 @@ export default function BolsillosPanel({
               >
                 <ArrowLeftRight size={12} strokeWidth={2} />
                 Transferir
+              </button>
+              <button
+                type="button"
+                onClick={() => openAdjust()}
+                className="inline-flex items-center gap-1.5 rounded-full bg-surface-low/70 px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+              >
+                <Scale size={12} strokeWidth={2} />
+                Ajustar
               </button>
               <button
                 type="button"
@@ -701,6 +768,15 @@ export default function BolsillosPanel({
                 >
                   <ArrowLeftRight size={11} strokeWidth={1.9} />
                   Transferir
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => openAdjust(detail.fund.id)}
+                  className="inline-flex items-center gap-1 rounded-full bg-surface-low/70 px-2.5 py-1 text-[11px] font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface disabled:opacity-60"
+                >
+                  <Scale size={11} strokeWidth={1.9} />
+                  Ajustar
                 </button>
               </div>
             </div>
@@ -982,6 +1058,88 @@ export default function BolsillosPanel({
         </div>
       </Sheet>
 
+      <Sheet
+        open={showAdjustPick}
+        onClose={() => setShowAdjustPick(false)}
+        title="Ajustar saldo"
+        subtitle="Elige el bolsillo"
+        headerLayout="title-row"
+        closeOnBackdrop
+      >
+        <div className="space-y-1 pb-4">
+          <p className="mb-3 px-0.5 text-[12px] font-light leading-relaxed text-on-surface-variant">
+            Pon el saldo real del bolsillo para sincronizarlo con tu cuenta.
+          </p>
+          <ul className="overflow-hidden rounded-[1.25rem] border border-glass-border divide-y divide-outline-variant/12">
+            {(overview?.funds ?? []).map((row) => {
+              const color = resolveFundUiColor(row.fund, isDark);
+              return (
+                <li key={row.fund.id}>
+                  <button
+                    type="button"
+                    onClick={() => openAdjust(row.fund.id)}
+                    className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-glass-soft/60"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+                      style={{ backgroundColor: color }}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-on-surface">
+                      {row.displayName}
+                    </span>
+                    <span
+                      className={`shrink-0 text-[12px] font-light tabular-nums ${
+                        row.balance < 0
+                          ? "text-balance-negative"
+                          : "text-on-surface-variant"
+                      }`}
+                    >
+                      <FormattedCurrency value={row.balance} />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={showAdjustHistoryAsk}
+        onClose={() => {
+          setShowAdjustHistoryAsk(false);
+          setPendingAdjustTarget(null);
+        }}
+        title="¿Dejar registro?"
+        subtitle="Historial"
+        headerLayout="title-row"
+        closeOnBackdrop
+      >
+        <div className="space-y-4 pb-4">
+          <p className="text-[13px] font-light leading-relaxed text-on-surface-variant">
+            El saldo se actualiza igual. ¿Quieres que el ajuste aparezca en el
+            historial?
+          </p>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => applyAdjust(true)}
+            className="fab-ink flex h-11 w-full items-center justify-center rounded-2xl text-sm font-semibold disabled:opacity-60"
+          >
+            Sí, dejar en historial
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => applyAdjust(false)}
+            className="flex h-11 w-full items-center justify-center rounded-2xl border border-outline-variant/25 bg-surface-low text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container disabled:opacity-60"
+          >
+            No, solo sincronizar
+          </button>
+        </div>
+      </Sheet>
+
       <NumericKeypadSheet
         isOpen={showDepositKeypad}
         title="APORTAR AL BOLSILLO"
@@ -998,6 +1156,22 @@ export default function BolsillosPanel({
         onClose={() => setShowTransferKeypad(false)}
         onValueChange={setTransferAmount}
         onConfirm={confirmTransfer}
+      />
+
+      <NumericKeypadSheet
+        isOpen={showAdjustKeypad}
+        title="AJUSTAR SALDO"
+        subtitle={
+          overview?.funds.find((f) => f.fund.id === adjustFundId)?.displayName
+        }
+        hint="Introduce el saldo que debe quedar en el bolsillo."
+        initialValue={adjustAmount}
+        onClose={() => {
+          setShowAdjustKeypad(false);
+          setAdjustFundId(null);
+        }}
+        onValueChange={setAdjustAmount}
+        onConfirm={confirmAdjustAmount}
       />
     </div>
   );

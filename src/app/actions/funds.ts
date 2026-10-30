@@ -21,6 +21,7 @@ import {
   calculateDisplayedFundBalance,
   getDefaultSharedFund,
   getPersonalFund,
+  HIDDEN_FUND_BALANCE_ADJUST_CONCEPT,
   personalFundDisplayName,
 } from "@/lib/funds";
 import {
@@ -806,6 +807,124 @@ export async function depositToFundAction(input: {
     fundId: fund.id,
     firstMoveTrialStarted: trial.started,
   };
+}
+
+/**
+ * Set a pocket balance to an exact target (sync with real cash).
+ * keepHistory=true → visible "Ajuste de saldo · …" in Historial.
+ * keepHistory=false → same ledger effect, hidden from Historial.
+ */
+export async function adjustFundBalanceAction(input: {
+  fundId: string;
+  targetBalance: number;
+  keepHistory: boolean;
+  date?: string;
+}): Promise<{ success: true; delta: number; newBalance: number }> {
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+  const target = Number(input.targetBalance);
+
+  if (!Number.isFinite(target)) {
+    throw new Error("Ingresa un saldo válido.");
+  }
+
+  const funds = await getFamilyFundsFast(familyId);
+  const fund = funds.find((f) => f.id === input.fundId && !f.archived_at);
+  if (!fund) throw new Error("Bolsillo no encontrado.");
+  if (fund.scope === "personal" && fund.owner_profile_id !== user.id) {
+    throw new Error("Solo puedes ajustar tu bolsillo personal.");
+  }
+  if (isSavingsFund(fund)) {
+    throw new Error("El ahorro se ajusta desde Ahorros.");
+  }
+
+  const admin = getSupabaseAdminClient();
+  const memberCount = await getRequestFamilyMemberCount(familyId);
+  const defaultShared = getDefaultSharedFund(funds);
+  const personal = getPersonalFund(funds, user.id);
+  const sharedFundIds = funds
+    .filter((f) => f.scope === "shared" && !f.archived_at)
+    .map((f) => f.id);
+
+  const { data: expenses, error: loadError } = await admin
+    .from("expenses")
+    .select(
+      "amount, category, paid_by, responsible_for, fund_id, paid_from_fund, account_id, transfer_group_id, is_active"
+    )
+    .eq("family_id", familyId)
+    .eq("is_active", true);
+  if (loadError) throw new Error(loadError.message);
+
+  const current = calculateDisplayedFundBalance(
+    (expenses ?? []) as never[],
+    fund,
+    user.id,
+    {
+      individual: isIndividualHousehold(memberCount),
+      defaultPersonalFundId: personal?.id ?? null,
+      sharedFundIds,
+      treatLegacyJointAsFundId: defaultShared?.id ?? null,
+    }
+  );
+  const roundedTarget = Math.round(target * 100) / 100;
+  const delta = Math.round((roundedTarget - current) * 100) / 100;
+  if (Math.abs(delta) < 0.009) {
+    return { success: true, delta: 0, newBalance: current };
+  }
+
+  const responsibleFor =
+    fund.scope === "shared" ? "joint_fund" : (fund.owner_profile_id as string);
+  const label = personalFundDisplayName(fund);
+  const abs = Math.abs(delta);
+  const expenseDate = input.date ?? new Date().toISOString().slice(0, 10);
+  const concept = input.keepHistory
+    ? `Ajuste de saldo · ${label}`
+    : HIDDEN_FUND_BALANCE_ADJUST_CONCEPT;
+
+  const payload =
+    delta > 0
+      ? {
+          family_id: familyId,
+          amount: abs,
+          concept,
+          category: "deposit",
+          split_type: fund.scope === "shared" ? "shared_equal" : "personal",
+          responsible_for: responsibleFor,
+          paid_by: user.id,
+          payer_share_pct: 100,
+          is_settled: true,
+          fund_id: fund.id,
+          paid_from_fund: false,
+          expense_date: expenseDate,
+        }
+      : {
+          family_id: familyId,
+          amount: abs,
+          concept,
+          category: "withdrawal",
+          split_type: "personal",
+          responsible_for: responsibleFor,
+          paid_by: user.id,
+          payer_share_pct: 100,
+          is_settled: true,
+          fund_id: fund.id,
+          paid_from_fund: true,
+          expense_date: expenseDate,
+        };
+
+  if (fund.scope === "shared") {
+    const { assertCoupleFeaturesAllowed } = await import("@/lib/premiumServer");
+    await assertCoupleFeaturesAllowed(familyId);
+  }
+
+  const { error } = await admin.from("expenses").insert(payload as never);
+  if (error) throw new Error(error.message);
+
+  revalidateFundPaths({
+    includeHome: true,
+    includeFixed: isFixedExpensesFund(fund),
+  });
+  return { success: true, delta, newBalance: roundedTarget };
 }
 
 export async function transferBetweenFundsAction(input: {

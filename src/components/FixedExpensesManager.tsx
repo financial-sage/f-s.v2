@@ -313,6 +313,11 @@ export default function FixedExpensesManager({
       } else {
         await markPaid(payTarget.payment.id, amount, payDate);
       }
+      // If the pay date belongs to another month, jump the header to that month.
+      const paidMonthKey = payDate.slice(0, 7);
+      if (/^\d{4}-\d{2}$/.test(paidMonthKey) && paidMonthKey !== monthKey) {
+        setMonthKey(paidMonthKey);
+      }
       setPayTarget(null);
       setPayEditing(false);
       setPayError("");

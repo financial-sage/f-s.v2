@@ -41,6 +41,11 @@ export function ExpenseDebtStatus({
   );
 }
 
+export {
+  HIDDEN_FUND_BALANCE_ADJUST_CONCEPT,
+  isHiddenFundBalanceAdjustment,
+} from "@/lib/funds";
+
 export function isFundSettlementConcept(concept?: string | null) {
   return String(concept ?? "").startsWith("Liquidación de deuda");
 }

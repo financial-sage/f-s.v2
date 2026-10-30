@@ -433,7 +433,7 @@ export async function markFixedExpensePaidAction(input: {
   paymentId: string;
   realValue: number;
   monthKey: string;
-  /** YYYY-MM-DD — fecha en que se realizó el pago */
+  /** YYYY-MM-DD — fecha en que se realizó el pago (define el mes del pago fijo). */
   paidDate?: string;
 }): Promise<FixedExpenseMonthSnapshot> {
   assertMonthKey(input.monthKey);
@@ -448,6 +448,8 @@ export async function markFixedExpensePaidAction(input: {
 
   const paidDate = (input.paidDate ?? defaultPaidDateForMonth(input.monthKey)).slice(0, 10);
   assertPaidDate(paidDate);
+  const paidMonthKey = paidDate.slice(0, 7);
+  assertMonthKey(paidMonthKey);
   const paidAt = `${paidDate}T12:00:00.000Z`;
 
   const funds = await getFamilyFundsFast(familyId, { requireFixed: true });
@@ -466,12 +468,38 @@ export async function markFixedExpensePaidAction(input: {
     .maybeSingle();
 
   if (paymentError || !paymentRow) throw new Error("Pago no encontrado.");
-  if (paymentRow.status === "paid") throw new Error("Este gasto ya está marcado como pagado.");
 
-  const template = Array.isArray(paymentRow.fixed_expenses)
+  const templateRow = Array.isArray(paymentRow.fixed_expenses)
     ? paymentRow.fixed_expenses[0]
     : paymentRow.fixed_expenses;
-  const concept = String(template?.name ?? "Gasto fijo");
+  if (!templateRow) throw new Error("Plantilla de gasto fijo no encontrada.");
+  const template = mapTemplate(templateRow as Record<string, unknown>);
+  const concept = template.name || "Gasto fijo";
+
+  if (
+    !isFixedExpenseDueInMonth({
+      frequency: template.frequency,
+      anchorMonth: template.anchor_month,
+      monthKey: paidMonthKey,
+    })
+  ) {
+    throw new Error(
+      "Esa fecha no corresponde a un mes en el que este gasto fijo se cobra."
+    );
+  }
+
+  // Payment belongs to the month of paidDate (e.g. 1 nov → noviembre), not the UI month.
+  const targetPayments = await ensureMonthPayments(familyId, paidMonthKey, [
+    template,
+  ]);
+  const targetPayment =
+    targetPayments.find((p) => p.fixed_expense_id === template.id) ?? null;
+  if (!targetPayment) {
+    throw new Error("No se pudo preparar el pago de ese mes.");
+  }
+  if (targetPayment.status === "paid") {
+    throw new Error("Este gasto ya está marcado como pagado en ese mes.");
+  }
 
   const { data: expense, error: expenseError } = await admin
     .from("expenses")
@@ -506,12 +534,13 @@ export async function markFixedExpensePaidAction(input: {
       expense_id: expense.id,
       updated_at: new Date().toISOString(),
     } as never)
-    .eq("id", input.paymentId)
+    .eq("id", targetPayment.id)
     .eq("family_id", familyId);
 
   if (updateError) throw new Error(updateError.message);
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds);
+  // Snapshot for the month where the payment landed (UI should follow).
+  return buildMonthSnapshot(familyId, paidMonthKey, funds);
 }
 
 /** Update date and/or real amount of an already-paid fixed expense. */
@@ -534,11 +563,13 @@ export async function updateFixedExpensePaidAction(input: {
 
   const paidDate = input.paidDate.slice(0, 10);
   assertPaidDate(paidDate);
+  const paidMonthKey = paidDate.slice(0, 7);
+  assertMonthKey(paidMonthKey);
   const paidAt = `${paidDate}T12:00:00.000Z`;
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("fixed_expense_payments")
-    .select("*")
+    .select("*, fixed_expenses(*)")
     .eq("id", input.paymentId)
     .eq("family_id", familyId)
     .maybeSingle();
@@ -548,7 +579,28 @@ export async function updateFixedExpensePaidAction(input: {
     throw new Error("Este gasto aún no está marcado como pagado.");
   }
 
-  if (paymentRow.expense_id) {
+  const templateRow = Array.isArray(paymentRow.fixed_expenses)
+    ? paymentRow.fixed_expenses[0]
+    : paymentRow.fixed_expenses;
+  if (!templateRow) throw new Error("Plantilla de gasto fijo no encontrada.");
+  const template = mapTemplate(templateRow as Record<string, unknown>);
+
+  if (
+    !isFixedExpenseDueInMonth({
+      frequency: template.frequency,
+      anchorMonth: template.anchor_month,
+      monthKey: paidMonthKey,
+    })
+  ) {
+    throw new Error(
+      "Esa fecha no corresponde a un mes en el que este gasto fijo se cobra."
+    );
+  }
+
+  const currentMonthKey = String(paymentRow.month_key);
+  const expenseId = paymentRow.expense_id as string | null;
+
+  if (expenseId) {
     const { error: expenseError } = await admin
       .from("expenses")
       .update({
@@ -557,25 +609,69 @@ export async function updateFixedExpensePaidAction(input: {
         updated_at: new Date().toISOString(),
         updated_by: user.id,
       } as never)
-      .eq("id", paymentRow.expense_id)
+      .eq("id", expenseId)
       .eq("family_id", familyId);
 
     if (expenseError) throw new Error(expenseError.message);
   }
 
-  const { error: updateError } = await admin
+  if (paidMonthKey === currentMonthKey) {
+    const { error: updateError } = await admin
+      .from("fixed_expense_payments")
+      .update({
+        real_value: realValue,
+        paid_at: paidAt,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq("id", input.paymentId)
+      .eq("family_id", familyId);
+
+    if (updateError) throw new Error(updateError.message);
+    return buildMonthSnapshot(familyId, paidMonthKey, funds);
+  }
+
+  // Move paid status to the month of the new date.
+  const targetPayments = await ensureMonthPayments(familyId, paidMonthKey, [
+    template,
+  ]);
+  const targetPayment =
+    targetPayments.find((p) => p.fixed_expense_id === template.id) ?? null;
+  if (!targetPayment) {
+    throw new Error("No se pudo preparar el pago de ese mes.");
+  }
+  if (targetPayment.status === "paid" && targetPayment.id !== input.paymentId) {
+    throw new Error("Este gasto ya está marcado como pagado en ese mes.");
+  }
+
+  const { error: clearError } = await admin
     .from("fixed_expense_payments")
     .update({
-      real_value: realValue,
-      paid_at: paidAt,
+      status: "pending",
+      real_value: null,
+      paid_at: null,
+      paid_by: null,
+      expense_id: null,
       updated_at: new Date().toISOString(),
     } as never)
     .eq("id", input.paymentId)
     .eq("family_id", familyId);
+  if (clearError) throw new Error(clearError.message);
 
-  if (updateError) throw new Error(updateError.message);
+  const { error: targetError } = await admin
+    .from("fixed_expense_payments")
+    .update({
+      status: "paid",
+      real_value: realValue,
+      paid_at: paidAt,
+      paid_by: user.id,
+      expense_id: expenseId,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq("id", targetPayment.id)
+    .eq("family_id", familyId);
+  if (targetError) throw new Error(targetError.message);
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds);
+  return buildMonthSnapshot(familyId, paidMonthKey, funds);
 }
 
 export async function unmarkFixedExpensePaidAction(input: {

@@ -20,6 +20,7 @@ import {
     ExpenseDebtStatus,
     isFundSettlementConcept,
 } from "@/components/ExpenseDebtStatus";
+import { isHiddenFundBalanceAdjustment } from "@/lib/funds";
 import { deleteExpenseAction } from "@/app/actions/expenses";
 import {
     getPurchaseReceiptDetailForExpenseAction,
@@ -386,10 +387,52 @@ export default function HistoryList({
         closeFilterModal();
     };
 
+    /** Latest calendar month that has a visible history row (supports future fixed expenses). */
+    const latestExpenseViewMonth = useMemo(() => {
+        let latest: ViewMonth | null = null;
+        for (const e of allExpenses) {
+            if (
+                e.concept === "Reembolso del fondo" ||
+                isFundSettlementConcept(e.concept) ||
+                isHiddenFundBalanceAdjustment(e.concept)
+            ) {
+                continue;
+            }
+            if (isInvestmentAccountMovement(e, storeAccounts)) continue;
+            const raw = String(e.expense_date || e.created_at || "").slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) continue;
+            const d = new Date(`${raw}T12:00:00`);
+            if (Number.isNaN(d.getTime())) continue;
+            const candidate = { year: d.getFullYear(), month: d.getMonth() };
+            if (
+                !latest ||
+                candidate.year > latest.year ||
+                (candidate.year === latest.year && candidate.month > latest.month)
+            ) {
+                latest = candidate;
+            }
+        }
+        return latest;
+    }, [allExpenses, storeAccounts]);
+
+    /** Cap for ▶ : current month, or further if there are future-dated expenses. */
+    const maxNavigableViewMonth = useMemo(() => {
+        const now = currentViewMonth();
+        if (!latestExpenseViewMonth) return now;
+        if (
+            latestExpenseViewMonth.year > now.year ||
+            (latestExpenseViewMonth.year === now.year &&
+                latestExpenseViewMonth.month > now.month)
+        ) {
+            return latestExpenseViewMonth;
+        }
+        return now;
+    }, [latestExpenseViewMonth]);
+
     const canGoNextMonth =
         filters.timeRange === "all" ||
         filters.timeRange === "this_year" ||
-        !isSameViewMonth(viewMonth, currentViewMonth());
+        !isSameViewMonth(viewMonth, maxNavigableViewMonth);
 
     function goToPrevMonth() {
         if (filters.timeRange === "all" || filters.timeRange === "this_year") {
@@ -419,12 +462,12 @@ export default function HistoryList({
         if (!canGoNextMonth) return;
         setViewMonth((m) => {
             const next = shiftViewMonth(m, 1);
-            const now = currentViewMonth();
+            const cap = maxNavigableViewMonth;
             if (
-                next.year > now.year ||
-                (next.year === now.year && next.month > now.month)
+                next.year > cap.year ||
+                (next.year === cap.year && next.month > cap.month)
             ) {
-                return now;
+                return cap;
             }
             return next;
         });
@@ -529,7 +572,13 @@ export default function HistoryList({
     // Filter pipeline
     const filteredExpenses = useMemo(() => {
         return allExpenses.filter((e) => {
-            if (e.concept === "Reembolso del fondo" || isFundSettlementConcept(e.concept)) return false;
+            if (
+                e.concept === "Reembolso del fondo" ||
+                isFundSettlementConcept(e.concept) ||
+                isHiddenFundBalanceAdjustment(e.concept)
+            ) {
+                return false;
+            }
             // Investment ledger has its own history under Cuentas → Inversiones.
             if (isInvestmentAccountMovement(e, storeAccounts)) {
                 return false;
@@ -660,7 +709,8 @@ export default function HistoryList({
         const isModifiable =
             (isDeposit || isWithdrawal || !expense.is_settled) &&
             expense.concept !== "Reembolso del fondo" &&
-            !isFundSettlementConcept(expense.concept);
+            !isFundSettlementConcept(expense.concept) &&
+            !isHiddenFundBalanceAdjustment(expense.concept);
         const iconColor = resolveMovementIconColor(
             expense,
             funds,
