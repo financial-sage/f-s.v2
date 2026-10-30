@@ -155,11 +155,16 @@ export const useFixedExpensesStore = create<FixedExpensesStore>((set, get) => ({
       });
       set({ snapshot, isSaving: false, error: null, totals: computeTotals(snapshot) });
     } catch (err) {
+      const raw = err instanceof Error ? err.message : "No se pudo crear el gasto fijo.";
+      const message =
+        /minified react error #441|server components render|digest/i.test(raw)
+          ? "No se pudo crear el gasto fijo. Recarga e inténtalo de nuevo."
+          : raw;
       set({
         isSaving: false,
-        error: err instanceof Error ? err.message : "No se pudo crear el gasto fijo.",
+        error: message,
       });
-      throw err;
+      throw new Error(message);
     }
   },
 

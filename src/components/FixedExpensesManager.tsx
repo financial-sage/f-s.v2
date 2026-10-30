@@ -439,7 +439,18 @@ export default function FixedExpensesManager({
       }
       setFormOpen(false);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "No se pudo guardar.");
+      const raw =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "No se pudo guardar.";
+      // Next hides Server Action / RSC digests as React #441 in some builds.
+      const message =
+        /minified react error #441|server components render|digest/i.test(raw)
+          ? "No se pudo guardar el gasto fijo. Revisa la conexión e inténtalo de nuevo."
+          : raw;
+      setFormError(message);
     }
   }
 

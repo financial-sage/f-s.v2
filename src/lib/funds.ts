@@ -184,8 +184,6 @@ export function isPersonalPocketCashOut(
   const paidBy = expense.paid_by ?? expense.paidBy ?? "";
   if (paidBy !== userId) return false;
   if (expense.category === "deposit" || expense.category === "withdrawal") return false;
-  // Always charged to the fixed-expenses shared pocket.
-  if (expense.category === "fixed_expense") return false;
 
   if (expense.paid_from_fund === true) {
     const shared =
@@ -195,6 +193,7 @@ export function isPersonalPocketCashOut(
           ? new Set(sharedFundIds)
           : null;
 
+    // Shared pocket payments (incl. family fixed expenses) are not Mi bolsillo.
     if (shared && expense.fund_id && shared.has(expense.fund_id)) {
       return false;
     }
@@ -203,6 +202,7 @@ export function isPersonalPocketCashOut(
     }
   }
 
+  // Personal fixed expenses debit Mi bolsillo (fund_id = personal, not shared).
   return true;
 }
 

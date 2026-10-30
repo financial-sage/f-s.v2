@@ -254,14 +254,16 @@ async function buildMonthSnapshot(
     sharedFundIds
   );
 
+  const finite = (n: number) => (Number.isFinite(n) ? n : 0);
+
   return {
     familyId,
     monthKey,
-    budgetTotal: Math.round(sumBase * 100) / 100,
-    monthlyCommitted: Math.round(monthlyCommitted * 100) / 100,
-    pocketDeposits: Math.round(pocketDeposits * 100) / 100,
-    pocketAvailable,
-    personalPocketAvailable,
+    budgetTotal: finite(Math.round(sumBase * 100) / 100),
+    monthlyCommitted: finite(Math.round(monthlyCommitted * 100) / 100),
+    pocketDeposits: finite(Math.round(pocketDeposits * 100) / 100),
+    pocketAvailable: finite(pocketAvailable),
+    personalPocketAvailable: finite(personalPocketAvailable),
     items,
     fixedFundId: fixedFund?.id ?? null,
     personalFundId: personalFund?.id ?? null,
@@ -338,15 +340,30 @@ export async function createFixedExpenseAction(input: {
         "Falta aplicar la migración de frecuencia (006_account_kind_fixed_frequency.sql)."
       );
     }
-    if (/scope|owner_profile/i.test(error.message)) {
+    if (
+      /scope|owner_profile|schema cache|Could not find/i.test(error.message)
+    ) {
       throw new Error(
         "Falta aplicar la migración de gastos fijos personales (fixed_expenses_personal_scope)."
+      );
+    }
+    if (/owner_scope_check|fixed_expenses_owner_scope/i.test(error.message)) {
+      throw new Error(
+        "No se pudo guardar el alcance (familia vs personal). Recarga e inténtalo de nuevo."
       );
     }
     throw new Error(error.message);
   }
 
-  return buildMonthSnapshot(familyId, input.monthKey, funds, user.id);
+  try {
+    return await buildMonthSnapshot(familyId, input.monthKey, funds, user.id);
+  } catch (err) {
+    throw new Error(
+      err instanceof Error
+        ? `Guardado, pero no se pudo refrescar la lista: ${err.message}`
+        : "Guardado, pero no se pudo refrescar la lista."
+    );
+  }
 }
 
 export async function updateFixedExpenseAction(input: {
