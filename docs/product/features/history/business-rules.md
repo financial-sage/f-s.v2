@@ -9,6 +9,7 @@
    - ajustes internos de saldo de bolsillo (`Ajuste interno de saldo` / `isHiddenFundBalanceAdjustment`);
    - movimientos del ledger de cuentas `investment`.
 3. Sí se muestran (entre otros): gastos variables, depósitos, retiros, transferencias visibles, pagos de gastos fijos.
+3b. Transferencias internas (`transfer_group_id`): el ledger sigue siendo un **par** (saldos), pero Historial / preview de Inicio muestran **una sola fila** (“A {destino} · Desde {origen}”).
 
 ## Dashboard ≡ Historial (preview)
 

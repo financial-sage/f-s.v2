@@ -12,7 +12,11 @@ import {
   type AccountKindLookup,
   type FamilyAccount,
 } from "@/lib/accounts";
-import { isVisibleInMovementHistory } from "@/lib/movementHistory";
+import {
+  collapseTransferPairsForHistory,
+  formatTransferHistoryPresentation,
+  isVisibleInMovementHistory,
+} from "@/lib/movementHistory";
 import { createClient } from "@/utils/supabase/server";
 import type { HouseholdEntitlement } from "@/lib/premium";
 import {
@@ -49,6 +53,7 @@ interface ExpenseRow {
   category?: string | null;
   fund_id?: string | null;
   account_id?: string | null;
+  transfer_group_id?: string | null;
 }
 
 export interface DashboardMember {
@@ -301,18 +306,46 @@ function calculateBudget(expenses: ExpenseRow[]): DashboardBudget {
 function mapTransactions(
   expenses: ExpenseRow[],
   currentUserId: string,
-  accountsById: AccountKindLookup = new Map()
+  accountsById: AccountKindLookup = new Map(),
+  funds: FamilyFund[] = [],
+  accounts: Array<{ id: string; name: string }> = []
 ): DashboardTransaction[] {
-  // Same visibility as `/history`; home only truncates.
-  const visible = expenses.filter((expense) =>
-    isVisibleInMovementHistory(expense, accountsById)
+  // Same visibility as `/history`; home only truncates / collapses transfer pairs.
+  const visible = collapseTransferPairsForHistory(
+    expenses.filter((expense) =>
+      isVisibleInMovementHistory(expense, accountsById)
+    )
   );
   return visible.slice(0, 5).map((expense) => {
     const isShared = expense.split_type !== "personal" || Number(expense.payer_share_pct) < 100;
+    const legs = expense.transfer_group_id
+      ? expenses.filter((row) => row.transfer_group_id === expense.transfer_group_id)
+      : [];
+    const presentation =
+      legs.length > 1
+        ? formatTransferHistoryPresentation(
+            legs.map((row) => ({
+              id: row.id,
+              concept: row.concept,
+              category: row.category,
+              account_id: row.account_id,
+              fund_id: row.fund_id,
+              transfer_group_id: row.transfer_group_id,
+            })),
+            funds,
+            accounts,
+            currentUserId
+          )
+        : null;
+    const concept = presentation
+      ? presentation.detail
+        ? `${presentation.title} · ${presentation.detail}`
+        : presentation.title
+      : expense.concept;
 
     return {
       id: expense.id,
-      concept: expense.concept,
+      concept,
       tag: isShared ? "Compartido" : "Personal",
       dateLabel: formatRelativeDate(expense.expense_date),
       amount: Number(expense.amount),
@@ -517,6 +550,8 @@ function buildDashboardFromParts(
   members: DashboardMember[],
   visibleExpenses: ExpenseRow[],
   accountsById: AccountKindLookup = new Map(),
+  funds: FamilyFund[] = [],
+  accounts: Array<{ id: string; name: string }> = [],
 ): DashboardData {
   const membersById = Object.fromEntries(
     members.map((member) => [member.id, member]),
@@ -529,7 +564,13 @@ function buildDashboardFromParts(
     members,
     debt: calculateDebtSummary(visibleExpenses, userId, partnerUserId, membersById),
     budget: calculateBudget(visibleExpenses),
-    transactions: mapTransactions(visibleExpenses, userId, accountsById),
+    transactions: mapTransactions(
+      visibleExpenses,
+      userId,
+      accountsById,
+      funds,
+      accounts
+    ),
   };
 }
 
@@ -681,6 +722,7 @@ export async function getHomePageData(): Promise<
   const coupleExpenses = privacyFiltered.filter(
     (expense) => !isInvestmentAccountMovement(expense, accountsById)
   );
+  const funds = ((fundsResult.data ?? []) as FamilyFund[]).filter((f) => !f.archived_at);
   const expenseRowsForDashboard = coupleExpenses.map((expense) => ({
     id: expense.id,
     amount: expense.amount,
@@ -694,6 +736,7 @@ export async function getHomePageData(): Promise<
     category: expense.category,
     fund_id: expense.fund_id ?? null,
     account_id: expense.account_id ?? null,
+    transfer_group_id: expense.transfer_group_id ?? null,
   })) as ExpenseRow[];
 
   const dashboard = buildDashboardFromParts(
@@ -702,6 +745,8 @@ export async function getHomePageData(): Promise<
     members,
     expenseRowsForDashboard,
     accountsById,
+    funds,
+    allAccounts.map((a) => ({ id: a.id, name: a.name })),
   );
 
   const partnerId = members.find((member) => member.id !== user.id)?.id ?? null;
@@ -718,7 +763,6 @@ export async function getHomePageData(): Promise<
   const pocketBalance = calculatePersonalPocketBalance(coupleExpenses, user.id);
 
   const currentMember = members.find((member) => member.id === user.id);
-  const funds = ((fundsResult.data ?? []) as FamilyFund[]).filter((f) => !f.archived_at);
   const sharedDefaultFundId = getDefaultSharedFund(funds)?.id ?? null;
 
   const visibleAccounts = listVisibleAccountsForUser(allAccounts, user.id);

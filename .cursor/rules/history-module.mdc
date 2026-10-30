@@ -18,6 +18,7 @@ alwaysApply: false
 - El listado reciente del **Dashboard** es el mismo universo, solo truncado (y chips de alcance en pareja).
 - **No** añadir filtros de exclusión solo en Dashboard o solo en HistoryList.
 - Cambios de “qué se ve / qué se oculta” → actualizar `isVisibleInMovementHistory` (y la doc de history).
+- Pares `transfer_group_id`: ledger en dos filas; lista con `collapseTransferPairsForHistory` (una fila “A … / Desde …”).
 - Saldos usan el ledger de dominio; no reutilizar el filtro de lista para balances.
 - Ledger de inversiones: Cuentas → Inversiones, no Historial ni home.
 - UX de filas: `.cursor/rules/ux-surfaces.mdc`.

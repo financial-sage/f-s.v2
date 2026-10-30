@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { ExpenseDebtStatus } from "@/components/ExpenseDebtStatus";
-import { isVisibleInMovementHistory } from "@/lib/movementHistory";
+import {
+    collapseTransferPairsForHistory,
+    formatTransferHistoryPresentation,
+    isVisibleInMovementHistory,
+} from "@/lib/movementHistory";
 import { deleteExpenseAction } from "@/app/actions/expenses";
 import {
     getPurchaseReceiptDetailForExpenseAction,
@@ -67,6 +71,7 @@ export interface HistoryExpenseRow {
     fund_id?: string | null;
     account_id?: string | null;
     paid_from_account?: boolean | null;
+    transfer_group_id?: string | null;
 }
 
 interface Filters {
@@ -558,9 +563,9 @@ export default function HistoryList({
         return owesMe - iOwe;
     }, [allExpenses, currentUserId]);
 
-    // Filter pipeline
+    // Filter pipeline — then collapse linked transfers to one row.
     const filteredExpenses = useMemo(() => {
-        return allExpenses.filter((e) => {
+        const visible = allExpenses.filter((e) => {
             if (!isVisibleInMovementHistory(e, storeAccounts)) return false;
             // Fixed-expense real payments stay visible in history (no aportes for that pocket).
             if (effectiveFilters.timeRange !== "all") {
@@ -584,17 +589,31 @@ export default function HistoryList({
                 }
             }
             if (effectiveFilters.fundIds.length > 0) {
-                const resolvedFundId = resolveFundIdForExpense(e, funds, currentUserId);
-                const personalFund = getPersonalFund(funds, currentUserId);
+                const groupId = e.transfer_group_id;
+                const groupLegs = groupId
+                    ? allExpenses.filter(
+                          (row) =>
+                              row.transfer_group_id === groupId &&
+                              isVisibleInMovementHistory(row, storeAccounts)
+                      )
+                    : [e];
                 const matchesSelected = effectiveFilters.fundIds.some((selectedId) => {
-                    if (selectedId === "personal") {
-                        if (personalFund) return resolvedFundId === personalFund.id;
-                        const matched = resolvedFundId
-                            ? funds.find((f) => f.id === resolvedFundId)
-                            : null;
-                        return !matched || matched.scope !== "shared";
-                    }
-                    return resolvedFundId === selectedId;
+                    return groupLegs.some((leg) => {
+                        const resolvedFundId = resolveFundIdForExpense(
+                            leg,
+                            funds,
+                            currentUserId
+                        );
+                        const personalFund = getPersonalFund(funds, currentUserId);
+                        if (selectedId === "personal") {
+                            if (personalFund) return resolvedFundId === personalFund.id;
+                            const matched = resolvedFundId
+                                ? funds.find((f) => f.id === resolvedFundId)
+                                : null;
+                            return !matched || matched.scope !== "shared";
+                        }
+                        return resolvedFundId === selectedId;
+                    });
                 });
                 if (!matchesSelected) return false;
             }
@@ -606,6 +625,7 @@ export default function HistoryList({
             if (effectiveFilters.movementType === "expenses" && e.category === "deposit") return false;
             return true;
         });
+        return collapseTransferPairsForHistory(visible);
     }, [allExpenses, effectiveFilters, currentUserId, funds, viewMonth, storeAccounts]);
 
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
@@ -696,6 +716,29 @@ export default function HistoryList({
         );
         const hasReceipt = receiptExpenseIds.has(expense.id);
         const receiptBusy = receiptLoadingId === expense.id;
+        const transferLegs = expense.transfer_group_id
+            ? allExpenses.filter(
+                  (row) => row.transfer_group_id === expense.transfer_group_id && Boolean(row.id)
+              )
+            : [];
+        const transferPresentation =
+            transferLegs.length > 1
+                ? formatTransferHistoryPresentation(
+                      transferLegs.map((row) => ({
+                          id: row.id,
+                          concept: row.concept,
+                          category: row.category,
+                          account_id: row.account_id,
+                          fund_id: row.fund_id,
+                          transfer_group_id: row.transfer_group_id,
+                      })),
+                      funds,
+                      storeAccounts,
+                      currentUserId
+                  )
+                : null;
+        const title = transferPresentation?.title ?? expense.concept;
+        const detail = transferPresentation?.detail ?? null;
 
         return (
             <div
@@ -719,12 +762,18 @@ export default function HistoryList({
                         </div>
                         <div className="flex min-w-0 flex-col">
                             <span className="truncate text-[13px] font-medium text-on-surface">
-                                {expense.concept}
+                                {title}
                             </span>
-                            <div className="mt-0.5 flex items-center gap-1.5">
-                                <span className="text-[9px] font-medium uppercase tracking-wide text-outline-variant">
-                                    {paidByLabel}
-                                </span>
+                            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                                {detail ? (
+                                    <span className="truncate text-[10px] font-light text-on-surface-variant">
+                                        {detail}
+                                    </span>
+                                ) : (
+                                    <span className="text-[9px] font-medium uppercase tracking-wide text-outline-variant">
+                                        {paidByLabel}
+                                    </span>
+                                )}
                                 {isDebt && (
                                     <ExpenseDebtStatus isSettled={!!expense.is_settled} />
                                 )}

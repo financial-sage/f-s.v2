@@ -58,7 +58,11 @@ import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
 import { isAccountOnlyMovement } from "@/lib/accounts";
-import { isVisibleInMovementHistory } from "@/lib/movementHistory";
+import {
+    collapseTransferPairsForHistory,
+    formatTransferHistoryPresentation,
+    isVisibleInMovementHistory,
+} from "@/lib/movementHistory";
 import { resolveMovementIconColor } from "@/lib/movementIconColor";
 import {
     calculateFundCashBalance,
@@ -845,13 +849,17 @@ export default function DashboardCouple({
     // Filtrar gastos de sistema (withdrawal, transfer y registros internos de liquidación)
     // e inversión (solo viven en Cuentas → Inversiones).
     /** Same visibility universe as `/history` — only truncated / chip-filtered here. */
-    const activityExpenses = useMemo(
-        () =>
-            expenses.filter((expense) =>
-                isVisibleInMovementHistory(expense, storeAccounts)
-            ),
-        [expenses, storeAccounts]
-    );
+    const activityExpenses = useMemo(() => {
+        const visible = expenses.filter((expense) =>
+            isVisibleInMovementHistory(expense, storeAccounts)
+        );
+        return collapseTransferPairsForHistory(
+            visible.map((expense) => ({
+                ...expense,
+                id: String(expense.id),
+            }))
+        );
+    }, [expenses, storeAccounts]);
 
     const sharedExpenses = useMemo(
         () =>
@@ -1950,6 +1958,34 @@ export default function DashboardCouple({
                                         storeAccounts,
                                         currentUserId
                                     );
+                                    const transferLegs = expense.transfer_group_id
+                                        ? expenses.filter(
+                                              (row) =>
+                                                  row.transfer_group_id ===
+                                                      expense.transfer_group_id &&
+                                                  Boolean(row.id)
+                                          )
+                                        : [];
+                                    const transferPresentation =
+                                        transferLegs.length > 1
+                                            ? formatTransferHistoryPresentation(
+                                                  transferLegs.map((row) => ({
+                                                      id: String(row.id),
+                                                      concept: row.concept,
+                                                      category: row.category,
+                                                      account_id: row.account_id,
+                                                      fund_id: row.fund_id,
+                                                      transfer_group_id:
+                                                          row.transfer_group_id,
+                                                  })),
+                                                  colorFunds,
+                                                  storeAccounts,
+                                                  currentUserId
+                                              )
+                                            : null;
+                                    const title =
+                                        transferPresentation?.title ?? expense.concept;
+                                    const detail = transferPresentation?.detail ?? null;
 
                                     return (
                                         <div
@@ -1974,11 +2010,19 @@ export default function DashboardCouple({
 
                                                     <div className="flex min-w-0 flex-col justify-center gap-0.5">
                                                         <span className="truncate text-[15px] font-medium leading-tight text-on-surface">
-                                                            {expense.concept}
+                                                            {title}
                                                         </span>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-outline-variant">
-                                                                {formatExpenseDate(expense.expense_date || expense.created_at)} · {expense.paid_by === currentUserId ? "TÚ" : partnerShortLabel}
+                                                        <div className="flex min-w-0 items-center gap-1.5">
+                                                            <span
+                                                                className={`truncate text-[10px] tracking-wide text-outline-variant ${
+                                                                    detail
+                                                                        ? "font-light normal-case"
+                                                                        : "font-medium uppercase"
+                                                                }`}
+                                                            >
+                                                                {detail
+                                                                    ? detail
+                                                                    : `${formatExpenseDate(expense.expense_date || expense.created_at)} · ${expense.paid_by === currentUserId ? "TÚ" : partnerShortLabel}`}
                                                             </span>
                                                             {isDebt && (
                                                                 <ExpenseDebtStatus isSettled={!!expense.is_settled} />

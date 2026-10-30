@@ -17,7 +17,7 @@ El listado reciente del **Dashboard** (Inicio) es un **preview truncado** de ese
 
 **Al cambiar qué aparece o se oculta en Historial, actualizar también el Dashboard vía el helper compartido** — nunca con un `filter` ad hoc solo en una pantalla.
 
-Helper de producto/código: `src/lib/movementHistory.ts` → `isVisibleInMovementHistory`.
+Helper de producto/código: `src/lib/movementHistory.ts` → `isVisibleInMovementHistory` (+ `collapseTransferPairsForHistory` para unificar pares de transferencia).
 
 ---
 
