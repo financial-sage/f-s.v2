@@ -38,6 +38,31 @@ export async function POST(request: Request) {
   let base64 = "";
   let localeHint: string | undefined;
   let funds: { id: string; name: string }[] = [];
+  let categories: {
+    id: string;
+    name: string;
+    parent_id: string | null;
+    icon?: string | null;
+  }[] = [];
+
+  function parseJsonArray<T>(
+    raw: string,
+    mapRow: (row: Record<string, unknown>) => T | null
+  ): T[] {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          return mapRow(row as Record<string, unknown>);
+        })
+        .filter((row): row is T => Boolean(row));
+    } catch {
+      return [];
+    }
+  }
 
   const contentType = request.headers.get("content-type") || "";
 
@@ -46,26 +71,24 @@ export async function POST(request: Request) {
       const form = await request.formData();
       const file = form.get("file");
       localeHint = String(form.get("localeHint") ?? "") || undefined;
-      const fundsRaw = String(form.get("funds") ?? "");
-      if (fundsRaw) {
-        try {
-          const parsed = JSON.parse(fundsRaw) as unknown;
-          if (Array.isArray(parsed)) {
-            funds = parsed
-              .map((row) => {
-                if (!row || typeof row !== "object") return null;
-                const o = row as { id?: unknown; name?: unknown };
-                if (typeof o.id !== "string" || typeof o.name !== "string") {
-                  return null;
-                }
-                return { id: o.id, name: o.name };
-              })
-              .filter((row): row is { id: string; name: string } => Boolean(row));
-          }
-        } catch {
-          funds = [];
-        }
-      }
+      funds = parseJsonArray(String(form.get("funds") ?? ""), (o) => {
+        if (typeof o.id !== "string" || typeof o.name !== "string") return null;
+        return { id: o.id, name: o.name };
+      });
+      categories = parseJsonArray(String(form.get("categories") ?? ""), (o) => {
+        if (typeof o.id !== "string" || typeof o.name !== "string") return null;
+        return {
+          id: o.id,
+          name: o.name,
+          parent_id:
+            typeof o.parent_id === "string"
+              ? o.parent_id
+              : o.parent_id == null
+                ? null
+                : null,
+          icon: typeof o.icon === "string" ? o.icon : null,
+        };
+      });
       if (!(file instanceof File)) {
         return NextResponse.json({ error: "Falta la imagen." }, { status: 400 });
       }
@@ -90,11 +113,41 @@ export async function POST(request: Request) {
         base64?: string;
         localeHint?: string;
         funds?: { id: string; name: string }[];
+        categories?: {
+          id: string;
+          name: string;
+          parent_id?: string | null;
+          icon?: string | null;
+        }[];
       };
       mimeType = body.mimeType || "image/jpeg";
       base64 = (body.base64 || "").replace(/^data:[^;]+;base64,/, "");
       localeHint = body.localeHint;
       funds = Array.isArray(body.funds) ? body.funds : [];
+      categories = Array.isArray(body.categories)
+        ? body.categories
+            .map((c) => {
+              if (!c || typeof c.id !== "string" || typeof c.name !== "string") {
+                return null;
+              }
+              return {
+                id: c.id,
+                name: c.name,
+                parent_id: c.parent_id ?? null,
+                icon: c.icon ?? null,
+              };
+            })
+            .filter(
+              (
+                row
+              ): row is {
+                id: string;
+                name: string;
+                parent_id: string | null;
+                icon: string | null;
+              } => Boolean(row)
+            )
+        : [];
       if (!base64) {
         return NextResponse.json({ error: "Falta la imagen." }, { status: 400 });
       }
@@ -108,6 +161,7 @@ export async function POST(request: Request) {
       base64,
       localeHint,
       funds,
+      categories,
       includeLineItems,
     });
     console.info("[receipts/parse]", {

@@ -5,6 +5,11 @@ import {
   parseJsonObject,
 } from "@/lib/ai/openai";
 import { extraCategories, topCategories } from "@/lib/categoryMap";
+import {
+  formatFamilyCategoryCatalog,
+  matchFamilyCategoryId,
+  type FamilyCategoryOption,
+} from "@/lib/categories/matchFamilyCategory";
 import { normalizeWeightLine } from "@/lib/grocery";
 
 export type ReceiptFundOption = {
@@ -28,7 +33,7 @@ export type ParsedReceipt = {
   total: number | null;
   currency: string | null;
   date: string | null; // YYYY-MM-DD
-  /** Our category tile id (dining, super, …). */
+  /** family_categories id when catalog was provided; else legacy tile id. */
   categoryId: string | null;
   /** Legacy coarse hint kept for fallback mapping. */
   categoryHint: string | null;
@@ -157,7 +162,7 @@ function toItemCount(value: unknown): number | null {
   return null;
 }
 
-function normalizeCategoryId(raw: unknown): string | null {
+function normalizeLegacyCategoryId(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const id = raw.trim().toLowerCase();
   if (VALID_CATEGORY_IDS.has(id)) return id;
@@ -172,6 +177,29 @@ function normalizeCategoryId(raw: unknown): string | null {
     home: "home",
   };
   return aliases[id] ?? null;
+}
+
+function resolveReceiptCategoryId(
+  raw: unknown,
+  categoryHint: string | null,
+  description: string | null,
+  merchant: string | null,
+  familyCategories: FamilyCategoryOption[]
+): string | null {
+  if (familyCategories.length > 0) {
+    const rawId = typeof raw === "string" ? raw.trim() : "";
+    if (rawId && familyCategories.some((c) => c.id === rawId)) {
+      return rawId;
+    }
+    const legacy = normalizeLegacyCategoryId(raw);
+    return matchFamilyCategoryId({
+      categories: familyCategories,
+      legacyTileId: legacy,
+      categoryHint,
+      concept: description || merchant,
+    });
+  }
+  return normalizeLegacyCategoryId(raw);
 }
 
 function matchFundId(
@@ -259,6 +287,8 @@ export async function parseReceiptImage(input: {
   base64: string;
   localeHint?: string;
   funds?: ReceiptFundOption[];
+  /** Family spend categories (parent + sub) — preferred over legacy tiles. */
+  categories?: FamilyCategoryOption[];
   /** Extract product lines for grocery ticket detail + price compare. */
   includeLineItems?: boolean;
 }): Promise<ParsedReceipt> {
@@ -272,14 +302,20 @@ export async function parseReceiptImage(input: {
     input.localeHint?.trim() ||
     "español; puede ser ticket de España o Latinoamérica";
   const funds = input.funds ?? [];
+  const familyCategories = input.categories ?? [];
   const includeLineItems = Boolean(input.includeLineItems);
   const fundsBlock =
     funds.length > 0
       ? funds.map((f) => `${f.id}=${f.name}`).join(", ")
       : "(ninguno)";
-  const categoriesBlock = CATEGORY_CATALOG.map(
-    (c) => `${c.id}=${c.label}`
-  ).join(", ");
+  const categoriesBlock =
+    familyCategories.length > 0
+      ? formatFamilyCategoryCatalog(familyCategories)
+      : CATEGORY_CATALOG.map((c) => `${c.id}=${c.label}`).join(", ");
+  const categoryIdRule =
+    familyCategories.length > 0
+      ? 'id exacto de la lista (preferir subcategoría si encaja; si no, el padre). No inventes ids.'
+      : "icono/categoría legacy (dining, super, transport, …).";
 
   const linesBlock = includeLineItems
     ? `
@@ -343,7 +379,7 @@ Reglas:
   - si itemCount === 1 → el producto (primaryProduct)
   - si itemCount > 1 → el nombre del establecimiento (merchant)
 - "fundId": el bolsillo cuyo nombre mejor encaja (ej. restaurante→bolsillo Comida/Restaurantes; supermercado→Super/Compras). Solo ids de la lista.
-- "categoryId": icono/categoría del gasto (dining, super, transport, …).
+- "categoryId": ${categoryIdRule}
 - Si hay varios totales, prioriza el total cobrado / a pagar.${linesRules}`;
 
   const response = await openai.chat.completions.create({
@@ -423,7 +459,15 @@ Reglas:
         ? parsed.currency.trim().toUpperCase()
         : null,
     date: toDate(parsed.date),
-    categoryId: normalizeCategoryId(parsed.categoryId),
+    categoryId: resolveReceiptCategoryId(
+      parsed.categoryId,
+      typeof parsed.categoryHint === "string" && parsed.categoryHint.trim()
+        ? parsed.categoryHint.trim()
+        : null,
+      rawDescription,
+      merchant,
+      familyCategories
+    ),
     categoryHint:
       typeof parsed.categoryHint === "string" && parsed.categoryHint.trim()
         ? parsed.categoryHint.trim()

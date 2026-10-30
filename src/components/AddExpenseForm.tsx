@@ -53,6 +53,7 @@ import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 import { useAccountsStore } from "@/store/useAccountsStore";
 import { listFamilyCategoriesAction } from "@/app/actions/categories";
+import { matchFamilyCategoryId } from "@/lib/categories/matchFamilyCategory";
 import {
   listParentCategories,
   listSubcategories,
@@ -351,6 +352,9 @@ export default function AddExpenseForm({
     null
   );
   const [categoryReady, setCategoryReady] = useState(false);
+  /** Once the user picks a category in the sheet, stop auto-suggest overwrites. */
+  const [categoryUserLocked, setCategoryUserLocked] = useState(false);
+  const categoryUserLockedRef = useRef(false);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [isSaving, setIsSaving] = useState(false);
   const [showKeypad, setShowKeypad] = useState(false);
@@ -632,16 +636,7 @@ export default function AddExpenseForm({
       .then((list) => {
         if (cancelled) return;
         setFamilyCategories(list);
-        if (!expenseToEdit) {
-          const parents = listParentCategories(
-            list,
-            resolvedCurrentUserId ?? ""
-          );
-          if (parents[0] && !selectedCategoryId) {
-            setSelectedCategoryId(parents[0].id);
-            setCategoryReady(true);
-          }
-        }
+        // Do not default to the first parent (Hogar): AI / OCR picks later.
       })
       .catch(() => {
         if (!cancelled) setFamilyCategories([]);
@@ -663,6 +658,7 @@ export default function AddExpenseForm({
       if (expenseToEdit.category_id) {
         setSelectedCategoryId(expenseToEdit.category_id);
         setCategoryReady(true);
+        setCategoryUserLocked(true);
       }
       setPaidBy(expenseToEdit.paid_by === resolvedCurrentUserId ? "me" : "partner");
 
@@ -704,6 +700,7 @@ export default function AddExpenseForm({
     setPartnerContribution("");
     setSelectedCategoryId(null);
     setCategoryReady(false);
+    setCategoryUserLocked(false);
     setDate(new Date().toISOString().slice(0, 10));
     setErrorMessage("");
   }, [expenseToEdit, isCoupleMode, preferredFundId, resolvedCurrentUserId]);
@@ -767,6 +764,17 @@ export default function AddExpenseForm({
           selectableFunds.map((f) => ({
             id: f.id,
             name: isSolo ? personalFundDisplayName(f) : f.name,
+          }))
+        )
+      );
+      form.set(
+        "categories",
+        JSON.stringify(
+          familyCategories.map((c) => ({
+            id: c.id,
+            name: c.name,
+            parent_id: c.parent_id,
+            icon: c.icon,
           }))
         )
       );
@@ -843,18 +851,27 @@ export default function AddExpenseForm({
         }
       }
 
-      // Prefer keeping the user's selected category; receipt may only hint.
-      if (!selectedCategoryId) {
-        const parents = listParentCategories(
-          familyCategories,
-          resolvedCurrentUserId ?? ""
-        );
-        const hint = (receipt.categoryHint || "").toLowerCase();
+      // Apply OCR / mapped family category unless the user already locked one.
+      if (!categoryUserLocked) {
+        const catalog = familyCategories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          parent_id: c.parent_id,
+          icon: c.icon,
+        }));
         const matched =
-          parents.find((p) => hint && p.name.toLowerCase().includes(hint)) ??
-          parents[0];
+          matchFamilyCategoryId({
+            categories: catalog,
+            legacyTileId: receipt.categoryId,
+            categoryHint: receipt.categoryHint,
+            concept: conceptFromScan || receipt.merchant,
+          }) ||
+          (receipt.categoryId &&
+          catalog.some((c) => c.id === receipt.categoryId)
+            ? receipt.categoryId
+            : null);
         if (matched) {
-          setSelectedCategoryId(matched.id);
+          setSelectedCategoryId(matched);
           setCategoryReady(true);
         }
       }
@@ -1369,6 +1386,68 @@ export default function AddExpenseForm({
     autoSubmitAfterConceptRef.current = false;
     formRef.current?.requestSubmit();
   }, [concept, categoryReady, selectedCategoryId]);
+
+  useEffect(() => {
+    categoryUserLockedRef.current = categoryUserLocked;
+  }, [categoryUserLocked]);
+
+  // Suggest category / subcategory from typed (or scanned) concept via AI.
+  useEffect(() => {
+    if (expenseToEdit) return;
+    if (categoryUserLocked) return;
+    if (isScanning) return;
+    const trimmed = concept.trim();
+    if (trimmed.length < 2) return;
+    if (familyCategories.length === 0) return;
+
+    const fundLabel =
+      conceptSuggestFundId && selectedFund
+        ? isSolo
+          ? personalFundDisplayName(selectedFund)
+          : selectedFund.name
+        : null;
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/categories/suggest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              concept: trimmed,
+              fundName: fundLabel,
+            }),
+          });
+          if (!res.ok || cancelled || categoryUserLockedRef.current) return;
+          const data = (await res.json()) as {
+            categoryId?: string | null;
+          };
+          const id = data.categoryId?.trim() || null;
+          if (!id || cancelled || categoryUserLockedRef.current) return;
+          if (!familyCategories.some((c) => c.id === id)) return;
+          setSelectedCategoryId(id);
+          setCategoryReady(true);
+        } catch {
+          // Keep previous category; user can pick manually.
+        }
+      })();
+    }, 550);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    concept,
+    categoryUserLocked,
+    expenseToEdit,
+    familyCategories,
+    isScanning,
+    conceptSuggestFundId,
+    selectedFund,
+    isSolo,
+  ]);
 
   return (
     <form
@@ -2016,6 +2095,7 @@ export default function AddExpenseForm({
                             onClick={() => {
                               setSelectedCategoryId(parent.id);
                               setCategoryReady(true);
+                              setCategoryUserLocked(true);
                               if (subs.length === 0) closeCategorySheet();
                             }}
                             className="flex flex-col items-center gap-1.5"
@@ -2078,6 +2158,7 @@ export default function AddExpenseForm({
                                 onClick={() => {
                                   setSelectedCategoryId(sub.id);
                                   setCategoryReady(true);
+                                  setCategoryUserLocked(true);
                                   closeCategorySheet();
                                 }}
                                 className={`rounded-full border px-2.5 py-1 text-[11px] ${
