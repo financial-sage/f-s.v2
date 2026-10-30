@@ -1,9 +1,10 @@
 "use client";
 
 import { Portal } from "@/components/ui/Portal";
+import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import type { PurchaseCompareLine, PurchaseCompareResult } from "@/app/actions/purchase-receipts";
 import { Pencil, X } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type PurchaseCompareSheetProps = {
   open: boolean;
@@ -39,10 +40,21 @@ export default function PurchaseCompareSheet({
   onUpdateLinePrice,
 }: PurchaseCompareSheetProps) {
   const [animated, setAnimated] = useState(false);
+  const [editLine, setEditLine] = useState<{
+    id: string;
+    name: string;
+    unitPrice: number | null;
+  } | null>(null);
+  const [editAmount, setEditAmount] = useState("0");
+  const [editError, setEditError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setAnimated(false);
+      setEditLine(null);
+      setEditError("");
+      setSaving(false);
       return;
     }
     const id = requestAnimationFrame(() =>
@@ -50,6 +62,56 @@ export default function PurchaseCompareSheet({
     );
     return () => cancelAnimationFrame(id);
   }, [open]);
+
+  function openEditPrice(line: PurchaseCompareLine) {
+    if (!line.id || !onUpdateLinePrice || saving) return;
+    setEditError("");
+    setEditLine({
+      id: line.id,
+      name: line.name,
+      unitPrice: line.unitPrice,
+    });
+    setEditAmount(
+      line.unitPrice != null ? String(line.unitPrice) : "0"
+    );
+  }
+
+  function closeEditPrice() {
+    if (saving) return;
+    setEditLine(null);
+    setEditError("");
+    setEditAmount("0");
+  }
+
+  async function confirmEditPrice(nextValue?: string) {
+    if (!editLine || !onUpdateLinePrice || saving) return;
+    const parsed = Number((nextValue ?? editAmount).replace(/,/g, ".").trim());
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setEditError("Importe no válido.");
+      return;
+    }
+    const rounded = Math.round(parsed * 100) / 100;
+    if (
+      editLine.unitPrice != null &&
+      Math.abs(rounded - editLine.unitPrice) < 0.001
+    ) {
+      closeEditPrice();
+      return;
+    }
+    setSaving(true);
+    setEditError("");
+    try {
+      const result = await onUpdateLinePrice(editLine.id, rounded);
+      if (!result.ok) {
+        setEditError(result.error);
+        return;
+      }
+      setEditLine(null);
+      setEditAmount("0");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!open || !compare) return null;
 
@@ -63,6 +125,10 @@ export default function PurchaseCompareSheet({
   const first = compare.lines.filter((l) => l.delta == null);
 
   function requestClose() {
+    if (editLine) {
+      closeEditPrice();
+      return;
+    }
     setAnimated(false);
     window.setTimeout(() => onClose(), 220);
   }
@@ -81,7 +147,6 @@ export default function PurchaseCompareSheet({
     return (
       <LineRow
         key={`${sectionKey}-${line.id ?? line.nameKey}-${line.name}`}
-        lineId={line.id}
         name={line.name}
         unitPrice={line.unitPrice}
         previous={line.previousUnitPrice}
@@ -90,7 +155,7 @@ export default function PurchaseCompareSheet({
         tone={tone}
         formatMoney={formatMoney}
         editable={canEdit && Boolean(line.id)}
-        onSavePrice={onUpdateLinePrice}
+        onEdit={() => openEditPrice(line)}
       />
     );
   }
@@ -143,7 +208,10 @@ export default function PurchaseCompareSheet({
               {compare.total != null ? ` · ${formatMoney(compare.total)}` : ""}
             </p>
             {canEdit ? (
-              <p className="mt-1 text-[11px] font-light text-on-surface-variant/70">
+              <p
+                data-tour="receipt-edit-price"
+                className="mt-1 text-[11px] font-light text-on-surface-variant/70"
+              >
                 Toca un importe para corregirlo
               </p>
             ) : null}
@@ -187,6 +255,23 @@ export default function PurchaseCompareSheet({
           </div>
         </div>
       </div>
+
+      <NumericKeypadSheet
+        isOpen={Boolean(editLine)}
+        title="Corregir importe"
+        subtitle={editLine?.name}
+        hint="Usa el teclado de la app para el precio unitario."
+        initialValue={editAmount}
+        errorMessage={editError || undefined}
+        onClose={closeEditPrice}
+        onValueChange={(value) => {
+          setEditAmount(value);
+          if (editError) setEditError("");
+        }}
+        onConfirm={(value) => {
+          void confirmEditPrice(value);
+        }}
+      />
     </Portal>
   );
 }
@@ -237,7 +322,6 @@ function Section({
 }
 
 function LineRow({
-  lineId,
   name,
   unitPrice,
   previous,
@@ -246,9 +330,8 @@ function LineRow({
   tone,
   formatMoney,
   editable,
-  onSavePrice,
+  onEdit,
 }: {
-  lineId: string | null;
   name: string;
   unitPrice: number | null;
   previous: number | null;
@@ -257,79 +340,14 @@ function LineRow({
   tone: "up" | "down" | "same";
   formatMoney: (value: number) => string;
   editable: boolean;
-  onSavePrice?: (
-    lineId: string,
-    unitPrice: number
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onEdit: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const skipBlurCommit = useRef(false);
-
-  useEffect(() => {
-    if (!editing) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [editing]);
-
   const deltaClass =
     tone === "up"
       ? "text-amber-800/70 dark:text-amber-200/80"
       : tone === "down"
         ? "text-emerald-800/70 dark:text-emerald-200/80"
         : "text-on-surface-variant/80";
-
-  function startEdit() {
-    if (!editable || !lineId || saving) return;
-    setError(null);
-    setDraft(
-      unitPrice != null
-        ? String(unitPrice).replace(".", ",")
-        : ""
-    );
-    setEditing(true);
-  }
-
-  async function commitEdit() {
-    if (!editable || !lineId || !onSavePrice || saving) return;
-    if (skipBlurCommit.current) {
-      skipBlurCommit.current = false;
-      return;
-    }
-    const parsed = Number(draft.replace(/,/g, ".").trim());
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      setError("Importe no válido");
-      return;
-    }
-    const rounded = Math.round(parsed * 100) / 100;
-    if (unitPrice != null && Math.abs(rounded - unitPrice) < 0.001) {
-      setEditing(false);
-      setError(null);
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const result = await onSavePrice(lineId, rounded);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setEditing(false);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function cancelEdit() {
-    if (saving) return;
-    skipBlurCommit.current = true;
-    setEditing(false);
-    setError(null);
-  }
 
   return (
     <li className="flex items-start justify-between gap-3 py-2.5">
@@ -344,41 +362,13 @@ function LineRow({
               }`
             : "Sin histórico"}
         </p>
-        {error ? (
-          <p className="mt-0.5 text-[10px] font-light text-balance-negative">
-            {error}
-          </p>
-        ) : null}
       </div>
       <div className="shrink-0 pt-px text-right">
-        {editing ? (
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="decimal"
-            value={draft}
-            disabled={saving}
-            aria-label={`Precio de ${name}`}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => {
-              void commitEdit();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void commitEdit();
-              }
-              if (e.key === "Escape") {
-                e.preventDefault();
-                cancelEdit();
-              }
-            }}
-            className="w-[5.5rem] rounded-lg border border-outline-variant/25 bg-surface-lowest px-2 py-1 text-right text-[13px] font-light tabular-nums tracking-tight text-on-surface outline-none focus:border-outline-variant/50 disabled:opacity-60"
-          />
-        ) : editable ? (
+        {editable ? (
           <button
             type="button"
-            onClick={startEdit}
+            onClick={onEdit}
+            data-tour="receipt-edit-price"
             className="group inline-flex items-center justify-end gap-1 text-right transition-colors"
             aria-label={`Editar precio de ${name}`}
           >
@@ -396,7 +386,7 @@ function LineRow({
             {unitPrice != null ? formatMoney(unitPrice) : "—"}
           </p>
         )}
-        {deltaLabel && !editing ? (
+        {deltaLabel ? (
           <p className={`mt-0.5 text-[10px] font-light tabular-nums ${deltaClass}`}>
             {deltaLabel}
           </p>

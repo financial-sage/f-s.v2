@@ -35,6 +35,12 @@ Si quitar un borde, sombra, fondo o pill no empeora la comprensión, quítalo.
   `fab-ink flex h-11 w-full … rounded-2xl text-sm font-semibold` (no inventar otro estilo de botón).
 - Preferir el componente `Sheet`; no inventar overlays genéricos.
 
+## Importes / teclado
+
+- **Siempre** el teclado de la app (`NumericKeypadSheet` / `CustomNumpad`) al introducir o editar importes (gastos, aportes, transferencias, precios de ticket, etc.).
+- **No** inputs nativos (`input type="number"`, `inputMode="decimal"`, teclado del sistema) para dinero.
+- El campo de importe es un botón / display que abre el keypad; confirmar con el CTA del pad.
+
 ## Placeholders y ejemplos
 
 - Usar ejemplos **globales** (nómina, cuenta conjunta, tarjeta principal, fondo de inversión, depósito a plazo).

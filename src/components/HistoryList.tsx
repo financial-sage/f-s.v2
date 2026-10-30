@@ -254,6 +254,24 @@ export default function HistoryList({
         { hasFamily: true, autoStart: false }
     );
 
+    const receiptEditTourSteps = useMemo<ProductTourStep[]>(
+        () => [
+            {
+                target: "receipt-edit-price",
+                title: "Puedes corregir el precio",
+                body: "Si el escaneo tomó mal un importe, tócalo y ajústalo con el teclado. Así la comparación queda bien.",
+                placement: "bottom",
+            },
+        ],
+        []
+    );
+    const receiptEditTour = useProductTour(
+        currentUserId,
+        "historyReceiptEdit",
+        receiptEditTourSteps,
+        { hasFamily: true, autoStart: false }
+    );
+
     // Prefer store when warm with data; never blank History if SSR still has rows.
     const preferStore =
         isHydrated && (storeExpenses.length > 0 || ssrExpenses.length === 0);
@@ -586,6 +604,12 @@ export default function HistoryList({
         window.addEventListener(TOUR_DONE_EVENT, onTourDone);
         return () => window.removeEventListener(TOUR_DONE_EVENT, onTourDone);
     }, [currentUserId, firstReceiptExpenseId, receiptTour.start]);
+
+    useEffect(() => {
+        if (!receiptCompareOpen || !receiptCompare) return;
+        if (!receiptCompare.lines.some((line) => Boolean(line.id))) return;
+        receiptEditTour.start(650);
+    }, [receiptCompareOpen, receiptCompare, receiptEditTour.start]);
 
     const sharedFunds = useMemo(
         () => listVariableSharedFunds(funds),
@@ -1276,6 +1300,11 @@ export default function HistoryList({
                 open={receiptTour.open}
                 steps={receiptTour.steps}
                 onClose={receiptTour.close}
+            />
+            <ProductTour
+                open={receiptEditTour.open}
+                steps={receiptEditTour.steps}
+                onClose={receiptEditTour.close}
             />
 
             <PurchaseCompareSheet
