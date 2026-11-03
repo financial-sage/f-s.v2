@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Portal } from "@/components/ui/Portal";
+import { Sheet } from "@/components/ui/Sheet";
 import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
@@ -302,11 +303,10 @@ export default function FixedExpensesManager({
   const [formMoreOpen, setFormMoreOpen] = useState(false);
   const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
-  const [paidExpanded, setPaidExpanded] = useState(false);
+  const [paidSheetOpen, setPaidSheetOpen] = useState(false);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
   const pendingScrollRef = useRef<HTMLDivElement | null>(null);
-  const paidScrollRef = useRef<HTMLDivElement | null>(null);
 
   const pendingItems = useMemo(
     () => items.filter((item) => item.payment.status === "pending"),
@@ -339,10 +339,13 @@ export default function FixedExpensesManager({
   const ratio = progressRatio(totals.sumReal, totals.sumBase);
 
   useEffect(() => {
-    setPaidExpanded(false);
+    setPaidSheetOpen(false);
     if (pendingScrollRef.current) pendingScrollRef.current.scrollTop = 0;
-    if (paidScrollRef.current) paidScrollRef.current.scrollTop = 0;
   }, [monthKey, scopeTab]);
+
+  useEffect(() => {
+    if (paidItems.length === 0) setPaidSheetOpen(false);
+  }, [paidItems.length]);
 
   function shiftMonth(delta: -1 | 1) {
     setMonthKey((key) => shiftMonthKey(key, delta));
@@ -720,19 +723,25 @@ export default function FixedExpensesManager({
             </button>
           ) : (
             <>
-              {/* Por pagar: shrinks when Pagados expands (no overlap) */}
-              <div
-                className={`flex min-h-0 flex-col ${
-                  paidExpanded && paidItems.length > 0 ? "min-h-[7rem] flex-1" : "flex-1"
-                }`}
-              >
+              <div className="flex min-h-0 flex-1 flex-col">
                 <div className="mb-2 flex shrink-0 items-baseline justify-between gap-3 px-1">
                   <h2 className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">
                     Por pagar
+                    <span className="ml-1.5 font-light normal-case tracking-normal tabular-nums">
+                      · {pendingItems.length}
+                    </span>
                   </h2>
-                  <span className="text-[11px] font-light tabular-nums text-on-surface-variant">
-                    {pendingItems.length}
-                  </span>
+                  {paidItems.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setPaidSheetOpen(true)}
+                      className="inline-flex items-center gap-0.5 text-[11px] font-medium text-on-surface-variant transition-colors hover:text-on-surface"
+                      aria-haspopup="dialog"
+                    >
+                      Pagados · {paidItems.length}
+                      <ChevronRight size={12} strokeWidth={1.75} className="opacity-60" />
+                    </button>
+                  ) : null}
                 </div>
 
                 {pendingItems.length === 0 ? (
@@ -750,63 +759,26 @@ export default function FixedExpensesManager({
                   </div>
                 )}
               </div>
-
-              {/* Pagados: collapsed = bar; expanded = fixed-height slot that reserves space */}
-              {paidItems.length > 0 ? (
-                <div
-                  className="mt-2 flex min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-glass-border bg-glass-strong shadow-[0_8px_22px_rgba(43,52,55,0.08)] backdrop-blur-xl"
-                  style={
-                    paidExpanded
-                      ? {
-                          // Claims real layout height so Por pagar compresses instead of being covered
-                          flex: "0 0 min(40dvh, calc(100dvh - var(--fab-clearance) - 15rem))",
-                          height: "min(40dvh, calc(100dvh - var(--fab-clearance) - 15rem))",
-                        }
-                      : { flex: "0 0 auto" }
-                  }
-                >
-                  <button
-                    type="button"
-                    onClick={() => setPaidExpanded((open) => !open)}
-                    className={`flex w-full shrink-0 items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-glass-soft ${
-                      paidExpanded ? "border-b border-outline-variant/12" : ""
-                    }`}
-                    aria-expanded={paidExpanded}
-                  >
-                    <ChevronDown
-                      size={16}
-                      className={`shrink-0 text-on-surface-variant transition-transform duration-200 ${
-                        paidExpanded ? "rotate-180" : ""
-                      }`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium tracking-tight text-on-surface">
-                        Pagados
-                      </p>
-                      <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
-                        {paidItems.length}{" "}
-                        {paidItems.length === 1 ? "gasto" : "gastos"}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-[14px] font-light tabular-nums tracking-tight text-on-surface">
-                      <FormattedCurrency value={paidTotal} />
-                    </p>
-                  </button>
-
-                  {paidExpanded ? (
-                    <div
-                      ref={paidScrollRef}
-                      className="min-h-0 flex-1 overflow-y-auto overscroll-none no-scrollbar divide-y divide-outline-variant/12"
-                    >
-                      {paidItems.map(renderRow)}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
             </>
           )}
         </section>
       </main>
+
+      <Sheet
+        open={paidSheetOpen}
+        onClose={() => setPaidSheetOpen(false)}
+        title="Pagados"
+        subtitle={`${paidItems.length} ${
+          paidItems.length === 1 ? "gasto" : "gastos"
+        } · ${formatCurrency(paidTotal)}`}
+        headerLayout="title-row"
+        closeOnBackdrop
+        heightClassName="h-auto max-h-[85dvh]"
+      >
+        <div className="-mx-5 overflow-hidden divide-y divide-outline-variant/12 border-t border-outline-variant/12">
+          {paidItems.map(renderRow)}
+        </div>
+      </Sheet>
 
       <NumericKeypadSheet
         isOpen={Boolean(payTarget)}

@@ -32,7 +32,11 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { useFitItemCount } from "@/hooks/useFitItemCount";
 import type { DashboardBudget, DashboardTransaction } from "@/lib/dashboard";
 import { createClient } from "@/utils/supabase/client";
-import { tintedGlassGradient } from "@/lib/glass";
+import {
+    accentRimCardStyle,
+    accentRimHairline,
+    tintedGlassGradient,
+} from "@/lib/glass";
 import {
     calculateSoloPersonalFundBalance,
     DEFAULT_PERSONAL_FUND_COLOR,
@@ -502,11 +506,19 @@ export default function DashboardSolo({
                 <HouseholdStatusBanner entitlement={entitlement} />
                 <section className="relative shrink-0" data-tour="dash-balance">
                     <div
-                        className="relative overflow-hidden rounded-[1.75rem] border-[0.5px] border-glass-border px-5 py-5 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-[background] duration-500"
-                        style={{
-                            backgroundImage: tintedGlassGradient(heroColor),
-                        }}
+                        className="relative overflow-hidden rounded-[1.75rem] border-[0.5px] border-glass-border px-5 py-5 backdrop-blur-2xl transition-[background,box-shadow] duration-500"
+                        style={accentRimCardStyle(
+                            heroColor,
+                            tintedGlassGradient(heroColor)
+                        )}
                     >
+                        <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-3 top-0 z-[1] h-px"
+                            style={{
+                                backgroundImage: accentRimHairline(heroColor),
+                            }}
+                        />
                         <div className="relative z-10 flex min-w-0 items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">

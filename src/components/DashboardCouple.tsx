@@ -87,7 +87,14 @@ import {
     resolveFundUiColor,
     type FamilyFund,
 } from "@/lib/funds";
-import { accentGlassGradient, tintedGlassGradient } from "@/lib/glass";
+import {
+    accentGlassGradient,
+    accentRimCardStyle,
+    accentRimHairline,
+    cssAccentRimCardStyle,
+    cssAccentRimHairline,
+    tintedGlassGradient,
+} from "@/lib/glass";
 import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
@@ -1205,9 +1212,15 @@ export default function DashboardCouple({
             : "En cuentas"
         : pocketLabel;
     const heroColor = showingAccounts ? null : pocketAccentColor;
-    const heroBackground = showingAccounts
-        ? accentGlassGradient()
-        : tintedGlassGradient(pocketAccentColor);
+    const heroRimStyle = showingAccounts
+        ? cssAccentRimCardStyle(accentGlassGradient())
+        : accentRimCardStyle(
+              pocketAccentColor,
+              tintedGlassGradient(pocketAccentColor)
+          );
+    const heroRimHairline = showingAccounts
+        ? cssAccentRimHairline()
+        : accentRimHairline(pocketAccentColor);
 
     const handleSelectAccount = (accountId: string | null) => {
         setSelectedAccountId(accountId);
@@ -1364,11 +1377,14 @@ export default function DashboardCouple({
                     style={animateSharedEntrance ? { animationDelay: "80ms" } : undefined}
                 >
                     <div
-                        className="relative overflow-hidden rounded-[1.75rem] border-[0.5px] border-glass-border px-5 py-5 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-[background] duration-500"
-                        style={{
-                            backgroundImage: heroBackground,
-                        }}
+                        className="relative overflow-hidden rounded-[1.75rem] border-[0.5px] border-glass-border px-5 py-5 backdrop-blur-2xl transition-[background,box-shadow] duration-500"
+                        style={heroRimStyle}
                     >
+                        <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-3 top-0 z-[1] h-px"
+                            style={{ backgroundImage: heroRimHairline }}
+                        />
                         <div className="relative z-10 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] items-center gap-x-3 gap-y-1.5">
                             <div className="col-start-1 row-start-1" aria-hidden />
                             <p className="col-start-2 row-start-1 max-w-[11rem] truncate text-right text-[10px] font-light leading-none text-on-surface-variant">
