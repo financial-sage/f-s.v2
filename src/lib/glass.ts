@@ -28,3 +28,8 @@ export function tintedGlassGradient(
 export function sageGlassGradient() {
   return `linear-gradient(145deg, var(--glass-highlight) 0%, color-mix(in srgb, var(--primary) 18%, transparent) 55%, color-mix(in srgb, var(--primary) 28%, transparent) 100%)`;
 }
+
+/** Brand gold glass — SinDescuadre accent (cuentas / liquidez). */
+export function accentGlassGradient() {
+  return `linear-gradient(145deg, var(--glass-highlight) 0%, color-mix(in srgb, var(--accent) 18%, transparent) 55%, color-mix(in srgb, var(--accent) 30%, transparent) 100%)`;
+}

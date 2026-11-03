@@ -313,7 +313,7 @@ export async function createFixedExpenseAction(input: {
   const dueDay =
     input.dueDay == null || Number.isNaN(Number(input.dueDay))
       ? null
-      : Math.min(28, Math.max(1, Math.round(Number(input.dueDay))));
+      : Math.min(30, Math.max(1, Math.round(Number(input.dueDay))));
 
   const frequency = normalizeFixedExpenseFrequency(input.frequency);
   const monthNum = Number(input.monthKey.slice(5, 7)) || 1;
@@ -404,7 +404,7 @@ export async function updateFixedExpenseAction(input: {
   const dueDay =
     input.dueDay == null || Number.isNaN(Number(input.dueDay))
       ? null
-      : Math.min(28, Math.max(1, Math.round(Number(input.dueDay))));
+      : Math.min(30, Math.max(1, Math.round(Number(input.dueDay))));
 
   const frequency = normalizeFixedExpenseFrequency(input.frequency);
   const monthNum = Number(input.monthKey.slice(5, 7)) || 1;

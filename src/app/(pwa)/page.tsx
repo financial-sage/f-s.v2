@@ -48,6 +48,7 @@ export default async function Home() {
     sharedDefaultFundId,
     accountsVisibleLiquidity,
     hasVisibleAccounts,
+    initialAccounts,
     entitlement,
     pendingPremiumWelcome,
   } = home.data;
@@ -57,7 +58,11 @@ export default async function Home() {
 
   return (
     <>
-      <StoreHydrator userId={userId} initialFunds={funds} />
+      <StoreHydrator
+        userId={userId}
+        initialFunds={funds}
+        initialAccounts={initialAccounts}
+      />
       <PremiumWelcomeCelebration initialWelcome={pendingPremiumWelcome} />
       {showCoupleUi && familyId ? (
         <DashboardCouple
@@ -77,6 +82,7 @@ export default async function Home() {
           sharedDefaultFundId={sharedDefaultFundId}
           accountsVisibleLiquidity={accountsVisibleLiquidity}
           hasVisibleAccounts={hasVisibleAccounts}
+          initialAccounts={initialAccounts}
           entitlement={entitlement}
         />
       ) : (

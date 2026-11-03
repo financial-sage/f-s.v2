@@ -3,12 +3,12 @@
 import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
+  Edit,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -71,16 +71,20 @@ function ChecklistRow({
   item,
   isSaving,
   formatCurrency,
+  actionsOpen,
+  onToggleActions,
   onTogglePaid,
-  onOpenRow,
-  onEditTemplate,
+  onEdit,
+  onDelete,
 }: {
   item: FixedExpenseMonthItem;
   isSaving: boolean;
   formatCurrency: (n: number) => string;
+  actionsOpen: boolean;
+  onToggleActions: () => void;
   onTogglePaid: () => void;
-  onOpenRow: () => void;
-  onEditTemplate: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const isPaid = item.payment.status === "paid";
   const baseAmount = Number(item.payment.base_value_snapshot || 0);
@@ -90,6 +94,9 @@ function ChecklistRow({
   const varianceHint = formatVarianceHint(variance, formatCurrency);
   const paidLabel = formatPaidDate(item.payment.paid_at);
   const frequency = item.template.frequency ?? "monthly";
+  const dueDay = item.template.due_day;
+  const dueHint =
+    dueDay != null && Number.isFinite(dueDay) ? `Día ${dueDay}` : null;
   const freqHint =
     frequency !== "monthly"
       ? `${FREQUENCY_LABELS[frequency]}${
@@ -98,72 +105,110 @@ function ChecklistRow({
             : ""
         }`
       : null;
+  const metaParts = [dueHint, !isPaid ? freqHint : null].filter(Boolean);
 
   return (
     <div
-      className={`flex items-center gap-3 px-3.5 py-3 ${
+      className={`group relative flex items-stretch overflow-hidden ${
         isPaid ? "bg-glass-muted/60" : ""
       }`}
     >
       <button
         type="button"
-        disabled={isSaving}
-        onClick={onTogglePaid}
-        className={`flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border transition-all active:scale-95 ${
-          isPaid ? "text-white shadow-sm" : "border-outline-variant/45 bg-glass-strong text-transparent"
+        onClick={onToggleActions}
+        className={`flex min-w-0 flex-1 items-center gap-2.5 px-3.5 py-3 text-left transition-colors ${
+          actionsOpen ? "bg-glass-soft" : ""
         }`}
-        style={isPaid ? { backgroundColor: ACCENT, borderColor: `${ACCENT}66` } : undefined}
-        aria-label={isPaid ? "Deshacer pago" : `Pagar ${item.template.name}`}
       >
-        {isPaid ? <Check size={11} strokeWidth={2.75} /> : null}
-      </button>
-
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpenRow}>
-        <p
-          className={`truncate text-[14px] font-medium tracking-tight ${
-            isPaid
-              ? "text-on-surface-variant line-through decoration-outline-variant/45"
-              : "text-on-surface"
-          }`}
-        >
-          {item.template.name}
-        </p>
-        {isPaid && paidLabel ? (
-          <p className="mt-0.5 text-[11px] font-light capitalize text-on-surface-variant">
-            Pagado · {paidLabel}
-          </p>
-        ) : freqHint ? (
-          <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">{freqHint}</p>
-        ) : null}
-      </button>
-
-      <div className="flex shrink-0 flex-col items-end gap-0.5">
-        <span
-          className={`text-[14px] font-light tabular-nums tracking-tight ${
-            isPaid ? "text-on-surface-variant" : "text-on-surface"
-          }`}
-        >
-          <FormattedCurrency value={rowAmount} />
-        </span>
-        {varianceHint ? (
-          <span
-            className={`text-[10px] font-medium tabular-nums ${
-              variance > 0 ? "text-red-600/80" : "text-emerald-700/80"
+        <div className="min-w-0 flex-1">
+          <p
+            className={`truncate text-[14px] font-medium tracking-tight ${
+              isPaid
+                ? "text-on-surface-variant line-through decoration-outline-variant/45"
+                : "text-on-surface"
             }`}
           >
-            {varianceHint}
+            {item.template.name}
+          </p>
+          {isPaid && paidLabel ? (
+            <p className="mt-0.5 text-[11px] font-light capitalize text-on-surface-variant">
+              Pagado · {paidLabel}
+            </p>
+          ) : metaParts.length > 0 ? (
+            <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
+              {metaParts.join(" · ")}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <span
+            className={`text-[14px] font-light tabular-nums tracking-tight ${
+              isPaid ? "text-on-surface-variant" : "text-on-surface"
+            }`}
+          >
+            <FormattedCurrency value={rowAmount} />
           </span>
-        ) : null}
-      </div>
+          {varianceHint ? (
+            <span
+              className={`text-[10px] font-medium tabular-nums ${
+                variance > 0 ? "text-amber-800/70" : "text-emerald-700/80"
+              }`}
+            >
+              {varianceHint}
+            </span>
+          ) : null}
+        </div>
+      </button>
 
       <button
         type="button"
-        onClick={onEditTemplate}
-        className="shrink-0 rounded-full p-1.5 text-outline-variant/70 transition-colors hover:bg-glass-strong hover:text-on-surface-variant"
-        aria-label={`Editar plantilla ${item.template.name}`}
+        disabled={isSaving}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePaid();
+        }}
+        className={`shrink-0 self-center px-3 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+          isPaid
+            ? "text-on-surface-variant/75 hover:text-on-surface"
+            : "hover:opacity-80"
+        }`}
+        style={isPaid ? undefined : { color: ACCENT }}
       >
-        <MoreHorizontal size={16} strokeWidth={2} />
+        {isPaid ? "Deshacer" : "Pagar"}
       </button>
+
+      <div
+        className={`flex shrink-0 flex-col overflow-hidden border-l border-outline-variant/20 transition-all duration-300 ease-out ${
+          actionsOpen
+            ? "w-14 opacity-100"
+            : "w-0 border-transparent opacity-0"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="flex flex-1 items-center justify-center border-b border-outline-variant/20 bg-surface-low/70 text-on-surface-variant transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+          aria-label={`Editar ${item.template.name}`}
+        >
+          <Edit size={16} />
+        </button>
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="flex flex-1 items-center justify-center bg-error/15 text-error transition-colors hover:bg-error/25 disabled:opacity-50"
+          aria-label={`Eliminar ${item.template.name}`}
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -212,7 +257,6 @@ export default function FixedExpensesManager({
     deactivateTemplate,
     deposit,
     markPaid,
-    updatePaid,
     unmarkPaid,
   } = useFixedExpenses(monthKey);
   const snapshot = useFixedExpensesStore((s) => s.snapshot);
@@ -238,7 +282,6 @@ export default function FixedExpensesManager({
   );
 
   const [payTarget, setPayTarget] = useState<FixedExpenseMonthItem | null>(null);
-  const [payEditing, setPayEditing] = useState(false);
   const [payValue, setPayValue] = useState("0");
   const [payDate, setPayDate] = useState(() => defaultPayDate(getMonthKey()));
   const [payError, setPayError] = useState("");
@@ -251,12 +294,16 @@ export default function FixedExpensesManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formBase, setFormBase] = useState("0");
+  /** Empty string = no due day; otherwise 1–30. */
+  const [formDueDay, setFormDueDay] = useState("");
+  const [formDueDayOpen, setFormDueDayOpen] = useState(false);
   const [formFrequency, setFormFrequency] = useState<FixedExpenseFrequency>("monthly");
   const [formScope, setFormScope] = useState<FixedExpenseScope>("shared");
   const [formMoreOpen, setFormMoreOpen] = useState(false);
   const [formBaseKeypadOpen, setFormBaseKeypadOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [paidExpanded, setPaidExpanded] = useState(false);
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
   const pendingScrollRef = useRef<HTMLDivElement | null>(null);
   const paidScrollRef = useRef<HTMLDivElement | null>(null);
@@ -302,23 +349,9 @@ export default function FixedExpensesManager({
   }
 
   function openPay(item: FixedExpenseMonthItem) {
-    setPayEditing(false);
     setPayTarget(item);
     setPayValue(String(item.payment.base_value_snapshot || 0));
     setPayDate(defaultPayDate(monthKey));
-    setPayError("");
-  }
-
-  function openEditPay(item: FixedExpenseMonthItem) {
-    setPayEditing(true);
-    setPayTarget(item);
-    setPayValue(String(item.payment.real_value ?? item.payment.base_value_snapshot ?? 0));
-    setPayDate(
-      item.payment.paid_at?.slice(0, 10) &&
-        /^\d{4}-\d{2}-\d{2}$/.test(item.payment.paid_at.slice(0, 10))
-        ? item.payment.paid_at.slice(0, 10)
-        : defaultPayDate(monthKey)
-    );
     setPayError("");
   }
 
@@ -334,26 +367,17 @@ export default function FixedExpensesManager({
       return;
     }
     try {
-      if (payEditing) {
-        await updatePaid(payTarget.payment.id, amount, payDate);
-      } else {
-        await markPaid(payTarget.payment.id, amount, payDate);
-      }
+      await markPaid(payTarget.payment.id, amount, payDate);
       // If the pay date belongs to another month, jump the header to that month.
       const paidMonthKey = payDate.slice(0, 7);
       if (/^\d{4}-\d{2}$/.test(paidMonthKey) && paidMonthKey !== monthKey) {
         setMonthKey(paidMonthKey);
       }
       setPayTarget(null);
-      setPayEditing(false);
       setPayError("");
     } catch (err) {
       setPayError(
-        err instanceof Error
-          ? err.message
-          : payEditing
-            ? "No se pudo actualizar el pago."
-            : "No se pudo registrar el pago."
+        err instanceof Error ? err.message : "No se pudo registrar el pago."
       );
     }
   }
@@ -383,6 +407,8 @@ export default function FixedExpensesManager({
     setEditingId(null);
     setFormName("");
     setFormBase("0");
+    setFormDueDay("");
+    setFormDueDayOpen(false);
     setFormFrequency("monthly");
     setFormScope(showScopeTabs ? scopeTab : "shared");
     setFormMoreOpen(false);
@@ -395,6 +421,12 @@ export default function FixedExpensesManager({
     setEditingId(item.template.id);
     setFormName(item.template.name);
     setFormBase(String(item.template.base_value));
+    setFormDueDay(
+      item.template.due_day != null && Number.isFinite(item.template.due_day)
+        ? String(item.template.due_day)
+        : ""
+    );
+    setFormDueDayOpen(false);
     setFormFrequency(item.template.frequency ?? "monthly");
     setFormScope(item.template.scope ?? "shared");
     setFormMoreOpen((item.template.frequency ?? "monthly") !== "monthly");
@@ -417,6 +449,11 @@ export default function FixedExpensesManager({
     }
 
     const anchorMonth = Number(monthKey.slice(5, 7)) || 1;
+    const dueDayParsed = formDueDay.trim() === "" ? null : Number(formDueDay);
+    const dueDay =
+      dueDayParsed == null || !Number.isFinite(dueDayParsed)
+        ? null
+        : Math.min(30, Math.max(1, Math.round(dueDayParsed)));
 
     try {
       if (editingId) {
@@ -424,6 +461,7 @@ export default function FixedExpensesManager({
           id: editingId,
           name: formName,
           baseValue,
+          dueDay,
           frequency: formFrequency,
           anchorMonth,
         });
@@ -431,6 +469,7 @@ export default function FixedExpensesManager({
         await createTemplate({
           name: formName,
           baseValue,
+          dueDay,
           frequency: formFrequency,
           anchorMonth,
           scope: showScopeTabs ? formScope : "shared",
@@ -456,12 +495,17 @@ export default function FixedExpensesManager({
 
   function renderRow(item: FixedExpenseMonthItem) {
     const isPaid = item.payment.status === "paid";
+    const rowId = item.payment.id;
     return (
       <ChecklistRow
-        key={item.payment.id}
+        key={rowId}
         item={item}
         isSaving={isSaving}
         formatCurrency={formatCurrency}
+        actionsOpen={activeActionId === rowId}
+        onToggleActions={() =>
+          setActiveActionId((prev) => (prev === rowId ? null : rowId))
+        }
         onTogglePaid={() => {
           if (isPaid) {
             void unmarkPaid(item.payment.id);
@@ -469,11 +513,14 @@ export default function FixedExpensesManager({
           }
           openPay(item);
         }}
-        onOpenRow={() => {
-          if (isPaid) openEditPay(item);
-          else openPay(item);
+        onEdit={() => {
+          setActiveActionId(null);
+          openEditForm(item);
         }}
-        onEditTemplate={() => openEditForm(item)}
+        onDelete={() => {
+          setActiveActionId(null);
+          void deactivateTemplate(item.template.id);
+        }}
       />
     );
   }
@@ -763,29 +810,18 @@ export default function FixedExpensesManager({
 
       <NumericKeypadSheet
         isOpen={Boolean(payTarget)}
-        title={
-          payTarget
-            ? payEditing
-              ? `Editar pago · ${payTarget.template.name}`
-              : `Pagar ${payTarget.template.name}`
-            : "Pagar"
-        }
+        title={payTarget ? `Pagar ${payTarget.template.name}` : "Pagar"}
         subtitle={
-          payEditing
-            ? "Cambia el importe o la fecha"
-            : payTarget?.template.scope === "personal"
-              ? "Se descuenta de Mi bolsillo"
-              : "Valor real · bolsillo de fijos"
+          payTarget?.template.scope === "personal"
+            ? "Se descuenta de Mi bolsillo"
+            : "Valor real · bolsillo de fijos"
         }
         initialValue={payValue}
         errorMessage={payError}
         dateValue={payDate}
         onDateChange={setPayDate}
         dateLabel="Fecha de pago"
-        onClose={() => {
-          setPayTarget(null);
-          setPayEditing(false);
-        }}
+        onClose={() => setPayTarget(null)}
         onValueChange={setPayValue}
         onConfirm={(value) => void confirmPay(value)}
       />
@@ -927,6 +963,76 @@ export default function FixedExpensesManager({
                     Editar
                   </span>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setFormDueDayOpen((open) => !open)}
+                  className="flex w-full items-center justify-between gap-2 rounded-2xl border border-outline-variant/30 bg-glass px-4 py-3 text-left shadow-sm backdrop-blur-sm transition-colors hover:border-outline-variant/45"
+                  aria-expanded={formDueDayOpen}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[11px] font-light text-on-surface-variant">
+                      Día de pago
+                    </span>
+                    <span className="mt-0.5 block text-[14px] font-medium tabular-nums text-on-surface">
+                      {formDueDay ? `Día ${formDueDay}` : "Sin día definido"}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={1.75}
+                    className={`shrink-0 text-on-surface-variant transition-transform ${
+                      formDueDayOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {formDueDayOpen ? (
+                  <div
+                    className="rounded-2xl border border-outline-variant/20 bg-glass/80 p-2.5 shadow-sm backdrop-blur-sm animate-in fade-in slide-in-from-top-1 duration-200"
+                    role="group"
+                    aria-label="Elegir día de pago"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormDueDay("");
+                        setFormDueDayOpen(false);
+                      }}
+                      className={`mb-2 w-full rounded-xl px-3 py-2 text-[12px] transition-colors ${
+                        formDueDay === ""
+                          ? "bg-primary/12 font-medium text-primary"
+                          : "bg-surface/60 font-light text-on-surface-variant hover:bg-surface"
+                      }`}
+                    >
+                      Sin día definido
+                    </button>
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
+                        const selected = formDueDay === String(day);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              setFormDueDay(String(day));
+                              setFormDueDayOpen(false);
+                            }}
+                            aria-pressed={selected}
+                            className={`flex h-9 items-center justify-center rounded-lg text-[12px] tabular-nums transition-colors ${
+                              selected
+                                ? "bg-primary font-semibold text-on-primary shadow-[0_4px_10px_rgba(28,39,64,0.18)]"
+                                : "font-light text-on-surface hover:bg-on-surface/[0.05]"
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div>

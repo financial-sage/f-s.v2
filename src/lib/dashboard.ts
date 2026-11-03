@@ -445,6 +445,8 @@ export interface HomePageData {
   accountsVisibleLiquidity: number;
   /** True when the family already has at least one visible account. */
   hasVisibleAccounts: boolean;
+  /** Visible accounts for first paint (dashboard account menu). */
+  initialAccounts: FamilyAccount[];
   /** Premium / trial entitlement for home UI routing. */
   entitlement: HouseholdEntitlement | null;
   /** One-shot Premium welcome modal payload (confetti). */
@@ -817,6 +819,7 @@ export async function getHomePageData(): Promise<
       sharedDefaultFundId,
       accountsVisibleLiquidity,
       hasVisibleAccounts: visibleAccounts.length > 0,
+      initialAccounts: visibleAccounts,
       entitlement,
       pendingPremiumWelcome: pendingPremiumWelcome ?? null,
     },

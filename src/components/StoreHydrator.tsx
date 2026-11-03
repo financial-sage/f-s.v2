@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import type { FamilyAccount } from "@/lib/accounts";
 import type { FamilyFund } from "@/lib/funds";
 import { useAccountsStore } from "@/store/useAccountsStore";
 import { useCategoriesStore } from "@/store/useCategoriesStore";
@@ -15,9 +16,11 @@ import { useFundsStore } from "@/store/useFundsStore";
 export default function StoreHydrator({
   userId,
   initialFunds,
+  initialAccounts,
 }: {
   userId?: string;
   initialFunds?: FamilyFund[];
+  initialAccounts?: FamilyAccount[];
 }) {
   const pathname = usePathname();
   const isHydrated = useExpenseStore((s) => s.isHydrated);
@@ -34,6 +37,12 @@ export default function StoreHydrator({
       useFundsStore.getState().setFunds(initialFunds);
     }
   }, [initialFunds]);
+
+  useEffect(() => {
+    if (initialAccounts?.length) {
+      useAccountsStore.getState().setAccounts(initialAccounts);
+    }
+  }, [initialAccounts]);
 
   useEffect(() => {
     if (!isHydrated) {

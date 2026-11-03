@@ -16,6 +16,7 @@ import {
   Home,
   Landmark,
   PiggyBank,
+  Plus,
   Tags,
   UserRound,
   Wallet,
@@ -164,10 +165,21 @@ export default function BottomNav({
   user1SplitPct = 50,
 }: BottomNavProps) {
   const pathname = usePathname();
-  const { isExpenseModalOpen, setIsExpenseModalOpen, expenseToEdit, setExpenseToEdit } =
-    useExpenseModal();
+  const {
+    isExpenseModalOpen,
+    setIsExpenseModalOpen,
+    expenseToEdit,
+    setExpenseToEdit,
+  } = useExpenseModal();
   const [expanded, setExpanded] = useState(false);
   const [receiptScanning, setReceiptScanning] = useState(false);
+
+  function openNewExpense() {
+    if (!familyId) return;
+    setExpenseToEdit(null);
+    setIsExpenseModalOpen(true);
+    setExpanded(false);
+  }
 
   useEffect(() => {
     if (!expanded && !isExpenseModalOpen) return;
@@ -264,29 +276,51 @@ export default function BottomNav({
             </div>
           ) : null}
 
-          <div className="flex flex-col items-center gap-1">
-            <button
-              type="button"
-              onClick={handleCenterClick}
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/30 bg-primary text-on-primary shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-all duration-200 active:scale-95"
-              aria-label={
-                expanded
-                  ? `Cerrar menú · ${currentModule.label}`
-                  : `Abrir menú · ${currentModule.label}`
-              }
-              aria-expanded={expanded}
-              title={currentModule.label}
-            >
-              <CurrentIcon
-                key={currentModule.id}
-                size={18}
-                strokeWidth={2.2}
-                className="animate-in fade-in zoom-in-95 duration-200"
-              />
-            </button>
-            <span className="text-[10px] font-medium leading-none text-on-surface" aria-hidden>
-              Menú
-            </span>
+          <div className="relative flex w-full items-end justify-center">
+            <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={handleCenterClick}
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/30 bg-primary text-on-primary shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-all duration-200 active:scale-95"
+                aria-label={
+                  expanded
+                    ? `Cerrar menú · ${currentModule.label}`
+                    : `Abrir menú · ${currentModule.label}`
+                }
+                aria-expanded={expanded}
+                title={currentModule.label}
+              >
+                <CurrentIcon
+                  key={currentModule.id}
+                  size={18}
+                  strokeWidth={2.2}
+                  className="animate-in fade-in zoom-in-95 duration-200"
+                />
+              </button>
+              <span
+                className="text-[10px] font-medium leading-none text-on-surface"
+                aria-hidden
+              >
+                Menú
+              </span>
+            </div>
+
+            {familyId ? (
+              <button
+                type="button"
+                data-tour="dash-actions"
+                onClick={openNewExpense}
+                className="absolute bottom-0 left-[calc(50%+2.85rem)] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                aria-label="Agregar gasto"
+              >
+                <span className="fab-accent flex h-10 w-10 items-center justify-center rounded-full shadow-[var(--fab-accent-shadow)]">
+                  <Plus size={17} strokeWidth={2.2} />
+                </span>
+                <span className="text-[10px] font-medium leading-none text-on-surface">
+                  gasto
+                </span>
+              </button>
+            ) : null}
           </div>
         </div>
       </nav>

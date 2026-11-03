@@ -257,6 +257,16 @@ for (const table of insertOrder) {
   // fixed_expense_budgets PK is (family_id, month_key)
   const conflict =
     table === "fixed_expense_budgets" ? "family_id,month_key" : "id";
+  // Open-rule unique index can clash when local already has different open rows.
+  if (table === "family_recommendations") {
+    const { error: delErr } = await local
+      .from(table)
+      .delete()
+      .eq("family_id", familyId);
+    if (delErr) {
+      throw new Error(`delete ${table}: ${delErr.message}`);
+    }
+  }
   const n = await upsert(local, table, rows, conflict);
   console.log(`  ${table}: ${n}`);
 }

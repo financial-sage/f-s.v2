@@ -624,6 +624,26 @@ html.app-shell-lock body {
   animation: rec-tag-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Guidance dock — mirror of rec-tag, slides in from the left edge */
+@keyframes guidance-tag-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-110%);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.guidance-tag-in {
+  animation: guidance-tag-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .rec-bulb-glow {
   animation: rec-bulb-glow 900ms ease-in-out 580ms both;
 }

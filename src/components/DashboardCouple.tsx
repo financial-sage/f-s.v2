@@ -13,17 +13,12 @@ import {
     Edit,
     Eye,
     EyeOff,
-    HandCoins,
     Home,
     House,
     Lock,
-    Plus,
     Receipt,
     ReceiptText,
-    Scale,
-    ArrowLeftRight,
     Landmark,
-    Send,
     Settings,
     SlidersHorizontal,
     Sparkles,
@@ -57,7 +52,15 @@ import { useFundsStore } from "@/store/useFundsStore";
 import type { DashboardMember } from "@/lib/dashboard";
 import type { ExpenseSplitType } from "@/lib/expenses";
 import { resolveExpenseCategoryIcon } from "@/lib/familyCategories";
-import { isAccountOnlyMovement } from "@/lib/accounts";
+import {
+    calculateAccountCashBalance,
+    DEFAULT_PERSONAL_ACCOUNT_COLOR,
+    DEFAULT_SHARED_ACCOUNT_COLOR,
+    isAccountOnlyMovement,
+    isLiquidityAccount,
+    listVisibleAccountsForUser,
+    type FamilyAccount,
+} from "@/lib/accounts";
 import {
     collapseTransferPairsForHistory,
     formatTransferHistoryPresentation,
@@ -84,12 +87,13 @@ import {
     resolveFundUiColor,
     type FamilyFund,
 } from "@/lib/funds";
-import { tintedGlassGradient } from "@/lib/glass";
+import { accentGlassGradient, tintedGlassGradient } from "@/lib/glass";
 import ProductTour from "@/components/ProductTour";
 import { useProductTour } from "@/hooks/useProductTour";
 import type { ProductTourStep } from "@/components/ProductTour";
 import { isTourDone, TOUR_DONE_EVENT, type TourId } from "@/lib/firstRun";
 import { useIsDark } from "@/hooks/useIsDark";
+import DashboardMonthSignal from "@/components/DashboardMonthSignal";
 import GuidanceWhyTrigger from "@/components/GuidanceWhyTrigger";
 import HouseholdStatusBanner from "@/components/HouseholdStatusBanner";
 import { buildDecisionContext } from "@/lib/decision/context";
@@ -98,6 +102,8 @@ import { sumMonthSpend } from "@/lib/decision/spend";
 import PremiumHeaderChip from "@/components/PremiumHeaderChip";
 import type { HouseholdEntitlement } from "@/lib/premium";
 
+type DashboardBalanceView = "accounts" | "pockets";
+const DASH_BALANCE_VIEW_KEY = "sd-dash-balance-view";
 
 interface CoupleDashboardExpense {
     id: string;
@@ -146,6 +152,7 @@ interface DashboardCoupleProps {
     sharedDefaultFundId?: string | null;
     accountsVisibleLiquidity?: number;
     hasVisibleAccounts?: boolean;
+    initialAccounts?: FamilyAccount[];
     entitlement?: HouseholdEntitlement | null;
 }
 
@@ -199,6 +206,7 @@ export default function DashboardCouple({
     sharedDefaultFundId = null,
     accountsVisibleLiquidity = 0,
     hasVisibleAccounts = false,
+    initialAccounts = [],
     entitlement = null,
 }: DashboardCoupleProps) {
     const router = useRouter();
@@ -213,6 +221,7 @@ export default function DashboardCouple({
     const isPremium = useExpenseStore((s) => s.isPremium);
     const storeFunds = useFundsStore((s) => s.funds);
     const storeAccounts = useAccountsStore((s) => s.accounts);
+    const loadAccounts = useAccountsStore((s) => s.load);
     const familyCategories = useCategoriesStore((s) => s.categories);
     const loadCategories = useCategoriesStore((s) => s.load);
     const colorFunds = storeFunds.length > 0 ? storeFunds : initialFunds;
@@ -221,27 +230,31 @@ export default function DashboardCouple({
         void loadCategories();
     }, [loadCategories]);
 
+    useEffect(() => {
+        void loadAccounts();
+    }, [loadAccounts]);
+
     const dashboardTourSteps = useMemo<ProductTourStep[]>(
         () => [
             {
                 target: "dash-balance",
-                title: "Saldo del bolsillo",
-                body: "Es el dinero del bolsillo activo para gastar el mes — no el total del banco. En pareja pueden cambiar entre lo común y lo personal.",
-            },
-            {
-                target: "dash-actions",
-                title: "Acciones rápidas",
-                body: "Registren un gasto, carguen el bolsillo o ajusten saldos sin perder el hilo.",
+                title: "Saldo disponible",
+                body: "Por defecto ves la liquidez en cuentas (aunque sea 0). Con «Ver bolsillos» miras el saldo de un bolsillo y puedes elegir cuál. Abajo, lo gastado este mes.",
             },
             {
                 target: "dash-modules",
-                title: "Cuentas, ahorro y fijos",
-                body: "La cuenta es el banco; el bolsillo organiza el gasto; el ahorro es lo que apartan. Atajos a cuentas, ahorro y gastos fijos para los dos.",
+                title: "Mi bolsillo y cobros",
+                body: "Aquí ves de un vistazo tu bolsillo personal. Si alguien te debe, aparece Cobrar para saldar sin buscar.",
+            },
+            {
+                target: "dash-actions",
+                title: "Agregar gasto",
+                body: "El botón junto al menú abre el registro de un gasto nuevo, desde cualquier pantalla.",
             },
             {
                 target: "bottom-nav",
                 title: "Menú inferior",
-                body: "El botón central abre el menú para ir a historial, ahorro, gastos fijos o perfil.",
+                body: "El botón de menú abre historial, cuentas, bolsillos, ahorro, gastos fijos o perfil.",
             },
         ],
         []
@@ -344,16 +357,41 @@ export default function DashboardCouple({
     /** While true, keep the user's manual fund pick; on remount always reopen the favorite. */
     const userPickedFundRef = useRef(false);
     const [showFundsMenu, setShowFundsMenu] = useState(false);
+    const [showAccountsMenu, setShowAccountsMenu] = useState(false);
+    const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
     const [showFundTransfer, setShowFundTransfer] = useState(false);
     const [transferFromFundId, setTransferFromFundId] = useState<string | null>(null);
     const [showCreateFundModal, setShowCreateFundModal] = useState(false);
     const [editingFund, setEditingFund] = useState<FamilyFund | null>(null);
     const [balanceVisible, setBalanceVisible] = useState(true);
+    const [balanceView, setBalanceView] = useState<DashboardBalanceView>("accounts");
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
+        try {
+            const stored = sessionStorage.getItem(DASH_BALANCE_VIEW_KEY);
+            if (stored === "accounts" || stored === "pockets") {
+                setBalanceView(stored);
+            }
+        } catch {
+            /* ignore */
+        }
     }, []);
+
+    const setBalanceViewPersist = (view: DashboardBalanceView) => {
+        setBalanceView(view);
+        if (view === "accounts") {
+            setShowFundsMenu(false);
+        } else {
+            setShowAccountsMenu(false);
+        }
+        try {
+            sessionStorage.setItem(DASH_BALANCE_VIEW_KEY, view);
+        } catch {
+            /* ignore */
+        }
+    };
 
     const animateIn = (setOpen: (value: boolean) => void, setAnimated: (value: boolean) => void) => {
         setOpen(true);
@@ -604,6 +642,51 @@ export default function DashboardCouple({
             treatLegacyJointAsFundId: getDefaultSharedFund(sharedFunds)?.id ?? null,
         });
     }, [expenses, selectedFund, sharedFunds, myAvailableFund]);
+
+    const accountsSource =
+        storeAccounts.length > 0 ? storeAccounts : initialAccounts;
+
+    const menuAccounts = useMemo(
+        () =>
+            listVisibleAccountsForUser(accountsSource, currentUserId).filter((a) =>
+                isLiquidityAccount(a)
+            ),
+        [accountsSource, currentUserId]
+    );
+
+    const accountBalanceById = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const account of menuAccounts) {
+            map.set(account.id, calculateAccountCashBalance(expenses, account.id));
+        }
+        return map;
+    }, [menuAccounts, expenses]);
+
+    const accountsLiquidityLive = useMemo(() => {
+        if (menuAccounts.length === 0) return accountsVisibleLiquidity;
+        return (
+            Math.round(
+                menuAccounts.reduce(
+                    (sum, account) => sum + (accountBalanceById.get(account.id) || 0),
+                    0
+                ) * 100
+            ) / 100
+        );
+    }, [menuAccounts, accountBalanceById, accountsVisibleLiquidity]);
+
+    const selectedAccount =
+        selectedAccountId
+            ? menuAccounts.find((a) => a.id === selectedAccountId) ?? null
+            : null;
+
+    useEffect(() => {
+        if (
+            selectedAccountId &&
+            !menuAccounts.some((a) => a.id === selectedAccountId)
+        ) {
+            setSelectedAccountId(null);
+        }
+    }, [menuAccounts, selectedAccountId]);
 
     const secondaryWidgetHint = isJointModel
         ? ""
@@ -1098,29 +1181,59 @@ export default function DashboardCouple({
         };
     }, [familyId, router, supabase]);
 
-    const heroBalance = isJointModel ? selectedFundBalance : personalBalance;
-    const heroLabel = isJointModel
+    const pocketLabel = isJointModel
         ? selectedIsPersonal
             ? "Mi bolsillo"
             : selectedFund?.name ?? "Bolsillo"
-        : "Balance P2P";
-    const heroColor = isJointModel
+        : "Mi bolsillo";
+    const pocketBalance = isJointModel ? selectedFundBalance : myAvailableFund;
+    const pocketAccentColor = isJointModel
         ? resolveFundUiColor(selectedFund, isDark)
         : isDark
           ? DEFAULT_PERSONAL_FUND_COLOR
           : PERSONAL_FUND_COLOR_LIGHT;
+
+    const showingAccounts = balanceView === "accounts";
+    const heroBalance = showingAccounts
+        ? selectedAccount
+            ? accountBalanceById.get(selectedAccount.id) || 0
+            : accountsLiquidityLive
+        : pocketBalance;
+    const heroLabel = showingAccounts
+        ? selectedAccount
+            ? selectedAccount.name
+            : "En cuentas"
+        : pocketLabel;
+    const heroColor = showingAccounts ? null : pocketAccentColor;
+    const heroBackground = showingAccounts
+        ? accentGlassGradient()
+        : tintedGlassGradient(pocketAccentColor);
+
+    const handleSelectAccount = (accountId: string | null) => {
+        setSelectedAccountId(accountId);
+        setShowAccountsMenu(false);
+    };
+
+    const resolveAccountUiColor = (account: FamilyAccount) =>
+        account.color ||
+        (account.scope === "personal"
+            ? DEFAULT_PERSONAL_ACCOUNT_COLOR
+            : DEFAULT_SHARED_ACCOUNT_COLOR);
+
+    const monthSpentDisplay = useMemo(() => {
+        const monthSpentFromLedger = sumMonthSpend(expenses);
+        const monthSpentFallback =
+            (typeof _mySpent === "number" ? _mySpent : 0) +
+            (typeof _partnerSpent === "number" ? _partnerSpent : 0);
+        return expenses.length > 0 ? monthSpentFromLedger : monthSpentFallback;
+    }, [expenses, _mySpent, _partnerSpent]);
+
     const currentMember =
         members.find((member) => member.id === currentUserId) ?? members[0] ?? null;
 
     const guidanceInsight = useMemo(() => {
         const fundsSource = storeFunds.length > 0 ? storeFunds : initialFunds;
         const fundsCount = fundsSource.length;
-        const monthSpentFromLedger = sumMonthSpend(expenses);
-        const monthSpentFallback =
-            (typeof _mySpent === "number" ? _mySpent : 0) +
-            (typeof _partnerSpent === "number" ? _partnerSpent : 0);
-        const monthSpent =
-            expenses.length > 0 ? monthSpentFromLedger : monthSpentFallback;
         // Same pockets the couple UI shows: shared spending + own personal.
         // Personal balance must match myAvailableFund (adelantos a compartidos),
         // not only caja tagged with personal fund_id.
@@ -1150,12 +1263,13 @@ export default function DashboardCouple({
         ];
         return selectPrimaryInsight(
             buildDecisionContext({
-                hasVisibleAccounts,
-                accountsVisibleLiquidity,
-                pocketOrHeroBalance: heroBalance,
-                activePocketName: heroLabel,
+                hasVisibleAccounts: hasVisibleAccounts || menuAccounts.length > 0,
+                accountsVisibleLiquidity: accountsLiquidityLive,
+                // Guidance reasons about the active pocket, not the accounts hero.
+                pocketOrHeroBalance: pocketBalance,
+                activePocketName: pocketLabel,
                 pockets,
-                monthSpent,
+                monthSpent: monthSpentDisplay,
                 fundsCount,
                 memberCount: entitlement?.memberCount ?? members.length,
                 isCoupleUi: true,
@@ -1163,16 +1277,17 @@ export default function DashboardCouple({
         );
     }, [
         hasVisibleAccounts,
-        accountsVisibleLiquidity,
-        heroBalance,
-        heroLabel,
+        accountsLiquidityLive,
+        menuAccounts.length,
+        pocketBalance,
+        pocketLabel,
+        monthSpentDisplay,
         expenses,
-        _mySpent,
-        _partnerSpent,
         storeFunds,
         initialFunds,
         entitlement?.memberCount,
         members.length,
+        currentUserId,
     ]);
 
 
@@ -1249,73 +1364,267 @@ export default function DashboardCouple({
                     style={animateSharedEntrance ? { animationDelay: "80ms" } : undefined}
                 >
                     <div
-                        className="relative overflow-hidden rounded-[1.85rem] border-[0.5px] border-glass-border p-6 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-[background] duration-500"
+                        className="relative overflow-hidden rounded-[1.75rem] border-[0.5px] border-glass-border px-5 py-5 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-[background] duration-500"
                         style={{
-                            backgroundImage: tintedGlassGradient(heroColor),
+                            backgroundImage: heroBackground,
                         }}
                     >
-                        <div className="relative z-10 flex min-w-0 items-center justify-between gap-3">
-                            <GuidanceWhyTrigger insight={guidanceInsight} />
-                            <div className="flex shrink-0 items-center gap-3">
-                                <div className="min-w-0 text-right">
-                                    <p className="text-[11px] font-light text-on-surface-variant">
-                                        Saldo disponible
-                                    </p>
-                                    <p
-                                        className={`truncate text-base font-medium ${
-                                            isDark ? "text-on-surface" : ""
-                                        }`}
-                                        style={isDark ? undefined : { color: heroColor }}
-                                    >
-                                        {heroLabel}
-                                    </p>
-                                </div>
-                                {isJointModel ? (
+                        <div className="relative z-10 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] items-center gap-x-3 gap-y-1.5">
+                            <div className="col-start-1 row-start-1" aria-hidden />
+                            <p className="col-start-2 row-start-1 max-w-[11rem] truncate text-right text-[10px] font-light leading-none text-on-surface-variant">
+                                Saldo disponible
+                                <span className="text-on-surface-variant/45"> · </span>
+                                <span
+                                    className={
+                                        !heroColor || isDark
+                                            ? "font-medium text-on-surface"
+                                            : "font-medium"
+                                    }
+                                    style={
+                                        !isDark && heroColor
+                                            ? { color: heroColor }
+                                            : undefined
+                                    }
+                                >
+                                    {heroLabel}
+                                </span>
+                            </p>
+
+                            <div className="col-start-1 row-start-2 flex min-w-0 items-center gap-2">
+                                <p
+                                    className={`truncate text-[2.35rem] font-light leading-none tracking-tight ${
+                                        Math.round((heroBalance || 0) * 100) / 100 < 0
+                                            ? "text-balance-negative"
+                                            : "text-on-surface"
+                                    }`}
+                                >
+                                    {balanceVisible ? (
+                                        <FormattedCurrency value={heroBalance} />
+                                    ) : (
+                                        "••••••"
+                                    )}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setBalanceVisible((v) => !v)}
+                                    className="rounded-full p-1 text-on-surface-variant/80 transition-colors hover:bg-glass-soft hover:text-on-surface-variant"
+                                    aria-label={
+                                        balanceVisible
+                                            ? "Ocultar saldo"
+                                            : "Mostrar saldo"
+                                    }
+                                >
+                                    {balanceVisible ? (
+                                        <Eye size={16} strokeWidth={1.75} />
+                                    ) : (
+                                        <EyeOff size={16} strokeWidth={1.75} />
+                                    )}
+                                </button>
+                            </div>
+                            <div className="col-start-2 row-start-2 flex justify-end">
+                                {!showingAccounts && isJointModel ? (
                                     <button
                                         type="button"
                                         onClick={() => setShowFundsMenu((open) => !open)}
-                                        className="icon-chip-fund icon-chip-coin relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl  transition-transform active:scale-95"
-                                        style={fundIconChipStyle(heroColor)}
-                                        aria-label="Seleccionar bolsillo"
+                                        className="relative flex h-10 w-10 items-center justify-center rounded-xl border shadow-[0_6px_14px_rgba(15,23,42,0.16),0_2px_5px_rgba(15,23,42,0.08)] transition-transform active:scale-95"
+                                        style={{
+                                            borderColor: `${pocketAccentColor}55`,
+                                            color: pocketAccentColor,
+                                            backgroundColor: `${pocketAccentColor}18`,
+                                        }}
+                                        aria-label="Elegir bolsillo"
                                         aria-expanded={showFundsMenu}
                                     >
-                                        <Wallet size={20} strokeWidth={2.2} />
+                                        <Wallet size={17} strokeWidth={1.75} />
                                     </button>
-                                ) : (
+                                ) : !showingAccounts ? (
                                     <div
-                                        className="icon-chip-fund icon-chip-coin flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border"
-                                        style={fundIconChipStyle(heroColor)}
+                                        className="relative flex h-10 w-10 items-center justify-center rounded-xl border shadow-[0_6px_14px_rgba(15,23,42,0.16),0_2px_5px_rgba(15,23,42,0.08)]"
+                                        style={{
+                                            borderColor: `${pocketAccentColor}55`,
+                                            color: pocketAccentColor,
+                                            backgroundColor: `${pocketAccentColor}18`,
+                                        }}
                                     >
-                                        <Wallet size={20} strokeWidth={2.2} />
+                                        <Wallet size={17} strokeWidth={1.75} />
                                     </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowAccountsMenu((open) => !open)
+                                        }
+                                        className="relative flex h-10 w-10 items-center justify-center rounded-xl border shadow-[0_6px_14px_rgba(15,23,42,0.16),0_2px_5px_rgba(15,23,42,0.08)] transition-transform active:scale-95"
+                                        style={{
+                                            borderColor:
+                                                "color-mix(in srgb, var(--accent) 42%, transparent)",
+                                            color: "var(--accent)",
+                                            backgroundColor:
+                                                "color-mix(in srgb, var(--accent) 16%, transparent)",
+                                        }}
+                                        aria-label="Ver cuentas"
+                                        aria-expanded={showAccountsMenu}
+                                    >
+                                        <Landmark size={17} strokeWidth={1.75} />
+                                    </button>
                                 )}
                             </div>
-                        </div>
 
-                        <div className="relative z-10 mt-4 flex items-center gap-2.5">
-                            <p
-                                className={`text-[2.65rem] font-light leading-none tracking-tight ${
-                                    Math.round((heroBalance || 0) * 100) / 100 < 0
-                                        ? "text-balance-negative"
-                                        : "text-on-surface"
-                                }`}
-                            >
-                                {balanceVisible ? <FormattedCurrency value={heroBalance} /> : "••••••"}
+                            <p className="col-start-1 row-start-3 text-[11px] font-light text-on-surface-variant">
+                                Gastado este mes ·{" "}
+                                {balanceVisible ? (
+                                    <FormattedCurrency value={monthSpentDisplay} />
+                                ) : (
+                                    "••••"
+                                )}
                             </p>
                             <button
                                 type="button"
-                                onClick={() => setBalanceVisible((v) => !v)}
-                                className="rounded-full p-1.5 text-on-surface-variant transition-colors hover:bg-glass-soft"
-                                aria-label={
-                                    balanceVisible ? "Ocultar saldo" : "Mostrar saldo"
+                                onClick={() =>
+                                    setBalanceViewPersist(
+                                        showingAccounts ? "pockets" : "accounts"
+                                    )
                                 }
+                                className="col-start-2 row-start-3 inline-flex items-center justify-end gap-0.5 text-[10px] font-medium text-on-surface-variant transition-colors hover:text-on-surface"
                             >
-                                {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
+                                {showingAccounts ? "Bolsillos" : "Cuentas"}
+                                <ChevronRight
+                                    size={11}
+                                    strokeWidth={2}
+                                    className="opacity-60"
+                                />
                             </button>
                         </div>
                     </div>
 
-                    {isJointModel && showFundsMenu && (
+                    {showingAccounts && showAccountsMenu && (
+                        <>
+                            <button
+                                type="button"
+                                aria-label="Cerrar lista de cuentas"
+                                className="fixed inset-0 z-40 cursor-default"
+                                onClick={() => setShowAccountsMenu(false)}
+                            />
+                            <div className="absolute right-4 top-[4.75rem] z-50 flex w-[17.5rem] max-h-[min(70dvh,calc(100dvh-4.75rem-var(--fab-clearance)-1rem))] flex-col overflow-hidden rounded-2xl border-[0.5px] border-outline-variant/25 bg-glass-soft shadow-[0_12px_28px_rgba(43,52,55,0.12)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-1 pt-2">
+                                    {menuAccounts.length === 0 ? (
+                                        <p className="px-3 py-3 text-sm text-on-surface-variant">
+                                            Aún no hay cuentas de liquidez.
+                                        </p>
+                                    ) : (
+                                        <div className="flex flex-col gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSelectAccount(null)}
+                                                className={`flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-[box-shadow,transform,border-color] ${
+                                                    !selectedAccount
+                                                        ? "border border-outline-variant/30 bg-surface-lowest/70 shadow-[0_6px_16px_rgba(43,52,55,0.08)]"
+                                                        : "border border-transparent hover:bg-glass-soft/80"
+                                                }`}
+                                            >
+                                                <span
+                                                    className={`min-w-0 truncate text-[13px] ${
+                                                        !selectedAccount
+                                                            ? "font-semibold text-on-surface"
+                                                            : "font-medium text-on-surface"
+                                                    }`}
+                                                >
+                                                    Todas las cuentas
+                                                </span>
+                                                <span
+                                                    className={`shrink-0 text-[11px] font-medium tabular-nums ${
+                                                        !selectedAccount
+                                                            ? "text-on-surface"
+                                                            : "text-on-surface-variant"
+                                                    }`}
+                                                >
+                                                    <FormattedCurrency
+                                                        value={accountsLiquidityLive}
+                                                    />
+                                                </span>
+                                            </button>
+                                            {menuAccounts.map((account) => {
+                                                const balance =
+                                                    accountBalanceById.get(account.id) || 0;
+                                                const isActive =
+                                                    selectedAccount?.id === account.id;
+                                                const accountColor =
+                                                    resolveAccountUiColor(account);
+                                                const scopeHint =
+                                                    account.scope === "personal"
+                                                        ? "Personal"
+                                                        : "Compartida";
+                                                return (
+                                                    <button
+                                                        key={account.id}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleSelectAccount(account.id)
+                                                        }
+                                                        className={`flex w-full items-center overflow-hidden rounded-xl transition-[box-shadow,transform,border-color] ${
+                                                            isActive
+                                                                ? "border border-transparent shadow-[0_6px_16px_rgba(43,52,55,0.14)]"
+                                                                : "border border-transparent hover:brightness-[1.02]"
+                                                        }`}
+                                                        style={
+                                                            isActive
+                                                                ? {
+                                                                      backgroundImage: `linear-gradient(to left, ${accountColor}88 0%, ${accountColor}28 42%, transparent 88%)`,
+                                                                      borderColor: `${accountColor}99`,
+                                                                      boxShadow: `0 6px 16px ${accountColor}33, 0 2px 6px rgba(43,52,55,0.08)`,
+                                                                  }
+                                                                : {
+                                                                      backgroundColor: `${accountColor}12`,
+                                                                  }
+                                                        }
+                                                    >
+                                                        <span className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2.5 py-2 text-left">
+                                                            <span className="min-w-0">
+                                                                <span
+                                                                    className={`block truncate text-[13px] ${
+                                                                        isActive
+                                                                            ? "font-semibold text-on-surface"
+                                                                            : "font-medium text-on-surface"
+                                                                    }`}
+                                                                >
+                                                                    {account.name}
+                                                                </span>
+                                                                <span className="block text-[11px] font-light text-on-surface-variant">
+                                                                    {scopeHint}
+                                                                </span>
+                                                            </span>
+                                                            <span
+                                                                className={`shrink-0 text-[11px] font-medium tabular-nums ${
+                                                                    isActive
+                                                                        ? "text-on-surface"
+                                                                        : "text-on-surface-variant"
+                                                                }`}
+                                                            >
+                                                                <FormattedCurrency
+                                                                    value={balance}
+                                                                />
+                                                            </span>
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex shrink-0 justify-center px-2 pb-2.5 pt-1.5">
+                                    <Link
+                                        href="/accounts"
+                                        onClick={() => setShowAccountsMenu(false)}
+                                        className="rounded-full border border-glass-border bg-glass-soft px-3 py-1.5 text-[11px] font-medium text-on-surface transition-colors hover:bg-glass"
+                                    >
+                                        Administrar cuentas
+                                    </Link>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {isJointModel && !showingAccounts && showFundsMenu && (
                         <>
                             <button
                                 type="button"
@@ -1446,33 +1755,9 @@ export default function DashboardCouple({
                         >
                             <div
                                 className={`grid gap-1.5 ${
-                                    showCollect ? "grid-cols-3" : "grid-cols-2"
+                                    showCollect ? "grid-cols-2" : "grid-cols-1"
                                 }`}
                             >
-                                <Link href="/accounts" className={tileClass}>
-                                    <Landmark
-                                        size={11}
-                                        className="shrink-0 text-on-surface-variant"
-                                    />
-                                    <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-on-surface-variant">
-                                        Cuentas
-                                    </span>
-                                    <span
-                                        className={`shrink-0 text-[10px] font-medium tabular-nums ${
-                                            hasVisibleAccounts &&
-                                            accountsVisibleLiquidity < 0
-                                                ? "text-balance-negative"
-                                                : "text-on-surface"
-                                        }`}
-                                    >
-                                        {hasVisibleAccounts
-                                            ? balanceVisible
-                                                ? <FormattedCurrency value={accountsVisibleLiquidity} />
-                                                : "••••"
-                                            : "Abrir"}
-                                    </span>
-                                </Link>
-
                                 <button
                                     type="button"
                                     onClick={openPersonalDepositModal}
@@ -1542,97 +1827,10 @@ export default function DashboardCouple({
                                     </button>
                                 )}
                             </div>
+                            <DashboardMonthSignal amountsVisible={balanceVisible} />
                         </section>
                     );
                 })()}
-
-                <section
-                    data-tour="dash-actions"
-                    className={`relative shrink-0 ${animateSharedEntrance ? "animate-in fade-in slide-in-from-bottom-3 duration-700" : ""}`}
-                    style={animateSharedEntrance ? { animationDelay: "160ms" } : undefined}
-                >
-                    <h2 className="mb-2 px-1 text-xs font-medium text-on-surface">Acciones rápidas</h2>
-                    <div className="grid grid-cols-4 gap-1.5">
-                        {[
-                            {
-                                key: "expense",
-                                label: "Gasto",
-                                icon: Plus,
-                                onClick: () => {
-                                    setExpenseToEdit(null);
-                                    setPreferredFundId(selectedFundId);
-                                    setIsExpenseModalOpen(true);
-                                },
-                                darkFab: true,
-                            },
-                            {
-                                key: "shared",
-                                label: isJointModel ? "Cargar bolsillo" : "Liquidar",
-                                icon: isJointModel ? Send : Scale,
-                                onClick: isJointModel
-                                    ? selectedIsPersonal
-                                        ? openPersonalDepositModal
-                                        : openDepositModal
-                                    : openBalancesModal,
-                            },
-                            isJointModel
-                                ? {
-                                      key: "transfer",
-                                      label: "Transferir",
-                                      icon: ArrowLeftRight,
-                                      onClick: () => openFundTransfer(selectedFundId),
-                                  }
-                                : {
-                                      key: "collect",
-                                      label: fundOwesMe > 0 || hasP2PBalance ? "Cobrar" : "Saldos",
-                                      icon: HandCoins,
-                                      onClick: openBalancesModal,
-                                  },
-                            {
-                                key: "funds",
-                                label: isJointModel ? "Cuentas" : "Filtros",
-                                icon: isJointModel ? Landmark : SlidersHorizontal,
-                                onClick: isJointModel
-                                    ? () => router.push("/accounts")
-                                    : openFilterModal,
-                            },
-                        ].map(({ key, label, icon: Icon, onClick, darkFab }) => {
-                            const isAportar = key === "shared" && isJointModel;
-                            return (
-                                <button
-                                    key={key}
-                                    type="button"
-                                    onClick={onClick}
-                                    className="flex flex-col items-center gap-1.5 rounded-xl px-0.5 py-0.5 transition-transform active:scale-95"
-                                >
-                                    <span
-                                        className={`flex h-11 w-11 items-center justify-center rounded-full transition-[background] duration-500 ${
-                                            darkFab
-                                                ? "fab-accent"
-                                                : isAportar
-                                                  ? "border shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md"
-                                                  : "border border-outline-variant/25 bg-surface-lowest/80 text-on-surface shadow-[0_6px_14px_rgba(43,52,55,0.06)] backdrop-blur-md"
-                                        }`}
-                                        style={
-                                            isAportar && !darkFab
-                                                ? {
-                                                      backgroundImage: tintedGlassGradient(heroColor),
-                                                      color: heroColor,
-                                                      borderColor: `${heroColor}55`,
-                                                  }
-                                                : undefined
-                                        }
-                                    >
-                                        <Icon size={17} strokeWidth={darkFab ? 2.2 : 1.7} />
-                                    </span>
-                                    <span className="max-w-[4.75rem] text-center text-[10px] font-medium leading-tight text-on-surface">
-                                        {label}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </section>
 
                     {/* Modal de Liquidación: portaled above BottomNav stacking context */}
                     {showSettleModal && (
@@ -2485,6 +2683,8 @@ export default function DashboardCouple({
                 </div>
                 </Portal>
             )}
+
+            <GuidanceWhyTrigger insight={guidanceInsight} variant="dock" />
 
             <ProductTour open={dashTour.open} steps={dashTour.steps} onClose={dashTour.close} />
             <ProductTour
