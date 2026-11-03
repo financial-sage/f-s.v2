@@ -106,50 +106,45 @@ function ChecklistRow({
             : ""
         }`
       : null;
-  const metaParts = [dueHint, !isPaid ? freqHint : null].filter(Boolean);
+  const metaInline = isPaid
+    ? paidLabel
+      ? `Pagado · ${paidLabel}`
+      : null
+    : [dueHint, freqHint].filter(Boolean).join(" · ") || null;
 
   return (
     <div
-      className={`group relative flex items-stretch overflow-hidden ${
+      className={`group relative flex h-12 items-stretch overflow-hidden ${
         isPaid ? "bg-glass-muted/60" : ""
       }`}
     >
       <button
         type="button"
         onClick={onToggleActions}
-        className={`flex min-w-0 flex-1 items-center gap-2.5 px-3.5 py-3 text-left transition-colors ${
+        className={`flex min-w-0 flex-1 items-center gap-2.5 px-3.5 text-left transition-colors ${
           actionsOpen ? "bg-glass-soft" : ""
         }`}
       >
         <div className="min-w-0 flex-1">
-          <p
-            className={`truncate text-[14px] font-medium tracking-tight ${
-              isPaid
-                ? "text-on-surface-variant line-through decoration-outline-variant/45"
-                : "text-on-surface"
-            }`}
-          >
-            {item.template.name}
+          <p className="flex min-w-0 items-baseline gap-1.5 truncate">
+            <span
+              className={`min-w-0 truncate text-[14px] font-medium tracking-tight ${
+                isPaid
+                  ? "text-on-surface-variant line-through decoration-outline-variant/45"
+                  : "text-on-surface"
+              }`}
+            >
+              {item.template.name}
+            </span>
+            {metaInline ? (
+              <span className="shrink-0 text-[11px] font-light capitalize text-on-surface-variant">
+                · {metaInline}
+              </span>
+            ) : null}
           </p>
-          {isPaid && paidLabel ? (
-            <p className="mt-0.5 text-[11px] font-light capitalize text-on-surface-variant">
-              Pagado · {paidLabel}
-            </p>
-          ) : metaParts.length > 0 ? (
-            <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
-              {metaParts.join(" · ")}
-            </p>
-          ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span
-            className={`text-[14px] font-light tabular-nums tracking-tight ${
-              isPaid ? "text-on-surface-variant" : "text-on-surface"
-            }`}
-          >
-            <FormattedCurrency value={rowAmount} />
-          </span>
+        <div className="flex shrink-0 items-baseline gap-1.5">
           {varianceHint ? (
             <span
               className={`text-[10px] font-medium tabular-nums ${
@@ -159,6 +154,13 @@ function ChecklistRow({
               {varianceHint}
             </span>
           ) : null}
+          <span
+            className={`text-[14px] font-light tabular-nums tracking-tight ${
+              isPaid ? "text-on-surface-variant" : "text-on-surface"
+            }`}
+          >
+            <FormattedCurrency value={rowAmount} />
+          </span>
         </div>
       </button>
 
