@@ -2552,7 +2552,7 @@ export default function DashboardCouple({
                         ? isDark
                             ? DEFAULT_PERSONAL_FUND_COLOR
                             : PERSONAL_FUND_COLOR_LIGHT
-                        : heroColor
+                        : heroColor ?? undefined
                 }
                 initialValue={depositAmount || "0"}
                 errorMessage={depositTarget ? depositError : undefined}
