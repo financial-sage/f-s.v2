@@ -630,6 +630,35 @@ export default function HistoryList({
 
     const groups = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses]);
 
+    /** Outflows in the current filtered list (excludes deposits, withdrawals, transfers). */
+    const filteredSpent = useMemo(() => {
+        let sum = 0;
+        for (const e of filteredExpenses) {
+            if (e.transfer_group_id) continue;
+            if (e.category === "deposit" || e.category === "withdrawal") continue;
+            sum += Number(e.amount || 0);
+        }
+        return Math.round(sum * 100) / 100;
+    }, [filteredExpenses]);
+
+    const filteredIncome = useMemo(() => {
+        let sum = 0;
+        for (const e of filteredExpenses) {
+            if (e.transfer_group_id) continue;
+            if (e.category !== "deposit") continue;
+            sum += Number(e.amount || 0);
+        }
+        return Math.round(sum * 100) / 100;
+    }, [filteredExpenses]);
+
+    const filterTotalLabel =
+        effectiveFilters.movementType === "deposits" ? "Ingresos" : "Gastado";
+    const filterTotalValue =
+        effectiveFilters.movementType === "deposits"
+            ? filteredIncome
+            : filteredSpent;
+    const showFilterTotal = activeFilterCount > 0;
+
     const firstReceiptExpenseId = useMemo(
         () => filteredExpenses.find((e) => receiptExpenseIds.has(e.id))?.id ?? null,
         [filteredExpenses, receiptExpenseIds]
@@ -955,53 +984,72 @@ export default function HistoryList({
             />
 
             <div className="sticky top-0 z-40 px-4 pb-2 pt-1" data-tour="history-summary">
-                <div className="flex items-center gap-2">
-                    <div className="flex flex-1 overflow-hidden rounded-[1.25rem] border border-glass-border bg-glass-strong shadow-[var(--glass-shadow)] backdrop-blur-xl">
-                        <div
-                            className={`flex flex-1 flex-col items-center px-3 py-2.5 ${
-                                hasPartner ? "border-r border-outline-variant/20" : ""
-                            }`}
-                        >
-                            <span className="text-[10px] font-light text-on-surface-variant">
-                                Mi bolsillo
-                            </span>
-                            <span
-                                className={`text-[15px] font-light tracking-tight ${
-                                    myAvailableFund >= 0 ? "text-on-surface" : "text-rose-600"
+                <div className="flex items-start gap-2">
+                    <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-glass-border bg-glass-strong shadow-[var(--glass-shadow)] backdrop-blur-xl">
+                        <div className="flex">
+                            <div
+                                className={`flex flex-1 flex-col items-center px-3 py-2.5 ${
+                                    hasPartner ? "border-r border-outline-variant/20" : ""
                                 }`}
                             >
-                                <FormattedCurrency value={myAvailableFund} />
-                            </span>
+                                <span className="text-[10px] font-light text-on-surface-variant">
+                                    Mi bolsillo
+                                </span>
+                                <span
+                                    className={`text-[15px] font-light tracking-tight ${
+                                        myAvailableFund >= 0
+                                            ? "text-on-surface"
+                                            : "text-rose-600"
+                                    }`}
+                                >
+                                    <FormattedCurrency value={myAvailableFund} />
+                                </span>
+                            </div>
+
+                            {hasPartner ? (
+                                isJointModel ? (
+                                    <div className="flex flex-1 flex-col items-center px-3 py-2.5">
+                                        <span className="text-[10px] font-light text-on-surface-variant">
+                                            Bolsillos
+                                        </span>
+                                        <span
+                                            className={`text-[15px] font-light tracking-tight ${
+                                                fundLiquidity >= 0
+                                                    ? "text-on-surface"
+                                                    : "text-rose-600"
+                                            }`}
+                                        >
+                                            <FormattedCurrency value={fundLiquidity} />
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-1 flex-col items-center px-3 py-2.5">
+                                        <span className="text-[10px] font-light text-on-surface-variant">
+                                            Balance P2P
+                                        </span>
+                                        <span
+                                            className={`text-[15px] font-light tracking-tight ${
+                                                p2pBalance >= 0
+                                                    ? "text-on-surface"
+                                                    : "text-rose-600"
+                                            }`}
+                                        >
+                                            <FormattedCurrency value={p2pBalance} />
+                                        </span>
+                                    </div>
+                                )
+                            ) : null}
                         </div>
 
-                        {hasPartner ? (
-                            isJointModel ? (
-                                <div className="flex flex-1 flex-col items-center px-3 py-2.5">
-                                    <span className="text-[10px] font-light text-on-surface-variant">
-                                        Bolsillos
-                                    </span>
-                                    <span
-                                        className={`text-[15px] font-light tracking-tight ${
-                                            fundLiquidity >= 0 ? "text-on-surface" : "text-rose-600"
-                                        }`}
-                                    >
-                                        <FormattedCurrency value={fundLiquidity} />
-                                    </span>
-                                </div>
-                            ) : (
-                                <div className="flex flex-1 flex-col items-center px-3 py-2.5">
-                                    <span className="text-[10px] font-light text-on-surface-variant">
-                                        Balance P2P
-                                    </span>
-                                    <span
-                                        className={`text-[15px] font-light tracking-tight ${
-                                            p2pBalance >= 0 ? "text-on-surface" : "text-rose-600"
-                                        }`}
-                                    >
-                                        <FormattedCurrency value={p2pBalance} />
-                                    </span>
-                                </div>
-                            )
+                        {showFilterTotal ? (
+                            <div className="flex items-baseline justify-between gap-3 border-t border-outline-variant/15 px-3.5 py-2">
+                                <span className="text-[10px] font-light tracking-[0.04em] text-on-surface-variant">
+                                    {filterTotalLabel}
+                                </span>
+                                <span className="text-[13px] font-light tabular-nums tracking-tight text-on-surface">
+                                    <FormattedCurrency value={filterTotalValue} />
+                                </span>
+                            </div>
                         ) : null}
                     </div>
 
@@ -1009,7 +1057,7 @@ export default function HistoryList({
                         type="button"
                         data-tour="history-filters"
                         onClick={openFilterModal}
-                        className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+                        className={`relative mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
                             activeFilterCount > 0
                                 ? "border-primary/30 bg-primary/10 text-primary"
                                 : "border-outline-variant/30 bg-surface-lowest/80 text-on-surface-variant"
