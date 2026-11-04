@@ -68,6 +68,7 @@ import {
   personalFundDisplayName,
   type FamilyFund,
 } from "@/lib/funds";
+import { formatTransferHistoryPresentation } from "@/lib/movementHistory";
 import {
   CurrencyFlag,
   CurrencyFlagEdgeWash,
@@ -453,6 +454,94 @@ export default function AccountsPanel({
 
     return { rows, latestYield };
   }, [historyAccountId, ledgerExpenses]);
+
+  type AccountLedgerRow = {
+    id: string;
+    dateLabel: string;
+    title: string;
+    detail: string | null;
+    signedAmount: number;
+  };
+
+  const accountLedgerRows = useMemo(() => {
+    if (!historyAccountId) return [] as AccountLedgerRow[];
+
+    const forAccount = ledgerExpenses.filter(
+      (e) => e.account_id === historyAccountId && e.is_active !== false
+    );
+
+    const sorted = forAccount.slice().sort((a, b) => {
+      const da = String(a.expense_date || a.created_at || "");
+      const db = String(b.expense_date || b.created_at || "");
+      if (da !== db) return db.localeCompare(da);
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    });
+
+    return sorted.map((m) => {
+      const amount = Math.abs(Number(m.amount) || 0);
+      const isIn =
+        m.category === "deposit" ||
+        (m.category !== "withdrawal" && !m.paid_from_account);
+      const signedAmount = isIn ? amount : -amount;
+
+      const raw = String(m.expense_date || "").slice(0, 10);
+      const dateLabel = (() => {
+        if (!raw) return "—";
+        const d = new Date(`${raw}T12:00:00`);
+        if (Number.isNaN(d.getTime())) return raw;
+        return new Intl.DateTimeFormat("es-ES", {
+          day: "numeric",
+          month: "short",
+        }).format(d);
+      })();
+
+      const concept = (m.concept ?? "").trim();
+      let title = concept || (isIn ? "Ingreso" : "Salida");
+      let detail: string | null = null;
+
+      if (m.transfer_group_id) {
+        const legs = ledgerExpenses.filter(
+          (row) =>
+            row.transfer_group_id === m.transfer_group_id &&
+            Boolean(row.id)
+        );
+        const presentation = formatTransferHistoryPresentation(
+          legs.map((row) => ({
+            id: row.id,
+            concept: row.concept,
+            category: row.category,
+            account_id: row.account_id,
+            fund_id: row.fund_id,
+            transfer_group_id: row.transfer_group_id,
+          })),
+          funds,
+          accounts,
+          currentUserId
+        );
+        if (isIn) {
+          title = "Entrada";
+          detail = presentation.detail;
+        } else {
+          title = presentation.title || "Transferencia";
+          detail = null;
+        }
+      } else if (m.category === "deposit") {
+        title = concept || "Ingreso";
+      } else if (m.category === "withdrawal") {
+        title = concept || "Salida";
+      } else if (m.paid_from_account) {
+        title = concept || "Gasto";
+      }
+
+      return {
+        id: m.id,
+        dateLabel,
+        title,
+        detail,
+        signedAmount,
+      };
+    });
+  }, [historyAccountId, ledgerExpenses, funds, accounts, currentUserId]);
 
   function openAccountMenu(accountId: string, anchorEl: HTMLElement) {
     if (menuAccountId === accountId) {
@@ -1058,49 +1147,62 @@ export default function AccountsPanel({
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <div
-                    className="icon-chip-fund icon-chip-coin flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border"
-                    style={fundIconChipStyle(color)}
+                  <button
+                    type="button"
+                    onClick={() => setHistoryAccountId(account.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl text-left transition-colors hover:bg-on-surface/[0.03] active:bg-on-surface/[0.05]"
+                    aria-label={`Ver historial de ${account.name}`}
                   >
-                    <Icon size={14} strokeWidth={2} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12.5px] font-light tracking-tight text-on-surface">
-                      {account.name}
-                    </p>
-                    <p className="truncate text-[9.5px] font-light leading-tight text-on-surface-variant/75">
-                      {accountSubtitle(account)}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    {credit && balanceVisible ? (
-                      <p className="text-[9px] font-light tracking-wide text-on-surface-variant/70">
-                        Debes
-                      </p>
-                    ) : null}
-                    <p
-                      className={`text-[13px] font-light tabular-nums tracking-tight ${
-                        credit && shownAmount > 0
-                          ? "text-balance-negative"
-                          : !credit && balance < 0
-                            ? "text-balance-negative"
-                            : "text-on-surface"
-                      }`}
+                    <div
+                      className="icon-chip-fund icon-chip-coin flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border"
+                      style={fundIconChipStyle(color)}
                     >
-                      {balanceVisible ? (
-                        <FormattedCurrency
-                          value={shownAmount}
-                          currency={accountDisplayCurrency(account, householdCurrency)}
-                        />
-                      ) : (
-                        "••••"
-                      )}
-                    </p>
-                  </div>
+                      <Icon size={14} strokeWidth={2} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-light tracking-tight text-on-surface">
+                        {account.name}
+                      </p>
+                      <p className="truncate text-[9.5px] font-light leading-tight text-on-surface-variant/75">
+                        {accountSubtitle(account)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      {credit && balanceVisible ? (
+                        <p className="text-[9px] font-light tracking-wide text-on-surface-variant/70">
+                          Debes
+                        </p>
+                      ) : null}
+                      <p
+                        className={`text-[13px] font-light tabular-nums tracking-tight ${
+                          credit && shownAmount > 0
+                            ? "text-balance-negative"
+                            : !credit && balance < 0
+                              ? "text-balance-negative"
+                              : "text-on-surface"
+                        }`}
+                      >
+                        {balanceVisible ? (
+                          <FormattedCurrency
+                            value={shownAmount}
+                            currency={accountDisplayCurrency(
+                              account,
+                              householdCurrency
+                            )}
+                          />
+                        ) : (
+                          "••••"
+                        )}
+                      </p>
+                    </div>
+                  </button>
                   {operableForUser ? (
                     <button
                       type="button"
-                      onClick={(e) => openAccountMenu(account.id, e.currentTarget)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAccountMenu(account.id, e.currentTarget);
+                      }}
                       className="-mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-on-surface-variant/70 transition-colors hover:bg-glass-soft hover:text-on-surface-variant"
                       aria-label={`Más opciones de ${account.name}`}
                       aria-expanded={menuOpen}
@@ -2047,8 +2149,9 @@ export default function AccountsPanel({
         title={historyAccount ? `Historial · ${historyAccount.name}` : "Historial"}
         headerLayout="title-row"
         closeOnBackdrop
+        heightClassName="h-auto max-h-[85dvh]"
       >
-        {historyAccount ? (
+        {historyAccount && isInvestmentAccount(historyAccount) ? (
           <div className="space-y-5 pb-5">
             <p className="text-[12px] font-light leading-relaxed tracking-wide text-on-surface-variant/85">
               Cada actualización registra el cambio frente al valor anterior
@@ -2125,7 +2228,7 @@ export default function AccountsPanel({
                           <div className="shrink-0 text-right">
                             <p
                               className={`inline-flex items-center gap-1 text-[13px] font-light tabular-nums tracking-tight ${
-                                  flat
+                                flat
                                   ? "text-on-surface-variant"
                                   : up
                                     ? "text-on-surface"
@@ -2191,6 +2294,53 @@ export default function AccountsPanel({
                           </p>
                         </div>
                       </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ) : historyAccount ? (
+          <div className="pb-4">
+            {accountLedgerRows.length === 0 ? (
+              <p className="rounded-[1.35rem] border border-dashed border-outline-variant/25 px-4 py-8 text-center text-[13px] font-light text-on-surface-variant">
+                Aún no hay movimientos en esta cuenta.
+              </p>
+            ) : (
+              <ul className="-mx-5 divide-y divide-outline-variant/12 border-t border-outline-variant/12">
+                {accountLedgerRows.map((m) => {
+                  const currency = accountDisplayCurrency(
+                    historyAccount,
+                    householdCurrency
+                  );
+                  const inflow = m.signedAmount >= 0;
+                  return (
+                    <li
+                      key={m.id}
+                      className="flex items-center gap-3 px-5 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium tracking-tight text-on-surface">
+                          {m.title}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] font-light text-on-surface-variant">
+                          {m.dateLabel}
+                          {m.detail ? ` · ${m.detail}` : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 text-[13px] font-light tabular-nums tracking-tight ${
+                          inflow
+                            ? "text-on-surface"
+                            : "text-on-surface-variant"
+                        }`}
+                      >
+                        {inflow ? "+" : "−"}
+                        <FormattedCurrency
+                          value={Math.abs(m.signedAmount)}
+                          currency={currency}
+                        />
+                      </span>
                     </li>
                   );
                 })}
