@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,
   },
+  // Receipt scans send a compressed JPEG via FormData server actions.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
+  },
   turbopack: {},
   allowedDevOrigins: [
     "127.0.0.1",

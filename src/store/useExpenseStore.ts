@@ -27,6 +27,8 @@ export interface StoreExpenseRow {
     paid_from_fund?: boolean | null;
     account_id?: string | null;
     paid_from_account?: boolean | null;
+    /** Budget/envelope account; may differ from account_id on cross-account advances. */
+    budget_account_id?: string | null;
     transfer_group_id?: string | null;
 }
 
@@ -246,6 +248,8 @@ function mapRealtimeRow(raw: Record<string, unknown> | null | undefined): StoreE
         paid_from_fund: raw.paid_from_fund == null ? null : Boolean(raw.paid_from_fund),
         account_id: raw.account_id == null ? null : String(raw.account_id),
         paid_from_account: raw.paid_from_account == null ? null : Boolean(raw.paid_from_account),
+        budget_account_id:
+            raw.budget_account_id == null ? null : String(raw.budget_account_id),
         transfer_group_id: raw.transfer_group_id == null ? null : String(raw.transfer_group_id),
     };
 }
@@ -342,7 +346,7 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
                     : Promise.resolve({ data: null }),
                 supabase
                     .from("expenses")
-                    .select("id, amount, concept, paid_by, responsible_for, category, category_id, spend_segment, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id")
+                    .select("id, amount, concept, paid_by, responsible_for, category, category_id, spend_segment, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, budget_account_id, transfer_group_id")
                     .eq("family_id", familyId)
                     .eq("is_active", true)
                     .order("expense_date", { ascending: false })
@@ -362,15 +366,21 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
             let expenseRows: unknown = rawExpensesResult.data;
             if (
               rawExpensesResult.error &&
-              /category_id|spend_segment|account_id|paid_from_account|column/i.test(
+              /category_id|spend_segment|account_id|paid_from_account|budget_account_id|column/i.test(
                 rawExpensesResult.error.message
               )
             ) {
-                const leanSelect = /category_id|spend_segment/i.test(
-                  rawExpensesResult.error.message
-                )
-                  ? "id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id"
-                  : "id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, transfer_group_id";
+                const msg = rawExpensesResult.error.message;
+                let leanSelect =
+                  "id, amount, concept, paid_by, responsible_for, category, category_id, spend_segment, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id";
+                if (/category_id|spend_segment/i.test(msg)) {
+                  leanSelect =
+                    "id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id";
+                }
+                if (/account_id|paid_from_account/i.test(msg) && !/budget_account_id/i.test(msg)) {
+                  leanSelect =
+                    "id, amount, concept, paid_by, responsible_for, category, split_type, payer_share_pct, expense_date, created_at, is_settled, is_active, family_id, fund_id, paid_from_fund, transfer_group_id";
+                }
                 const legacy = await supabase
                     .from("expenses")
                     .select(leanSelect)

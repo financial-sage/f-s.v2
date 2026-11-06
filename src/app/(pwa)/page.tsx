@@ -1,10 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import dynamicImport from "next/dynamic";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import StoreHydrator from "@/components/StoreHydrator";
 import PremiumWelcomeCelebration from "@/components/PremiumWelcomeCelebration";
 import { getHomePageData } from "@/lib/dashboard";
+import { isSuperAdminUser } from "@/lib/admin";
+import {
+  SIMPLE_MODE_COOKIE_KEY,
+  isSimpleModeEnabledFromCookie,
+} from "@/lib/simpleMode";
 
 const DashboardCouple = dynamicImport(() => import("@/components/DashboardCouple"), {
   loading: () => (
@@ -22,6 +28,14 @@ const DashboardSolo = dynamicImport(() => import("@/components/DashboardSolo"), 
   ),
 });
 
+const SimpleDashboard = dynamicImport(() => import("@/components/SimpleDashboard"), {
+  loading: () => (
+    <div className="flex h-dvh items-center justify-center bg-page-gradient text-sm text-on-surface-variant">
+      Cargando…
+    </div>
+  ),
+});
+
 export default async function Home() {
   const home = await getHomePageData();
 
@@ -31,6 +45,7 @@ export default async function Home() {
 
   const {
     userId,
+    userEmail,
     familyId,
     familyMemberCount,
     financialModel,
@@ -53,6 +68,17 @@ export default async function Home() {
     pendingPremiumWelcome,
   } = home.data;
 
+  const cookieStore = await cookies();
+  const isSuperAdmin = await isSuperAdminUser({
+    userId,
+    email: userEmail,
+  });
+  const isSimpleModeEnabled =
+    isSuperAdmin &&
+    isSimpleModeEnabledFromCookie(
+      cookieStore.get(SIMPLE_MODE_COOKIE_KEY)?.value,
+    );
+
   const showCoupleUi =
     entitlement?.showCoupleUi ?? (familyMemberCount >= 2 && Boolean(familyId));
 
@@ -64,7 +90,9 @@ export default async function Home() {
         initialAccounts={initialAccounts}
       />
       <PremiumWelcomeCelebration initialWelcome={pendingPremiumWelcome} />
-      {showCoupleUi && familyId ? (
+      {isSimpleModeEnabled ? (
+        <SimpleDashboard />
+      ) : showCoupleUi && familyId ? (
         <DashboardCouple
           familyId={familyId}
           currentUserId={userId}

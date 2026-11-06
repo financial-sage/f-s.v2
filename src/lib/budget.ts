@@ -34,6 +34,9 @@ export function budgetStorageKey(familyId: string) {
   return `fsage:budget:v3:${familyId}`;
 }
 
+/** Fired after local budget writes so other hooks/views re-read. */
+export const BUDGET_CHANGE_EVENT = "fsage:budget";
+
 export function safeParseBudgetStore(raw: string | null): BudgetStore {
   if (!raw) return {};
   try {

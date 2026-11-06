@@ -22,11 +22,24 @@ export interface ExpenseToEdit {
   fund_id?: string | null;
 }
 
+/** Prefill for a new simple-mode expense (does not switch to edit form). */
+export interface ExpenseDraft {
+  amount?: number;
+  concept?: string;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  paidAccountId?: string | null;
+  /** 1 amount · 2 category · 3 confirm */
+  initialStep?: 1 | 2 | 3;
+}
+
 interface ExpenseModalContextValue {
   isExpenseModalOpen: boolean;
   setIsExpenseModalOpen: Dispatch<SetStateAction<boolean>>;
   expenseToEdit: ExpenseToEdit | null;
   setExpenseToEdit: Dispatch<SetStateAction<ExpenseToEdit | null>>;
+  expenseDraft: ExpenseDraft | null;
+  setExpenseDraft: Dispatch<SetStateAction<ExpenseDraft | null>>;
   preferredFundId: string | null;
   setPreferredFundId: Dispatch<SetStateAction<string | null>>;
 }
@@ -36,6 +49,7 @@ const ExpenseModalContext = createContext<ExpenseModalContextValue | null>(null)
 export function ExpenseModalProvider({ children }: { children: ReactNode }) {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<ExpenseToEdit | null>(null);
+  const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
   const [preferredFundId, setPreferredFundId] = useState<string | null>(null);
 
   const value = useMemo(
@@ -44,10 +58,12 @@ export function ExpenseModalProvider({ children }: { children: ReactNode }) {
       setIsExpenseModalOpen,
       expenseToEdit,
       setExpenseToEdit,
+      expenseDraft,
+      setExpenseDraft,
       preferredFundId,
       setPreferredFundId,
     }),
-    [expenseToEdit, isExpenseModalOpen, preferredFundId]
+    [expenseDraft, expenseToEdit, isExpenseModalOpen, preferredFundId]
   );
 
   return (

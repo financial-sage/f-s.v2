@@ -41,6 +41,11 @@ interface SaveExpenseInput {
   accountId?: string | null;
   /** True when cash leaves the account caja. */
   paidFromAccount?: boolean;
+  /**
+   * Account the budget/envelope attributed the spend to.
+   * When different from accountId, cash left paid account and a reimbursement may be pending.
+   */
+  budgetAccountId?: string | null;
 }
 
 function resolveActor(
@@ -129,6 +134,7 @@ export async function saveExpenseAction({
   paidFromFund,
   accountId,
   paidFromAccount,
+  budgetAccountId,
 }: SaveExpenseInput) {
   const normalizedAmount = Number(amount);
   const normalizedConcept = concept.trim();
@@ -182,7 +188,7 @@ export async function saveExpenseAction({
 
   const partnerUserId = (profiles ?? []).find((member) => member.id !== user.id)?.id ?? null;
 
-  const { data: categoryRow, error: categoryError } = await admin
+  let { data: categoryRow, error: categoryError } = await admin
     .from("family_categories")
     .select("id, name, scope, owner_profile_id, archived_at, family_id")
     .eq("id", resolvedCategoryId)
@@ -196,6 +202,79 @@ export async function saveExpenseAction({
         : categoryError.message
     );
   }
+
+  // Simple-mode envelopes use local ids that are not family_categories rows.
+  // Resolve (or create) a real category by name so the FK on expenses.category_id holds.
+  if (!categoryRow || categoryRow.archived_at) {
+    const label =
+      category?.trim() ||
+      String((categoryRow as { name?: string } | null)?.name ?? "").trim();
+    if (!label) {
+      throw new Error("Elige una categoría válida.");
+    }
+
+    const { data: byNameRows, error: byNameError } = await admin
+      .from("family_categories")
+      .select("id, name, scope, owner_profile_id, archived_at, family_id, parent_id")
+      .eq("family_id", profile.family_id)
+      .is("archived_at", null)
+      .ilike("name", label)
+      .limit(8);
+
+    const byName =
+      (byNameRows ?? []).find((row) => row.parent_id == null) ??
+      (byNameRows ?? [])[0] ??
+      null;
+
+    if (byNameError) {
+      throw new Error(
+        /family_categories|column/i.test(byNameError.message)
+          ? "Falta aplicar la migración de categorías."
+          : byNameError.message
+      );
+    }
+
+    if (byName) {
+      categoryRow = byName;
+    } else {
+      const memberCount = (profiles ?? []).length;
+      const individual = memberCount < 2;
+      const insertPayload = {
+        family_id: profile.family_id,
+        parent_id: null,
+        scope: individual ? ("personal" as const) : ("shared" as const),
+        owner_profile_id: individual ? user.id : null,
+        name: label.slice(0, 40),
+        sort_order: 100,
+      };
+      const created = await admin
+        .from("family_categories")
+        .insert(insertPayload as never)
+        .select("id, name, scope, owner_profile_id, archived_at, family_id")
+        .single();
+
+      if (created.error || !created.data) {
+        // Race on unique name — re-read.
+        const retry = await admin
+          .from("family_categories")
+          .select("id, name, scope, owner_profile_id, archived_at, family_id")
+          .eq("family_id", profile.family_id)
+          .is("archived_at", null)
+          .ilike("name", label)
+          .limit(1)
+          .maybeSingle();
+        if (retry.error || !retry.data) {
+          throw new Error(
+            created.error?.message || "No se pudo crear la categoría."
+          );
+        }
+        categoryRow = retry.data;
+      } else {
+        categoryRow = created.data;
+      }
+    }
+  }
+
   if (!categoryRow || categoryRow.archived_at) {
     throw new Error("Elige una categoría válida.");
   }
@@ -206,6 +285,7 @@ export async function saveExpenseAction({
     throw new Error("No puedes usar la categoría personal de otra persona.");
   }
 
+  const resolvedCategoryIdFinal = String(categoryRow.id);
   const resolvedCategory =
     category?.trim() || String(categoryRow.name ?? "gasto").trim() || "gasto";
 
@@ -255,6 +335,31 @@ export async function saveExpenseAction({
 
     const paidByValue = resolveActor(paidBy === "joint_fund" ? "me" : paidBy, user.id, partnerUserId);
 
+    let resolvedBudgetAccountId: string | null =
+      typeof budgetAccountId === "string" && budgetAccountId.trim()
+        ? budgetAccountId.trim()
+        : account.id;
+
+    if (resolvedBudgetAccountId !== account.id) {
+      const { data: budgetAccountRow, error: budgetAccountError } = await admin
+        .from("family_accounts")
+        .select("id, archived_at")
+        .eq("id", resolvedBudgetAccountId)
+        .eq("family_id", profile.family_id)
+        .maybeSingle();
+
+      if (budgetAccountError) {
+        throw new Error(
+          /budget_account_id|column/i.test(budgetAccountError.message)
+            ? "Falta aplicar la migración de adelantos entre cuentas."
+            : budgetAccountError.message
+        );
+      }
+      if (!budgetAccountRow || budgetAccountRow.archived_at) {
+        resolvedBudgetAccountId = account.id;
+      }
+    }
+
     const payload = {
       family_id: profile.family_id,
       amount: Number(normalizedAmount.toFixed(2)),
@@ -262,7 +367,7 @@ export async function saveExpenseAction({
       paid_by: paidByValue,
       responsible_for: responsibleForAccount(account),
       category: resolvedCategory,
-      category_id: resolvedCategoryId,
+      category_id: resolvedCategoryIdFinal,
       expense_date: date,
       split_type: "personal" as ExpenseSplitType,
       payer_share_pct: 100,
@@ -270,12 +375,17 @@ export async function saveExpenseAction({
       paid_from_fund: false,
       account_id: account.id,
       paid_from_account: true,
+      budget_account_id: resolvedBudgetAccountId,
     };
 
     let insert = await insertExpenseRow(admin, payload as Record<string, unknown>);
     if (insert.error && /category_id|column/i.test(insert.error.message)) {
       const { category_id: _c, ...withoutCat } = payload;
       insert = await insertExpenseRow(admin, withoutCat as Record<string, unknown>);
+    }
+    if (insert.error && /budget_account_id|column/i.test(insert.error.message)) {
+      const { budget_account_id: _b, ...withoutBudget } = payload;
+      insert = await insertExpenseRow(admin, withoutBudget as Record<string, unknown>);
     }
     if (insert.error) {
       throw new Error(
@@ -389,7 +499,7 @@ export async function saveExpenseAction({
     paid_by: paidByValue,
     responsible_for: responsibleForValue,
     category: resolvedCategory,
-    category_id: resolvedCategoryId,
+    category_id: resolvedCategoryIdFinal,
     expense_date: date,
     split_type: splitType,
     payer_share_pct: splitType.includes("shared") ? normalizedPayerSharePct : 100,

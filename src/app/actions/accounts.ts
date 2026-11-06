@@ -24,6 +24,7 @@ import {
   responsibleForAccount,
   sumVisibleLiquidity,
 } from "@/lib/accounts";
+import { computePendingAccountReimbursements } from "@/lib/accountReimbursements";
 import { getFamilyFundsFast } from "@/app/actions/funds";
 import { isAppCurrency } from "@/lib/currency";
 import {
@@ -185,36 +186,59 @@ export async function ensurePersonalAccount(
   return ensurePersonalCashAccount(familyId, userId);
 }
 
-async function loadActiveExpenses(familyId: string) {
+type AccountLedgerExpense = {
+  id?: string;
+  amount: number;
+  category?: string | null;
+  concept?: string | null;
+  paid_by: string;
+  responsible_for?: string | null;
+  fund_id?: string | null;
+  paid_from_fund?: boolean | null;
+  account_id?: string | null;
+  paid_from_account?: boolean | null;
+  budget_account_id?: string | null;
+  transfer_group_id?: string | null;
+  is_active?: boolean | null;
+  is_settled?: boolean | null;
+};
+
+async function loadActiveExpenses(familyId: string): Promise<AccountLedgerExpense[]> {
   const admin = getSupabaseAdminClient();
-  const { data, error } = await admin
+  const fullSelect =
+    "id, amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, paid_from_account, budget_account_id, transfer_group_id, is_active, is_settled";
+  const leanSelect =
+    "id, amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id, is_active, is_settled";
+
+  const primary = await admin
     .from("expenses")
-    .select(
-      "amount, category, concept, paid_by, responsible_for, fund_id, paid_from_fund, account_id, paid_from_account, transfer_group_id, is_active, is_settled"
-    )
+    .select(fullSelect)
     .eq("family_id", familyId)
     .eq("is_active", true)
     // Balances only need ledger rows tied to an account.
     .not("account_id", "is", null);
 
-  if (error) {
-    throw new Error(migrationHint(error.message));
+  if (!primary.error) {
+    return (primary.data ?? []) as AccountLedgerExpense[];
   }
 
-  return (data ?? []) as Array<{
-    amount: number;
-    category?: string | null;
-    concept?: string | null;
-    paid_by: string;
-    responsible_for?: string | null;
-    fund_id?: string | null;
-    paid_from_fund?: boolean | null;
-    account_id?: string | null;
-    paid_from_account?: boolean | null;
-    transfer_group_id?: string | null;
-    is_active?: boolean | null;
-    is_settled?: boolean | null;
-  }>;
+  if (/budget_account_id|column/i.test(primary.error.message)) {
+    const lean = await admin
+      .from("expenses")
+      .select(leanSelect)
+      .eq("family_id", familyId)
+      .eq("is_active", true)
+      .not("account_id", "is", null);
+    if (lean.error) {
+      throw new Error(migrationHint(lean.error.message));
+    }
+    return (lean.data ?? []).map((row) => ({
+      ...(row as AccountLedgerExpense),
+      budget_account_id: null,
+    }));
+  }
+
+  throw new Error(migrationHint(primary.error.message));
 }
 
 /** Read-only fund list for the accounts transfer sheet (no ensure/create side effects). */
@@ -723,6 +747,85 @@ export async function transferBetweenAccountsAction(input: {
 
   revalidateAccountsPaths();
   return { success: true, balanceWarning, transferGroupId };
+}
+
+/**
+ * Settle a cross-account advance: transfer cash from the budget account
+ * (debtor) to the account that paid (creditor), then mark matching expenses settled.
+ */
+export async function settleAccountReimbursementAction(input: {
+  debtorAccountId: string;
+  creditorAccountId: string;
+  amount?: number;
+  date?: string;
+}): Promise<AccountActionResult> {
+  const user = await requireUser();
+  const familyId = await getUserFamilyId(user.id);
+
+  if (!input.debtorAccountId || !input.creditorAccountId) {
+    throw new Error("Elige las cuentas a cuadrar.");
+  }
+  if (input.debtorAccountId === input.creditorAccountId) {
+    throw new Error("Elige dos cuentas distintas.");
+  }
+
+  const expenses = await loadActiveExpenses(familyId);
+  const pending = computePendingAccountReimbursements(expenses);
+
+  const match = pending.find(
+    (row) =>
+      row.debtorAccountId === input.debtorAccountId &&
+      row.creditorAccountId === input.creditorAccountId,
+  );
+
+  if (!match || match.amount < 0.01) {
+    throw new Error("No hay reembolsos pendientes entre esas cuentas.");
+  }
+
+  const settleAmount =
+    input.amount != null && Number.isFinite(Number(input.amount))
+      ? Math.min(Number(input.amount), match.amount)
+      : match.amount;
+
+  if (settleAmount < 0.01) {
+    throw new Error("Ingresa un importe válido.");
+  }
+
+  const transfer = await transferBetweenAccountsAction({
+    fromAccountId: input.debtorAccountId,
+    toAccountId: input.creditorAccountId,
+    amount: settleAmount,
+    date: input.date,
+  });
+
+  const admin = getSupabaseAdminClient();
+  const expenseIds = match.expenseIds.filter(Boolean);
+  if (expenseIds.length > 0) {
+    const { error: settleError } = await admin
+      .from("expenses")
+      .update({
+        is_settled: true,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+      } as never)
+      .in("id", expenseIds)
+      .eq("family_id", familyId)
+      .eq("is_active", true);
+
+    if (
+      settleError &&
+      !/column|schema cache|does not exist/i.test(settleError.message)
+    ) {
+      throw new Error(settleError.message);
+    }
+  }
+
+  revalidateAccountsPaths();
+  return {
+    success: true,
+    balanceWarning: transfer.balanceWarning,
+    transferGroupId: transfer.transferGroupId,
+  };
 }
 
 export async function transferAccountToFundAction(input: {

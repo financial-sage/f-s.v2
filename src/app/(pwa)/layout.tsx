@@ -11,6 +11,7 @@ import FirstRunGate from "@/components/FirstRunGate";
 import PartnerFirstMoveCelebration from "@/components/PartnerFirstMoveCelebration";
 import CfoPresenceHost from "@/components/CfoPresenceHost";
 import AppShellScrollLock from "@/components/AppShellScrollLock";
+import { Toaster } from "@/components/ui/Toaster";
 
 export const metadata: Metadata = {
   title: "SinDescuadre",
@@ -71,6 +72,7 @@ export default function PwaLayout({
       <FamilyNavProvider />
       {/* Above BottomNav (z-50): CFO presence pill → modal (ADR-0011). */}
       <CfoPresenceHost />
+      <Toaster />
     </ExpenseModalProvider>
   );
 }

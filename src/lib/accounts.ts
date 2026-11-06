@@ -114,12 +114,22 @@ export interface AccountExpenseLike {
   paid_by?: string;
   responsible_for?: string | null;
   account_id?: string | null;
+  /** Budget attribution; when ≠ account_id a reimbursement may be pending. */
+  budget_account_id?: string | null;
   paid_from_account?: boolean | null;
   fund_id?: string | null;
   paid_from_fund?: boolean | null;
   is_active?: boolean | null;
+  is_settled?: boolean | null;
   transfer_group_id?: string | null;
 }
+
+export {
+  computePendingAccountReimbursements,
+  nameAccountReimbursements,
+  type AccountReimbursement,
+  type NamedAccountReimbursement,
+} from "@/lib/accountReimbursements";
 
 /**
  * Ledger row that only moves account cash (not a bolsillo).

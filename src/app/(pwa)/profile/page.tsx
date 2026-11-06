@@ -15,6 +15,8 @@ import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { createClient } from "@/utils/supabase/server";
 import { ThemeToggleRow } from "@/components/ThemeToggleRow";
+import { MigrateFundsToBudgetButton } from "@/components/MigrateFundsToBudgetButton";
+import { SimpleModeToggleRow } from "@/components/SimpleModeToggleRow";
 import ActivatePremiumRow from "@/components/ActivatePremiumRow";
 import { sageGlassGradient } from "@/lib/glass";
 import { getHouseholdEntitlement } from "@/lib/premiumServer";
@@ -248,6 +250,8 @@ export default async function ProfilePage() {
           <div className="divide-y divide-outline-variant/15">
             <ThemeToggleRow />
             <CurrencySelectRow />
+            <SimpleModeToggleRow />
+            <MigrateFundsToBudgetButton />
             <ActivatePremiumRow
               inviteCode={family?.invite_code}
               isPremiumHousehold={Boolean(entitlement?.isPremiumHousehold)}

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { Sheet } from "@/components/ui/Sheet";
+import { useSimpleMode } from "@/hooks/useSimpleMode";
 
 const AddExpenseForm = dynamic(() => import("@/components/AddExpenseForm"), {
   ssr: false,
@@ -37,6 +38,11 @@ const AddExpenseForm = dynamic(() => import("@/components/AddExpenseForm"), {
     </div>
   ),
 });
+
+const SimpleExpenseSheet = dynamic(
+  () => import("@/components/SimpleExpenseSheet"),
+  { ssr: false },
+);
 
 const AUTH_PATHS = new Set([
   "/login",
@@ -170,21 +176,32 @@ export default function BottomNav({
     setIsExpenseModalOpen,
     expenseToEdit,
     setExpenseToEdit,
+    setExpenseDraft,
   } = useExpenseModal();
+  const { enabled: isSimpleModeEnabled } = useSimpleMode();
   const [expanded, setExpanded] = useState(false);
   const [receiptScanning, setReceiptScanning] = useState(false);
+
+  /** Feature flag: nuevo alta simple; edición sigue en el formulario completo. */
+  const useSimpleExpenseSheet =
+    isSimpleModeEnabled && !expenseToEdit;
 
   function openNewExpense() {
     if (!familyId) return;
     setExpenseToEdit(null);
+    setExpenseDraft(null);
     setIsExpenseModalOpen(true);
     setExpanded(false);
   }
 
   useEffect(() => {
     if (!expanded && !isExpenseModalOpen) return;
+    if (useSimpleExpenseSheet) {
+      void import("@/components/SimpleExpenseSheet");
+      return;
+    }
     void import("@/components/AddExpenseForm");
-  }, [expanded, isExpenseModalOpen]);
+  }, [expanded, isExpenseModalOpen, useSimpleExpenseSheet]);
 
   const currentModule = useMemo(() => resolveCurrentModule(pathname), [pathname]);
   const CurrentIcon = currentModule.icon;
@@ -201,6 +218,7 @@ export default function BottomNav({
     if (receiptScanning) return;
     setIsExpenseModalOpen(false);
     setExpenseToEdit(null);
+    setExpenseDraft(null);
   }
 
   function handleCenterClick() {
@@ -325,7 +343,14 @@ export default function BottomNav({
         </div>
       </nav>
 
-      {familyId ? (
+      {familyId && useSimpleExpenseSheet ? (
+        <SimpleExpenseSheet
+          open={isExpenseModalOpen}
+          onClose={closeExpenseSheet}
+        />
+      ) : null}
+
+      {familyId && !useSimpleExpenseSheet ? (
         <Sheet
           open={isExpenseModalOpen}
           onClose={closeExpenseSheet}

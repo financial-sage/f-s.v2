@@ -56,6 +56,45 @@ export function cssAccentRimCardStyle(
   } as const;
 }
 
+/**
+ * Delicate glass card matching the “rim light” reference:
+ * near-neutral fill, whisper of top glow, border bright at the top and
+ * almost gone toward the bottom (padding-box / border-box).
+ */
+export function cssDelicateGlassCardStyle(cssColor = "var(--accent)") {
+  // Fill almost flat — soft tint under the top rim (a touch more than whisper).
+  const fill = `linear-gradient(
+    180deg,
+    color-mix(in srgb, ${cssColor} 9%, var(--surface-lowest)) 0%,
+    color-mix(in srgb, ${cssColor} 3%, var(--surface-lowest)) 34%,
+    var(--surface-lowest) 100%
+  )`;
+  // Border: soft top edge → fades away downward.
+  const rim = `linear-gradient(
+    180deg,
+    color-mix(in srgb, ${cssColor} 42%, transparent) 0%,
+    color-mix(in srgb, ${cssColor} 22%, transparent) 14%,
+    color-mix(in srgb, ${cssColor} 10%, transparent) 36%,
+    color-mix(in srgb, var(--outline-variant) 16%, transparent) 65%,
+    color-mix(in srgb, var(--outline-variant) 20%, transparent) 100%
+  )`;
+  return {
+    border: "1px solid transparent",
+    background: `${fill} padding-box, ${rim} border-box`,
+    boxShadow: `0 12px 32px rgba(28, 39, 64, 0.07)`,
+  } as const;
+}
+
+/** Soft radial halo under the top edge (keep opacity low). */
+export function cssDelicateTopGlow(cssColor = "var(--accent)") {
+  return `radial-gradient(ellipse 90% 110% at 50% -5%, color-mix(in srgb, ${cssColor} 11%, transparent) 0%, transparent 68%)`;
+}
+
+/** Soft horizontal hairline centered on the top edge. */
+export function cssDelicateTopHairline(cssColor = "var(--accent)") {
+  return `linear-gradient(90deg, transparent 0%, color-mix(in srgb, ${cssColor} 45%, transparent) 20%, color-mix(in srgb, ${cssColor} 55%, transparent) 50%, color-mix(in srgb, ${cssColor} 45%, transparent) 80%, transparent 100%)`;
+}
+
 /** Horizontal luminous hairline across the top edge. */
 export function accentRimHairline(accentHex: string) {
   return `linear-gradient(90deg, transparent 4%, ${accentHex} 48%, ${accentHex} 52%, transparent 96%)`;
