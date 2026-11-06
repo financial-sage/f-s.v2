@@ -294,7 +294,11 @@ export default function SimpleDashboard() {
       totalGastado,
       porcentajeGlobal: Math.min(100, rawPercent),
       tone: progressTone(rawPercent),
-      hasBudget: totalPresupuestado > 0,
+      // Groups count even with 0 assigned (migration / empty shells).
+      hasBudget:
+        visibleGroups.length > 0 ||
+        totalPresupuestado > 0 ||
+        Object.keys(limits).some((id) => Number(limits[id]) > 0),
     };
   }, [
     categories,
