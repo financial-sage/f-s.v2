@@ -120,6 +120,8 @@ interface AccountsPanelProps {
   familyMemberCount?: number;
   /** Server-loaded overview — avoids a second server-action round-trip on mount. */
   initialOverview?: AccountsOverview;
+  /** Deep-link tab from `/accounts?tab=credit|investment|checking`. */
+  initialTab?: AccountsTab;
 }
 
 function seedFromCaches(
@@ -185,6 +187,7 @@ export default function AccountsPanel({
   currentUserId,
   familyMemberCount = 1,
   initialOverview,
+  initialTab = "checking",
 }: AccountsPanelProps) {
   const { format: formatCurrency, currency: householdCurrency } = useCurrency();
   const setAccountsCache = useAccountsStore((s) => s.setAccounts);
@@ -310,7 +313,7 @@ export default function AccountsPanel({
   const [outflowConcept, setOutflowConcept] = useState("");
   const [transferError, setTransferError] = useState("");
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [accountsTab, setAccountsTab] = useState<AccountsTab>("checking");
+  const [accountsTab, setAccountsTab] = useState<AccountsTab>(initialTab);
   const [menuAccountId, setMenuAccountId] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(
     null

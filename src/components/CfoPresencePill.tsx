@@ -9,6 +9,7 @@ import {
   deleteRecommendationAction,
   markRecommendationSeenAction,
 } from "@/app/actions/recommendations";
+import { useSimpleMode } from "@/hooks/useSimpleMode";
 import {
   ensureFirstRunForUser,
   isTourDone,
@@ -39,14 +40,15 @@ function criticalSeenKey(familyId: string, noteId: string) {
 }
 
 /**
- * Decorative CFO presence pill outside the dashboard scroll (ADR-0011).
- * Auto-opens the primary note once per day; tapping the pill goes to
- * `/recommendations` (Activas) so the user can see all notes.
+ * CFO presence (ADR-0011): auto-opens the primary note 1×/day.
+ * Classic: floating pill → /recommendations.
+ * Simple mode: no pill (entry is BottomNav «Notas»).
  * Hidden until the dashboard product tour is done.
  */
 export default function CfoPresencePill() {
   const pathname = usePathname();
   const router = useRouter();
+  const { enabled: isSimpleModeEnabled } = useSimpleMode();
   const [count, setCount] = useState(0);
   const [primary, setPrimary] = useState<CfoNotePayload | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
@@ -102,12 +104,12 @@ export default function CfoPresencePill() {
       const res = await fetch("/api/recommendations/active", {
         cache: "no-store",
       });
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const data = (await res.json()) as ActivePayload;
       if (data.locked) {
         setCount(0);
         setPrimary(null);
-        return;
+        return data;
       }
       const next = Math.max(0, Number(data.count) || 0);
       setCount((prev) => {
@@ -135,7 +137,7 @@ export default function CfoPresencePill() {
       const isCritical = note.priority === "critical";
       const criticalSeen =
         window.localStorage.getItem(
-          criticalSeenKey(data.familyId, note.id)
+          criticalSeenKey(data.familyId, note.id),
         ) === "1";
 
       if (!alreadyToday || (isCritical && !criticalSeen)) {
@@ -144,7 +146,7 @@ export default function CfoPresencePill() {
         if (isCritical) {
           window.localStorage.setItem(
             criticalSeenKey(data.familyId, note.id),
-            "1"
+            "1",
           );
         }
         if (note.status === "new") {
@@ -152,7 +154,7 @@ export default function CfoPresencePill() {
         }
       }
     },
-    [pathname, tourReady]
+    [pathname, tourReady],
   );
 
   useEffect(() => {
@@ -184,7 +186,7 @@ export default function CfoPresencePill() {
   }, [load, maybeAutoOpen, pathname, tourReady]);
 
   useEffect(() => {
-    if (!tourReady || count <= 0) return;
+    if (isSimpleModeEnabled || !tourReady || count <= 0) return;
     setSparkLit(false);
     const litOn = window.setTimeout(() => setSparkLit(true), 720);
     const litOff = window.setTimeout(() => setSparkLit(false), 1280);
@@ -192,14 +194,13 @@ export default function CfoPresencePill() {
       window.clearTimeout(litOn);
       window.clearTimeout(litOff);
     };
-  }, [count, enterKey, tourReady]);
+  }, [count, enterKey, isSimpleModeEnabled, tourReady]);
 
   const openFromPill = () => {
     if (!tourReady || count <= 0) return;
     if (familyId) {
       window.localStorage.setItem(todayKey(familyId), "1");
     }
-    // List of actives — not the same daily modal again.
     router.push("/recommendations");
   };
 
@@ -209,11 +210,13 @@ export default function CfoPresencePill() {
 
   if (!tourReady) return null;
 
-  if (count <= 0 && !modalOpen) return null;
+  const showClassicPill = !isSimpleModeEnabled && count > 0;
+
+  if (!showClassicPill && !modalOpen) return null;
 
   return (
     <>
-      {count > 0 ? (
+      {showClassicPill ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] overflow-hidden pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]">
           <div className="relative h-12 w-full">
             <button

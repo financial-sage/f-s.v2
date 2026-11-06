@@ -89,7 +89,8 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   /* FAB (3rem) + breathing room above system nav */
-  --fab-clearance: calc(5.5rem + var(--safe-bottom));
+  /* Unified dock: bar + raised center FAB + safe area */
+  --fab-clearance: calc(4.75rem + var(--safe-bottom));
 }
 
 html.dark {

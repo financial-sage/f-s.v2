@@ -2,7 +2,11 @@
 
 import { create } from "zustand";
 import { listFamilyAccountsAction } from "@/app/actions/accounts";
-import type { FamilyAccount } from "@/lib/accounts";
+import {
+  listLiquidAccountsForUser,
+  listSavingsAccountsForUser,
+  type FamilyAccount,
+} from "@/lib/accounts";
 
 const ACCOUNTS_TTL_MS = 60_000;
 
@@ -13,6 +17,10 @@ interface AccountsStoreState {
   load: (options?: { force?: boolean }) => Promise<FamilyAccount[]>;
   invalidate: () => void;
   setAccounts: (accounts: FamilyAccount[]) => void;
+  /** Checking / operativa for “Disponible hoy”. */
+  liquidAccountsFor: (userId: string) => FamilyAccount[];
+  /** Investment / depósito accounts (patrimonio). */
+  savingsAccountsFor: (userId: string) => FamilyAccount[];
 }
 
 export const useAccountsStore = create<AccountsStoreState>((set, get) => ({
@@ -47,4 +55,10 @@ export const useAccountsStore = create<AccountsStoreState>((set, get) => ({
       accounts: next.filter((a) => !a.archived_at),
       fetchedAt: Date.now(),
     }),
+
+  liquidAccountsFor: (userId) =>
+    listLiquidAccountsForUser(get().accounts, userId),
+
+  savingsAccountsFor: (userId) =>
+    listSavingsAccountsForUser(get().accounts, userId),
 }));

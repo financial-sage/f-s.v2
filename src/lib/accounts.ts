@@ -80,6 +80,48 @@ export function isInvestmentAccount(account?: Pick<FamilyAccount, "kind"> | null
   return accountKindOf(account) === "investment";
 }
 
+/** Checking accounts the user can see (operativa / liquidez). */
+export function listLiquidAccountsForUser(
+  accounts: FamilyAccount[],
+  userId: string,
+) {
+  return listVisibleAccountsForUser(accounts, userId).filter((a) =>
+    isLiquidityAccount(a),
+  );
+}
+
+/**
+ * Savings-like patrimonio on the accounts layer: valued investments / deposits
+ * (ADR-0010). The shared “Ahorro” pot remains a fund, not an account kind.
+ */
+export function listSavingsAccountsForUser(
+  accounts: FamilyAccount[],
+  userId: string,
+) {
+  return listVisibleAccountsForUser(accounts, userId).filter((a) =>
+    isInvestmentAccount(a),
+  );
+}
+
+/** Credit cards / liabilities the user can see. */
+export function listCreditAccountsForUser(
+  accounts: FamilyAccount[],
+  userId: string,
+) {
+  return listVisibleAccountsForUser(accounts, userId).filter((a) =>
+    isCreditAccount(a),
+  );
+}
+
+export function parseAccountsTabParam(
+  value: string | null | undefined,
+): AccountKind {
+  if (value === "credit" || value === "investment" || value === "checking") {
+    return value;
+  }
+  return "checking";
+}
+
 /** Debt owed on a credit account (≥ 0). Ledger balance is typically negative. */
 export function creditDebtFromBalance(rawBalance: number): number {
   const n = Number(rawBalance) || 0;
