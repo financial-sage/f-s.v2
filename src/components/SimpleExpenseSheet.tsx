@@ -99,6 +99,8 @@ export default function SimpleExpenseSheet({
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [amount, setAmount] = useState(0);
   const [amountDraft, setAmountDraft] = useState("0");
+  /** When editing amount from confirm, keypad confirm returns here. */
+  const [amountReturnStep, setAmountReturnStep] = useState<Step | null>(null);
   const [concept, setConcept] = useState("");
   const [paidAccountId, setPaidAccountId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -143,10 +145,25 @@ export default function SimpleExpenseSheet({
     [payableAccounts, paidAccountId],
   );
 
+  /** Account configured on the selected budget group (if any). */
+  const budgetDefaultAccountId = useMemo(() => {
+    if (!familyId || !scannedCategory) return null;
+    void budgetListTick;
+    const plan = readMonthEnvelopePlan(familyId, getMonthKey());
+    const payableIds = new Set(payableAccounts.map((a) => a.id));
+    const resolved = resolveDefaultAccountIdForCategory(plan, {
+      categoryId: scannedCategory.id,
+      categoryName: scannedCategory.name,
+    });
+    if (!resolved || !payableIds.has(resolved)) return null;
+    return resolved;
+  }, [familyId, scannedCategory, budgetListTick, payableAccounts]);
+
+  /** Only when paying a budget with a cuenta distinta a la de ese presupuesto. */
   const isAdvance =
     Boolean(paidAccountId) &&
-    Boolean(habitualAccountId) &&
-    paidAccountId !== habitualAccountId;
+    Boolean(budgetDefaultAccountId) &&
+    paidAccountId !== budgetDefaultAccountId;
 
   const fallbackCategories = useMemo(() => {
     if (!userId) return [];
@@ -207,6 +224,7 @@ export default function SimpleExpenseSheet({
     setIsScanning(false);
     setScannedCategory(draftCategory);
     setSuggestedBudgetName(null);
+    setAmountReturnStep(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     const stepFromDraft = draft?.initialStep;
@@ -375,6 +393,12 @@ export default function SimpleExpenseSheet({
       setError("Indica un importe.");
       return;
     }
+    if (amountReturnStep != null) {
+      const next = amountReturnStep;
+      setAmountReturnStep(null);
+      goToStep(next);
+      return;
+    }
     goToStep(2);
   }
 
@@ -382,7 +406,19 @@ export default function SimpleExpenseSheet({
     goToStep(3);
   }
 
+  function openAmountEditor() {
+    setAmountReturnStep(currentStep === 3 ? 3 : null);
+    setAmountDraft(amount > 0 ? String(amount) : "0");
+    goToStep(1);
+  }
+
   function goBack() {
+    if (currentStep === 1 && amountReturnStep != null) {
+      const next = amountReturnStep;
+      setAmountReturnStep(null);
+      goToStep(next);
+      return;
+    }
     if (currentStep === 1) return;
     goToStep((currentStep - 1) as Step);
   }
@@ -582,7 +618,7 @@ export default function SimpleExpenseSheet({
       <div className="flex flex-col gap-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-0.5">
         <header className="space-y-2.5">
           <div className="flex items-center gap-2">
-            {currentStep > 1 ? (
+            {currentStep > 1 || amountReturnStep != null ? (
               <button
                 type="button"
                 onClick={goBack}
@@ -749,10 +785,20 @@ export default function SimpleExpenseSheet({
                   <p className="text-[10px] font-light uppercase tracking-[0.12em] text-on-surface-variant">
                     Resumen
                   </p>
-                  <p className="mt-1.5 text-[1.65rem] font-medium tracking-tight tabular-nums text-on-surface">
-                    <FormattedCurrency value={amount} />
-                  </p>
-                  <p className="mt-1 truncate text-[13px] font-light text-on-surface-variant">
+                  <button
+                    type="button"
+                    onClick={openAmountEditor}
+                    className="mt-1.5 w-full rounded-xl text-left transition-opacity hover:opacity-80 active:opacity-70"
+                    aria-label="Editar importe"
+                  >
+                    <p className="text-[1.65rem] font-medium tracking-tight tabular-nums text-on-surface">
+                      <FormattedCurrency value={amount} />
+                    </p>
+                    <p className="mt-1 text-[11px] font-light text-on-surface-variant">
+                      Si el valor es distinto, pulsa para editar
+                    </p>
+                  </button>
+                  <p className="mt-2 truncate text-[13px] font-light text-on-surface-variant">
                     {concept.trim() || "Sin concepto"}
                   </p>
                   {scannedCategory ? (

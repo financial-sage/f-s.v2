@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { useExpenseModal } from "@/components/ExpenseModalProvider";
 import { Portal } from "@/components/ui/Portal";
@@ -34,10 +34,10 @@ function PaymentRow({
   const dayLabel = isToday ? "Hoy" : dueLabel;
 
   const rowClass = paid
-    ? "opacity-55 hover:bg-on-surface/[0.02]"
+    ? "opacity-55"
     : isToday
-      ? "bg-amber-500/[0.1] hover:bg-amber-500/[0.14]"
-      : "hover:bg-on-surface/[0.03]";
+      ? "bg-amber-500/[0.1]"
+      : "";
   const accentClass = paid
     ? "font-light text-on-surface-variant/70"
     : isToday
@@ -56,34 +56,60 @@ function PaymentRow({
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => onPay(payment)}
-        className={`flex w-full min-w-0 items-center gap-1.5 px-3 py-2 text-left transition-colors ${rowClass}`}
-      >
-        <span
-          className={`w-[3.5rem] shrink-0 text-[11px] tabular-nums ${accentClass}`}
+      {paid ? (
+        <div
+          className={`flex w-full min-w-0 items-center gap-1.5 px-3 py-2 ${rowClass}`}
         >
-          {dayLabel}
-        </span>
-        <span className={`min-w-0 flex-1 truncate text-[12px] ${nameClass}`}>
-          {payment.name}
-        </span>
-        <span
-          className={`shrink-0 text-[11px] font-medium tabular-nums ${amountClass}`}
+          <span
+            className={`w-[3.5rem] shrink-0 text-[11px] tabular-nums ${accentClass}`}
+          >
+            {dayLabel}
+          </span>
+          <span className={`min-w-0 flex-1 truncate text-[12px] ${nameClass}`}>
+            {payment.name}
+          </span>
+          <span
+            className={`shrink-0 text-[11px] font-medium tabular-nums ${amountClass}`}
+          >
+            {payment.amount > 0 ? (
+              <FormattedCurrency value={payment.amount} />
+            ) : (
+              "—"
+            )}
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onPay(payment)}
+          className={`flex w-full min-w-0 items-center gap-1.5 px-3 py-2 text-left transition-colors active:scale-[0.99] ${
+            isToday
+              ? "bg-amber-500/[0.1] hover:bg-amber-500/[0.14]"
+              : "hover:bg-on-surface/[0.03]"
+          }`}
         >
-          {payment.amount > 0 ? (
-            <FormattedCurrency value={payment.amount} />
-          ) : (
-            "—"
-          )}
-        </span>
-        <ChevronRight
-          size={12}
-          strokeWidth={1.75}
-          className="shrink-0 text-on-surface-variant/60"
-        />
-      </button>
+          <span
+            className={`w-[3.5rem] shrink-0 text-[11px] tabular-nums ${accentClass}`}
+          >
+            {dayLabel}
+          </span>
+          <span className={`min-w-0 flex-1 truncate text-[12px] ${nameClass}`}>
+            {payment.name}
+          </span>
+          <span
+            className={`shrink-0 text-[11px] font-medium tabular-nums ${amountClass}`}
+          >
+            {payment.amount > 0 ? (
+              <FormattedCurrency value={payment.amount} />
+            ) : (
+              "—"
+            )}
+          </span>
+          <span className="shrink-0 rounded-full border border-primary/20 bg-primary/[0.08] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.03em] text-primary">
+            Pagar
+          </span>
+        </button>
+      )}
     </li>
   );
 }
@@ -140,8 +166,8 @@ export function UpcomingPaymentsCard({
       categoryId: payment.id,
       categoryName: payment.name,
       paidAccountId,
-      // Start on amount keypad so the user can confirm/adjust the real charge.
-      initialStep: 1,
+      // Confirm first — keypad only if the user taps the amount to edit.
+      initialStep: payment.amount > 0 ? 3 : 1,
     });
     setIsExpenseModalOpen(true);
   }
@@ -183,7 +209,7 @@ export function UpcomingPaymentsCard({
   return (
     <div
       data-tour="upcoming-payments"
-      className={`relative overflow-hidden rounded-xl bg-glass-soft/70 shadow-[0_4px_16px_rgba(43,52,55,0.06)] backdrop-blur-md ${className ?? ""}`}
+      className={`relative overflow-hidden rounded-xl border border-outline-variant/20 bg-glass-soft/70 shadow-[0_4px_16px_rgba(43,52,55,0.06)] backdrop-blur-md ${className ?? ""}`}
     >
       <div className="flex min-w-0 items-center gap-2.5 px-3 py-2">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-on-surface/[0.04] text-on-surface-variant">

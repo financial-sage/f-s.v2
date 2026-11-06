@@ -5,6 +5,7 @@ import { ChevronDown, Landmark, Plus, Trash2 } from "lucide-react";
 import { FormattedCurrency } from "@/components/FormattedCurrency";
 import { NumericKeypadSheet } from "@/components/NumericKeypadSheet";
 import SimpleBudgetCreateSheet from "@/components/SimpleBudgetCreateSheet";
+import SimpleBudgetDetailSheet from "@/components/SimpleBudgetDetailSheet";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Progress } from "@/components/ui/Progress";
 import { toast } from "@/hooks/useToast";
@@ -49,6 +50,10 @@ type AmountTarget =
   | { kind: "group"; groupId: string }
   | { kind: "segment"; groupId: string; segmentId: string };
 
+function dueDayLabel(dueDay?: number | null) {
+  return dueDay != null ? `día ${dueDay}` : "día —";
+}
+
 type SimpleBudgetSetupProps = {
   familyMemberCount?: number;
 };
@@ -85,6 +90,7 @@ export default function SimpleBudgetSetup({
   const [amountTarget, setAmountTarget] = useState<AmountTarget | null>(null);
   const [draftValue, setDraftValue] = useState("0");
   const [createOpen, setCreateOpen] = useState(false);
+  const [detailGroupId, setDetailGroupId] = useState<string | null>(null);
   const [envelopeTick, setEnvelopeTick] = useState(0);
   const groupsRef = useRef<BudgetGroup[]>([]);
   const selectedAccountIdsRef = useRef<string[]>([]);
@@ -358,6 +364,7 @@ export default function SimpleBudgetSetup({
 
   function removeGroup(groupId: string) {
     persistPlan(groupsRef.current.filter((g) => g.id !== groupId));
+    if (detailGroupId === groupId) setDetailGroupId(null);
     setExpandedGroupIds((prev) => {
       if (!prev.has(groupId)) return prev;
       const next = new Set(prev);
@@ -365,6 +372,11 @@ export default function SimpleBudgetSetup({
       return next;
     });
   }
+
+  const detailGroup = useMemo(
+    () => groups.find((g) => g.id === detailGroupId) ?? null,
+    [groups, detailGroupId],
+  );
 
   function toggleGroupExpanded(groupId: string) {
     setExpandedGroupIds((prev) => {
@@ -696,38 +708,27 @@ export default function SimpleBudgetSetup({
                     const hasSegments = group.segments.length > 0;
                     const segmentsOpen = expandedGroupIds.has(group.id);
                     const effective = groupEffectiveAmount(group);
+                    const accountName =
+                      scopedPayableAccounts.find(
+                        (a) =>
+                          a.id ===
+                          (group.defaultAccountId || primaryAccountId),
+                      )?.name ?? "Sin cuenta";
                     return (
                       <li
                         key={group.id}
-                        className="group/row border-b border-outline-variant/[0.09] last:border-b-0"
+                        className="border-b border-outline-variant/[0.09] last:border-b-0"
                       >
-                        <div className="flex items-baseline gap-3 px-0.5 pt-3">
-                          <input
-                            type="text"
-                            value={group.name}
-                            onChange={(e) =>
-                              updateGroupName(group.id, e.target.value)
-                            }
-                            onBlur={commitNames}
-                            className="min-w-0 flex-1 bg-transparent text-[14px] font-light tracking-tight text-on-surface outline-none placeholder:text-outline-variant/60"
-                            placeholder="Nombre"
-                          />
-
-                          {hasSegments ? (
-                            <span className="shrink-0 text-[13px] font-light tabular-nums tracking-tight text-on-surface/90">
-                              <FormattedCurrency value={effective} />
+                        <div className="px-0.5 pt-3">
+                          <button
+                            type="button"
+                            onClick={() => setDetailGroupId(group.id)}
+                            className="flex w-full items-baseline gap-3 text-left transition-opacity hover:opacity-80 active:opacity-70"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[14px] font-light tracking-tight text-on-surface">
+                              {group.name.trim() || "Sin nombre"}
                             </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openAmountEditor({
-                                  kind: "group",
-                                  groupId: group.id,
-                                })
-                              }
-                              className="shrink-0 text-[13px] font-light tabular-nums tracking-tight text-on-surface/90 transition-opacity hover:opacity-65"
-                            >
+                            <span className="shrink-0 text-[13px] font-light tabular-nums tracking-tight text-on-surface/90">
                               {effective > 0 ? (
                                 <FormattedCurrency value={effective} />
                               ) : (
@@ -735,99 +736,54 @@ export default function SimpleBudgetSetup({
                                   0,00
                                 </span>
                               )}
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => removeGroup(group.id)}
-                            className="shrink-0 -mr-0.5 translate-y-px text-on-surface-variant/25 transition-colors hover:text-on-surface-variant/70 group-hover/row:text-on-surface-variant/45"
-                            aria-label={`Eliminar ${group.name}`}
-                          >
-                            <Trash2 size={11} strokeWidth={1.5} />
-                          </button>
-                        </div>
-
-                        <div className="mt-0.5 flex items-center gap-1.5 px-0.5 pb-3">
-                          {scopedPayableAccounts.length > 0 ? (
-                            <select
-                              value={
-                                group.defaultAccountId ||
-                                primaryAccountId ||
-                                ""
-                              }
-                              onChange={(e) =>
-                                updateGroupAccount(group.id, e.target.value)
-                              }
-                              aria-label="Cuenta origen"
-                              className="min-w-0 max-w-[8.5rem] truncate appearance-none bg-transparent text-[11px] font-light text-on-surface-variant/75 outline-none"
-                            >
-                              {scopedPayableAccounts.map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="text-[11px] font-light text-on-surface-variant/55">
-                              Sin cuenta
                             </span>
-                          )}
-
-                          <span
-                            className="text-[11px] font-light text-outline-variant/45"
-                            aria-hidden
-                          >
-                            ·
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() => toggleGroupExpanded(group.id)}
-                            className="inline-flex items-center gap-0.5 text-[11px] font-light text-on-surface-variant/75 transition-colors hover:text-on-surface"
-                            aria-expanded={segmentsOpen}
-                          >
-                            {hasSegments
-                              ? group.segments.length === 1
-                                ? "1 categoría"
-                                : `${group.segments.length} categorías`
-                              : "Categorías"}
-                            <ChevronDown
-                              size={11}
-                              strokeWidth={1.5}
-                              className={`opacity-60 transition-transform ${
-                                segmentsOpen ? "rotate-180" : ""
-                              }`}
-                              aria-hidden
-                            />
                           </button>
 
-                          {!hasSegments ? (
-                            <>
-                              <span
-                                className="text-[11px] font-light text-outline-variant/45"
-                                aria-hidden
-                              >
-                                ·
+                          <div className="mt-0.5 flex items-center gap-1.5 pb-3">
+                            <button
+                              type="button"
+                              onClick={() => setDetailGroupId(group.id)}
+                              className="flex min-w-0 flex-1 items-center gap-1.5 text-left transition-opacity hover:opacity-80"
+                            >
+                              <span className="min-w-0 truncate text-[11px] font-light text-on-surface-variant/75">
+                                {accountName}
                               </span>
-                              <label className="inline-flex items-center gap-1 text-[11px] font-light text-on-surface-variant/70">
-                                <span className="shrink-0">Cobro</span>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={1}
-                                  max={31}
-                                  placeholder="—"
-                                  value={group.dueDay ?? ""}
-                                  onChange={(e) =>
-                                    updateGroupDueDay(group.id, e.target.value)
-                                  }
-                                  aria-label={`Día de cobro de ${group.name || "presupuesto"}`}
-                                  className="w-8 bg-transparent text-center tabular-nums text-on-surface/80 outline-none placeholder:text-outline-variant/45"
-                                />
-                              </label>
-                            </>
-                          ) : null}
+                              {!hasSegments ? (
+                                <>
+                                  <span
+                                    className="text-[11px] font-light text-outline-variant/45"
+                                    aria-hidden
+                                  >
+                                    ·
+                                  </span>
+                                  <span className="shrink-0 text-[11px] font-light text-on-surface-variant/70">
+                                    {dueDayLabel(group.dueDay)}
+                                  </span>
+                                </>
+                              ) : null}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => toggleGroupExpanded(group.id)}
+                              className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-light text-on-surface-variant/75 transition-colors hover:text-on-surface"
+                              aria-expanded={segmentsOpen}
+                            >
+                              {hasSegments
+                                ? group.segments.length === 1
+                                  ? "1 categoría"
+                                  : `${group.segments.length} categorías`
+                                : "Categorías"}
+                              <ChevronDown
+                                size={11}
+                                strokeWidth={1.5}
+                                className={`opacity-60 transition-transform ${
+                                  segmentsOpen ? "rotate-180" : ""
+                                }`}
+                                aria-hidden
+                              />
+                            </button>
+                          </div>
                         </div>
 
                         {segmentsOpen ? (
@@ -883,7 +839,7 @@ export default function SimpleBudgetSetup({
                                   </button>
                                 </div>
                                 <label className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-light text-on-surface-variant/65">
-                                  <span>Cobro el día</span>
+                                  <span className="shrink-0">día</span>
                                   <input
                                     type="number"
                                     inputMode="numeric"
@@ -898,7 +854,7 @@ export default function SimpleBudgetSetup({
                                         e.target.value,
                                       )
                                     }
-                                    aria-label={`Día de cobro de ${seg.name || "categoría"}`}
+                                    aria-label={`Día de ${seg.name || "categoría"}`}
                                     className="w-8 bg-transparent text-center tabular-nums text-on-surface/75 outline-none placeholder:text-outline-variant/45"
                                   />
                                 </label>
@@ -932,6 +888,21 @@ export default function SimpleBudgetSetup({
         scope={activeScope}
         ownerProfileId={activeScope === "personal" ? userId : null}
         onCreate={handleCreateBudget}
+      />
+
+      <SimpleBudgetDetailSheet
+        open={Boolean(detailGroup)}
+        group={detailGroup}
+        accounts={scopedPayableAccounts}
+        onClose={() => setDetailGroupId(null)}
+        onChangeName={updateGroupName}
+        onCommitName={commitNames}
+        onChangeAccount={updateGroupAccount}
+        onChangeDueDay={updateGroupDueDay}
+        onEditAmount={(groupId) =>
+          openAmountEditor({ kind: "group", groupId })
+        }
+        onDelete={removeGroup}
       />
 
       <NumericKeypadSheet

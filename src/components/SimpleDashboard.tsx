@@ -1,20 +1,13 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeftRight,
+  ChevronDown,
   ChevronRight,
   CreditCard,
   Landmark,
   PiggyBank,
-  Tags,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -25,18 +18,12 @@ import { Progress } from "@/components/ui/Progress";
 import { Sheet } from "@/components/ui/Sheet";
 import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/components/ui/cn";
-import { settleAccountReimbursementAction } from "@/app/actions/accounts";
 import { useBudget } from "@/hooks/useBudget";
-import { toast } from "@/hooks/useToast";
 import {
   calculateAccountCashBalance,
   creditDebtFromBalance,
   listCreditAccountsForUser,
 } from "@/lib/accounts";
-import {
-  computePendingAccountReimbursements,
-  nameAccountReimbursements,
-} from "@/lib/accountReimbursements";
 import { BUDGET_CHANGE_EVENT, getMonthKey } from "@/lib/budget";
 import {
   ENVELOPE_CHANGE_EVENT,
@@ -52,52 +39,15 @@ import {
   getSavingsFund,
   SAVINGS_FUND_COLOR,
 } from "@/lib/funds";
-import {
-  cssDelicateGlassCardStyle,
-  cssDelicateTopGlow,
-  cssDelicateTopHairline,
-} from "@/lib/glass";
+import { sageGlassGradient } from "@/lib/glass";
 import { useAccountsStore } from "@/store/useAccountsStore";
 import { useCategoriesStore } from "@/store/useCategoriesStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useFundsStore } from "@/store/useFundsStore";
 
-/** Liquidez — near-flat fill + luminous accent rim. */
-const HERO_CARD_STYLE = cssDelicateGlassCardStyle("var(--accent)");
-
-/** Presupuesto — near-flat fill + luminous primary rim. */
-const BUDGET_CARD_STYLE = cssDelicateGlassCardStyle("var(--primary)");
-
-function DelicateCardChrome({
-  color,
-  className,
-  style,
-  children,
-}: {
-  color: string;
-  className?: string;
-  style: CSSProperties;
-  children: ReactNode;
-}) {
-  return (
-    <div className={className} style={style}>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-28"
-        style={{ backgroundImage: cssDelicateTopGlow(color) }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-5 top-0 z-[2] h-px"
-        style={{
-          backgroundImage: cssDelicateTopHairline(color),
-          boxShadow: `0 0 8px color-mix(in srgb, ${color} 16%, transparent)`,
-        }}
-      />
-      <div className="relative z-10">{children}</div>
-    </div>
-  );
-}
+/** Glass shell like SharedSpaceCard; radius matches UpcomingPaymentsCard. */
+const PROFILE_GLASS_CARD =
+  "overflow-hidden rounded-xl border border-glass-border bg-glass p-4 shadow-[0_12px_28px_rgba(43,52,55,0.08)] backdrop-blur-xl";
 
 function progressTone(percent: number): "ok" | "warning" | "critical" {
   if (percent > 90) return "critical";
@@ -132,15 +82,11 @@ export default function SimpleDashboard() {
   const loadCategories = useCategoriesStore((s) => s.load);
 
   const { getLimits, currentMonthKey } = useBudget(familyId ?? "");
-  const refreshData = useExpenseStore((s) => s.refreshData);
   const [accountsSheetOpen, setAccountsSheetOpen] = useState(false);
-  const [accountsSheetTab, setAccountsSheetTab] = useState<
-    "operativas" | "ahorros"
-  >("operativas");
+  const [liquidityOpen, setLiquidityOpen] = useState(false);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [selectionReady, setSelectionReady] = useState(false);
   const [envelopeTick, setEnvelopeTick] = useState(0);
-  const [settlingKey, setSettlingKey] = useState<string | null>(null);
 
   const monthKey = currentMonthKey || getMonthKey();
   const limits = getLimits(monthKey);
@@ -273,42 +219,6 @@ export default function SimpleDashboard() {
     expenses,
   ]);
 
-  const pendingReimbursements = useMemo(() => {
-    const raw = computePendingAccountReimbursements(expenses);
-    return nameAccountReimbursements(raw, liquidAccounts);
-  }, [expenses, liquidAccounts]);
-
-  async function handleSettleReimbursement(row: {
-    debtorAccountId: string;
-    creditorAccountId: string;
-    debtorAccountName: string;
-    creditorAccountName: string;
-    amount: number;
-  }) {
-    const key = `${row.debtorAccountId}→${row.creditorAccountId}`;
-    setSettlingKey(key);
-    try {
-      await settleAccountReimbursementAction({
-        debtorAccountId: row.debtorAccountId,
-        creditorAccountId: row.creditorAccountId,
-        amount: row.amount,
-      });
-      await refreshData();
-      toast({
-        title: "Reembolso cuadrado",
-        description: `${row.debtorAccountName} → ${row.creditorAccountName}`,
-      });
-    } catch (err) {
-      toast({
-        title: "No se pudo saldar",
-        description:
-          err instanceof Error ? err.message : "Inténtalo de nuevo.",
-      });
-    } finally {
-      setSettlingKey(null);
-    }
-  }
-
   const budgetSummary = useMemo(() => {
     const envelope =
       familyId != null ? readMonthEnvelopePlan(familyId, monthKey) : null;
@@ -412,10 +322,9 @@ export default function SimpleDashboard() {
             </h1>
           </header>
 
-          <DelicateCardChrome
-            color="var(--accent)"
-            className="relative overflow-hidden rounded-[1.75rem] px-5 py-5"
-            style={HERO_CARD_STYLE}
+          <section
+            className="overflow-hidden rounded-[1.85rem] px-5 pb-3.5 pt-5 shadow-[0_14px_40px_rgba(43,52,55,0.12)] backdrop-blur-2xl"
+            style={{ backgroundImage: sageGlassGradient() }}
           >
             <p className="text-[11px] font-light text-on-surface-variant">
               Disponible hoy
@@ -433,36 +342,105 @@ export default function SimpleDashboard() {
                 "—"
               )}
             </p>
-            <p className="mt-1.5 text-[11px] font-light text-on-surface-variant">
-              {selectedAccountIds.length} cuenta
-              {selectedAccountIds.length === 1 ? "" : "s"} en la liquidez
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setAccountsSheetTab("operativas");
-                setAccountsSheetOpen(true);
-              }}
-              className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-medium text-on-surface-variant transition-colors hover:text-on-surface"
-            >
-              <Landmark size={13} strokeWidth={1.75} aria-hidden />
-              Gestionar cuentas
-            </button>
-          </DelicateCardChrome>
+
+            <div className="mt-3.5 flex items-stretch border-t border-outline-variant/15 pt-2.5">
+              <button
+                type="button"
+                onClick={() => setLiquidityOpen((v) => !v)}
+                aria-expanded={liquidityOpen}
+                className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left transition-colors hover:text-on-surface"
+              >
+                <span className="truncate text-[12px] font-medium text-on-surface-variant">
+                  {selectedAccountIds.length} en liquidez
+                </span>
+                <ChevronDown
+                  size={14}
+                  strokeWidth={1.75}
+                  className={cn(
+                    "shrink-0 text-on-surface-variant/70 transition-transform duration-200",
+                    liquidityOpen && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </button>
+              <span
+                className="mx-2 w-px shrink-0 self-stretch bg-outline-variant/20"
+                aria-hidden
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setLiquidityOpen(false);
+                  setAccountsSheetOpen(true);
+                }}
+                className="inline-flex shrink-0 items-center gap-1.5 py-1 text-[12px] font-medium text-on-surface-variant transition-colors hover:text-on-surface"
+              >
+                <Landmark size={13} strokeWidth={1.75} aria-hidden />
+                Administrar
+              </button>
+            </div>
+          </section>
+
+          {liquidityOpen ? (
+            <ul className="animate-in fade-in slide-in-from-top-1 duration-200 -mt-2 space-y-0 rounded-xl border border-outline-variant/15 bg-on-surface/[0.02] px-2 py-1">
+              {liquidAccounts.length === 0 ? (
+                <li className="px-1.5 py-2.5 text-[11px] font-light text-on-surface-variant">
+                  Aún no hay cuentas de liquidez.
+                </li>
+              ) : (
+                liquidAccounts.map((account) => {
+                  const active = selectedAccountIds.includes(account.id);
+                  const balance = calculateAccountCashBalance(
+                    expenses,
+                    account.id,
+                  );
+                  return (
+                    <li key={account.id}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleAccount(account.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleAccount(account.id);
+                          }
+                        }}
+                        className={cn(
+                          "flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-on-surface/[0.03]",
+                          !active && "opacity-50",
+                        )}
+                      >
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-light text-on-surface">
+                          {account.name}
+                        </span>
+                        <span className="shrink-0 text-[11px] font-light tabular-nums text-on-surface-variant">
+                          <FormattedCurrency value={balance} />
+                        </span>
+                        <Switch
+                          checked={active}
+                          size="sm"
+                          onCheckedChange={() => toggleAccount(account.id)}
+                          aria-label={
+                            active
+                              ? `Excluir ${account.name} del disponible`
+                              : `Incluir ${account.name} en el disponible`
+                          }
+                        />
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          ) : null}
 
           <UpcomingPaymentsCard payments={upcomingPayments} />
 
           <section>
             {!budgetSummary.hasBudget ? (
-              <DelicateCardChrome
-                color="var(--primary)"
-                className="relative overflow-hidden rounded-[1.35rem] px-3.5 py-3"
-                style={BUDGET_CARD_STYLE}
-              >
+              <div className={PROFILE_GLASS_CARD}>
                 <div className="flex items-center gap-2.5">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-primary">
-                    <Tags size={13} strokeWidth={1.6} aria-hidden />
-                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] font-medium tracking-tight text-on-surface">
                       Sin presupuesto
@@ -479,63 +457,57 @@ export default function SimpleDashboard() {
                     Configurar
                   </Button>
                 </div>
-              </DelicateCardChrome>
+              </div>
             ) : (
               <button
                 type="button"
                 onClick={() => router.push("/budget")}
-                className="group w-full rounded-[1.35rem] text-left transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 active:scale-[0.985]"
+                className={`${PROFILE_GLASS_CARD} group w-full text-left transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 active:scale-[0.99]`}
                 aria-label="Ver y ajustar presupuesto del mes"
               >
-                <DelicateCardChrome
-                  color="var(--primary)"
-                  className="relative overflow-hidden rounded-[1.35rem] px-3.5 py-3 transition-[box-shadow] duration-200 group-hover:shadow-[0_12px_26px_rgba(43,52,55,0.08)]"
-                  style={BUDGET_CARD_STYLE}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-light text-on-surface-variant">
-                      Presupuesto del mes
-                    </p>
-                    <ChevronRight
-                      size={14}
-                      strokeWidth={1.75}
-                      className="shrink-0 text-on-surface-variant/70 transition-colors group-hover:text-on-surface"
-                      aria-hidden
-                    />
-                  </div>
-
-                  <p className="mt-1.5 text-[15px] font-medium tracking-tight tabular-nums text-on-surface">
-                    <FormattedCurrency value={budgetSummary.totalGastado} />
-                    <span className="ml-1 text-[11px] font-light text-on-surface-variant">
-                      de{" "}
-                      <FormattedCurrency
-                        value={budgetSummary.totalPresupuestado}
-                      />
-                    </span>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-light text-on-surface-variant">
+                    Presupuesto del mes
                   </p>
-
-                  <Progress
-                    value={budgetSummary.porcentajeGlobal}
-                    className="mt-2.5 h-1.5 bg-on-surface/[0.07]"
-                    indicatorClassName={progressBarClass(budgetSummary.tone)}
+                  <ChevronRight
+                    size={14}
+                    strokeWidth={1.75}
+                    className="shrink-0 text-on-surface-variant/70 transition-colors group-hover:text-on-surface"
+                    aria-hidden
                   />
-                  <p className="mt-1.5 text-[10px] font-light tabular-nums text-on-surface-variant">
-                    {budgetSummary.porcentajeGlobal.toLocaleString("es-ES", {
-                      maximumFractionDigits: 0,
-                    })}
-                    % · Quedan{" "}
+                </div>
+
+                <p className="mt-1.5 text-[15px] font-medium tracking-tight tabular-nums text-on-surface">
+                  <FormattedCurrency value={budgetSummary.totalGastado} />
+                  <span className="ml-1 text-[11px] font-light text-on-surface-variant">
+                    de{" "}
                     <FormattedCurrency
-                      value={Math.max(
-                        0,
-                        Math.round(
-                          (budgetSummary.totalPresupuestado -
-                            budgetSummary.totalGastado) *
-                            100,
-                        ) / 100,
-                      )}
+                      value={budgetSummary.totalPresupuestado}
                     />
-                  </p>
-                </DelicateCardChrome>
+                  </span>
+                </p>
+
+                <Progress
+                  value={budgetSummary.porcentajeGlobal}
+                  className="mt-2.5 h-1.5 bg-on-surface/[0.07]"
+                  indicatorClassName={progressBarClass(budgetSummary.tone)}
+                />
+                <p className="mt-1.5 text-[10px] font-light tabular-nums text-on-surface-variant">
+                  {budgetSummary.porcentajeGlobal.toLocaleString("es-ES", {
+                    maximumFractionDigits: 0,
+                  })}
+                  % · Quedan{" "}
+                  <FormattedCurrency
+                    value={Math.max(
+                      0,
+                      Math.round(
+                        (budgetSummary.totalPresupuestado -
+                          budgetSummary.totalGastado) *
+                          100,
+                      ) / 100,
+                    )}
+                  />
+                </p>
               </button>
             )}
           </section>
@@ -546,11 +518,7 @@ export default function SimpleDashboard() {
         open={accountsSheetOpen}
         onClose={() => setAccountsSheetOpen(false)}
         title="Cuentas"
-        subtitle={
-          accountsSheetTab === "operativas"
-            ? "Qué entra en Disponible hoy"
-            : "Colchón y depósitos apartados"
-        }
+        subtitle="Colchón y depósitos apartados"
         headerLayout="title-row"
         closeOnBackdrop
         heightClassName="h-auto max-h-[85dvh]"
@@ -558,263 +526,112 @@ export default function SimpleDashboard() {
         <div className="pb-4">
           <div className="mb-3.5">
             <p className="text-[11px] font-light text-on-surface-variant">
-              {accountsSheetTab === "operativas"
-                ? "Disponible hoy"
-                : "Apartado en ahorros"}
+              Apartado en ahorros
             </p>
             <p className="mt-1 text-[1.85rem] font-light leading-none tracking-tight tabular-nums text-on-surface">
-              <FormattedCurrency
-                value={
-                  accountsSheetTab === "operativas"
-                    ? availableToday
-                    : patrimonioHeaderTotal
-                }
-              />
+              <FormattedCurrency value={patrimonioHeaderTotal} />
             </p>
           </div>
 
-          <div className="mb-3.5 flex rounded-full border border-outline-variant/20 bg-glass-soft p-0.5">
+          <ul className="space-y-2">
             {(
               [
                 {
-                  id: "operativas" as const,
-                  label: "Operativas",
+                  id: "cuentas",
+                  label: "Cuentas",
+                  hint: "Liquidez operativa",
+                  value: checkingAccountsTotal,
+                  negative: false,
                   icon: Wallet,
+                  iconClass: "bg-on-surface/[0.04] text-on-surface-variant",
+                  href: "/accounts?tab=checking",
                 },
                 {
-                  id: "ahorros" as const,
-                  label: "Ahorros y metas",
+                  id: "ahorro",
+                  label: "Ahorro",
+                  hint: "Colchón apartado",
+                  value: savingsFundBalance,
+                  negative: false,
                   icon: PiggyBank,
+                  iconClass: "",
+                  iconStyle: {
+                    backgroundColor: `${SAVINGS_FUND_COLOR}18`,
+                    color: SAVINGS_FUND_COLOR,
+                  } as CSSProperties,
+                  href: "/savings",
+                },
+                {
+                  id: "inversiones",
+                  label: "Inversiones",
+                  hint: "Depósitos y valorados",
+                  value: investmentsTotal,
+                  negative: false,
+                  icon: TrendingUp,
+                  iconClass: "bg-on-surface/[0.04] text-on-surface-variant",
+                  href: "/accounts?tab=investment",
+                },
+                {
+                  id: "creditos",
+                  label: "Créditos",
+                  hint: creditsDebtTotal > 0 ? "Debes" : "Sin deuda",
+                  value: creditsDebtTotal,
+                  negative: creditsDebtTotal > 0,
+                  icon: CreditCard,
+                  iconClass: "bg-on-surface/[0.04] text-on-surface-variant",
+                  href: "/accounts?tab=credit",
                 },
               ] as const
-            ).map((tab) => {
-              const active = accountsSheetTab === tab.id;
-              const Icon = tab.icon;
+            ).map((row) => {
+              const Icon = row.icon;
               return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setAccountsSheetTab(tab.id)}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition-colors",
-                    active
-                      ? "bg-glass-strong font-medium text-on-surface shadow-sm"
-                      : "font-light text-on-surface-variant",
-                  )}
-                >
-                  <Icon size={13} strokeWidth={1.7} aria-hidden />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {accountsSheetTab === "operativas" ? (
-            <>
-              {pendingReimbursements.length > 0 ? (
-                <section className="mb-4 rounded-2xl border border-outline-variant/20 bg-on-surface/[0.02] px-3.5 py-3">
-                  <div className="flex items-center gap-2">
-                    <ArrowLeftRight
-                      size={13}
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountsSheetOpen(false);
+                      router.push(row.href);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-outline-variant/15 bg-on-surface/[0.015] px-3.5 py-3 text-left transition-colors hover:bg-on-surface/[0.03] active:scale-[0.99]"
+                  >
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                        row.iconClass,
+                      )}
+                      style={"iconStyle" in row ? row.iconStyle : undefined}
+                      aria-hidden
+                    >
+                      <Icon size={16} strokeWidth={1.75} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium tracking-tight text-on-surface">
+                        {row.label}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
+                        {row.hint}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 text-[15px] font-light tabular-nums",
+                        row.negative
+                          ? "text-balance-negative"
+                          : "text-on-surface",
+                      )}
+                    >
+                      <FormattedCurrency value={row.value} />
+                    </span>
+                    <ChevronRight
+                      size={14}
                       strokeWidth={1.75}
-                      className="shrink-0 text-on-surface-variant"
+                      className="shrink-0 text-on-surface-variant/50"
                       aria-hidden
                     />
-                    <p className="text-[12px] font-medium tracking-tight text-on-surface">
-                      Reembolsos pendientes entre cuentas
-                    </p>
-                  </div>
-                  <ul className="mt-2.5 space-y-2.5">
-                    {pendingReimbursements.map((row) => {
-                      const key = `${row.debtorAccountId}→${row.creditorAccountId}`;
-                      const busy = settlingKey === key;
-                      return (
-                        <li
-                          key={key}
-                          className="flex items-center gap-3 border-t border-outline-variant/10 pt-2.5 first:border-t-0 first:pt-0"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[12px] font-medium tabular-nums text-on-surface">
-                              <FormattedCurrency value={row.amount} />
-                            </p>
-                            <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
-                              {row.debtorAccountName} le debe a{" "}
-                              {row.creditorAccountName}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void handleSettleReimbursement(row)}
-                            className="fab-ink h-8 shrink-0 rounded-xl px-3 text-[11px] font-semibold shadow-none"
-                          >
-                            {busy ? "…" : "Saldar / Cuadrar"}
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ) : null}
-
-              {liquidAccounts.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-outline-variant/25 px-4 py-8 text-center text-[13px] font-light text-on-surface-variant">
-                  Aún no hay cuentas de liquidez.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {liquidAccounts.map((account) => {
-                    const active = selectedAccountIds.includes(account.id);
-                    const balance = calculateAccountCashBalance(
-                      expenses,
-                      account.id,
-                    );
-                    return (
-                      <li key={account.id}>
-                        <button
-                          type="button"
-                          onClick={() => toggleAccount(account.id)}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all active:scale-[0.99]",
-                            active
-                              ? "border-primary/45 bg-primary/[0.06]"
-                              : "border-outline-variant/15 bg-on-surface/[0.015] opacity-60",
-                          )}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-medium tracking-tight text-on-surface">
-                              {account.name}
-                            </p>
-                            <p className="mt-0.5 text-[15px] font-light tabular-nums text-on-surface">
-                              <FormattedCurrency value={balance} />
-                            </p>
-                            {!active ? (
-                              <p className="mt-0.5 text-[11px] font-light text-on-surface-variant/75">
-                                No suma al disponible
-                              </p>
-                            ) : (
-                              <p className="mt-0.5 text-[11px] font-light text-on-surface-variant/70">
-                                En Disponible hoy
-                              </p>
-                            )}
-                          </div>
-                          <Switch
-                            checked={active}
-                            onCheckedChange={() => toggleAccount(account.id)}
-                            aria-label={
-                              active
-                                ? `Excluir ${account.name} del disponible`
-                                : `Incluir ${account.name} en el disponible`
-                            }
-                          />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </>
-          ) : (
-            <ul className="space-y-2">
-              {(
-                [
-                  {
-                    id: "cuentas",
-                    label: "Cuentas",
-                    hint: "Liquidez operativa",
-                    value: checkingAccountsTotal,
-                    negative: false,
-                    icon: Wallet,
-                    iconClass: "bg-on-surface/[0.04] text-on-surface-variant",
-                    href: "/accounts?tab=checking",
-                  },
-                  {
-                    id: "ahorro",
-                    label: "Ahorro",
-                    hint: "Colchón apartado",
-                    value: savingsFundBalance,
-                    negative: false,
-                    icon: PiggyBank,
-                    iconClass: "",
-                    iconStyle: {
-                      backgroundColor: `${SAVINGS_FUND_COLOR}18`,
-                      color: SAVINGS_FUND_COLOR,
-                    } as CSSProperties,
-                    href: "/savings",
-                  },
-                  {
-                    id: "inversiones",
-                    label: "Inversiones",
-                    hint: "Depósitos y valorados",
-                    value: investmentsTotal,
-                    negative: false,
-                    icon: TrendingUp,
-                    iconClass: "bg-on-surface/[0.04] text-on-surface-variant",
-                    href: "/accounts?tab=investment",
-                  },
-                  {
-                    id: "creditos",
-                    label: "Créditos",
-                    hint: creditsDebtTotal > 0 ? "Debes" : "Sin deuda",
-                    value: creditsDebtTotal,
-                    negative: creditsDebtTotal > 0,
-                    icon: CreditCard,
-                    iconClass: "bg-on-surface/[0.04] text-on-surface-variant",
-                    href: "/accounts?tab=credit",
-                  },
-                ] as const
-              ).map((row) => {
-                const Icon = row.icon;
-                return (
-                  <li key={row.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccountsSheetOpen(false);
-                        router.push(row.href);
-                      }}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-outline-variant/15 bg-on-surface/[0.015] px-3.5 py-3 text-left transition-colors hover:bg-on-surface/[0.03] active:scale-[0.99]"
-                    >
-                      <span
-                        className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                          row.iconClass,
-                        )}
-                        style={"iconStyle" in row ? row.iconStyle : undefined}
-                        aria-hidden
-                      >
-                        <Icon size={16} strokeWidth={1.75} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium tracking-tight text-on-surface">
-                          {row.label}
-                        </p>
-                        <p className="mt-0.5 text-[11px] font-light text-on-surface-variant">
-                          {row.hint}
-                        </p>
-                      </div>
-                      <span
-                        className={cn(
-                          "shrink-0 text-[15px] font-light tabular-nums",
-                          row.negative
-                            ? "text-balance-negative"
-                            : "text-on-surface",
-                        )}
-                      >
-                        <FormattedCurrency value={row.value} />
-                      </span>
-                      <ChevronRight
-                        size={14}
-                        strokeWidth={1.75}
-                        className="shrink-0 text-on-surface-variant/50"
-                        aria-hidden
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </Sheet>
 
